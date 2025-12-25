@@ -1,23 +1,71 @@
-version: '3.8'
-
 services:
-  postgres:
-    image: postgres:16-alpine
-    container_name: budget-planner-db
-    environment:
-      POSTGRES_USER: budget_user
-      POSTGRES_PASSWORD: budget_pass
-      POSTGRES_DB: budget_planner
-    ports:
-      - "5432:5432"
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U budget_user -d budget_planner"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
+    app:
+        container_name: budget-planner-app
+        build:
+            context: .
+            dockerfile: docker/Dockerfile
+        restart: always
+        environment:
+            # Internal connection to postgres service on port 5432
+            DATABASE_URL: ${DATABASE_URL}
+            NEXTAUTH_URL: ${NEXTAUTH_URL}
+            NEXTAUTH_SECRET: ${NEXTAUTH_SECRET}
+        ports:
+            - '3000:3000'
+        depends_on:
+            db:
+                condition: service_healthy
+        networks:
+            - budget-network
+        volumes:
+            - ./:/app
+            - /app/node_modules
+
+    db:
+        image: postgres:16-alpine
+        container_name: budget-planner-db
+        restart: always
+        environment:
+            POSTGRES_USER: ${POSTGRES_USER}
+            POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+            POSTGRES_DB: ${POSTGRES_DB}
+        ports:
+            - '5433:5432' # Mapped to 5433 to avoid conflict with repsshield-db
+        volumes:
+            - postgres_data:/var/lib/postgresql/data
+        healthcheck:
+            test:
+                [
+                    'CMD-SHELL',
+                    'pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}',
+                ]
+            interval: 10s
+            timeout: 5s
+            retries: 5
+        networks:
+            - budget-network
+
+    pgadmin:
+        image: dpage/pgadmin4:latest
+        container_name: budget-planner-pgadmin
+        restart: always
+        environment:
+            PGADMIN_DEFAULT_EMAIL: admin@budget-app.com
+            PGADMIN_DEFAULT_PASSWORD: admin
+        ports:
+            - '5051:80' # Mapped to 5051 to avoid conflict with repsshield pgadmin
+        depends_on:
+            db:
+                condition: service_healthy
+        networks:
+            - budget-network
+        volumes:
+            - pgadmin_data:/var/lib/pgadmin
+
+networks:
+    budget-network:
+        driver: bridge
 
 volumes:
-  postgres_data:
+    postgres_data:
+    pgadmin_data:
