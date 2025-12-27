@@ -3,7 +3,7 @@ import { Decimal } from '@prisma/client/runtime/library';
 /**
  * Serializes data for client components by converting:
  * - Prisma Decimal -> number
- * - Date -> string (ISO)
+
  * - null/undefined -> null (preserved)
  */
 export function serialize<T>(data: T): T {
@@ -12,7 +12,10 @@ export function serialize<T>(data: T): T {
 			if (typeof value === 'object' && value !== null) {
 				if (
 					value instanceof Decimal ||
-					(typeof value === 'object' && 'd' in value && 'e' in value)
+					(value.constructor?.name === 'Decimal' &&
+						'd' in value &&
+						'e' in value &&
+						typeof value.e === 'number')
 				) {
 					return Number(value);
 				}

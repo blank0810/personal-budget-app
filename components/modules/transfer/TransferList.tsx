@@ -15,9 +15,10 @@ import { deleteTransferAction } from '@/server/modules/transfer/transfer.control
 import { formatCurrency } from '@/lib/formatters';
 import { Transfer, Account } from '@prisma/client';
 
-interface TransferWithRelations extends Transfer {
+interface TransferWithRelations extends Omit<Transfer, 'amount'> {
 	fromAccount: Account;
 	toAccount: Account;
+	amount: number;
 }
 
 interface TransferListProps {
@@ -76,7 +77,7 @@ export function TransferList({ transfers }: TransferListProps) {
 									{transfer.toAccount.name}
 								</TableCell>
 								<TableCell className='text-right font-bold'>
-									{formatCurrency(Number(transfer.amount))}
+									{formatCurrency(transfer.amount)}
 								</TableCell>
 								<TableCell>
 									<Button

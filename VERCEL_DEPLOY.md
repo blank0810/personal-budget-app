@@ -35,7 +35,7 @@ You have three excellent free-tier options that work perfectly with Vercel:
 3.  Import your `personal-budget-app` repository.
 4.  **Environment Variables**:
     -   Add `DATABASE_URL`: The connection string from Step 1.
-    -   Add `NEXTAUTH_SECRET`: Generate a random string (run `openssl rand -base64 32` in terminal or just mash your keyboard).
+    -   Add `AUTH_SECRET`: Generate a random string (run `openssl rand -base64 32` in terminal or just mash your keyboard).
     -   Add `NEXTAUTH_URL`: You can skip this on Vercel (it defaults automatically), or set it to your deployment domain (e.g., `https://my-budget-app.vercel.app`) _after_ first deployment.
 5.  Click **"Deploy"**.
 

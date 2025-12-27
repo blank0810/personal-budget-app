@@ -48,7 +48,7 @@ export default async function DashboardPage() {
 
 			{/* Financial Health Key Metrics */}
 			<div className='grid gap-4 md:grid-cols-2 lg:grid-cols-4'>
-				<Card className='bg-linear-to-br from-indigo-50 to-white dark:from-indigo-950 dark:to-background border-indigo-100 dark:border-indigo-900'>
+				<Card className='bg-gradient-to-br from-indigo-50 to-white dark:from-indigo-950 dark:to-background border-indigo-100 dark:border-indigo-900'>
 					<CardHeader className='flex flex-row items-center justify-between space-y-0 pb-2'>
 						<CardTitle className='text-sm font-medium text-indigo-900 dark:text-indigo-100'>
 							Savings Rate
@@ -105,9 +105,11 @@ export default async function DashboardPage() {
 						<ArrowUpRight className='h-4 w-4 text-green-500' />
 					</CardHeader>
 					<CardContent>
-						{formatCurrency(financialHealth.debtPaydown, {
-							decimals: 0,
-						})}
+						<div className='text-2xl font-bold'>
+							{formatCurrency(financialHealth.debtPaydown, {
+								decimals: 0,
+							})}
+						</div>
 						<p className='text-xs text-muted-foreground'>
 							Paid to debt this month
 						</p>
@@ -256,7 +258,7 @@ export default async function DashboardPage() {
 											? '+'
 											: '-'}
 										{formatCurrency(
-											Number(transaction.amount)
+											transaction.amount?.toNumber() ?? 0
 										)}
 									</div>
 								</div>
@@ -295,7 +297,7 @@ export default async function DashboardPage() {
 									</div>
 									<div className='ml-auto font-medium'>
 										{formatCurrency(
-											Number(account.balance)
+											account.balance.toNumber()
 										)}
 									</div>
 								</div>
