@@ -65,6 +65,7 @@ export function IncomeForm({ accounts, categories }: IncomeFormProps) {
 
 	const isRecurring = form.watch('isRecurring');
 	const titheEnabled = form.watch('titheEnabled');
+	const categoryId = form.watch('categoryId');
 
 	async function onSubmit(data: CreateIncomeInput) {
 		setIsPending(true);
@@ -226,7 +227,7 @@ export function IncomeForm({ accounts, categories }: IncomeFormProps) {
 									value={
 										showCustomCategoryInput
 											? '__custom__'
-											: field.value || ''
+											: categoryId || ''
 									}
 								>
 									<FormControl>
