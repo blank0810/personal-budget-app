@@ -8,18 +8,29 @@ import { DateRangePicker } from '@/components/ui/date-range-picker';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { DateRange } from 'react-day-picker';
 import { format } from 'date-fns';
-import { ArrowDownLeft, ArrowUpRight, DollarSign } from 'lucide-react';
+import {
+	ArrowDownLeft,
+	ArrowUpRight,
+	DollarSign,
+	Wallet,
+	CreditCard,
+	Landmark,
+} from 'lucide-react';
+
+import { Account } from '@prisma/client';
 
 interface FinancialStatementProps {
 	data: FinancialStatementType;
 	initialFrom: Date;
 	initialTo: Date;
+	accounts: Account[];
 }
 
 export function FinancialStatement({
 	data,
 	initialFrom,
 	initialTo,
+	accounts,
 }: FinancialStatementProps) {
 	const router = useRouter();
 	const [date, setDate] = useState<DateRange | undefined>({
@@ -100,10 +111,268 @@ export function FinancialStatement({
 				</Card>
 			</div>
 
+			{/* Balance Sheet Section */}
+			<Card>
+				<CardHeader>
+					<CardTitle>Balance Sheet (Current Context)</CardTitle>
+				</CardHeader>
+				<CardContent>
+					<div className='flex flex-col gap-6'>
+						<div className='grid gap-8 md:grid-cols-2'>
+							{/* Assets Column */}
+							<div className='flex flex-col h-full rounded-xl border bg-card/50 overflow-hidden'>
+								<div className='p-4 border-b bg-emerald-50/50 dark:bg-emerald-950/20'>
+									<h3 className='font-semibold text-lg text-emerald-600 flex items-center gap-2'>
+										<Wallet className='h-5 w-5' /> Assets
+									</h3>
+								</div>
+
+								<div className='flex-1 p-4 space-y-4'>
+									{accounts
+										.filter((a) => !a.isLiability)
+										.map((account) => (
+											<div
+												key={account.id}
+												className='flex items-center justify-between p-3 rounded-lg border bg-background hover:bg-accent/50 transition-colors'
+											>
+												<div className='flex items-center gap-3'>
+													<div className='h-8 w-8 rounded-full bg-emerald-100 dark:bg-emerald-900 flex items-center justify-center text-emerald-600 dark:text-emerald-400'>
+														<Landmark className='h-4 w-4' />
+													</div>
+													<div>
+														<p className='font-medium text-sm'>
+															{account.name}
+														</p>
+														<p className='text-xs text-muted-foreground capitalize'>
+															{account.type.toLowerCase()}
+														</p>
+													</div>
+												</div>
+												<div className='font-bold'>
+													{formatCurrency(
+														Number(account.balance)
+													)}
+												</div>
+											</div>
+										))}
+									{accounts.filter((a) => !a.isLiability)
+										.length === 0 && (
+										<p className='text-muted-foreground italic text-sm py-4 text-center'>
+											No assets found.
+										</p>
+									)}
+								</div>
+
+								<div className='p-4 border-t bg-emerald-50/30 dark:bg-emerald-950/10 mt-auto'>
+									<div className='flex justify-between items-center font-bold text-lg'>
+										<span>Total Assets</span>
+										<span className='text-emerald-600'>
+											{formatCurrency(
+												accounts
+													.filter(
+														(a) => !a.isLiability
+													)
+													.reduce(
+														(sum, a) =>
+															sum +
+															Number(a.balance),
+														0
+													)
+											)}
+										</span>
+									</div>
+								</div>
+							</div>
+
+							{/* Liabilities Column */}
+							<div className='flex flex-col h-full rounded-xl border bg-card/50 overflow-hidden'>
+								<div className='p-4 border-b bg-red-50/50 dark:bg-red-950/20'>
+									<h3 className='font-semibold text-lg text-red-600 flex items-center gap-2'>
+										<CreditCard className='h-5 w-5' />{' '}
+										Liabilities
+									</h3>
+								</div>
+
+								<div className='flex-1 p-4 space-y-4'>
+									{accounts
+										.filter((a) => a.isLiability)
+										.map((account) => (
+											<div
+												key={account.id}
+												className='flex items-center justify-between p-3 rounded-lg border bg-background hover:bg-accent/50 transition-colors'
+											>
+												<div className='flex items-center gap-3'>
+													<div className='h-8 w-8 rounded-full bg-red-100 dark:bg-red-900 flex items-center justify-center text-red-600 dark:text-red-400'>
+														<CreditCard className='h-4 w-4' />
+													</div>
+													<div>
+														<p className='font-medium text-sm'>
+															{account.name}
+														</p>
+														<div className='flex flex-col gap-1'>
+															<p className='text-xs text-muted-foreground capitalize'>
+																{account.type.toLowerCase()}
+															</p>
+															{account.type ===
+																'CREDIT' &&
+																account.creditLimit && (
+																	<div className='flex flex-col gap-1 mt-0.5 w-[140px]'>
+																		<div className='flex justify-between items-center text-[10px]'>
+																			<span className='text-muted-foreground'>
+																				Limit:{' '}
+																				{formatCurrency(
+																					Number(
+																						account.creditLimit
+																					)
+																				)}
+																			</span>
+																			<span
+																				className={
+																					Number(
+																						account.balance
+																					) /
+																						Number(
+																							account.creditLimit
+																						) <
+																					0.3
+																						? 'text-green-600 font-medium'
+																						: Number(
+																								account.balance
+																						  ) /
+																								Number(
+																									account.creditLimit
+																								) <
+																						  0.5
+																						? 'text-yellow-600 font-medium'
+																						: 'text-red-600 font-medium'
+																				}
+																			>
+																				{Math.round(
+																					(Number(
+																						account.balance
+																					) /
+																						Number(
+																							account.creditLimit
+																						)) *
+																						100
+																				)}
+																				%
+																			</span>
+																		</div>
+																		<div className='h-1 w-full bg-secondary rounded-full overflow-hidden'>
+																			<div
+																				className={`h-full ${
+																					Number(
+																						account.balance
+																					) /
+																						Number(
+																							account.creditLimit
+																						) <
+																					0.3
+																						? 'bg-green-500'
+																						: Number(
+																								account.balance
+																						  ) /
+																								Number(
+																									account.creditLimit
+																								) <
+																						  0.5
+																						? 'bg-yellow-500'
+																						: 'bg-red-500'
+																				}`}
+																				style={{
+																					width: `${Math.min(
+																						(Number(
+																							account.balance
+																						) /
+																							Number(
+																								account.creditLimit
+																							)) *
+																							100,
+																						100
+																					)}%`,
+																				}}
+																			/>
+																		</div>
+																	</div>
+																)}
+														</div>
+													</div>
+												</div>
+												<div className='font-bold text-red-600 self-start mt-1'>
+													{formatCurrency(
+														Number(account.balance)
+													)}
+												</div>
+											</div>
+										))}
+									{accounts.filter((a) => a.isLiability)
+										.length === 0 && (
+										<div className='flex flex-col items-center justify-center h-24 text-center border-2 border-dashed rounded-lg text-muted-foreground bg-background/50'>
+											<p className='text-sm'>
+												No liabilities found.
+											</p>
+											<p className='text-xs'>
+												Great job keeping debt low!
+											</p>
+										</div>
+									)}
+								</div>
+
+								<div className='p-4 border-t bg-red-50/30 dark:bg-red-950/10 mt-auto'>
+									<div className='flex justify-between items-center font-bold text-lg'>
+										<span>Total Liabilities</span>
+										<span className='text-red-600'>
+											{formatCurrency(
+												accounts
+													.filter(
+														(a) => a.isLiability
+													)
+													.reduce(
+														(sum, a) =>
+															sum +
+															Number(a.balance),
+														0
+													)
+											)}
+										</span>
+									</div>
+								</div>
+							</div>
+						</div>
+
+						{/* Net Worth Summary Footer */}
+						<div className='rounded-xl border bg-gradient-to-r from-background to-secondary/10 p-4'>
+							<div className='flex justify-between items-center'>
+								<div>
+									<h3 className='font-bold text-lg'>
+										Total Equity (Net Worth)
+									</h3>
+									<p className='text-sm text-muted-foreground'>
+										Total Assets - Total Liabilities
+									</p>
+								</div>
+								<div className='text-2xl font-bold text-primary'>
+									{formatCurrency(
+										accounts.reduce(
+											(sum, a) =>
+												a.isLiability
+													? sum - Number(a.balance)
+													: sum + Number(a.balance),
+											0
+										)
+									)}
+								</div>
+							</div>
+						</div>
+					</div>
+				</CardContent>
+			</Card>
 			<Card>
 				<CardHeader>
 					<CardTitle>
-						Detailed Ledger ({format(initialFrom, 'MMM d, yyyy')} -{' '}
+						Income & Expense Detail (
+						{format(initialFrom, 'MMM d, yyyy')} -{' '}
 						{format(initialTo, 'MMM d, yyyy')})
 					</CardTitle>
 				</CardHeader>

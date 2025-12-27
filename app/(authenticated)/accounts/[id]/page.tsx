@@ -27,9 +27,7 @@ export default async function AccountLedgerPage({ params }: PageProps) {
 	return (
 		<div className='container mx-auto py-10'>
 			<AccountLedger
-				accountName={accountData.name}
-				accountType={accountData.type}
-				currentBalance={serialize(accountData.balance)}
+				account={serialize(accountData)}
 				transactions={serialize(accountData.transactions)}
 			/>
 		</div>

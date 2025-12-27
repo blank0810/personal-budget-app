@@ -9,6 +9,7 @@ import {
 	ArrowRightLeft,
 	PieChart,
 	BarChart3,
+	Sparkles,
 } from 'lucide-react';
 
 const items = [
@@ -46,6 +47,11 @@ const items = [
 		title: 'Reports',
 		href: '/reports',
 		icon: BarChart3,
+	},
+	{
+		title: 'Updates',
+		href: '/changelog',
+		icon: Sparkles,
 	},
 ];
 
