@@ -2,9 +2,15 @@
 
 import { auth } from '@/auth';
 import { AccountService } from './account.service';
-import { createAccountSchema, updateAccountSchema } from './account.types';
+import {
+	createAccountSchema,
+	updateAccountSchema,
+	adjustBalanceSchema,
+} from './account.types';
 import { revalidatePath } from 'next/cache';
 import { AccountType } from '@prisma/client';
+import { IncomeService } from '../income/income.service';
+import { ExpenseService } from '../expense/expense.service';
 
 /**
  * Helper to authenticate user
@@ -23,11 +29,24 @@ async function getAuthenticatedUser() {
 export async function createAccountAction(formData: FormData) {
 	const userId = await getAuthenticatedUser();
 
+	const type = formData.get('type') as AccountType;
+	const isLiabilityInput = formData.get('isLiability') === 'on';
+
+	// Enforce Liability for Credit/Loan types
+	const isLiability = ['CREDIT', 'LOAN'].includes(type)
+		? true
+		: isLiabilityInput;
+
 	const rawData = {
 		name: formData.get('name') as string,
-		type: formData.get('type') as AccountType,
+		type,
 		balance: Number(formData.get('balance')),
-		isLiability: formData.get('isLiability') === 'on',
+		isLiability,
+		creditLimit: formData.get('creditLimit')
+			? Number(formData.get('creditLimit'))
+			: null,
+		icon: formData.get('icon') as string | null,
+		color: formData.get('color') as string | null,
 	};
 
 	const validatedFields = createAccountSchema.safeParse(rawData);
@@ -55,12 +74,27 @@ export async function createAccountAction(formData: FormData) {
 export async function updateAccountAction(formData: FormData) {
 	const userId = await getAuthenticatedUser();
 
+	const type = formData.get('type') as AccountType;
+	const isLiabilityInput = formData.get('isLiability') === 'on';
+
+	// Enforce Liability for Credit/Loan types
+	const isLiability = ['CREDIT', 'LOAN'].includes(type)
+		? true
+		: isLiabilityInput;
+
 	const rawData = {
 		id: formData.get('id') as string,
 		name: formData.get('name') as string,
-		type: formData.get('type') as AccountType,
-		balance: Number(formData.get('balance')),
-		isLiability: formData.get('isLiability') === 'on',
+		type,
+		balance: formData.get('balance')
+			? Number(formData.get('balance'))
+			: undefined,
+		isLiability,
+		creditLimit: formData.get('creditLimit')
+			? Number(formData.get('creditLimit'))
+			: null,
+		icon: formData.get('icon') as string | null,
+		color: formData.get('color') as string | null,
 	};
 
 	const validatedFields = updateAccountSchema.safeParse(rawData);
@@ -97,5 +131,86 @@ export async function deleteAccountAction(accountId: string) {
 		return {
 			error: 'Failed to delete account. It may have related transactions.',
 		};
+	}
+}
+
+/**
+ * Server Action: Adjust Account Balance
+ */
+export async function adjustAccountBalanceAction(formData: FormData) {
+	const userId = await getAuthenticatedUser();
+
+	const rawData = {
+		accountId: formData.get('accountId') as string,
+		newBalance: Number(formData.get('newBalance')),
+	};
+
+	const validatedFields = adjustBalanceSchema.safeParse(rawData);
+
+	if (!validatedFields.success) {
+		return {
+			error: 'Invalid fields',
+			issues: validatedFields.error.issues,
+		};
+	}
+
+	const { accountId, newBalance } = validatedFields.data;
+
+	try {
+		// 1. Fetch current account to compare balance
+		// We use a direct service call logic here or import prisma if need strict checking,
+		// but relying on Service is cleaner. Assuming Service has getAccount.
+		// Since AccountService.getAccount is not exported or we are in controller, let's use direct Access or add getAccount to Service.
+		// Actually AccountService.getAccountWithTransactions exists but is heavy.
+		// Let's assume we can trust the AccountService to help us or we use the one-off approach.
+		// Wait, I can't import prisma here directly if I want to stick to patterns, but the Service is right there.
+		// Let's use AccountService.getAccountById if it exists.
+		// Checking AccountService... it has getAccountWithTransactions. I'll use that.
+
+		const account = await AccountService.getAccountWithTransactions(
+			userId,
+			accountId
+		);
+
+		if (!account) {
+			return { error: 'Account not found' };
+		}
+
+		const currentBalance = account.balance.toNumber();
+		const diff = newBalance - currentBalance;
+
+		if (Math.abs(diff) < 0.01) {
+			return { success: true }; // No change
+		}
+
+		if (diff > 0) {
+			// Income
+			await IncomeService.createIncome(userId, {
+				amount: diff,
+				date: new Date(),
+				description: 'Manual Balance Adjustment',
+				categoryName: 'Initial Balance/Adjustment', // Will be created if missing
+				accountId: accountId,
+				isRecurring: false,
+				titheEnabled: false,
+				tithePercentage: 0,
+			});
+		} else {
+			// Expense
+			await ExpenseService.createExpense(userId, {
+				amount: Math.abs(diff),
+				date: new Date(),
+				description: 'Manual Balance Adjustment',
+				categoryName: 'Initial Balance/Adjustment',
+				accountId: accountId,
+				isRecurring: false,
+			});
+		}
+
+		revalidatePath('/', 'layout');
+		return { success: true };
+	} catch (error) {
+		console.error('Failed to adjust balance:', error);
+		return { error: 'Failed to adjust balance' };
 	}
 }

@@ -116,9 +116,22 @@ export const AccountService = {
 			})),
 		].sort((a, b) => b.date.getTime() - a.date.getTime());
 
+		// Calculate running balance
+		let currentBalance = account.balance;
+		const transactionsWithBalance = transactions.map((t) => {
+			const runningBalance = currentBalance;
+			// Reverse calculation to find balance before this transaction (for the next iteration)
+			if (['EXPENSE', 'TRANSFER_OUT'].includes(t.type)) {
+				currentBalance = currentBalance.plus(t.amount);
+			} else {
+				currentBalance = currentBalance.minus(t.amount);
+			}
+			return { ...t, runningBalance };
+		});
+
 		return {
 			...account,
-			transactions,
+			transactions: transactionsWithBalance,
 		};
 	},
 

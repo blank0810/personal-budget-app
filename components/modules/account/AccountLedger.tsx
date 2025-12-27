@@ -9,7 +9,6 @@ import {
 	TableRow,
 } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { format } from 'date-fns';
 import {
 	Download,
@@ -31,21 +30,19 @@ interface Transaction {
 	description: string | null;
 	categoryName?: string;
 	relatedAccountName?: string;
+	runningBalance?: Decimal | number | string;
 }
 
+import { EditAccountDialog } from './EditAccountDialog';
+import { AdjustBalanceDialog } from './AdjustBalanceDialog';
+import { Account } from '@prisma/client';
+
 interface AccountLedgerProps {
-	accountName: string;
-	accountType: string;
-	currentBalance: Decimal;
+	account: Account;
 	transactions: Transaction[];
 }
 
-export function AccountLedger({
-	accountName,
-	accountType,
-	currentBalance,
-	transactions,
-}: AccountLedgerProps) {
+export function AccountLedger({ account, transactions }: AccountLedgerProps) {
 	const handleExportCSV = () => {
 		const headers = [
 			'Date',
@@ -76,7 +73,7 @@ export function AccountLedger({
 		const url = window.URL.createObjectURL(blob);
 		const a = document.createElement('a');
 		a.href = url;
-		a.download = `${accountName.replace(/\s+/g, '_')}_ledger.csv`;
+		a.download = `${account.name.replace(/\s+/g, '_')}_ledger.csv`;
 		document.body.appendChild(a);
 		a.click();
 		document.body.removeChild(a);
@@ -135,20 +132,26 @@ export function AccountLedger({
 				</Button>
 				<div>
 					<h1 className='text-3xl font-bold tracking-tight'>
-						{accountName}
+						{account.name}
 					</h1>
 					<div className='flex items-center gap-2 text-muted-foreground'>
-						<Badge variant='outline'>{accountType}</Badge>
+						<Badge variant='outline'>{account.type}</Badge>
 						<span>
 							Current Balance:{' '}
 							<span className='font-bold text-foreground'>
-								{formatCurrency(Number(currentBalance))}
+								{formatCurrency(Number(account.balance))}
 							</span>
 						</span>
 					</div>
 				</div>
-				<div className='ml-auto'>
-					<Button onClick={handleExportCSV}>
+				<div className='ml-auto flex items-center gap-2'>
+					<AdjustBalanceDialog account={account} />
+					<EditAccountDialog account={account} />
+					<Button
+						onClick={handleExportCSV}
+						variant='outline'
+						size='sm'
+					>
 						<Download className='mr-2 h-4 w-4' />
 						Export CSV
 					</Button>
@@ -164,13 +167,16 @@ export function AccountLedger({
 							<TableHead>Description</TableHead>
 							<TableHead>Category / Account</TableHead>
 							<TableHead className='text-right'>Amount</TableHead>
+							<TableHead className='text-right'>
+								Balance
+							</TableHead>
 						</TableRow>
 					</TableHeader>
 					<TableBody>
 						{transactions.length === 0 ? (
 							<TableRow>
 								<TableCell
-									colSpan={5}
+									colSpan={6}
 									className='text-center h-24 text-muted-foreground'
 								>
 									No transactions found.
@@ -197,7 +203,7 @@ export function AccountLedger({
 									<TableCell>
 										{t.relatedAccountName ? (
 											<span className='text-muted-foreground italic'>
-												Try: {t.relatedAccountName}
+												Transfer: {t.relatedAccountName}
 											</span>
 										) : (
 											t.categoryName || '-'
@@ -218,6 +224,13 @@ export function AccountLedger({
 											? '+'
 											: '-'}
 										{formatCurrency(Number(t.amount))}
+									</TableCell>
+									<TableCell className='text-right font-medium text-muted-foreground'>
+										{t.runningBalance !== undefined
+											? formatCurrency(
+													Number(t.runningBalance)
+											  )
+											: '-'}
 									</TableCell>
 								</TableRow>
 							))

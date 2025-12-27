@@ -56,6 +56,16 @@ export function ExpenseForm({
 	const [isPending, setIsPending] = useState(false);
 	const [showCustomCategoryInput, setShowCustomCategoryInput] =
 		useState(false);
+	const [confirmationName, setConfirmationName] = useState('');
+
+	// Sort accounts: Spending first (Bank, Cash, Credit), then others
+	const sortedAccounts = [...accounts].sort((a, b) => {
+		const isASpending = ['BANK', 'CASH', 'CREDIT'].includes(a.type);
+		const isBSpending = ['BANK', 'CASH', 'CREDIT'].includes(b.type);
+		if (isASpending && !isBSpending) return -1;
+		if (!isASpending && isBSpending) return 1;
+		return a.name.localeCompare(b.name);
+	});
 
 	const form = useForm({
 		resolver: zodResolver(createExpenseSchema),
@@ -72,6 +82,13 @@ export function ExpenseForm({
 	});
 
 	const isRecurring = form.watch('isRecurring');
+	const selectedAccountId = form.watch('accountId');
+	const selectedAccount = accounts.find((a) => a.id === selectedAccountId);
+	const isSavingsAccount = selectedAccount?.type === 'SAVINGS';
+
+	const isSubmitDisabled =
+		isPending ||
+		(isSavingsAccount && confirmationName !== selectedAccount?.name);
 
 	async function onSubmit(data: CreateExpenseInput) {
 		setIsPending(true);
@@ -154,6 +171,125 @@ export function ExpenseForm({
 						</FormItem>
 					)}
 				/>
+
+				<FormField
+					control={form.control}
+					name='accountId'
+					render={({ field }) => (
+						<FormItem>
+							<FormLabel>Account</FormLabel>
+							<Select
+								onValueChange={(val) => {
+									field.onChange(val);
+									setConfirmationName(''); // Reset confirmation on change
+								}}
+								value={field.value || ''}
+							>
+								<FormControl>
+									<SelectTrigger>
+										<SelectValue placeholder='Select an account' />
+									</SelectTrigger>
+								</FormControl>
+								<SelectContent>
+									<SelectItem
+										value='__placeholder__'
+										disabled
+										className='hidden'
+									>
+										Select an account
+									</SelectItem>
+									{/* Group 1: Spendable */}
+									{sortedAccounts
+										.filter((a) =>
+											['BANK', 'CASH', 'CREDIT'].includes(
+												a.type
+											)
+										)
+										.map((account) => (
+											<SelectItem
+												key={account.id}
+												value={account.id}
+											>
+												{account.name}
+											</SelectItem>
+										))}
+
+									{/* Group 2: Savings/Other (Separator) */}
+									{sortedAccounts.some(
+										(a) =>
+											![
+												'BANK',
+												'CASH',
+												'CREDIT',
+											].includes(a.type)
+									) && (
+										<div className='border-t my-1 mx-2 text-[10px] text-muted-foreground pt-1'>
+											SAVINGS & RESERVES
+										</div>
+									)}
+
+									{sortedAccounts
+										.filter(
+											(a) =>
+												![
+													'BANK',
+													'CASH',
+													'CREDIT',
+												].includes(a.type)
+										)
+										.map((account) => (
+											<SelectItem
+												key={account.id}
+												value={account.id}
+												className='text-amber-600 dark:text-amber-500 font-medium'
+											>
+												🔒 {account.name}
+											</SelectItem>
+										))}
+								</SelectContent>
+							</Select>
+							<FormMessage />
+						</FormItem>
+					)}
+				/>
+
+				{isSavingsAccount && selectedAccount && (
+					<div className='rounded-md bg-amber-50 dark:bg-amber-950/30 p-4 border border-amber-200 dark:border-amber-800'>
+						<div className='flex items-start gap-3'>
+							<div className='text-xl'>⚠️</div>
+							<div className='space-y-2 w-full'>
+								<h4 className='text-sm font-semibold text-amber-800 dark:text-amber-500'>
+									Spending from Savings detected
+								</h4>
+								<p className='text-xs text-amber-700 dark:text-amber-600'>
+									Direct spending from {selectedAccount.name}{' '}
+									reduces your wealth momentum. Consider a
+									Transfer execution instead.
+								</p>
+								<div className='pt-2'>
+									<label className='text-xs font-medium text-amber-800 dark:text-amber-500 mb-1 block'>
+										Type &quot;{selectedAccount.name}&quot;
+										to confirm:
+									</label>
+									<Input
+										value={confirmationName}
+										onChange={(e) =>
+											setConfirmationName(e.target.value)
+										}
+										placeholder={selectedAccount.name}
+										className={cn(
+											'bg-white dark:bg-black border-amber-300 focus-visible:ring-amber-500',
+											confirmationName ===
+												selectedAccount.name
+												? 'border-green-500 ring-green-500'
+												: ''
+										)}
+									/>
+								</div>
+							</div>
+						</div>
+					</div>
+				)}
 
 				<FormField
 					control={form.control}
@@ -279,44 +415,6 @@ export function ExpenseForm({
 
 				<FormField
 					control={form.control}
-					name='accountId'
-					render={({ field }) => (
-						<FormItem>
-							<FormLabel>Account</FormLabel>
-							<Select
-								onValueChange={field.onChange}
-								value={field.value || ''}
-							>
-								<FormControl>
-									<SelectTrigger>
-										<SelectValue placeholder='Select an account' />
-									</SelectTrigger>
-								</FormControl>
-								<SelectContent>
-									<SelectItem
-										value='__placeholder__'
-										disabled
-										className='hidden'
-									>
-										Select an account
-									</SelectItem>
-									{accounts.map((account) => (
-										<SelectItem
-											key={account.id}
-											value={account.id}
-										>
-											{account.name}
-										</SelectItem>
-									))}
-								</SelectContent>
-							</Select>
-							<FormMessage />
-						</FormItem>
-					)}
-				/>
-
-				<FormField
-					control={form.control}
 					name='budgetId'
 					render={({ field }) => (
 						<FormItem>
@@ -406,8 +504,20 @@ export function ExpenseForm({
 					/>
 				)}
 
-				<Button type='submit' disabled={isPending}>
-					{isPending ? 'Saving...' : 'Add Expense'}
+				<Button
+					type='submit'
+					disabled={isSubmitDisabled}
+					className={cn(
+						isSavingsAccount
+							? 'w-full bg-amber-600 hover:bg-amber-700'
+							: ''
+					)}
+				>
+					{isPending
+						? 'Saving...'
+						: isSavingsAccount
+						? 'Confirm Savings Withdrawal'
+						: 'Add Expense'}
 				</Button>
 			</form>
 		</Form>

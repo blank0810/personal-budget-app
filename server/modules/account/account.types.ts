@@ -7,6 +7,9 @@ export const createAccountSchema = z.object({
 	type: z.nativeEnum(AccountType),
 	balance: z.number(),
 	isLiability: z.boolean(),
+	creditLimit: z.number().optional().nullable(),
+	icon: z.string().optional().nullable(),
+	color: z.string().optional().nullable(),
 });
 
 export const updateAccountSchema = createAccountSchema.partial().extend({
@@ -22,3 +25,8 @@ export const getAccountsSchema = z.object({
 });
 
 export type GetAccountsInput = z.infer<typeof getAccountsSchema>;
+
+export const adjustBalanceSchema = z.object({
+	accountId: z.string().min(1, 'Account ID is required'),
+	newBalance: z.number(),
+});

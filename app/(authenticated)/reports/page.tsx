@@ -1,6 +1,7 @@
 import { auth } from '@/auth';
 import { redirect } from 'next/navigation';
 import { ReportService } from '@/server/modules/report/report.service';
+import { DashboardService } from '@/server/modules/dashboard/dashboard.service';
 import { CategoryBreakdownChart } from '@/components/modules/reports/CategoryBreakdownChart';
 import { MonthlyComparisonChart } from '@/components/modules/reports/MonthlyComparisonChart';
 import { BudgetPerformanceChart } from '@/components/modules/reports/BudgetPerformanceChart';
@@ -38,12 +39,14 @@ export default async function ReportsPage({
 		budgetPerformance,
 		financialStatement,
 		kpis,
+		accounts,
 	] = await Promise.all([
 		ReportService.getCategoryBreakdown(userId, from, to), // Now respects global range
 		ReportService.getMonthlyComparison(userId, subMonths(to, 5), to), // Keep historical context fixed relative to end date
 		ReportService.getBudgetVsActual(userId, to), // Budget for end-of-period month
 		ReportService.getFinancialStatement(userId, from, to),
 		ReportService.getDashboardKPIs(userId, from, to),
+		DashboardService.getAccountBalances(userId),
 	]);
 
 	const formatCurrency = (val: number) => {
@@ -137,6 +140,7 @@ export default async function ReportsPage({
 						data={serialize(financialStatement)}
 						initialFrom={from}
 						initialTo={to}
+						accounts={serialize(accounts)}
 					/>
 				}
 			/>

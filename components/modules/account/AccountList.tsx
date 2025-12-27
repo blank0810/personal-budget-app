@@ -73,6 +73,63 @@ export function AccountList({ accounts }: AccountListProps) {
 											Number(account.balance)
 										)}
 									</div>
+									{account.type === 'CREDIT' &&
+										account.creditLimit && (
+											<div className='flex flex-col items-end gap-1 mt-1'>
+												<div className='text-xs text-muted-foreground'>
+													{Math.round(
+														(Number(
+															account.balance
+														) /
+															Number(
+																account.creditLimit
+															)) *
+															100
+													)}
+													% of{' '}
+													{formatCurrency(
+														Number(
+															account.creditLimit
+														)
+													)}
+												</div>
+												<div className='w-24 h-1.5 bg-secondary rounded-full overflow-hidden'>
+													<div
+														className={`h-full ${
+															Number(
+																account.balance
+															) /
+																Number(
+																	account.creditLimit
+																) <
+															0.3
+																? 'bg-green-500'
+																: Number(
+																		account.balance
+																  ) /
+																		Number(
+																			account.creditLimit
+																		) <
+																  0.5
+																? 'bg-yellow-500'
+																: 'bg-red-500'
+														}`}
+														style={{
+															width: `${Math.min(
+																(Number(
+																	account.balance
+																) /
+																	Number(
+																		account.creditLimit
+																	)) *
+																	100,
+																100
+															)}%`,
+														}}
+													/>
+												</div>
+											</div>
+										)}
 								</TableCell>
 								<TableCell>
 									<div className='flex justify-end gap-2'>

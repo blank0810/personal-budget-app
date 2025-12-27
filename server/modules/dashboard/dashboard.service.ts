@@ -7,7 +7,12 @@ export const DashboardService = {
 	async getNetWorth(userId: string) {
 		const accounts = await prisma.account.findMany({
 			where: { userId },
-			select: { balance: true, type: true, isLiability: true },
+			select: {
+				balance: true,
+				type: true,
+				isLiability: true,
+				creditLimit: true,
+			},
 		});
 
 		let assets = 0;
@@ -117,7 +122,32 @@ export const DashboardService = {
 			endCurrentMonth
 		);
 
-		// 3. Calculate Ratios
+		// 3. Get Credit Utilization
+		const creditAccounts = await prisma.account.findMany({
+			where: { userId, type: 'CREDIT', creditLimit: { not: null } },
+			select: { balance: true, creditLimit: true },
+		});
+
+		let totalCreditUsed = 0;
+		let totalCreditLimit = 0;
+
+		for (const account of creditAccounts) {
+			// For Credit Cards, 'balance' usually represents debt.
+			// If balance is positive, it's debt. If logic stores debt as negative, we might need absolute.
+			// Based on schema 'balance' is generic Decimal. Usually Credit Card Debt is Positive in "Balance" field for Liability Accounts?
+			// Let's assume standard behavior: Balance on Liability Account = Amount Owed.
+			if (account.creditLimit) {
+				totalCreditUsed += Number(account.balance);
+				totalCreditLimit += Number(account.creditLimit);
+			}
+		}
+
+		const creditUtilization =
+			totalCreditLimit > 0
+				? (totalCreditUsed / totalCreditLimit) * 100
+				: 0;
+
+		// 4. Calculate Ratios
 		const savingsRate =
 			income > 0 ? ((income - expense) / income) * 100 : 0;
 		const debtToAssetRatio = assets > 0 ? (liabilities / assets) * 100 : 0;
@@ -134,13 +164,19 @@ export const DashboardService = {
 		});
 		const debtPaydown = debtPaydownResult._sum?.amount?.toNumber() || 0;
 
-		const runwayMonths = expense > 0 ? assets / expense : 0; // Assuming assets are liquid for runway
+		let runwayMonths = 0;
+		if (expense > 0) {
+			runwayMonths = assets / expense;
+		} else if (expense === 0 && assets > 0) {
+			runwayMonths = 999; // Infinite runway
+		}
 
 		return {
 			savingsRate,
 			debtToAssetRatio,
 			debtPaydown,
 			runwayMonths,
+			creditUtilization,
 			income,
 			expense,
 		};
