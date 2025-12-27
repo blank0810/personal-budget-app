@@ -7,12 +7,15 @@ import { BudgetService } from '@/server/modules/budget/budget.service';
 import { auth } from '@/auth';
 import { redirect } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { serialize } from '@/lib/serialization';
 
 export default async function ExpensePage() {
 	const session = await auth();
 	if (!session?.user?.id) {
 		redirect('/api/auth/signin');
 	}
+
+	// ... (existing imports)
 
 	const expenses = await ExpenseService.getExpenses(session.user.id);
 	const accounts = await AccountService.getAccounts(session.user.id);
@@ -36,16 +39,16 @@ export default async function ExpensePage() {
 						</CardHeader>
 						<CardContent>
 							<ExpenseForm
-								accounts={accounts}
-								categories={categories}
-								budgets={budgets}
+								accounts={serialize(accounts)}
+								categories={serialize(categories)}
+								budgets={serialize(budgets)}
 							/>
 						</CardContent>
 					</Card>
 				</div>
 
 				<div className='space-y-6'>
-					<ExpenseViews expenses={expenses} />
+					<ExpenseViews expenses={serialize(expenses)} />
 				</div>
 			</div>
 		</div>

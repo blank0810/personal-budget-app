@@ -14,6 +14,7 @@ import { Progress } from '@/components/ui/progress';
 import { format } from 'date-fns';
 import { Trash2 } from 'lucide-react';
 import { deleteBudgetAction } from '@/server/modules/budget/budget.controller';
+import { formatCurrency } from '@/lib/formatters';
 import { Budget, Category } from '@prisma/client';
 
 interface BudgetWithStats extends Budget {
@@ -90,20 +91,24 @@ export function BudgetList({ budgets }: BudgetListProps) {
 												{budget.percentage.toFixed(1)}%
 											</span>
 											<span>
-												Spent ${budget.spent.toFixed(0)}{' '}
-												of $
-												{Number(budget.amount).toFixed(
-													0
+												Spent{' '}
+												{formatCurrency(budget.spent, {
+													decimals: 0,
+												})}{' '}
+												of{' '}
+												{formatCurrency(
+													Number(budget.amount),
+													{ decimals: 0 }
 												)}
 											</span>
 										</div>
 									</div>
 								</TableCell>
 								<TableCell className='text-right text-red-600'>
-									${budget.spent.toFixed(2)}
+									{formatCurrency(budget.spent)}
 								</TableCell>
 								<TableCell className='text-right font-bold'>
-									${Number(budget.amount).toFixed(2)}
+									{formatCurrency(Number(budget.amount))}
 								</TableCell>
 								<TableCell>
 									<Button

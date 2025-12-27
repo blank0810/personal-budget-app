@@ -12,6 +12,7 @@ import {
 } from 'recharts';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { MonthlySummary } from '@/server/modules/report/report.types';
+import { formatCurrency } from '@/lib/formatters';
 
 interface MonthlyComparisonChartProps {
 	data: MonthlySummary[];
@@ -39,11 +40,13 @@ export function MonthlyComparisonChart({ data }: MonthlyComparisonChartProps) {
 							fontSize={12}
 							tickLine={false}
 							axisLine={false}
-							tickFormatter={(value) => `$${value}`}
+							tickFormatter={(value) =>
+								formatCurrency(value, { decimals: 0 })
+							}
 						/>
 						<Tooltip
-							formatter={(value: number) =>
-								`$${value.toFixed(2)}`
+							formatter={(value: number | undefined) =>
+								value != null ? formatCurrency(value) : ''
 							}
 							cursor={{ fill: 'transparent' }}
 						/>

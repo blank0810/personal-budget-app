@@ -10,6 +10,7 @@ import {
 } from 'recharts';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { CategoryBreakdown } from '@/server/modules/report/report.types';
+import { formatCurrency } from '@/lib/formatters';
 
 interface CategoryBreakdownChartProps {
 	data: CategoryBreakdown[];
@@ -61,8 +62,8 @@ export function CategoryBreakdownChart({ data }: CategoryBreakdownChartProps) {
 							))}
 						</Pie>
 						<Tooltip
-							formatter={(value: number) =>
-								`$${value.toFixed(2)}`
+							formatter={(value: number | undefined) =>
+								value != null ? formatCurrency(value) : ''
 							}
 						/>
 						<Legend />

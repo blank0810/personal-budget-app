@@ -14,6 +14,7 @@ import { Trash2 } from 'lucide-react';
 import { deleteIncomeAction } from '@/server/modules/income/income.controller';
 
 import { Income, Category, Account } from '@prisma/client';
+import { formatCurrency } from '@/lib/formatters';
 
 interface IncomeWithRelations extends Income {
 	category: Category;
@@ -69,8 +70,8 @@ export function IncomeList({ incomes }: IncomeListProps) {
 								<TableCell>
 									{income.account?.name || '-'}
 								</TableCell>
-								<TableCell className='text-right font-medium text-green-600'>
-									+${Number(income.amount).toFixed(2)}
+								<TableCell className='text-right font-bold text-green-600'>
+									+{formatCurrency(Number(income.amount))}
 								</TableCell>
 								<TableCell>
 									<Button

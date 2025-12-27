@@ -5,12 +5,15 @@ import { AccountService } from '@/server/modules/account/account.service';
 import { auth } from '@/auth';
 import { redirect } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { serialize } from '@/lib/serialization';
 
 export default async function TransfersPage() {
 	const session = await auth();
 	if (!session?.user?.id) {
 		redirect('/api/auth/signin');
 	}
+
+	// ... (existing imports)
 
 	const [transfers, accounts] = await Promise.all([
 		TransferService.getTransfers(session.user.id),
@@ -30,7 +33,7 @@ export default async function TransfersPage() {
 							<CardTitle>New Transfer</CardTitle>
 						</CardHeader>
 						<CardContent>
-							<TransferForm accounts={accounts} />
+							<TransferForm accounts={serialize(accounts)} />
 						</CardContent>
 					</Card>
 				</div>
@@ -39,7 +42,7 @@ export default async function TransfersPage() {
 					<h2 className='text-xl font-semibold tracking-tight'>
 						Recent Transfers
 					</h2>
-					<TransferList transfers={transfers} />
+					<TransferList transfers={serialize(transfers)} />
 				</div>
 			</div>
 		</div>

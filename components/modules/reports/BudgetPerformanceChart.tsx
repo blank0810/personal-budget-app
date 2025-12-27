@@ -12,6 +12,7 @@ import {
 } from 'recharts';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
+import { formatCurrency } from '@/lib/formatters';
 
 interface BudgetMetric {
 	categoryId: string;
@@ -71,8 +72,8 @@ export function BudgetPerformanceChart({ data }: BudgetPerformanceChartProps) {
 							/>
 							<Tooltip
 								cursor={{ fill: 'transparent' }}
-								formatter={(value: number) =>
-									`$${value.toFixed(2)}`
+								formatter={(value: number | undefined) =>
+									value != null ? formatCurrency(value) : ''
 								}
 							/>
 							<Legend />
@@ -117,10 +118,16 @@ export function BudgetPerformanceChart({ data }: BudgetPerformanceChartProps) {
 												: ''
 										}
 									>
-										${item.actual.toFixed(0)}
+										{formatCurrency(item.actual, {
+											decimals: 0,
+										})}
 									</span>
 									{' / '}
-									<span>${item.budgeted.toFixed(0)}</span>
+									<span>
+										{formatCurrency(item.budgeted, {
+											decimals: 0,
+										})}
+									</span>
 								</div>
 							</div>
 							<Progress
