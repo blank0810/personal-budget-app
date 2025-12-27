@@ -27,7 +27,6 @@ export async function createAccountAction(formData: FormData) {
 		name: formData.get('name') as string,
 		type: formData.get('type') as AccountType,
 		balance: Number(formData.get('balance')),
-		isDefault: formData.get('isDefault') === 'on',
 		isLiability: formData.get('isLiability') === 'on',
 	};
 
@@ -61,7 +60,6 @@ export async function updateAccountAction(formData: FormData) {
 		name: formData.get('name') as string,
 		type: formData.get('type') as AccountType,
 		balance: Number(formData.get('balance')),
-		isDefault: formData.get('isDefault') === 'on',
 		isLiability: formData.get('isLiability') === 'on',
 	};
 

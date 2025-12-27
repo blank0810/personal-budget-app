@@ -6,7 +6,6 @@ export const createAccountSchema = z.object({
 	name: z.string().min(1, 'Name is required'),
 	type: z.nativeEnum(AccountType),
 	balance: z.number(),
-	isDefault: z.boolean(),
 	isLiability: z.boolean(),
 });
 

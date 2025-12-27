@@ -55,6 +55,10 @@ export function TransferForm({ accounts }: TransferFormProps) {
 		},
 	});
 
+	// Watch values for cross-disabling
+	const fromAccountId = form.watch('fromAccountId');
+	const toAccountId = form.watch('toAccountId');
+
 	async function onSubmit(data: CreateTransferInput) {
 		setIsPending(true);
 		const formData = new FormData();
@@ -71,7 +75,13 @@ export function TransferForm({ accounts }: TransferFormProps) {
 			console.error(result.error);
 			// Handle error
 		} else {
-			form.reset();
+			form.reset({
+				amount: 0,
+				description: '',
+				date: new Date(),
+				fromAccountId: '', // Reset to empty string
+				toAccountId: '', // Reset to empty string
+			});
 			// Handle success
 		}
 	}
@@ -97,7 +107,7 @@ export function TransferForm({ accounts }: TransferFormProps) {
 					)}
 				/>
 
-				<div className='grid grid-cols-2 gap-4'>
+				<div className='grid gap-4 md:grid-cols-2'>
 					<FormField
 						control={form.control}
 						name='fromAccountId'
@@ -106,11 +116,13 @@ export function TransferForm({ accounts }: TransferFormProps) {
 								<FormLabel>From Account</FormLabel>
 								<Select
 									onValueChange={field.onChange}
-									defaultValue={field.value}
+									value={field.value}
 								>
 									<FormControl>
-										<SelectTrigger>
-											<SelectValue placeholder='Select source' />
+										<SelectTrigger className='w-full overflow-hidden'>
+											<span className='truncate'>
+												<SelectValue placeholder='Select source' />
+											</span>
 										</SelectTrigger>
 									</FormControl>
 									<SelectContent>
@@ -118,12 +130,18 @@ export function TransferForm({ accounts }: TransferFormProps) {
 											<SelectItem
 												key={account.id}
 												value={account.id}
+												disabled={
+													account.id === toAccountId
+												}
+												className='truncate'
 											>
-												{account.name} ($
-												{Number(
-													account.balance
-												).toFixed(2)}
-												)
+												<span className='truncate'>
+													{account.name} ($
+													{Number(
+														account.balance
+													).toFixed(2)}
+													)
+												</span>
 											</SelectItem>
 										))}
 									</SelectContent>
@@ -141,11 +159,13 @@ export function TransferForm({ accounts }: TransferFormProps) {
 								<FormLabel>To Account</FormLabel>
 								<Select
 									onValueChange={field.onChange}
-									defaultValue={field.value}
+									value={field.value}
 								>
 									<FormControl>
-										<SelectTrigger>
-											<SelectValue placeholder='Select destination' />
+										<SelectTrigger className='w-full overflow-hidden'>
+											<span className='truncate'>
+												<SelectValue placeholder='Select destination' />
+											</span>
 										</SelectTrigger>
 									</FormControl>
 									<SelectContent>
@@ -153,8 +173,14 @@ export function TransferForm({ accounts }: TransferFormProps) {
 											<SelectItem
 												key={account.id}
 												value={account.id}
+												disabled={
+													account.id === fromAccountId
+												}
+												className='truncate'
 											>
-												{account.name}
+												<span className='truncate'>
+													{account.name}
+												</span>
 											</SelectItem>
 										))}
 									</SelectContent>

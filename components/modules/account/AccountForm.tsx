@@ -38,7 +38,6 @@ export function AccountForm() {
 			name: '',
 			type: AccountType.BANK,
 			balance: 0,
-			isDefault: false,
 			isLiability: false,
 		},
 	});
@@ -49,7 +48,7 @@ export function AccountForm() {
 		formData.append('name', data.name);
 		formData.append('type', data.type);
 		formData.append('balance', data.balance.toString());
-		if (data.isDefault) formData.append('isDefault', 'on');
+
 		if (data.isLiability) formData.append('isLiability', 'on');
 
 		const result = await createAccountAction(formData);
@@ -90,7 +89,7 @@ export function AccountForm() {
 							<FormLabel>Type</FormLabel>
 							<Select
 								onValueChange={field.onChange}
-								defaultValue={field.value}
+								value={field.value}
 							>
 								<FormControl>
 									<SelectTrigger>
@@ -145,24 +144,6 @@ export function AccountForm() {
 									Enable this if this account represents debt
 									(e.g. Credit Card, Loan)
 								</p>
-							</div>
-						</FormItem>
-					)}
-				/>
-
-				<FormField
-					control={form.control}
-					name='isDefault'
-					render={({ field }) => (
-						<FormItem className='flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4'>
-							<FormControl>
-								<Checkbox
-									checked={field.value}
-									onCheckedChange={field.onChange}
-								/>
-							</FormControl>
-							<div className='space-y-1 leading-none'>
-								<FormLabel>Default Account</FormLabel>
 							</div>
 						</FormItem>
 					)}

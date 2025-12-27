@@ -27,8 +27,8 @@ export async function createIncomeAction(formData: FormData) {
 		amount: Number(formData.get('amount')),
 		description: formData.get('description') as string,
 		date: new Date(formData.get('date') as string),
-		categoryId: formData.get('categoryId') as string,
-		categoryName: formData.get('categoryName') as string | undefined, // NEW: for custom category
+		categoryId: (formData.get('categoryId') as string) || undefined,
+		categoryName: (formData.get('categoryName') as string) || undefined, // NEW: for custom category
 		accountId: (formData.get('accountId') as string) || undefined,
 		isRecurring: formData.get('isRecurring') === 'on',
 		recurringPeriod:
@@ -36,6 +36,8 @@ export async function createIncomeAction(formData: FormData) {
 				| 'MONTHLY'
 				| 'WEEKLY'
 				| 'YEARLY') || undefined,
+		titheEnabled: formData.get('titheEnabled') === 'on',
+		tithePercentage: Number(formData.get('tithePercentage')) || undefined,
 	};
 
 	// Validate
@@ -69,7 +71,7 @@ export async function updateIncomeAction(formData: FormData) {
 		amount: Number(formData.get('amount')),
 		description: formData.get('description') as string,
 		date: new Date(formData.get('date') as string),
-		categoryId: formData.get('categoryId') as string,
+		categoryId: (formData.get('categoryId') as string) || undefined,
 		accountId: (formData.get('accountId') as string) || undefined,
 		isRecurring: formData.get('isRecurring') === 'on',
 		recurringPeriod:
