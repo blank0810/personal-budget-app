@@ -15,7 +15,7 @@ import { deleteTransferAction } from '@/server/modules/transfer/transfer.control
 import { formatCurrency } from '@/lib/formatters';
 import { Transfer, Account } from '@prisma/client';
 
-interface TransferWithRelations extends Omit<Transfer, 'amount'> {
+export interface TransferWithRelations extends Omit<Transfer, 'amount'> {
 	fromAccount: Account;
 	toAccount: Account;
 	amount: number;
