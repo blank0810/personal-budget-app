@@ -1,5 +1,8 @@
 import { TransferForm } from '@/components/modules/transfer/TransferForm';
-import { TransferList } from '@/components/modules/transfer/TransferList';
+import {
+	TransferList,
+	TransferWithRelations,
+} from '@/components/modules/transfer/TransferList';
 import { TransferService } from '@/server/modules/transfer/transfer.service';
 import { AccountService } from '@/server/modules/account/account.service';
 import { auth } from '@/auth';
@@ -42,7 +45,13 @@ export default async function TransfersPage() {
 					<h2 className='text-xl font-semibold tracking-tight'>
 						Recent Transfers
 					</h2>
-					<TransferList transfers={serialize(transfers)} />
+					<TransferList
+						transfers={
+							serialize(
+								transfers
+							) as unknown as TransferWithRelations[]
+						}
+					/>
 				</div>
 			</div>
 		</div>
