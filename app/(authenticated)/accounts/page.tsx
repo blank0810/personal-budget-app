@@ -4,6 +4,7 @@ import { AccountService } from '@/server/modules/account/account.service';
 import { auth } from '@/auth';
 import { redirect } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { serialize } from '@/lib/serialization';
 
 export default async function AccountsPage() {
 	const session = await auth();
@@ -35,7 +36,7 @@ export default async function AccountsPage() {
 					<h2 className='text-xl font-semibold tracking-tight'>
 						Your Accounts
 					</h2>
-					<AccountList accounts={accounts} />
+					<AccountList accounts={serialize(accounts)} />
 				</div>
 			</div>
 		</div>

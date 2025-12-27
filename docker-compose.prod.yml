@@ -1,0 +1,69 @@
+services:
+    app-prod:
+        container_name: budget-planner-app-prod
+        build:
+            context: .
+            dockerfile: docker/Dockerfile.prod
+        restart: always
+        environment:
+            # Connection to the production database service
+            DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db-prod:5432/${POSTGRES_DB}
+            NEXTAUTH_URL: http://budget.local
+            # Re-use the secret from .env or override
+            NEXTAUTH_SECRET: ${NEXTAUTH_SECRET}
+            HOSTNAME: '0.0.0.0'
+        ports:
+            - '80:3000' # Exposed on port 80 for "http://budget.local"
+        depends_on:
+            db-prod:
+                condition: service_healthy
+        networks:
+            - budget-prod-network
+
+    db-prod:
+        image: postgres:16-alpine
+        container_name: budget-planner-db-prod
+        restart: always
+        environment:
+            POSTGRES_USER: ${POSTGRES_USER}
+            POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+            POSTGRES_DB: ${POSTGRES_DB}
+        ports:
+            - '5434:5432' # Exposed on 5434 to avoid conflict with dev
+        volumes:
+            - postgres_data_prod:/var/lib/postgresql/data
+        healthcheck:
+            test:
+                [
+                    'CMD-SHELL',
+                    'pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}',
+                ]
+            interval: 10s
+            timeout: 5s
+            retries: 5
+        networks:
+            - budget-prod-network
+
+    # A temporary service to run migrations on the new prod DB
+    migrator:
+        container_name: budget-planner-migrator
+        build:
+            context: .
+            dockerfile: docker/Dockerfile # Use the DEV dockerfile which has Prisma CLI
+        command: sh -c "npx prisma migrate deploy"
+        environment:
+            DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db-prod:5432/${POSTGRES_DB}
+        depends_on:
+            db-prod:
+                condition: service_healthy
+        networks:
+            - budget-prod-network
+        profiles:
+            - tools # Only run when explicitly requested or if we remove this profile
+
+networks:
+    budget-prod-network:
+        driver: bridge
+
+volumes:
+    postgres_data_prod:

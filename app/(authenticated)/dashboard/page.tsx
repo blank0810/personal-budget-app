@@ -10,6 +10,7 @@ import {
 	CreditCard,
 	DollarSign,
 } from 'lucide-react';
+import { formatCurrency } from '@/lib/formatters';
 
 import { ClearCacheButton } from '@/components/common/clear-cache-button';
 
@@ -65,10 +66,12 @@ export default async function DashboardPage() {
 							{financialHealth.savingsRate.toFixed(1)}%
 						</div>
 						<p className='text-xs text-muted-foreground'>
-							Saved: $
-							{(
-								financialHealth.income - financialHealth.expense
-							).toFixed(0)}
+							Saved:{' '}
+							{formatCurrency(
+								financialHealth.income -
+									financialHealth.expense,
+								{ decimals: 0 }
+							)}
 						</p>
 					</CardContent>
 				</Card>
@@ -103,7 +106,9 @@ export default async function DashboardPage() {
 					</CardHeader>
 					<CardContent>
 						<div className='text-2xl font-bold'>
-							${financialHealth.debtPaydown.toFixed(0)}
+							{formatCurrency(financialHealth.debtPaydown, {
+								decimals: 0,
+							})}
 						</div>
 						<p className='text-xs text-muted-foreground'>
 							Paid to debt this month
@@ -145,11 +150,12 @@ export default async function DashboardPage() {
 					</CardHeader>
 					<CardContent>
 						<div className='text-2xl font-bold'>
-							${netWorthData.netWorth.toFixed(2)}
+							{formatCurrency(netWorthData.netWorth)}
 						</div>
 						<p className='text-xs text-muted-foreground'>
-							Assets: ${netWorthData.assets.toFixed(2)} |
-							Liabilities: ${netWorthData.liabilities.toFixed(2)}
+							Assets: {formatCurrency(netWorthData.assets)} |
+							Liabilities:{' '}
+							{formatCurrency(netWorthData.liabilities)}
 						</p>
 					</CardContent>
 				</Card>
@@ -162,7 +168,7 @@ export default async function DashboardPage() {
 					</CardHeader>
 					<CardContent>
 						<div className='text-2xl font-bold text-green-600'>
-							+${cashFlowData.income.toFixed(2)}
+							+{formatCurrency(cashFlowData.income)}
 						</div>
 					</CardContent>
 				</Card>
@@ -175,7 +181,7 @@ export default async function DashboardPage() {
 					</CardHeader>
 					<CardContent>
 						<div className='text-2xl font-bold text-red-600'>
-							-${cashFlowData.expense.toFixed(2)}
+							-{formatCurrency(cashFlowData.expense)}
 						</div>
 					</CardContent>
 				</Card>
@@ -194,10 +200,9 @@ export default async function DashboardPage() {
 									: 'text-2xl font-bold text-red-600'
 							}
 						>
-							$
-							{(
+							{formatCurrency(
 								cashFlowData.income - cashFlowData.expense
-							).toFixed(2)}
+							)}
 						</div>
 					</CardContent>
 				</Card>
@@ -252,7 +257,9 @@ export default async function DashboardPage() {
 										{transaction.type === 'INCOME'
 											? '+'
 											: '-'}
-										${Number(transaction.amount).toFixed(2)}
+										{formatCurrency(
+											transaction.amount?.toNumber() ?? 0
+										)}
 									</div>
 								</div>
 							))}
@@ -289,7 +296,9 @@ export default async function DashboardPage() {
 										</p>
 									</div>
 									<div className='ml-auto font-medium'>
-										${Number(account.balance).toFixed(2)}
+										{formatCurrency(
+											account.balance.toNumber()
+										)}
 									</div>
 								</div>
 							))}

@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { FinancialStatement as FinancialStatementType } from '@/server/modules/report/report.types';
+import { formatCurrency } from '@/lib/formatters';
 import { DateRangePicker } from '@/components/ui/date-range-picker';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { DateRange } from 'react-day-picker';
@@ -37,13 +38,6 @@ export function FinancialStatement({
 			router.push(`?${params.toString()}`);
 		}
 	}, [date, router]);
-
-	const formatCurrency = (amount: number) => {
-		return new Intl.NumberFormat('en-US', {
-			style: 'currency',
-			currency: 'USD',
-		}).format(amount);
-	};
 
 	return (
 		<div className='space-y-6'>

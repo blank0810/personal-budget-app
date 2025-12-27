@@ -12,6 +12,7 @@ import { Button } from '@/components/ui/button';
 import { format } from 'date-fns';
 import { Trash2 } from 'lucide-react';
 import { deleteExpenseAction } from '@/server/modules/expense/expense.controller';
+import { formatCurrency } from '@/lib/formatters';
 import { Expense, Category, Account, Budget } from '@prisma/client';
 
 interface ExpenseWithRelations extends Expense {
@@ -69,8 +70,8 @@ export function ExpenseList({ expenses }: ExpenseListProps) {
 								<TableCell>
 									{expense.account?.name || '-'}
 								</TableCell>
-								<TableCell className='text-right font-medium text-red-600'>
-									-${Number(expense.amount).toFixed(2)}
+								<TableCell className='text-right font-bold text-red-600'>
+									-{formatCurrency(Number(expense.amount))}
 								</TableCell>
 								<TableCell>
 									<Button

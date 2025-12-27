@@ -24,7 +24,6 @@ async function main() {
 				name: 'Test Savings',
 				type: AccountType.SAVINGS,
 				balance: 1000,
-				// @ts-ignore
 				isLiability: false,
 			},
 		});
@@ -35,21 +34,20 @@ async function main() {
 				name: 'Test Credit Card',
 				type: AccountType.CREDIT,
 				balance: 500,
-				// @ts-ignore
 				isLiability: true, // Key Test
 			},
 		});
 		console.log('Created Accounts: Savings (Asset) and CC (Liability)');
 
 		// 3. Setup Categories
-		const incomeCategory = await prisma.category.create({
+		await prisma.category.create({
 			data: {
 				userId: user.id,
 				name: 'Salary',
 				type: CategoryType.INCOME,
 			},
 		});
-		const transferCategory = await prisma.category.create({
+		await prisma.category.create({
 			data: {
 				userId: user.id,
 				name: 'Credit Card Payment',

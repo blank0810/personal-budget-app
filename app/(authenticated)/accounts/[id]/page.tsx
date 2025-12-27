@@ -2,6 +2,7 @@ import { AccountService } from '@/server/modules/account/account.service';
 import { auth } from '@/auth';
 import { redirect, notFound } from 'next/navigation';
 import { AccountLedger } from '@/components/modules/account/AccountLedger';
+import { serialize } from '@/lib/serialization';
 
 interface PageProps {
 	params: Promise<{ id: string }>;
@@ -28,8 +29,8 @@ export default async function AccountLedgerPage({ params }: PageProps) {
 			<AccountLedger
 				accountName={accountData.name}
 				accountType={accountData.type}
-				currentBalance={accountData.balance}
-				transactions={accountData.transactions}
+				currentBalance={serialize(accountData.balance)}
+				transactions={serialize(accountData.transactions)}
 			/>
 		</div>
 	);

@@ -16,6 +16,7 @@ import {
 	FormMessage,
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
+import { CurrencyInput } from '@/components/ui/currency-input';
 import {
 	Popover,
 	PopoverContent,
@@ -85,16 +86,10 @@ export function TransferForm({ accounts }: TransferFormProps) {
 						<FormItem>
 							<FormLabel>Amount</FormLabel>
 							<FormControl>
-								<Input
-									type='number'
-									step='0.01'
+								<CurrencyInput
 									placeholder='0.00'
-									{...field}
-									onChange={(e) =>
-										field.onChange(
-											parseFloat(e.target.value)
-										)
-									}
+									value={field.value}
+									onChange={field.onChange}
 								/>
 							</FormControl>
 							<FormMessage />

@@ -12,11 +12,13 @@ import { Button } from '@/components/ui/button';
 import { format } from 'date-fns';
 import { Trash2, ArrowRight } from 'lucide-react';
 import { deleteTransferAction } from '@/server/modules/transfer/transfer.controller';
+import { formatCurrency } from '@/lib/formatters';
 import { Transfer, Account } from '@prisma/client';
 
-interface TransferWithRelations extends Transfer {
+interface TransferWithRelations extends Omit<Transfer, 'amount'> {
 	fromAccount: Account;
 	toAccount: Account;
+	amount: number;
 }
 
 interface TransferListProps {
@@ -75,7 +77,7 @@ export function TransferList({ transfers }: TransferListProps) {
 									{transfer.toAccount.name}
 								</TableCell>
 								<TableCell className='text-right font-bold'>
-									${Number(transfer.amount).toFixed(2)}
+									{formatCurrency(transfer.amount)}
 								</TableCell>
 								<TableCell>
 									<Button

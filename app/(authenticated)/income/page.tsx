@@ -6,6 +6,7 @@ import { CategoryService } from '@/server/modules/category/category.service';
 import { auth } from '@/auth';
 import { redirect } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { serialize } from '@/lib/serialization';
 
 export default async function IncomePage() {
 	const session = await auth();
@@ -34,15 +35,15 @@ export default async function IncomePage() {
 						</CardHeader>
 						<CardContent>
 							<IncomeForm
-								accounts={accounts}
-								categories={categories}
+								accounts={serialize(accounts)}
+								categories={serialize(categories)}
 							/>
 						</CardContent>
 					</Card>
 				</div>
 
 				<div className='space-y-6'>
-					<IncomeViews incomes={incomes} />
+					<IncomeViews incomes={serialize(incomes)} />
 				</div>
 			</div>
 		</div>

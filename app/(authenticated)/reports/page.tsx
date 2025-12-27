@@ -8,6 +8,7 @@ import { subMonths, startOfMonth, endOfMonth } from 'date-fns';
 import { KPICard } from '@/components/modules/reports/KPICard';
 import { AnalyticsTabs } from '@/components/modules/reports/AnalyticsTabs';
 import { FinancialStatement } from '@/components/modules/reports/FinancialStatement';
+import { serialize } from '@/lib/serialization';
 
 export default async function ReportsPage({
 	searchParams,
@@ -115,19 +116,25 @@ export default async function ReportsPage({
 				charts={
 					<div className='grid gap-4 md:grid-cols-2 lg:grid-cols-7'>
 						<div className='col-span-4'>
-							<MonthlyComparisonChart data={monthlyComparison} />
+							<MonthlyComparisonChart
+								data={serialize(monthlyComparison)}
+							/>
 						</div>
 						<div className='col-span-3'>
-							<CategoryBreakdownChart data={categoryBreakdown} />
+							<CategoryBreakdownChart
+								data={serialize(categoryBreakdown)}
+							/>
 						</div>
 						<div className='col-span-7'>
-							<BudgetPerformanceChart data={budgetPerformance} />
+							<BudgetPerformanceChart
+								data={serialize(budgetPerformance)}
+							/>
 						</div>
 					</div>
 				}
 				ledger={
 					<FinancialStatement
-						data={financialStatement}
+						data={serialize(financialStatement)}
 						initialFrom={from}
 						initialTo={to}
 					/>

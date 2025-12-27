@@ -16,6 +16,7 @@ import {
 	FormMessage,
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
+import { CurrencyInput } from '@/components/ui/currency-input';
 import {
 	Popover,
 	PopoverContent,
@@ -110,16 +111,10 @@ export function IncomeForm({ accounts, categories }: IncomeFormProps) {
 						<FormItem>
 							<FormLabel>Amount</FormLabel>
 							<FormControl>
-								<Input
-									type='number'
-									step='0.01'
+								<CurrencyInput
 									placeholder='0.00'
-									{...field}
-									onChange={(e) =>
-										field.onChange(
-											parseFloat(e.target.value)
-										)
-									}
+									value={field.value}
+									onChange={field.onChange}
 								/>
 							</FormControl>
 							<FormMessage />
@@ -366,15 +361,9 @@ export function IncomeForm({ accounts, categories }: IncomeFormProps) {
 							<FormItem>
 								<FormLabel>Tithe Percentage (%)</FormLabel>
 								<FormControl>
-									<Input
-										type='number'
-										min='10'
-										{...field}
-										onChange={(e) =>
-											field.onChange(
-												parseFloat(e.target.value)
-											)
-										}
+									<CurrencyInput
+										value={field.value}
+										onChange={field.onChange}
 									/>
 								</FormControl>
 								<FormMessage />

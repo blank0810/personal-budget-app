@@ -21,6 +21,7 @@ import {
 import { Decimal } from '@prisma/client/runtime/library';
 import { Badge } from '@/components/ui/badge';
 import Link from 'next/link';
+import { formatCurrency } from '@/lib/formatters';
 
 interface Transaction {
 	id: string;
@@ -141,7 +142,7 @@ export function AccountLedger({
 						<span>
 							Current Balance:{' '}
 							<span className='font-bold text-foreground'>
-								${Number(currentBalance).toFixed(2)}
+								{formatCurrency(Number(currentBalance))}
 							</span>
 						</span>
 					</div>
@@ -216,7 +217,7 @@ export function AccountLedger({
 										)
 											? '+'
 											: '-'}
-										${Number(t.amount).toFixed(2)}
+										{formatCurrency(Number(t.amount))}
 									</TableCell>
 								</TableRow>
 							))

@@ -4,7 +4,7 @@ A comprehensive, double-entry accounting system for personal finance, built to h
 
 Built with **Next.js 15**, **PostgreSQL**, and **Prisma**, this application applies professional accounting principles to personal wealth management.
 
-![Dashboard Preview](https://placehold.co/1200x600/e2e8f0/475569?text=Personal+Budget+Manager+Dashboard)
+![Dashboard Preview](/public/dashboard.png)
 
 ## 📚 Documentation
 

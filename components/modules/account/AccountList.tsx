@@ -11,6 +11,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Trash2, FileText } from 'lucide-react';
 import { deleteAccountAction } from '@/server/modules/account/account.controller';
+import { formatCurrency } from '@/lib/formatters';
 import { Account } from '@prisma/client';
 import Link from 'next/link';
 
@@ -66,8 +67,12 @@ export function AccountList({ accounts }: AccountListProps) {
 										{account.type}
 									</span>
 								</TableCell>
-								<TableCell className='text-right font-bold'>
-									${Number(account.balance).toFixed(2)}
+								<TableCell className='text-right'>
+									<div className='font-bold ml-auto'>
+										{formatCurrency(
+											Number(account.balance)
+										)}
+									</div>
 								</TableCell>
 								<TableCell>
 									<div className='flex justify-end gap-2'>
