@@ -101,7 +101,17 @@ export function ExpenseForm({
 			console.error(result.error);
 			// Handle error (toast)
 		} else {
-			form.reset();
+			form.reset({
+				amount: 0,
+				description: '',
+				date: new Date(),
+				isRecurring: false,
+				categoryId: undefined,
+				categoryName: '',
+				accountId: undefined,
+				budgetId: undefined,
+				recurringPeriod: undefined,
+			});
 			setShowCustomCategoryInput(false); // Reset custom category state
 			// Handle success (toast)
 		}
@@ -219,7 +229,11 @@ export function ExpenseForm({
 											setShowCustomCategoryInput(false);
 										}
 									}}
-									defaultValue={form.getValues('categoryId')}
+									value={
+										showCustomCategoryInput
+											? '__custom__'
+											: field.value || ''
+									}
 								>
 									<FormControl>
 										<SelectTrigger>
@@ -227,6 +241,13 @@ export function ExpenseForm({
 										</SelectTrigger>
 									</FormControl>
 									<SelectContent>
+										<SelectItem
+											value='__placeholder__'
+											disabled
+											className='hidden'
+										>
+											Select a category
+										</SelectItem>
 										{categories.map((category) => (
 											<SelectItem
 												key={category.id}
@@ -264,7 +285,7 @@ export function ExpenseForm({
 							<FormLabel>Account</FormLabel>
 							<Select
 								onValueChange={field.onChange}
-								defaultValue={field.value}
+								value={field.value || ''}
 							>
 								<FormControl>
 									<SelectTrigger>
@@ -272,6 +293,13 @@ export function ExpenseForm({
 									</SelectTrigger>
 								</FormControl>
 								<SelectContent>
+									<SelectItem
+										value='__placeholder__'
+										disabled
+										className='hidden'
+									>
+										Select an account
+									</SelectItem>
 									{accounts.map((account) => (
 										<SelectItem
 											key={account.id}
@@ -295,7 +323,7 @@ export function ExpenseForm({
 							<FormLabel>Budget (Optional)</FormLabel>
 							<Select
 								onValueChange={field.onChange}
-								defaultValue={field.value}
+								value={field.value || ''}
 							>
 								<FormControl>
 									<SelectTrigger>
@@ -303,6 +331,13 @@ export function ExpenseForm({
 									</SelectTrigger>
 								</FormControl>
 								<SelectContent>
+									<SelectItem
+										value='__placeholder__'
+										disabled
+										className='hidden'
+									>
+										Select a budget
+									</SelectItem>
 									{budgets.map((budget) => (
 										<SelectItem
 											key={budget.id}
@@ -346,7 +381,7 @@ export function ExpenseForm({
 								<FormLabel>Frequency</FormLabel>
 								<Select
 									onValueChange={field.onChange}
-									defaultValue={field.value}
+									value={field.value || ''}
 								>
 									<FormControl>
 										<SelectTrigger>

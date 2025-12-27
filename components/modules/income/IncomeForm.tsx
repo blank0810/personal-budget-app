@@ -96,7 +96,19 @@ export function IncomeForm({ accounts, categories }: IncomeFormProps) {
 			console.error(result.error);
 			// Handle error (toast)
 		} else {
-			form.reset();
+			form.reset({
+				amount: 0,
+				description: '',
+				date: new Date(),
+				isRecurring: false,
+				categoryId: undefined,
+				categoryName: '',
+				accountId: undefined,
+				titheEnabled: true,
+				tithePercentage: 10,
+				recurringPeriod: undefined,
+			});
+			setShowCustomCategoryInput(false);
 			// Handle success (toast)
 		}
 	}
@@ -211,7 +223,11 @@ export function IncomeForm({ accounts, categories }: IncomeFormProps) {
 											setShowCustomCategoryInput(false);
 										}
 									}}
-									defaultValue={form.getValues('categoryId')}
+									value={
+										showCustomCategoryInput
+											? '__custom__'
+											: field.value || ''
+									}
 								>
 									<FormControl>
 										<SelectTrigger>
@@ -219,6 +235,13 @@ export function IncomeForm({ accounts, categories }: IncomeFormProps) {
 										</SelectTrigger>
 									</FormControl>
 									<SelectContent>
+										<SelectItem
+											value='__placeholder__'
+											disabled
+											className='hidden'
+										>
+											Select a category
+										</SelectItem>
 										{categories.map((category) => (
 											<SelectItem
 												key={category.id}
@@ -256,7 +279,7 @@ export function IncomeForm({ accounts, categories }: IncomeFormProps) {
 							<FormLabel>Account</FormLabel>
 							<Select
 								onValueChange={field.onChange}
-								defaultValue={field.value}
+								value={field.value || ''}
 							>
 								<FormControl>
 									<SelectTrigger>
@@ -264,6 +287,13 @@ export function IncomeForm({ accounts, categories }: IncomeFormProps) {
 									</SelectTrigger>
 								</FormControl>
 								<SelectContent>
+									<SelectItem
+										value='__placeholder__'
+										disabled
+										className='hidden'
+									>
+										Select an account
+									</SelectItem>
 									{accounts.map((account) => (
 										<SelectItem
 											key={account.id}
@@ -306,7 +336,7 @@ export function IncomeForm({ accounts, categories }: IncomeFormProps) {
 								<FormLabel>Frequency</FormLabel>
 								<Select
 									onValueChange={field.onChange}
-									defaultValue={field.value}
+									value={field.value || ''}
 								>
 									<FormControl>
 										<SelectTrigger>

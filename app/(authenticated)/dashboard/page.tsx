@@ -87,7 +87,9 @@ export default async function DashboardPage() {
 							className={`text-2xl font-bold ${
 								financialHealth.debtToAssetRatio < 30
 									? 'text-green-600'
-									: 'text-yellow-600'
+									: financialHealth.debtToAssetRatio < 60
+									? 'text-yellow-600'
+									: 'text-red-600'
 							}`}
 						>
 							{financialHealth.debtToAssetRatio.toFixed(1)}%

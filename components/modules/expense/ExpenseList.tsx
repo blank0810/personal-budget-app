@@ -59,7 +59,9 @@ export function ExpenseList({ expenses }: ExpenseListProps) {
 						expenses.map((expense) => (
 							<TableRow key={expense.id}>
 								<TableCell>
-									{format(new Date(expense.date), 'PPP')}
+									<span suppressHydrationWarning>
+										{format(new Date(expense.date), 'PPP')}
+									</span>
 								</TableCell>
 								<TableCell>{expense.description}</TableCell>
 								<TableCell>
