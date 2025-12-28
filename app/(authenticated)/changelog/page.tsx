@@ -29,6 +29,7 @@ const versions: Version[] = [
 					'Corrected Credit Utilization: Fixed logic that incorrectly interpreted "Available Credit" as "Debt".',
 					'Accurate Liability Tracking: Dashboards and Reports now show the actual amount owed on credit cards.',
 					'Visual Integrity: Utilization progress bars now correctly indicate safety (Green = Low Usage) and danger (Red = High Usage) zones.',
+					'Expense Form UI: Resolved an issue where selecting a category would not display the selected value in the form field.',
 				],
 			},
 		],
