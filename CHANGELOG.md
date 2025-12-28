@@ -13,6 +13,7 @@ All notable changes to this project will be documented in this file.
 -   **Corrected Credit Utilization**: Fixed logic that incorrectly interpreted "Available Credit" as "Debt". The system now correctly calculates `Usage = Limit - Balance`.
 -   **Accurate Liability Tracking**: Dashboards and Reports now show the actual amount owed on credit cards, not the remaining limit.
 -   **Visual Integrity**: Utilization progress bars now correctly indicate safety (Green = Low Usage) and danger (Red = High Usage) zones.
+-   **Expense Form UI**: Resolved an issue where selecting a category would not display the selected value in the form field.
 
 ## [v1.2] - December 27, 2024
 
