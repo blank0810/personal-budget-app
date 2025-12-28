@@ -24,7 +24,13 @@ export const DashboardService = {
 				assets += balance;
 			} else {
 				// Liabilities to be subtracted
-				liabilities += balance;
+				// IF account has credit limit, Balance is "Available Credit", so Liability = Limit - Balance
+				if (account.creditLimit) {
+					liabilities += Number(account.creditLimit) - balance;
+				} else {
+					// Fallback: If no limit, assume straightforward debt (rare for credit cards in this model)
+					liabilities += balance;
+				}
 			}
 		}
 
@@ -132,13 +138,16 @@ export const DashboardService = {
 		let totalCreditLimit = 0;
 
 		for (const account of creditAccounts) {
-			// For Credit Cards, 'balance' usually represents debt.
-			// If balance is positive, it's debt. If logic stores debt as negative, we might need absolute.
-			// Based on schema 'balance' is generic Decimal. Usually Credit Card Debt is Positive in "Balance" field for Liability Accounts?
-			// Let's assume standard behavior: Balance on Liability Account = Amount Owed.
+			// For Credit Cards with "Available Credit" model:
+			// Balance = Available Credit.
+			// Usage = Limit - Balance.
 			if (account.creditLimit) {
-				totalCreditUsed += Number(account.balance);
-				totalCreditLimit += Number(account.creditLimit);
+				const limit = Number(account.creditLimit);
+				const available = Number(account.balance);
+				const used = limit - available;
+
+				totalCreditUsed += used;
+				totalCreditLimit += limit;
 			}
 		}
 

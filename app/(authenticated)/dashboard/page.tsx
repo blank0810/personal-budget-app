@@ -352,9 +352,12 @@ export default async function DashboardPage() {
 															account.creditLimit && (
 																<span
 																	className={
-																		Number(
-																			account.balance
-																		) /
+																		(Number(
+																			account.creditLimit
+																		) -
+																			Number(
+																				account.balance
+																			)) /
 																			Number(
 																				account.creditLimit
 																			) >
@@ -364,9 +367,12 @@ export default async function DashboardPage() {
 																	}
 																>
 																	{Math.round(
-																		(Number(
-																			account.balance
-																		) /
+																		((Number(
+																			account.creditLimit
+																		) -
+																			Number(
+																				account.balance
+																			)) /
 																			Number(
 																				account.creditLimit
 																			)) *
@@ -379,7 +385,16 @@ export default async function DashboardPage() {
 												</div>
 												<div className='ml-auto font-medium text-red-600'>
 													{formatCurrency(
-														account.balance.toNumber()
+														account.creditLimit
+															? Number(
+																	account.creditLimit
+															  ) -
+																	Number(
+																		account.balance
+																	)
+															: Number(
+																	account.balance
+															  )
 													)}
 												</div>
 											</div>

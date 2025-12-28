@@ -16,12 +16,30 @@ interface Version {
 
 const versions: Version[] = [
 	{
+		version: 'v1.3',
+		date: 'December 28, 2024',
+		title: 'Credit Logic Hotpatch',
+		description:
+			'A critical update to align system logic with our financial reality regarding credit utilization and debt calculation.',
+		status: 'current',
+		features: [
+			{
+				title: 'Hotfix',
+				items: [
+					'Corrected Credit Utilization: Fixed logic that incorrectly interpreted "Available Credit" as "Debt".',
+					'Accurate Liability Tracking: Dashboards and Reports now show the actual amount owed on credit cards.',
+					'Visual Integrity: Utilization progress bars now correctly indicate safety (Green = Low Usage) and danger (Red = High Usage) zones.',
+				],
+			},
+		],
+	},
+	{
 		version: 'v1.2',
 		date: 'December 27, 2024',
 		title: 'Solvency & Integrity Update',
 		description:
 			'A major architectural shift focusing on financial solvency, credit integrity, and accurate liability tracking. We moved away from simple cash flow tracking to a more robust "Net Worth" model.',
-		status: 'current',
+		status: 'released',
 		features: [
 			{
 				title: 'Dashboard Refactor',

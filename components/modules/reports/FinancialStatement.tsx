@@ -228,17 +228,23 @@ export function FinancialStatement({
 																			</span>
 																			<span
 																				className={
-																					Number(
-																						account.balance
-																					) /
+																					(Number(
+																						account.creditLimit
+																					) -
+																						Number(
+																							account.balance
+																						)) /
 																						Number(
 																							account.creditLimit
 																						) <
 																					0.3
 																						? 'text-green-600 font-medium'
-																						: Number(
-																								account.balance
-																						  ) /
+																						: (Number(
+																								account.creditLimit
+																						  ) -
+																								Number(
+																									account.balance
+																								)) /
 																								Number(
 																									account.creditLimit
 																								) <
@@ -248,31 +254,41 @@ export function FinancialStatement({
 																				}
 																			>
 																				{Math.round(
-																					(Number(
-																						account.balance
-																					) /
+																					((Number(
+																						account.creditLimit
+																					) -
+																						Number(
+																							account.balance
+																						)) /
 																						Number(
 																							account.creditLimit
 																						)) *
 																						100
 																				)}
+
 																				%
 																			</span>
 																		</div>
 																		<div className='h-1 w-full bg-secondary rounded-full overflow-hidden'>
 																			<div
 																				className={`h-full ${
-																					Number(
-																						account.balance
-																					) /
+																					(Number(
+																						account.creditLimit
+																					) -
+																						Number(
+																							account.balance
+																						)) /
 																						Number(
 																							account.creditLimit
 																						) <
 																					0.3
 																						? 'bg-green-500'
-																						: Number(
-																								account.balance
-																						  ) /
+																						: (Number(
+																								account.creditLimit
+																						  ) -
+																								Number(
+																									account.balance
+																								)) /
 																								Number(
 																									account.creditLimit
 																								) <
@@ -282,9 +298,12 @@ export function FinancialStatement({
 																				}`}
 																				style={{
 																					width: `${Math.min(
-																						(Number(
-																							account.balance
-																						) /
+																						((Number(
+																							account.creditLimit
+																						) -
+																							Number(
+																								account.balance
+																							)) /
 																							Number(
 																								account.creditLimit
 																							)) *
@@ -301,7 +320,16 @@ export function FinancialStatement({
 												</div>
 												<div className='font-bold text-red-600 self-start mt-1'>
 													{formatCurrency(
-														Number(account.balance)
+														account.creditLimit
+															? Number(
+																	account.creditLimit
+															  ) -
+																	Number(
+																		account.balance
+																	)
+															: Number(
+																	account.balance
+															  )
 													)}
 												</div>
 											</div>
@@ -331,7 +359,16 @@ export function FinancialStatement({
 													.reduce(
 														(sum, a) =>
 															sum +
-															Number(a.balance),
+															(a.creditLimit
+																? Number(
+																		a.creditLimit
+																  ) -
+																  Number(
+																		a.balance
+																  )
+																: Number(
+																		a.balance
+																  )),
 														0
 													)
 											)}
@@ -354,13 +391,19 @@ export function FinancialStatement({
 								</div>
 								<div className='text-2xl font-bold text-primary'>
 									{formatCurrency(
-										accounts.reduce(
-											(sum, a) =>
-												a.isLiability
-													? sum - Number(a.balance)
-													: sum + Number(a.balance),
-											0
-										)
+										accounts.reduce((sum, a) => {
+											if (a.isLiability) {
+												const liabilityAmount =
+													a.creditLimit
+														? Number(
+																a.creditLimit
+														  ) - Number(a.balance)
+														: Number(a.balance);
+												return sum - liabilityAmount;
+											} else {
+												return sum + Number(a.balance);
+											}
+										}, 0)
 									)}
 								</div>
 							</div>
