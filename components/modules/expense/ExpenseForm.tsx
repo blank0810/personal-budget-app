@@ -343,7 +343,7 @@ export function ExpenseForm({
 				{/* Category Selection: Select or Create Custom */}
 				<FormField
 					control={form.control}
-					name='categoryName'
+					name='categoryId'
 					render={({ field }) => (
 						<FormItem>
 							<FormLabel>Category</FormLabel>
@@ -352,16 +352,13 @@ export function ExpenseForm({
 									onValueChange={(value) => {
 										if (value === '__custom__') {
 											// Clear categoryId and show custom input
-											form.setValue(
-												'categoryId',
-												undefined
-											);
-											field.onChange('');
+											field.onChange(undefined);
+											form.setValue('categoryName', '');
 											setShowCustomCategoryInput(true);
 										} else {
 											// Set categoryId, clear categoryName, and hide custom input
-											form.setValue('categoryId', value);
-											field.onChange('');
+											field.onChange(value);
+											form.setValue('categoryName', '');
 											setShowCustomCategoryInput(false);
 										}
 									}}
@@ -397,21 +394,30 @@ export function ExpenseForm({
 										</SelectItem>
 									</SelectContent>
 								</Select>
-
-								{/* Show input field only when user selects "Create Custom Category" */}
-								{showCustomCategoryInput && (
-									<FormControl>
-										<Input
-											placeholder='Enter new category name'
-											{...field}
-										/>
-									</FormControl>
-								)}
 							</div>
 							<FormMessage />
 						</FormItem>
 					)}
 				/>
+
+				{/* Show input field only when user selects "Create Custom Category" */}
+				{showCustomCategoryInput && (
+					<FormField
+						control={form.control}
+						name='categoryName'
+						render={({ field }) => (
+							<FormItem>
+								<FormControl>
+									<Input
+										placeholder='Enter new category name'
+										{...field}
+									/>
+								</FormControl>
+								<FormMessage />
+							</FormItem>
+						)}
+					/>
+				)}
 
 				<FormField
 					control={form.control}
