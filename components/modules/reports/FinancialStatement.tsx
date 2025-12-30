@@ -24,6 +24,7 @@ interface FinancialStatementProps {
 	initialFrom: Date;
 	initialTo: Date;
 	accounts: Account[];
+	hideControls?: boolean;
 }
 
 export function FinancialStatement({
@@ -31,6 +32,7 @@ export function FinancialStatement({
 	initialFrom,
 	initialTo,
 	accounts,
+	hideControls = false,
 }: FinancialStatementProps) {
 	const router = useRouter();
 	const [date, setDate] = useState<DateRange | undefined>({
@@ -40,7 +42,7 @@ export function FinancialStatement({
 
 	// Update URL when date changes
 	useEffect(() => {
-		if (date?.from && date?.to) {
+		if (!hideControls && date?.from && date?.to) {
 			const params = new URLSearchParams();
 			params.set('from', date.from.toISOString());
 			params.set('to', date.to.toISOString());
@@ -48,7 +50,7 @@ export function FinancialStatement({
 			// Use replace to prevent history stack buildup, but keep interaction snappy
 			router.push(`?${params.toString()}`);
 		}
-	}, [date, router]);
+	}, [date, router, hideControls]);
 
 	return (
 		<div className='space-y-6'>
@@ -56,7 +58,9 @@ export function FinancialStatement({
 				<h2 className='text-2xl font-bold tracking-tight'>
 					Financial Statement
 				</h2>
-				<DateRangePicker date={date} setDate={setDate} />
+				{!hideControls && (
+					<DateRangePicker date={date} setDate={setDate} />
+				)}
 			</div>
 
 			<div className='grid gap-4 md:grid-cols-3'>
@@ -318,18 +322,10 @@ export function FinancialStatement({
 														</div>
 													</div>
 												</div>
+												{/* Balance = Amount Owed (Debt) */}
 												<div className='font-bold text-red-600 self-start mt-1'>
 													{formatCurrency(
-														account.creditLimit
-															? Number(
-																	account.creditLimit
-															  ) -
-																	Number(
-																		account.balance
-																	)
-															: Number(
-																	account.balance
-															  )
+														Number(account.balance)
 													)}
 												</div>
 											</div>
@@ -351,6 +347,7 @@ export function FinancialStatement({
 									<div className='flex justify-between items-center font-bold text-lg'>
 										<span>Total Liabilities</span>
 										<span className='text-red-600'>
+											{/* Total Liabilities = Sum of all liability balances (amount owed) */}
 											{formatCurrency(
 												accounts
 													.filter(
@@ -359,16 +356,7 @@ export function FinancialStatement({
 													.reduce(
 														(sum, a) =>
 															sum +
-															(a.creditLimit
-																? Number(
-																		a.creditLimit
-																  ) -
-																  Number(
-																		a.balance
-																  )
-																: Number(
-																		a.balance
-																  )),
+															Number(a.balance),
 														0
 													)
 											)}
@@ -390,16 +378,11 @@ export function FinancialStatement({
 									</p>
 								</div>
 								<div className='text-2xl font-bold text-primary'>
+									{/* Net Worth = Assets - Liabilities (balance = amount owed) */}
 									{formatCurrency(
 										accounts.reduce((sum, a) => {
 											if (a.isLiability) {
-												const liabilityAmount =
-													a.creditLimit
-														? Number(
-																a.creditLimit
-														  ) - Number(a.balance)
-														: Number(a.balance);
-												return sum - liabilityAmount;
+												return sum - Number(a.balance);
 											} else {
 												return sum + Number(a.balance);
 											}

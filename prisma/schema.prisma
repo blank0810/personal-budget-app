@@ -56,6 +56,7 @@ model Account {
   icon        String?
   color       String?
   isLiability Boolean     @default(false)
+  isArchived  Boolean     @default(false)  // Soft delete for data integrity
   creditLimit Decimal?    @db.Decimal(12, 2)
   userId      String
   createdAt   DateTime    @default(now())
@@ -69,6 +70,7 @@ model Account {
   transfersTo   Transfer[] @relation("TransferTo")
 
   @@unique([userId, name])
+  @@index([userId, isArchived])
   @@map("accounts")
 }
 
@@ -76,6 +78,7 @@ model Account {
 model Transfer {
   id            String   @id @default(cuid())
   amount        Decimal  @db.Decimal(10, 2)
+  fee           Decimal  @db.Decimal(10, 2) @default(0)  // Transfer/bank fee
   date          DateTime
   description   String?
   fromAccountId String
@@ -164,9 +167,11 @@ model Expense {
   @@map("expenses")
 }
 
-// Budget model
+// Budget model - Envelope Budgeting
+// Each budget has a unique name, allowing multiple budgets per category
 model Budget {
   id         String    @id @default(cuid())
+  name       String    // e.g., "My Insurance", "Family Insurance"
   amount     Decimal   @db.Decimal(10, 2)
   month      DateTime  // First day of the month
   categoryId String
@@ -179,7 +184,8 @@ model Budget {
   user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   expenses Expense[] // Track expenses under this budget
 
-  @@unique([userId, categoryId, month])
+  @@unique([userId, name, month])  // Unique by name+month (allows multiple per category)
   @@index([userId, month])
+  @@index([userId, categoryId])    // For querying budgets by category
   @@map("budgets")
 }

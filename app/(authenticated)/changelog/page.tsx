@@ -16,12 +16,52 @@ interface Version {
 
 const versions: Version[] = [
 	{
+		version: 'v1.4',
+		date: 'December 30, 2024',
+		title: 'Financial Analytics & UX Overhaul',
+		description:
+			'A massive update delivering professional-grade reporting tools, envelope budgeting, and a streamlined data management experience.',
+		status: 'current',
+		features: [
+			{
+				title: 'Reporting Intelligence',
+				items: [
+					'Net Worth Trend Chart: Visualizes wealth growth over time with a retroactive "reverse-replay" algorithm.',
+					'Tabbed Reports Dashboard: Consolidated analytics into distinct Overview, P&L, and Balance Sheet views.',
+					'Global Date Controls: Unified sticky toolbar for filtering all charts simultaneously.',
+				],
+			},
+			{
+				title: 'Data Management Excellence',
+				items: [
+					'Interactive DataTables: Added pagination, sorting, filtering, and search to Income, Expense, Transfer, and Budget lists.',
+					'Bulk Visibility: Optimized UI to handle thousands of records without performance degradation.',
+				],
+			},
+			{
+				title: 'Envelope Budgeting',
+				items: [
+					'Named Budgets: Users can now create multiple recurring budgets per category (e.g., "Car Insurance" and "Life Insurance").',
+					'Budget Tracking: Enhanced precision in linking expenses to specific budget envelopes.',
+				],
+			},
+			{
+				title: 'Financial Accuracy',
+				items: [
+					'Transfer Fees: Added explicit handling for bank fees during transfers.',
+					'Account Archiving: Implemented "Soft Delete" to hide old accounts without losing historical data.',
+					'Liability Accounting Standard: Standardized "Balance = Amount Owed" for consistency.',
+				],
+			},
+		],
+	},
+	{
 		version: 'v1.3',
 		date: 'December 28, 2024',
 		title: 'Credit Logic Hotpatch',
 		description:
 			'A critical update to align system logic with our financial reality regarding credit utilization and debt calculation.',
-		status: 'current',
+		status: 'released',
 		features: [
 			{
 				title: 'Hotfix',

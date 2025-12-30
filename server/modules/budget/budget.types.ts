@@ -1,8 +1,9 @@
 import { z } from 'zod';
 
-// Budget Schema
+// Budget Schema - Envelope Budgeting
 export const createBudgetSchema = z
 	.object({
+		name: z.string().min(1, 'Budget name is required').max(100),
 		amount: z.number().positive('Amount must be positive'),
 		categoryId: z.string().optional(), // Optional if categoryName provided
 		categoryName: z.string().optional(), // For creating custom categories

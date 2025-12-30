@@ -53,3 +53,10 @@ export type DashboardKPIs = {
 	totalExpenses: KPIMetric;
 	savingsRate: KPIMetric;
 };
+
+export type NetWorthHistoryPoint = {
+	date: string;
+	assets: number;
+	liabilities: number;
+	netWorth: number;
+};

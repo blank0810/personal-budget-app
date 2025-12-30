@@ -23,14 +23,8 @@ export const DashboardService = {
 			if (!account.isLiability) {
 				assets += balance;
 			} else {
-				// Liabilities to be subtracted
-				// IF account has credit limit, Balance is "Available Credit", so Liability = Limit - Balance
-				if (account.creditLimit) {
-					liabilities += Number(account.creditLimit) - balance;
-				} else {
-					// Fallback: If no limit, assume straightforward debt (rare for credit cards in this model)
-					liabilities += balance;
-				}
+				// DEBT MODEL: Balance = Amount Owed
+				liabilities += balance;
 			}
 		}
 
@@ -39,6 +33,23 @@ export const DashboardService = {
 			assets,
 			liabilities,
 		};
+	},
+
+	/**
+	 * Get liquid assets only (excludes investments for runway calculation)
+	 */
+	async getLiquidAssets(userId: string) {
+		const accounts = await prisma.account.findMany({
+			where: {
+				userId,
+				isLiability: false,
+				// Liquid account types (exclude INVESTMENT)
+				type: { in: ['BANK', 'CASH', 'SAVINGS'] },
+			},
+			select: { balance: true },
+		});
+
+		return accounts.reduce((sum, acc) => sum + Number(acc.balance), 0);
 	},
 
 	/**
@@ -63,6 +74,34 @@ export const DashboardService = {
 	},
 
 	/**
+	 * Get average monthly expenses over past N months
+	 */
+	async getAverageMonthlyExpense(userId: string, months: number = 3) {
+		const now = new Date();
+		const startDate = new Date(
+			now.getFullYear(),
+			now.getMonth() - months,
+			1
+		);
+		const endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+
+		const expenses = await prisma.expense.aggregate({
+			where: {
+				userId,
+				date: { gte: startDate, lte: endDate },
+			},
+			_sum: { amount: true },
+		});
+
+		const totalExpense = expenses._sum.amount?.toNumber() || 0;
+
+		// Calculate actual months covered
+		const monthsCovered = Math.max(1, months);
+
+		return totalExpense / monthsCovered;
+	},
+
+	/**
 	 * Get Recent Transactions (Combined Income and Expense)
 	 */
 	async getRecentTransactions(userId: string, limit = 5) {
@@ -81,7 +120,6 @@ export const DashboardService = {
 			}),
 		]);
 
-		// Combine and sort
 		const transactions = [
 			...incomes.map((i) => ({ ...i, type: 'INCOME' as const })),
 			...expenses.map((e) => ({ ...e, type: 'EXPENSE' as const })),
@@ -103,7 +141,11 @@ export const DashboardService = {
 	},
 
 	/**
-	 * Get Financial Health Metrics (Savings Rate, Debt-to-Asset, Burn Rate)
+	 * Get Financial Health Metrics
+	 * - Savings Rate: YTD (Income - Expense) / Income
+	 * - Runway: Liquid Assets / 3-month average expenses
+	 * - Credit Utilization
+	 * - Debt-to-Asset Ratio
 	 */
 	async getFinancialHealthMetrics(userId: string) {
 		const now = new Date();
@@ -118,17 +160,33 @@ export const DashboardService = {
 			0
 		);
 
+		// YTD dates for savings rate
+		const startOfYear = new Date(now.getFullYear(), 0, 1);
+
 		// 1. Get Net Worth (Assets & Liabilities)
 		const { assets, liabilities } = await this.getNetWorth(userId);
 
-		// 2. Get Cash Flow (Income & Expense) for current month
-		const { income, expense } = await this.getCashFlow(
+		// 2. Get YTD Cash Flow for Savings Rate
+		const ytdCashFlow = await this.getCashFlow(
 			userId,
-			startCurrentMonth,
+			startOfYear,
 			endCurrentMonth
 		);
+		const ytdIncome = ytdCashFlow.income;
+		const ytdExpense = ytdCashFlow.expense;
 
-		// 3. Get Credit Utilization
+		// 3. Get current month Cash Flow (for display)
+		const { income: monthIncome, expense: monthExpense } =
+			await this.getCashFlow(userId, startCurrentMonth, endCurrentMonth);
+
+		// 4. Get Liquid Assets and Average Expense for Runway
+		const liquidAssets = await this.getLiquidAssets(userId);
+		const avgMonthlyExpense = await this.getAverageMonthlyExpense(
+			userId,
+			3
+		);
+
+		// 5. Get Credit Utilization
 		const creditAccounts = await prisma.account.findMany({
 			where: { userId, type: 'CREDIT', creditLimit: { not: null } },
 			select: { balance: true, creditLimit: true },
@@ -138,13 +196,9 @@ export const DashboardService = {
 		let totalCreditLimit = 0;
 
 		for (const account of creditAccounts) {
-			// For Credit Cards with "Available Credit" model:
-			// Balance = Available Credit.
-			// Usage = Limit - Balance.
 			if (account.creditLimit) {
 				const limit = Number(account.creditLimit);
-				const available = Number(account.balance);
-				const used = limit - available;
+				const used = Number(account.balance); // Balance = Debt
 
 				totalCreditUsed += used;
 				totalCreditLimit += limit;
@@ -156,13 +210,14 @@ export const DashboardService = {
 				? (totalCreditUsed / totalCreditLimit) * 100
 				: 0;
 
-		// 4. Calculate Ratios
+		// 6. Calculate Ratios
+		// YTD Savings Rate (more stable than single month)
 		const savingsRate =
-			income > 0 ? ((income - expense) / income) * 100 : 0;
+			ytdIncome > 0 ? ((ytdIncome - ytdExpense) / ytdIncome) * 100 : 0;
+
 		const debtToAssetRatio = assets > 0 ? (liabilities / assets) * 100 : 0;
 
-		// For Debt Paydown (replacing Burn Rate)
-		// Calculate total transfers TO liability accounts this month
+		// 7. Debt Paydown this month
 		const debtPaydownResult = await prisma.transfer.aggregate({
 			where: {
 				userId,
@@ -173,10 +228,11 @@ export const DashboardService = {
 		});
 		const debtPaydown = debtPaydownResult._sum?.amount?.toNumber() || 0;
 
+		// 8. Runway (Liquid Assets / 3-month avg expense)
 		let runwayMonths = 0;
-		if (expense > 0) {
-			runwayMonths = assets / expense;
-		} else if (expense === 0 && assets > 0) {
+		if (avgMonthlyExpense > 0) {
+			runwayMonths = liquidAssets / avgMonthlyExpense;
+		} else if (avgMonthlyExpense === 0 && liquidAssets > 0) {
 			runwayMonths = 999; // Infinite runway
 		}
 
@@ -186,8 +242,13 @@ export const DashboardService = {
 			debtPaydown,
 			runwayMonths,
 			creditUtilization,
-			income,
-			expense,
+			income: monthIncome, // Current month for display
+			expense: monthExpense, // Current month for display
+			// Additional context for UI
+			ytdIncome,
+			ytdExpense,
+			liquidAssets,
+			avgMonthlyExpense,
 		};
 	},
 };

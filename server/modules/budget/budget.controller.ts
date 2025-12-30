@@ -23,10 +23,11 @@ export async function createBudgetAction(formData: FormData) {
 	const userId = await getAuthenticatedUser();
 
 	const rawData = {
+		name: formData.get('name') as string,
 		amount: Number(formData.get('amount')),
 		categoryId: formData.get('categoryId') as string,
-		categoryName: formData.get('categoryName') as string | undefined, // NEW
-		month: new Date(formData.get('month') as string), // Expecting YYYY-MM-01 or ISO
+		categoryName: formData.get('categoryName') as string | undefined,
+		month: new Date(formData.get('month') as string),
 	};
 
 	const validatedFields = createBudgetSchema.safeParse(rawData);

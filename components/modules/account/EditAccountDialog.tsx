@@ -230,7 +230,9 @@ export function EditAccountDialog({ account }: EditAccountDialogProps) {
 
 						<div className='flex flex-col space-y-2 rounded-md bg-muted p-3'>
 							<span className='text-sm font-medium text-muted-foreground'>
-								Current Balance (Read Only)
+								{isCreditOrLoan
+									? 'Current Owed Amount (Read Only)'
+									: 'Current Balance (Read Only)'}
 							</span>
 							<span className='text-lg font-bold'>
 								{formatCurrency(Number(account.balance))}

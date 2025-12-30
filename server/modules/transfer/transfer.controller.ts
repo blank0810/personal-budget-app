@@ -26,6 +26,7 @@ export async function createTransferAction(formData: FormData) {
 		amount: Number(formData.get('amount')),
 		date: new Date(formData.get('date') as string),
 		description: formData.get('description') as string,
+		fee: formData.get('fee') ? Number(formData.get('fee')) : 0,
 		fromAccountId: formData.get('fromAccountId') as string,
 		toAccountId: formData.get('toAccountId') as string,
 	};

@@ -1,24 +1,17 @@
 'use client';
 
-import {
-	Table,
-	TableBody,
-	TableCell,
-	TableHead,
-	TableHeader,
-	TableRow,
-} from '@/components/ui/table';
+import { DataTable, Column } from '@/components/common/DataTable';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { format } from 'date-fns';
 import { Trash2 } from 'lucide-react';
 import { deleteExpenseAction } from '@/server/modules/expense/expense.controller';
+import { Expense, Category, Account } from '@prisma/client';
 import { formatCurrency } from '@/lib/formatters';
-import { Expense, Category, Account, Budget } from '@prisma/client';
 
 interface ExpenseWithRelations extends Expense {
 	category: Category;
 	account: Account | null;
-	budget: Budget | null;
 }
 
 interface ExpenseListProps {
@@ -26,70 +19,79 @@ interface ExpenseListProps {
 }
 
 export function ExpenseList({ expenses }: ExpenseListProps) {
-	async function handleDelete(id: string) {
+	async function handleDelete(id: string, e: React.MouseEvent) {
+		e.stopPropagation();
 		if (confirm('Are you sure you want to delete this expense?')) {
 			await deleteExpenseAction(id);
 		}
 	}
 
+	const columns: Column<ExpenseWithRelations>[] = [
+		{
+			key: 'date',
+			header: 'Date',
+			render: (expense) => (
+				<span className='text-muted-foreground text-sm'>
+					{format(new Date(expense.date), 'MMM d, yyyy')}
+				</span>
+			),
+		},
+		{
+			key: 'description',
+			header: 'Description',
+			searchable: true,
+			render: (expense) => expense.description || '-',
+		},
+		{
+			key: 'category',
+			header: 'Category',
+			searchable: true,
+			render: (expense) => (
+				<Badge variant='secondary'>{expense.category.name}</Badge>
+			),
+		},
+		{
+			key: 'account',
+			header: 'Account',
+			searchable: true,
+			render: (expense) => expense.account?.name || '-',
+		},
+		{
+			key: 'amount',
+			header: 'Amount',
+			className: 'text-right',
+			render: (expense) => (
+				<span className='font-bold text-red-600'>
+					-{formatCurrency(Number(expense.amount))}
+				</span>
+			),
+		},
+		{
+			key: 'actions',
+			header: '',
+			sortable: false,
+			searchable: false,
+			className: 'w-[50px]',
+			render: (expense) => (
+				<Button
+					variant='ghost'
+					size='icon'
+					className='h-8 w-8 text-destructive'
+					onClick={(e) => handleDelete(expense.id, e)}
+				>
+					<Trash2 className='h-4 w-4' />
+				</Button>
+			),
+		},
+	];
+
 	return (
-		<div className='rounded-md border bg-card'>
-			<Table>
-				<TableHeader>
-					<TableRow>
-						<TableHead>Date</TableHead>
-						<TableHead>Description</TableHead>
-						<TableHead>Category</TableHead>
-						<TableHead>Account</TableHead>
-						<TableHead className='text-right'>Amount</TableHead>
-						<TableHead className='w-[50px]'></TableHead>
-					</TableRow>
-				</TableHeader>
-				<TableBody>
-					{expenses.length === 0 ? (
-						<TableRow>
-							<TableCell
-								colSpan={6}
-								className='text-center h-24 text-muted-foreground'
-							>
-								No expense entries found.
-							</TableCell>
-						</TableRow>
-					) : (
-						expenses.map((expense) => (
-							<TableRow key={expense.id}>
-								<TableCell>
-									<span suppressHydrationWarning>
-										{format(new Date(expense.date), 'PPP')}
-									</span>
-								</TableCell>
-								<TableCell>{expense.description}</TableCell>
-								<TableCell>
-									<span className='inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 border-transparent bg-secondary text-secondary-foreground hover:bg-secondary/80'>
-										{expense.category.name}
-									</span>
-								</TableCell>
-								<TableCell>
-									{expense.account?.name || '-'}
-								</TableCell>
-								<TableCell className='text-right font-bold text-red-600'>
-									-{formatCurrency(Number(expense.amount))}
-								</TableCell>
-								<TableCell>
-									<Button
-										variant='ghost'
-										size='icon'
-										className='h-8 w-8 text-destructive'
-										onClick={() => handleDelete(expense.id)}
-									>
-										<Trash2 className='h-4 w-4' />
-									</Button>
-								</TableCell>
-							</TableRow>
-						))
-					)}
-				</TableBody>
-			</Table>
-		</div>
+		<DataTable
+			data={expenses}
+			columns={columns}
+			searchPlaceholder='Search expenses...'
+			emptyMessage='No expense entries found.'
+			getRowId={(e) => e.id}
+		/>
 	);
 }

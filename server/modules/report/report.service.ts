@@ -4,6 +4,7 @@ import {
 	MonthlySummary,
 	FinancialStatement,
 	DashboardKPIs,
+	NetWorthHistoryPoint,
 } from './report.types';
 import {
 	endOfMonth,
@@ -11,6 +12,11 @@ import {
 	format,
 	differenceInDays,
 	subDays,
+	isSameDay,
+	startOfDay,
+	isAfter,
+	isBefore,
+	endOfDay,
 } from 'date-fns';
 
 export const ReportService = {
@@ -336,5 +342,287 @@ export const ReportService = {
 				history: historyPoints.map((h) => h.savingsRate),
 			},
 		};
+	},
+
+	/**
+	 * Get Net Worth History by daily intervals
+	 * Calculates historical balances by reverse-playing transactions from current state
+	 */
+	async getNetWorthHistory(
+		userId: string,
+		startDate: Date,
+		endDate: Date
+	): Promise<NetWorthHistoryPoint[]> {
+		// 1. Get Current Account Balances
+		const accounts = await prisma.account.findMany({
+			where: { userId },
+		});
+
+		// Map to track running balances: [accountId]: balance (number)
+		const balances = new Map<string, number>();
+		accounts.forEach((acc) => {
+			balances.set(acc.id, acc.balance.toNumber());
+		});
+
+		// 2. Fetch ALL transactions from Now backwards to startDate
+		// We need everything > startDate to reverse-engineer the starting point
+		const [incomes, expenses, transfers] = await Promise.all([
+			prisma.income.findMany({
+				where: { userId, date: { gte: startDate } },
+				select: {
+					amount: true,
+					accountId: true,
+					date: true,
+				},
+			}),
+			prisma.expense.findMany({
+				where: { userId, date: { gte: startDate } },
+				select: {
+					amount: true,
+					accountId: true,
+					date: true,
+				},
+			}),
+			prisma.transfer.findMany({
+				where: { userId, date: { gte: startDate } },
+				select: {
+					amount: true,
+					fromAccountId: true,
+					toAccountId: true,
+					date: true,
+				},
+			}),
+		]);
+
+		// Combined Transaction Log
+		type Tx = {
+			type: 'INCOME' | 'EXPENSE' | 'TRANSFER';
+			amount: number;
+			date: Date;
+			accountId?: string | null;
+			fromId?: string;
+			toId?: string;
+		};
+
+		const allTxs: Tx[] = [
+			...incomes.map((i) => ({
+				type: 'INCOME' as const,
+				amount: i.amount.toNumber(),
+				date: i.date,
+				accountId: i.accountId,
+			})),
+			...expenses.map((e) => ({
+				type: 'EXPENSE' as const,
+				amount: e.amount.toNumber(),
+				date: e.date,
+				accountId: e.accountId,
+			})),
+			...transfers.map((t) => ({
+				type: 'TRANSFER' as const,
+				amount: t.amount.toNumber(),
+				date: t.date,
+				fromId: t.fromAccountId,
+				toId: t.toAccountId,
+			})),
+		].sort((a, b) => b.date.getTime() - a.date.getTime()); // DESC
+
+		// 3. Iterate Days Backwards
+		const history: NetWorthHistoryPoint[] = [];
+
+		// We start from Today (or End of Data) and move back to startDate
+		// Actually, we must start from "Now" because 'balances' are current.
+		// If 'endDate' is in the past, we first reverse from Now to endDate without recording.
+		// Then reverse from endDate to startDate while recording.
+
+		/*
+             Timeline:
+             [StartDate] ............ [EndDate] ..... [Now]
+             We have Balances @ Now.
+             We have Txs from StartDate to Now.
+             
+             Step A: Reverse Txs from Now down to EndDate (exclusive of EndDate content? or inclusive?)
+             We want the state AT EndDate (end of day).
+             So we undo Txs that happened AFTER EndDate.
+        */
+
+		const now = new Date();
+		// Normalize
+		const endOfRun = startOfDay(now) < startOfDay(endDate) ? endDate : now;
+		// Ideally we just process all sorted TXs.
+		// We loop days from `endOfRun` down to `startDate`.
+
+		let currentTxIndex = 0; // Pointer in allTxs (which is DESC)
+
+		// Create array of days to process (DESC)
+		const days: Date[] = [];
+		let d = startOfDay(endOfRun);
+		const start = startOfDay(startDate);
+
+		while (d >= start) {
+			days.push(new Date(d));
+			d = subDays(d, 1);
+		}
+
+		// Helper to undo transaction effect
+		const undoTx = (tx: Tx) => {
+			if (tx.type === 'INCOME') {
+				if (!tx.accountId) return; // Skip if no account linked
+				// Income added to balance. Undo = Subtract.
+				// For Liability (Debt), Income (Refund) DECREASES Debt.
+				// Wait, "Balance" field in DB:
+				// Asset=100. Income +50 -> Bal=150. Undo: 150-50=100.
+				// Liability=100. Refund +50 -> Bal=50. Undo: 50-50=0? No.
+				// If I owe 100, get 50 refund, I owe 50.
+				// DB stores Debt as +50.
+				// Undo: 50 + 50 = 100.
+				// So for Liability, Income (Refund) is SUBTRACTED from Debt?
+				// Let's verify standard: Amount is usually positive.
+				// If Income (Refund) is processed as "Reduce Balance", then Undo is "Add Balance".
+				// IF Income on Liability account works like that.
+				// Assuming standard "Account Balance" math:
+				// Asset: Bal += Amt.
+				// Liability: Bal -= Amt (Debt reduces).
+				// So Undo:
+				// Asset: Bal -= Amt.
+				// Liability: Bal += Amt.
+
+				const accId = tx.accountId!;
+				const acc = accounts.find((a) => a.id === accId);
+				const currentBal = balances.get(accId) || 0;
+
+				if (acc?.isLiability) {
+					// Income reduced debt. Undo: Increase debt.
+					balances.set(accId, currentBal + tx.amount);
+				} else {
+					// Income increased asset. Undo: Decrease asset.
+					balances.set(accId, currentBal - tx.amount);
+				}
+			} else if (tx.type === 'EXPENSE') {
+				if (!tx.accountId) return; // Skip if no account linked
+				// Expense removed from balance. Undo = Add.
+				// Asset: Bal -= Amt. Undo: Bal += Amt.
+				// Liability: Bal += Amt (Debt grows). Undo: Bal -= Amt.
+
+				const accId = tx.accountId!;
+				const acc = accounts.find((a) => a.id === accId);
+				const currentBal = balances.get(accId) || 0;
+
+				if (acc?.isLiability) {
+					balances.set(accId, currentBal - tx.amount);
+				} else {
+					balances.set(accId, currentBal + tx.amount);
+				}
+			} else if (tx.type === 'TRANSFER') {
+				// From A (Asset) to B (Liability) [Payment]
+				// A: Bal -= Amt.
+				// B: Bal -= Amt (Debt reduces).
+				// Undo:
+				// A: Bal += Amt.
+				// B: Bal += Amt (Debt increases).
+
+				//From A (Asset) to B (Asset) [Savings]
+				// A: Bal -= Amt.
+				// B: Bal += Amt.
+				// Undo:
+				// A: Bal += Amt.
+				// B: Bal -= Amt.
+
+				const fromId = tx.fromId!;
+				const toId = tx.toId!;
+				const fromAcc = accounts.find((a) => a.id === fromId);
+				const toAcc = accounts.find((a) => a.id === toId);
+
+				const fromBal = balances.get(fromId) || 0;
+				const toBal = balances.get(toId) || 0;
+
+				// Undo From Side (Sender)
+				if (fromAcc?.isLiability) {
+					// Sent from CC? (Cash Advance?) Debt increased.
+					// Undo: Debt decreases.
+					balances.set(fromId, fromBal - tx.amount);
+				} else {
+					// Sent from Bank. Asset decreased.
+					// Undo: Asset increases.
+					balances.set(fromId, fromBal + tx.amount);
+				}
+
+				// Undo To Side (Receiver)
+				if (toAcc?.isLiability) {
+					// Sent to CC (Payment). Debt decreased.
+					// Undo: Debt increases.
+					balances.set(toId, toBal + tx.amount);
+				} else {
+					// Sent to Savings. Asset increased.
+					// Undo: Asset decreases.
+					balances.set(toId, toBal - tx.amount);
+				}
+			}
+		};
+
+		// 4. Processing Loop
+		// 'days' is [Future -> Past].
+		// But we need to handle transactions that are AFTER the current 'day' we are snapshotting?
+		// No, we start with Current Balance (after ALL transactions).
+		// We need to undo transactions day by day backwards.
+
+		// Optimization:
+		// First undo all transactions that are newer than 'days[0]' (if any).
+		while (
+			currentTxIndex < allTxs.length &&
+			isAfter(allTxs[currentTxIndex].date, endOfDay(days[0]))
+		) {
+			undoTx(allTxs[currentTxIndex]);
+			currentTxIndex++;
+		}
+
+		// Now loop through days.
+		// For each day D, we capture the Balance "At End of D".
+		// To get "End of D", we must be sure we haven't undone D's transactions yet?
+		// Wait, if we undo D's transactions, we get "Start of D" (or End of D-1).
+		// So sequence:
+		// 1. Snapshot Current (which is End of D).
+		// 2. Undo D's transactions.
+		// 3. Move to D-1.
+
+		for (const day of days) {
+			// 1. Calculate Aggregates for End of 'day'
+			let totalAssets = 0;
+			let totalLiabilities = 0;
+
+			balances.forEach((bal, accId) => {
+				const acc = accounts.find((a) => a.id === accId);
+				if (acc?.isLiability) {
+					totalLiabilities += bal;
+				} else {
+					totalAssets += bal;
+				}
+			});
+
+			history.push({
+				date: format(day, 'yyyy-MM-dd'),
+				assets: totalAssets,
+				liabilities: totalLiabilities,
+				netWorth: totalAssets - totalLiabilities,
+			});
+
+			// 2. Undo transactions that happened ON this day
+			while (
+				currentTxIndex < allTxs.length &&
+				isSameDay(allTxs[currentTxIndex].date, day)
+			) {
+				undoTx(allTxs[currentTxIndex]);
+				currentTxIndex++;
+			}
+		}
+
+		// Filter history to requests range?
+		// Our loop generated points for 'days' which is exactly the range asked + gap to now.
+		// Filter strictly to start/end requested.
+		return history
+			.filter(
+				(h) =>
+					new Date(h.date) >= startDate && new Date(h.date) <= endDate
+			)
+			.reverse(); // Return Chronological
 	},
 };
