@@ -30,6 +30,7 @@ All notable changes to this project will be documented in this file.
 
 -   **Total Equity Color Coding**: Net Worth footer now shows green/yellow/red based on financial health.
 -   **Status Indicators**: Added contextual messages from "⚠️ Liabilities exceed assets" to "🏆 Strong financial position".
+-   **Fixed Liability Credit Utilization**: Credit card progress bars in Liabilities section now correctly show red for high utilization (was inverted, showing green at 100%).
 
 ##### Transfer List Table
 

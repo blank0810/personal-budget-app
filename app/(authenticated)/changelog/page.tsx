@@ -54,6 +54,7 @@ const versions: Version[] = [
 						items: [
 							'Dashboard: Net Worth card now shows green when positive, red when negative with warning.',
 							'Balance Sheet: Total Equity shows color-coded status with contextual messages.',
+							'Balance Sheet: Fixed credit utilization progress bars in Liabilities showing green at 100% usage.',
 						],
 					},
 					{
