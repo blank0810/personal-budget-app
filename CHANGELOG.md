@@ -21,6 +21,20 @@ All notable changes to this project will be documented in this file.
 -   **Fixed Inverted Credit Utilization Colors**: Corrected the Accounts List where 100% usage incorrectly showed as green. Now properly shows red for high utilization.
 -   **Consistent Color Thresholds**: Aligned all credit utilization displays (Dashboard, Accounts List, Liabilities section) with the same 7-tier color system.
 
+##### Dashboard Net Worth Card
+
+-   **Dynamic Color Indicators**: Net Worth card now shows green when positive, red when negative (was static indigo).
+-   **Warning Message**: Displays "⚠️ Liabilities exceed assets" when net worth is negative.
+
+##### Balance Sheet (Statements Tab)
+
+-   **Total Equity Color Coding**: Net Worth footer now shows green/yellow/red based on financial health.
+-   **Status Indicators**: Added contextual messages from "⚠️ Liabilities exceed assets" to "🏆 Strong financial position".
+
+##### Transfer List Table
+
+-   **Added Description Column**: Transfers now display the description field with searchable functionality.
+
 ##### Enhanced Credit Utilization Card
 
 -   **7-Tier Color Thresholds**: 0% (Perfect), <10% (Excellent), 10-30% (Healthy), 30-50% (High), 50-70% (Suffering), 70-90% (Critical), 90%+ (Maxed Out).

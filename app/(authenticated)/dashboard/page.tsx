@@ -41,22 +41,57 @@ export default async function DashboardPage() {
 			{/* Financial Health Grid - Solvency First */}
 			<div className='grid gap-4 md:grid-cols-2 lg:grid-cols-4'>
 				{/* 1. Net Worth (Primary Solvency Metric) */}
-				<Card className='bg-gradient-to-br from-indigo-50 to-white dark:from-indigo-950 dark:to-background border-indigo-100 dark:border-indigo-900 transition-all hover:shadow-md'>
+				<Card
+					className={`bg-gradient-to-br transition-all hover:shadow-md ${
+						netWorthData.netWorth >= 0
+							? 'from-emerald-50 to-white dark:from-emerald-950 dark:to-background border-emerald-100 dark:border-emerald-900'
+							: 'from-red-50 to-white dark:from-red-950 dark:to-background border-red-100 dark:border-red-900'
+					}`}
+				>
 					<CardHeader className='flex flex-row items-center justify-between space-y-0 pb-2'>
-						<CardTitle className='text-sm font-medium text-indigo-900 dark:text-indigo-100'>
+						<CardTitle
+							className={`text-sm font-medium ${
+								netWorthData.netWorth >= 0
+									? 'text-emerald-900 dark:text-emerald-100'
+									: 'text-red-900 dark:text-red-100'
+							}`}
+						>
 							Net Worth
 						</CardTitle>
-						<div className='h-8 w-8 rounded-full bg-indigo-100 dark:bg-indigo-900 flex items-center justify-center'>
-							<DollarSign className='h-4 w-4 text-indigo-600 dark:text-indigo-400' />
+						<div
+							className={`h-8 w-8 rounded-full flex items-center justify-center ${
+								netWorthData.netWorth >= 0
+									? 'bg-emerald-100 dark:bg-emerald-900'
+									: 'bg-red-100 dark:bg-red-900'
+							}`}
+						>
+							<DollarSign
+								className={`h-4 w-4 ${
+									netWorthData.netWorth >= 0
+										? 'text-emerald-600 dark:text-emerald-400'
+										: 'text-red-600 dark:text-red-400'
+								}`}
+							/>
 						</div>
 					</CardHeader>
 					<CardContent>
-						<div className='text-2xl font-bold text-indigo-700 dark:text-indigo-300'>
+						<div
+							className={`text-2xl font-bold ${
+								netWorthData.netWorth >= 0
+									? 'text-emerald-700 dark:text-emerald-300'
+									: 'text-red-700 dark:text-red-300'
+							}`}
+						>
 							{formatCurrency(netWorthData.netWorth)}
 						</div>
 						<p className='text-xs text-muted-foreground mt-1'>
 							Assets: {formatCurrency(netWorthData.assets)}
 						</p>
+						{netWorthData.netWorth < 0 && (
+							<p className='text-xs text-red-600 dark:text-red-400 mt-1'>
+								⚠️ Liabilities exceed assets
+							</p>
+						)}
 					</CardContent>
 				</Card>
 

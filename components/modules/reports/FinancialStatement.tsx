@@ -367,30 +367,88 @@ export function FinancialStatement({
 						</div>
 
 						{/* Net Worth Summary Footer */}
-						<div className='rounded-xl border bg-gradient-to-r from-background to-secondary/10 p-4'>
-							<div className='flex justify-between items-center'>
-								<div>
-									<h3 className='font-bold text-lg'>
-										Total Equity (Net Worth)
-									</h3>
-									<p className='text-sm text-muted-foreground'>
-										Total Assets - Total Liabilities
-									</p>
+						{(() => {
+							const netWorth = accounts.reduce((sum, a) => {
+								if (a.isLiability) {
+									return sum - Number(a.balance);
+								} else {
+									return sum + Number(a.balance);
+								}
+							}, 0);
+
+							// Determine color and message based on net worth
+							let colorClass =
+								'text-green-600 dark:text-green-400';
+							let bgClass =
+								'from-emerald-50/50 to-emerald-100/30 dark:from-emerald-950/30 dark:to-emerald-900/20';
+							let borderClass =
+								'border-emerald-200 dark:border-emerald-800';
+							let statusMessage = '';
+							let statusEmoji = '';
+
+							if (netWorth < 0) {
+								colorClass = 'text-red-600 dark:text-red-400';
+								bgClass =
+									'from-red-50/50 to-red-100/30 dark:from-red-950/30 dark:to-red-900/20';
+								borderClass =
+									'border-red-200 dark:border-red-800';
+								statusEmoji = '⚠️';
+								statusMessage =
+									'Liabilities exceed assets — focus on debt reduction';
+							} else if (netWorth === 0) {
+								colorClass =
+									'text-yellow-600 dark:text-yellow-400';
+								bgClass =
+									'from-yellow-50/50 to-yellow-100/30 dark:from-yellow-950/30 dark:to-yellow-900/20';
+								borderClass =
+									'border-yellow-200 dark:border-yellow-800';
+								statusEmoji = '⚖️';
+								statusMessage =
+									'Break-even point — assets equal liabilities';
+							} else if (netWorth > 0 && netWorth < 10000) {
+								statusEmoji = '📈';
+								statusMessage =
+									'Building foundation — keep growing assets';
+							} else if (netWorth >= 10000 && netWorth < 50000) {
+								statusEmoji = '💪';
+								statusMessage =
+									'Solid progress — financial cushion developing';
+							} else {
+								statusEmoji = '🏆';
+								statusMessage =
+									'Strong financial position — well done!';
+							}
+
+							return (
+								<div
+									className={`rounded-xl border ${borderClass} bg-gradient-to-r ${bgClass} p-4`}
+								>
+									<div className='flex justify-between items-center'>
+										<div>
+											<h3 className='font-bold text-lg'>
+												Total Equity (Net Worth)
+											</h3>
+											<p className='text-sm text-muted-foreground'>
+												Total Assets - Total Liabilities
+											</p>
+										</div>
+										<div
+											className={`text-2xl font-bold ${colorClass}`}
+										>
+											{netWorth >= 0 ? '' : '-'}
+											{formatCurrency(Math.abs(netWorth))}
+										</div>
+									</div>
+									<div className='mt-3 pt-3 border-t border-inherit'>
+										<p
+											className={`text-sm ${colorClass} font-medium`}
+										>
+											{statusEmoji} {statusMessage}
+										</p>
+									</div>
 								</div>
-								<div className='text-2xl font-bold text-primary'>
-									{/* Net Worth = Assets - Liabilities (balance = amount owed) */}
-									{formatCurrency(
-										accounts.reduce((sum, a) => {
-											if (a.isLiability) {
-												return sum - Number(a.balance);
-											} else {
-												return sum + Number(a.balance);
-											}
-										}, 0)
-									)}
-								</div>
-							</div>
-						</div>
+							);
+						})()}
 					</div>
 				</CardContent>
 			</Card>

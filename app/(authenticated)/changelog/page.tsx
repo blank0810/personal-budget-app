@@ -50,6 +50,13 @@ const versions: Version[] = [
 						],
 					},
 					{
+						title: 'Net Worth Indicators',
+						items: [
+							'Dashboard: Net Worth card now shows green when positive, red when negative with warning.',
+							'Balance Sheet: Total Equity shows color-coded status with contextual messages.',
+						],
+					},
+					{
 						title: 'Credit Utilization Enhancements',
 						items: [
 							'7-Tier Color Thresholds: 0% (Perfect) → 90%+ (Maxed Out) with granular feedback.',
@@ -67,8 +74,9 @@ const versions: Version[] = [
 						],
 					},
 					{
-						title: 'Account Display Updates',
+						title: 'Data Display Updates',
 						items: [
+							'Transfer List: Added searchable Description column.',
 							'Dashboard Liabilities: Each credit card shows "Avail: ₱X" alongside utilization.',
 							'Accounts List: Changed to "X% Used | Avail: ₱X" for clearer insight.',
 						],
