@@ -236,18 +236,51 @@ export default async function DashboardPage() {
 			{/* Secondary Metrics Row (Utilization & Paydown) - Always Visible */}
 			<div className='grid gap-4 md:grid-cols-2 lg:grid-cols-4'>
 				{/* Credit Utilization - Always Show */}
-				<Card className='md:col-span-2 transition-all hover:shadow-md border-l-4 border-l-orange-500'>
+				<Card
+					className={`md:col-span-2 transition-all hover:shadow-md border-l-4 ${
+						financialHealth.creditUtilization >= 70
+							? 'border-l-red-500'
+							: financialHealth.creditUtilization >= 50
+							? 'border-l-orange-500'
+							: financialHealth.creditUtilization >= 30
+							? 'border-l-yellow-500'
+							: 'border-l-green-500'
+					}`}
+				>
 					<CardHeader className='flex flex-row items-center justify-between space-y-0 pb-2'>
 						<CardTitle className='text-sm font-medium'>
 							Credit Utilization
 						</CardTitle>
-						<CreditCard className='h-4 w-4 text-orange-500' />
+						<CreditCard
+							className={`h-4 w-4 ${
+								financialHealth.creditUtilization >= 70
+									? 'text-red-500'
+									: financialHealth.creditUtilization >= 50
+									? 'text-orange-500'
+									: financialHealth.creditUtilization >= 30
+									? 'text-yellow-500'
+									: 'text-green-500'
+							}`}
+						/>
 					</CardHeader>
 					<CardContent>
-						{financialHealth.creditUtilization > 0 ? (
+						{financialHealth.totalCreditLimit > 0 ? (
 							<>
 								<div className='flex items-center gap-4'>
-									<div className='text-2xl font-bold'>
+									<div
+										className={`text-2xl font-bold ${
+											financialHealth.creditUtilization >=
+											70
+												? 'text-red-600 dark:text-red-400'
+												: financialHealth.creditUtilization >=
+												  50
+												? 'text-orange-600 dark:text-orange-400'
+												: financialHealth.creditUtilization >=
+												  30
+												? 'text-yellow-600 dark:text-yellow-400'
+												: 'text-green-600 dark:text-green-400'
+										}`}
+									>
 										{financialHealth.creditUtilization.toFixed(
 											1
 										)}
@@ -256,13 +289,22 @@ export default async function DashboardPage() {
 									<div className='h-2 flex-1 bg-secondary rounded-full overflow-hidden'>
 										<div
 											className={`h-full ${
-												financialHealth.creditUtilization <
-												30
-													? 'bg-green-500'
-													: financialHealth.creditUtilization <
+												financialHealth.creditUtilization >=
+												90
+													? 'bg-red-600'
+													: financialHealth.creditUtilization >=
+													  70
+													? 'bg-red-500'
+													: financialHealth.creditUtilization >=
 													  50
+													? 'bg-orange-500'
+													: financialHealth.creditUtilization >=
+													  30
 													? 'bg-yellow-500'
-													: 'bg-red-500'
+													: financialHealth.creditUtilization >=
+													  10
+													? 'bg-green-500'
+													: 'bg-green-400'
 											}`}
 											style={{
 												width: `${Math.min(
@@ -273,13 +315,42 @@ export default async function DashboardPage() {
 										/>
 									</div>
 								</div>
-								<p className='text-xs text-muted-foreground mt-1'>
-									{financialHealth.creditUtilization < 30
-										? '✅ Excellent - under 30%'
-										: financialHealth.creditUtilization < 50
-										? '⚠️ Fair - aim for under 30%'
-										: '🔴 High - hurting credit score'}
-								</p>
+								<div className='flex justify-between items-center mt-2'>
+									<p className='text-xs text-muted-foreground'>
+										{financialHealth.creditUtilization === 0
+											? '🏆 Zero utilization - perfect!'
+											: financialHealth.creditUtilization <
+											  10
+											? '✅ Excellent - minimal credit use'
+											: financialHealth.creditUtilization <
+											  30
+											? '👍 Healthy range'
+											: financialHealth.creditUtilization <
+											  50
+											? '⚠️ Getting high - pay down soon'
+											: financialHealth.creditUtilization <
+											  70
+											? '🔥 High utilization - credit score suffering'
+											: financialHealth.creditUtilization <
+											  90
+											? '🚨 Critical - seriously hurting your credit'
+											: '💀 Maxed out - immediate action needed'}
+									</p>
+								</div>
+								<div className='flex justify-between text-xs text-muted-foreground mt-2 pt-2 border-t'>
+									<span>
+										Used:{' '}
+										{formatCurrency(
+											financialHealth.totalCreditUsed
+										)}
+									</span>
+									<span className='text-green-600 dark:text-green-400 font-medium'>
+										Available:{' '}
+										{formatCurrency(
+											financialHealth.availableCredit
+										)}
+									</span>
+								</div>
 							</>
 						) : (
 							<>
@@ -295,32 +366,127 @@ export default async function DashboardPage() {
 				</Card>
 
 				{/* Debt Paydown - Always Show */}
-				<Card className='md:col-span-2 transition-all hover:shadow-md'>
+				<Card
+					className={`md:col-span-2 transition-all hover:shadow-md border-l-4 ${
+						financialHealth.totalDebt === 0
+							? 'border-l-green-500'
+							: financialHealth.debtPaydownPercent >= 5
+							? 'border-l-green-500'
+							: financialHealth.debtPaydownPercent >= 3
+							? 'border-l-yellow-500'
+							: financialHealth.debtPaydownPercent >= 1
+							? 'border-l-orange-500'
+							: 'border-l-red-500'
+					}`}
+				>
 					<CardHeader className='flex flex-row items-center justify-between space-y-0 pb-2'>
 						<CardTitle className='text-sm font-medium'>
 							Debt Paydown (This Month)
 						</CardTitle>
-						<ArrowDownLeft className='h-4 w-4 text-green-500' />
+						<ArrowDownLeft
+							className={`h-4 w-4 ${
+								financialHealth.totalDebt === 0
+									? 'text-green-500'
+									: financialHealth.debtPaydownPercent >= 5
+									? 'text-green-500'
+									: financialHealth.debtPaydownPercent >= 3
+									? 'text-yellow-500'
+									: financialHealth.debtPaydownPercent >= 1
+									? 'text-orange-500'
+									: 'text-red-500'
+							}`}
+						/>
 					</CardHeader>
 					<CardContent>
-						{financialHealth.debtPaydown > 0 ? (
+						{financialHealth.totalDebt > 0 ? (
 							<>
-								<div className='text-2xl font-bold text-green-600'>
-									{formatCurrency(
-										financialHealth.debtPaydown
-									)}
+								<div className='flex items-baseline gap-2'>
+									<div
+										className={`text-2xl font-bold ${
+											financialHealth.debtPaydownPercent >=
+											5
+												? 'text-green-600 dark:text-green-400'
+												: financialHealth.debtPaydownPercent >=
+												  3
+												? 'text-yellow-600 dark:text-yellow-400'
+												: financialHealth.debtPaydownPercent >=
+												  1
+												? 'text-orange-600 dark:text-orange-400'
+												: 'text-red-600 dark:text-red-400'
+										}`}
+									>
+										{formatCurrency(
+											financialHealth.debtPaydown
+										)}
+									</div>
+									<span className='text-sm text-muted-foreground'>
+										(
+										{financialHealth.debtPaydownPercent.toFixed(
+											1
+										)}
+										% of debt)
+									</span>
 								</div>
 								<p className='text-xs text-muted-foreground mt-1'>
-									🎯 Principal reduction - nice!
+									{financialHealth.debtPaydown === 0
+										? '💀 Zero payments — debt growing'
+										: financialHealth.debtPaydownPercent < 1
+										? '😬 Token payment — barely a dent'
+										: financialHealth.debtPaydownPercent < 3
+										? '⚠️ Minimum effort — debt lingers'
+										: financialHealth.debtPaydownPercent < 5
+										? '📈 Making progress — keep pushing'
+										: financialHealth.debtPaydownPercent <
+										  10
+										? "💪 Strong paydown — you're serious"
+										: '🔥 Aggressive — debt-free soon!'}
 								</p>
+								<div className='flex justify-between text-xs text-muted-foreground mt-2 pt-2 border-t'>
+									<span>
+										Total Debt:{' '}
+										{formatCurrency(
+											financialHealth.totalDebt
+										)}
+									</span>
+									<span
+										className={
+											financialHealth.monthsToPayoff ===
+											-1
+												? 'text-red-600 dark:text-red-400'
+												: financialHealth.monthsToPayoff <=
+												  12
+												? 'text-green-600 dark:text-green-400'
+												: financialHealth.monthsToPayoff <=
+												  36
+												? 'text-yellow-600 dark:text-yellow-400'
+												: 'text-orange-600 dark:text-orange-400'
+										}
+									>
+										{financialHealth.monthsToPayoff === -1
+											? '⚠️ Never at this rate'
+											: financialHealth.monthsToPayoff <=
+											  12
+											? `~${financialHealth.monthsToPayoff} mo to freedom`
+											: financialHealth.monthsToPayoff <=
+											  24
+											? `~${Math.round(
+													financialHealth.monthsToPayoff /
+														12
+											  )} yr to go`
+											: `~${Math.round(
+													financialHealth.monthsToPayoff /
+														12
+											  )}+ yrs remaining`}
+									</span>
+								</div>
 							</>
 						) : (
 							<>
-								<div className='text-2xl font-bold text-muted-foreground'>
-									{formatCurrency(0)}
+								<div className='text-2xl font-bold text-green-600 dark:text-green-400'>
+									Debt Free! 🎉
 								</div>
 								<p className='text-xs text-muted-foreground mt-1'>
-									📅 No debt payments this month
+									🏆 No liabilities — keep it up!
 								</p>
 							</>
 						)}
@@ -526,38 +692,58 @@ export default async function DashboardPage() {
 															{account.type ===
 																'CREDIT' &&
 																account.creditLimit && (
-																	<span
-																		className={
-																			Number(
-																				account.balance
-																			) /
-																				Number(
-																					account.creditLimit
-																				) >
-																			0.5
-																				? 'text-red-600 dark:text-red-400'
-																				: Number(
+																	<>
+																		<span
+																			className={(() => {
+																				const utilization =
+																					Number(
 																						account.balance
-																				  ) /
-																						Number(
-																							account.creditLimit
-																						) >
-																				  0.3
-																				? 'text-yellow-600 dark:text-yellow-400'
-																				: 'text-green-600 dark:text-green-400'
-																		}
-																	>
-																		{Math.round(
-																			(Number(
-																				account.balance
-																			) /
+																					) /
+																					Number(
+																						account.creditLimit
+																					);
+																				if (
+																					utilization >=
+																					0.7
+																				)
+																					return 'text-red-600 dark:text-red-400';
+																				if (
+																					utilization >=
+																					0.5
+																				)
+																					return 'text-orange-600 dark:text-orange-400';
+																				if (
+																					utilization >=
+																					0.3
+																				)
+																					return 'text-yellow-600 dark:text-yellow-400';
+																				return 'text-green-600 dark:text-green-400';
+																			})()}
+																		>
+																			{Math.round(
+																				(Number(
+																					account.balance
+																				) /
+																					Number(
+																						account.creditLimit
+																					)) *
+																					100
+																			)}
+																			%
+																			Util
+																		</span>
+																		<span className='text-green-600 dark:text-green-400'>
+																			Avail:{' '}
+																			{formatCurrency(
 																				Number(
 																					account.creditLimit
-																				)) *
-																				100
-																		)}
-																		% Util
-																	</span>
+																				) -
+																					Number(
+																						account.balance
+																					)
+																			)}
+																		</span>
+																	</>
 																)}
 														</div>
 													</div>

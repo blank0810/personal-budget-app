@@ -1,6 +1,17 @@
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { CheckCircle2, Rocket, Zap } from 'lucide-react';
+import { CheckCircle2, Rocket, Zap, Wrench } from 'lucide-react';
+
+interface Patch {
+	version: string;
+	date: string;
+	title: string;
+	description: string;
+	features: {
+		title: string;
+		items: string[];
+	}[];
+}
 
 interface Version {
 	version: string;
@@ -12,6 +23,7 @@ interface Version {
 		items: string[];
 	}[];
 	status: 'current' | 'released';
+	patches?: Patch[];
 }
 
 const versions: Version[] = [
@@ -22,6 +34,48 @@ const versions: Version[] = [
 		description:
 			'A massive update delivering professional-grade reporting tools, envelope budgeting, and a streamlined data management experience.',
 		status: 'current',
+		patches: [
+			{
+				version: 'v1.4.1',
+				date: 'December 30, 2024',
+				title: 'Credit & Debt Metrics Enhancement',
+				description:
+					'A patch to fix color logic bugs and enhance dashboard metrics with no-sugarcoating, granular feedback.',
+				features: [
+					{
+						title: 'Bug Fixes',
+						items: [
+							'Fixed Inverted Credit Utilization Colors: 100% usage now correctly shows red, not green.',
+							'Consistent Color Thresholds: Aligned all credit displays with the same 7-tier color system.',
+						],
+					},
+					{
+						title: 'Credit Utilization Enhancements',
+						items: [
+							'7-Tier Color Thresholds: 0% (Perfect) → 90%+ (Maxed Out) with granular feedback.',
+							'Available Credit Display: Shows "Used: ₱X" and "Available: ₱X" breakdown.',
+							'Dynamic Card Styling: Border and icon colors reflect utilization severity.',
+						],
+					},
+					{
+						title: 'Debt Paydown Enhancements',
+						items: [
+							'6-Tier Paydown Thresholds: Honest feedback from "Zero payments" to "Aggressive".',
+							'Context-Rich Display: Shows payment as percentage of total debt.',
+							'Time-to-Payoff Estimate: Displays "~12 mo to freedom" or "Never at this rate".',
+							'Debt-Free State: Celebrates "Debt Free! 🎉" when no liabilities exist.',
+						],
+					},
+					{
+						title: 'Account Display Updates',
+						items: [
+							'Dashboard Liabilities: Each credit card shows "Avail: ₱X" alongside utilization.',
+							'Accounts List: Changed to "X% Used | Avail: ₱X" for clearer insight.',
+						],
+					},
+				],
+			},
+		],
 		features: [
 			{
 				title: 'Reporting Intelligence',
@@ -231,6 +285,87 @@ export default function ChangelogPage() {
 									{version.description}
 								</p>
 
+								{/* Patches - Show first if they exist */}
+								{version.patches &&
+									version.patches.length > 0 && (
+										<div className='space-y-4'>
+											{version.patches.map((patch) => (
+												<div
+													key={patch.version}
+													className='border-l-4 border-l-amber-500 bg-amber-50/50 dark:bg-amber-950/20 rounded-r-lg p-4 space-y-4'
+												>
+													<div className='flex flex-col sm:flex-row sm:items-center justify-between gap-2'>
+														<div className='flex items-center gap-2'>
+															<Wrench className='h-4 w-4 text-amber-600' />
+															<span className='font-bold text-lg'>
+																{patch.version}
+															</span>
+															<Badge
+																variant='outline'
+																className='border-amber-500 text-amber-700 dark:text-amber-400'
+															>
+																Patch
+															</Badge>
+														</div>
+														<span className='text-xs text-muted-foreground'>
+															{patch.date}
+														</span>
+													</div>
+													<p className='text-sm font-medium text-amber-800 dark:text-amber-300'>
+														{patch.title}
+													</p>
+													<p className='text-sm text-muted-foreground'>
+														{patch.description}
+													</p>
+													<div className='grid gap-4 md:grid-cols-2'>
+														{patch.features.map(
+															(feature) => (
+																<Card
+																	key={
+																		feature.title
+																	}
+																	className='bg-background/80 border-amber-200 dark:border-amber-800 shadow-sm'
+																>
+																	<CardHeader className='pb-2'>
+																		<CardTitle className='text-sm font-semibold flex items-center gap-2'>
+																			<Wrench className='h-3 w-3 text-amber-500' />
+																			{
+																				feature.title
+																			}
+																		</CardTitle>
+																	</CardHeader>
+																	<CardContent>
+																		<ul className='space-y-1.5'>
+																			{feature.items.map(
+																				(
+																					item,
+																					i
+																				) => (
+																					<li
+																						key={
+																							i
+																						}
+																						className='text-xs text-muted-foreground flex items-start gap-2'
+																					>
+																						<span className='mt-1 h-1 w-1 rounded-full bg-amber-500 shrink-0' />
+																						{
+																							item
+																						}
+																					</li>
+																				)
+																			)}
+																		</ul>
+																	</CardContent>
+																</Card>
+															)
+														)}
+													</div>
+												</div>
+											))}
+										</div>
+									)}
+
+								{/* Main Version Features */}
 								<div className='grid gap-6 md:grid-cols-2'>
 									{version.features.map((feature) => (
 										<Card
