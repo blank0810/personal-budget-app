@@ -72,6 +72,16 @@ export function TransferList({ transfers }: TransferListProps) {
 			),
 		},
 		{
+			key: 'description',
+			header: 'Description',
+			searchable: true,
+			render: (t) => (
+				<span className='text-sm text-muted-foreground'>
+					{t.description || '-'}
+				</span>
+			),
+		},
+		{
 			key: 'amount',
 			header: 'Amount',
 			className: 'text-right',
