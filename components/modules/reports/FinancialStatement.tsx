@@ -219,106 +219,82 @@ export function FinancialStatement({
 															</p>
 															{account.type ===
 																'CREDIT' &&
-																account.creditLimit && (
-																	<div className='flex flex-col gap-1 mt-0.5 w-[140px]'>
-																		<div className='flex justify-between items-center text-[10px]'>
-																			<span className='text-muted-foreground'>
-																				Limit:{' '}
-																				{formatCurrency(
-																					Number(
-																						account.creditLimit
-																					)
-																				)}
-																			</span>
-																			<span
-																				className={
-																					(Number(
-																						account.creditLimit
-																					) -
-																						Number(
-																							account.balance
-																						)) /
-																						Number(
-																							account.creditLimit
-																						) <
-																					0.3
-																						? 'text-green-600 font-medium'
-																						: (Number(
-																								account.creditLimit
-																						  ) -
-																								Number(
-																									account.balance
-																								)) /
-																								Number(
-																									account.creditLimit
-																								) <
-																						  0.5
-																						? 'text-yellow-600 font-medium'
-																						: 'text-red-600 font-medium'
-																				}
-																			>
-																				{Math.round(
-																					((Number(
-																						account.creditLimit
-																					) -
-																						Number(
-																							account.balance
-																						)) /
-																						Number(
-																							account.creditLimit
-																						)) *
-																						100
-																				)}
+																account.creditLimit &&
+																(() => {
+																	const creditLimit = Number(
+																		account.creditLimit
+																	);
+																	const balance = Number(
+																		account.balance
+																	);
+																	const utilization =
+																		balance / creditLimit;
+																	const utilizationPercent =
+																		Math.round(
+																			utilization * 100
+																		);
+																	const availableCredit =
+																		creditLimit - balance;
 
-																				%
-																			</span>
+																	// Color based on utilization (high = bad)
+																	let barColor = 'bg-green-400';
+																	if (utilization >= 0.9)
+																		barColor = 'bg-red-600';
+																	else if (utilization >= 0.7)
+																		barColor = 'bg-red-500';
+																	else if (utilization >= 0.5)
+																		barColor = 'bg-orange-500';
+																	else if (utilization >= 0.3)
+																		barColor = 'bg-yellow-500';
+																	else if (utilization >= 0.1)
+																		barColor = 'bg-green-500';
+
+																	let textColor =
+																		'text-green-600 dark:text-green-400';
+																	if (utilization >= 0.7)
+																		textColor =
+																			'text-red-600 dark:text-red-400';
+																	else if (utilization >= 0.5)
+																		textColor =
+																			'text-orange-600 dark:text-orange-400';
+																	else if (utilization >= 0.3)
+																		textColor =
+																			'text-yellow-600 dark:text-yellow-400';
+
+																	return (
+																		<div className='flex flex-col gap-1 mt-0.5 w-[140px]'>
+																			<div className='flex justify-between items-center text-[10px]'>
+																				<span
+																					className={
+																						textColor
+																					}
+																				>
+																					{
+																						utilizationPercent
+																					}
+																					% Used
+																				</span>
+																				<span className='text-green-600 dark:text-green-400'>
+																					Avail:{' '}
+																					{formatCurrency(
+																						availableCredit
+																					)}
+																				</span>
+																			</div>
+																			<div className='h-1 w-full bg-secondary rounded-full overflow-hidden'>
+																				<div
+																					className={`h-full ${barColor}`}
+																					style={{
+																						width: `${Math.min(
+																							utilizationPercent,
+																							100
+																						)}%`,
+																					}}
+																				/>
+																			</div>
 																		</div>
-																		<div className='h-1 w-full bg-secondary rounded-full overflow-hidden'>
-																			<div
-																				className={`h-full ${
-																					(Number(
-																						account.creditLimit
-																					) -
-																						Number(
-																							account.balance
-																						)) /
-																						Number(
-																							account.creditLimit
-																						) <
-																					0.3
-																						? 'bg-green-500'
-																						: (Number(
-																								account.creditLimit
-																						  ) -
-																								Number(
-																									account.balance
-																								)) /
-																								Number(
-																									account.creditLimit
-																								) <
-																						  0.5
-																						? 'bg-yellow-500'
-																						: 'bg-red-500'
-																				}`}
-																				style={{
-																					width: `${Math.min(
-																						((Number(
-																							account.creditLimit
-																						) -
-																							Number(
-																								account.balance
-																							)) /
-																							Number(
-																								account.creditLimit
-																							)) *
-																							100,
-																						100
-																					)}%`,
-																				}}
-																			/>
-																		</div>
-																	</div>
-																)}
+																	);
+																})()}
 														</div>
 													</div>
 												</div>
