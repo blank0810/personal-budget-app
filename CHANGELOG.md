@@ -8,6 +8,44 @@ All notable changes to this project will be documented in this file.
 
 **A massive update delivering professional-grade reporting tools, envelope budgeting, and a streamlined data management experience.**
 
+---
+
+### [v1.4.1] - December 30, 2024
+
+#### Credit & Debt Metrics Enhancement
+
+**A patch to fix color logic bugs and enhance dashboard metrics with no-sugarcoating, granular feedback.**
+
+##### Bug Fixes
+
+-   **Fixed Inverted Credit Utilization Colors**: Corrected the Accounts List where 100% usage incorrectly showed as green. Now properly shows red for high utilization.
+-   **Consistent Color Thresholds**: Aligned all credit utilization displays (Dashboard, Accounts List, Liabilities section) with the same 7-tier color system.
+
+##### Enhanced Credit Utilization Card
+
+-   **7-Tier Color Thresholds**: 0% (Perfect), <10% (Excellent), 10-30% (Healthy), 30-50% (High), 50-70% (Suffering), 70-90% (Critical), 90%+ (Maxed Out).
+-   **Available Credit Display**: Added "Used: ₱X" and "Available: ₱X" breakdown to show actual spending capacity.
+-   **Dynamic Card Styling**: Border and icon colors now reflect utilization severity.
+
+##### Enhanced Debt Paydown Card
+
+-   **6-Tier Paydown Thresholds**: 0% (Zero payments), <1% (Token), 1-3% (Minimum), 3-5% (Progress), 5-10% (Strong), 10%+ (Aggressive).
+-   **Context-Rich Display**: Shows payment as percentage of total debt (e.g., "₱5,000 (2.5% of debt)").
+-   **Time-to-Payoff Estimate**: Displays "~12 mo to freedom", "~2 yr to go", or "Never at this rate" based on current payment velocity.
+-   **Debt-Free State**: Celebrates "Debt Free! 🎉" when no liabilities exist.
+
+##### Dashboard Liabilities Section
+
+-   **Available Credit per Card**: Each credit card now shows "Avail: ₱X" alongside utilization percentage.
+-   **Updated Color Logic**: Uses same 7-tier thresholds for consistency.
+
+##### Accounts List Table
+
+-   **Fixed Color Bug**: Progress bar and text now correctly show red for high utilization (was inverted).
+-   **Dual Display**: Changed from "X% of limit" to "X% Used | Avail: ₱X" for clearer actionable insight.
+
+---
+
 #### Reporting Intelligence
 
 -   **Net Worth Trend Chart**: Visualizes wealth growth over time with a retroactive "reverse-replay" algorithm.

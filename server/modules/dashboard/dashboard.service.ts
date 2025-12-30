@@ -236,12 +236,33 @@ export const DashboardService = {
 			runwayMonths = 999; // Infinite runway
 		}
 
+		// 9. Calculate months to payoff at current rate
+		let monthsToPayoff = 0;
+		if (debtPaydown > 0 && liabilities > 0) {
+			monthsToPayoff = Math.ceil(liabilities / debtPaydown);
+		} else if (liabilities > 0) {
+			monthsToPayoff = -1; // -1 indicates never (no payments being made)
+		}
+
+		// 10. Calculate debt paydown percentage
+		const debtPaydownPercent =
+			liabilities > 0 ? (debtPaydown / liabilities) * 100 : 0;
+
+		// 11. Available credit
+		const availableCredit = totalCreditLimit - totalCreditUsed;
+
 		return {
 			savingsRate,
 			debtToAssetRatio,
 			debtPaydown,
+			debtPaydownPercent,
+			monthsToPayoff,
 			runwayMonths,
 			creditUtilization,
+			totalCreditUsed,
+			totalCreditLimit,
+			availableCredit,
+			totalDebt: liabilities,
 			income: monthIncome, // Current month for display
 			expense: monthExpense, // Current month for display
 			// Additional context for UI

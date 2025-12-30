@@ -76,70 +76,82 @@ export function AccountList({ accounts }: AccountListProps) {
 									{account.type === 'CREDIT' &&
 										account.creditLimit && (
 											<div className='flex flex-col items-end gap-1 mt-1'>
-												<div className='text-xs text-muted-foreground'>
-													{Math.round(
-														((Number(
-															account.creditLimit
-														) -
-															Number(
-																account.balance
-															)) /
-															Number(
-																account.creditLimit
-															)) *
-															100
-													)}
-													% of{' '}
-													{formatCurrency(
-														Number(
-															account.creditLimit
-														)
-													)}
-												</div>
-												<div className='w-24 h-1.5 bg-secondary rounded-full overflow-hidden'>
-													<div
-														className={`h-full ${
-															(Number(
-																account.creditLimit
-															) -
-																Number(
-																	account.balance
-																)) /
-																Number(
-																	account.creditLimit
-																) <
-															0.3
-																? 'bg-green-500'
-																: (Number(
-																		account.creditLimit
-																  ) -
-																		Number(
-																			account.balance
-																		)) /
-																		Number(
-																			account.creditLimit
-																		) <
-																  0.5
-																? 'bg-yellow-500'
-																: 'bg-red-500'
-														}`}
-														style={{
-															width: `${Math.min(
-																((Number(
-																	account.creditLimit
-																) -
-																	Number(
-																		account.balance
-																	)) /
-																	Number(
-																		account.creditLimit
-																	)) *
-																	100,
-																100
-															)}%`,
-														}}
-													/>
-												</div>
+												{(() => {
+													const creditLimit = Number(
+														account.creditLimit
+													);
+													const balance = Number(
+														account.balance
+													);
+													const utilization =
+														balance / creditLimit;
+													const availableCredit =
+														creditLimit - balance;
+													const utilizationPercent =
+														Math.round(
+															utilization * 100
+														);
+
+													// Determine color based on utilization (High = Bad)
+													let barColor =
+														'bg-green-400';
+													if (utilization >= 0.9)
+														barColor = 'bg-red-600';
+													else if (utilization >= 0.7)
+														barColor = 'bg-red-500';
+													else if (utilization >= 0.5)
+														barColor =
+															'bg-orange-500';
+													else if (utilization >= 0.3)
+														barColor =
+															'bg-yellow-500';
+													else if (utilization >= 0.1)
+														barColor =
+															'bg-green-500';
+
+													return (
+														<>
+															<div className='flex justify-between w-full text-xs'>
+																<span
+																	className={
+																		utilization >=
+																		0.7
+																			? 'text-red-600 dark:text-red-400'
+																			: utilization >=
+																			  0.5
+																			? 'text-orange-600 dark:text-orange-400'
+																			: utilization >=
+																			  0.3
+																			? 'text-yellow-600 dark:text-yellow-400'
+																			: 'text-green-600 dark:text-green-400'
+																	}
+																>
+																	{
+																		utilizationPercent
+																	}
+																	% Used
+																</span>
+																<span className='text-green-600 dark:text-green-400'>
+																	Avail:{' '}
+																	{formatCurrency(
+																		availableCredit
+																	)}
+																</span>
+															</div>
+															<div className='w-full h-1.5 bg-secondary rounded-full overflow-hidden'>
+																<div
+																	className={`h-full ${barColor}`}
+																	style={{
+																		width: `${Math.min(
+																			utilizationPercent,
+																			100
+																		)}%`,
+																	}}
+																/>
+															</div>
+														</>
+													);
+												})()}
 											</div>
 										)}
 								</TableCell>
