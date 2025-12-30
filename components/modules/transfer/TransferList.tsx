@@ -1,101 +1,117 @@
 'use client';
 
-import {
-	Table,
-	TableBody,
-	TableCell,
-	TableHead,
-	TableHeader,
-	TableRow,
-} from '@/components/ui/table';
-import { Button } from '@/components/ui/button';
-import { format } from 'date-fns';
-import { Trash2, ArrowRight } from 'lucide-react';
-import { deleteTransferAction } from '@/server/modules/transfer/transfer.controller';
+import { useState } from 'react';
+import { DataTable, Column } from '@/components/common/DataTable';
+import { Badge } from '@/components/ui/badge';
 import { formatCurrency } from '@/lib/formatters';
-import { Transfer, Account } from '@prisma/client';
-
-export interface TransferWithRelations extends Omit<Transfer, 'amount'> {
-	fromAccount: Account;
-	toAccount: Account;
-	amount: number;
-}
+import { format } from 'date-fns';
+import { ArrowRight } from 'lucide-react';
+import {
+	TransferDetailDialog,
+	TransferWithRelations,
+} from './TransferDetailDialog';
 
 interface TransferListProps {
 	transfers: TransferWithRelations[];
 }
 
+export { type TransferWithRelations } from './TransferDetailDialog';
+
 export function TransferList({ transfers }: TransferListProps) {
-	async function handleDelete(id: string) {
-		if (
-			confirm(
-				'Are you sure you want to delete this transfer? This will revert the transaction.'
-			)
-		) {
-			await deleteTransferAction(id);
-		}
-	}
+	const [selectedTransfer, setSelectedTransfer] =
+		useState<TransferWithRelations | null>(null);
+
+	const columns: Column<TransferWithRelations>[] = [
+		{
+			key: 'date',
+			header: 'Date',
+			render: (t) => (
+				<span className='text-muted-foreground text-sm'>
+					{format(new Date(t.date), 'MMM d, yyyy')}
+				</span>
+			),
+		},
+		{
+			key: 'fromAccount',
+			header: 'From',
+			searchable: true,
+			render: (t) => (
+				<div className='flex items-center gap-2'>
+					<span className='font-medium text-sm'>
+						{t.fromAccount.name}
+					</span>
+					<Badge variant='outline' className='text-xs'>
+						{t.fromAccount.type}
+					</Badge>
+				</div>
+			),
+		},
+		{
+			key: 'arrow',
+			header: '',
+			sortable: false,
+			searchable: false,
+			className: 'w-[40px]',
+			render: () => (
+				<ArrowRight className='h-4 w-4 text-muted-foreground' />
+			),
+		},
+		{
+			key: 'toAccount',
+			header: 'To',
+			searchable: true,
+			render: (t) => (
+				<div className='flex items-center gap-2'>
+					<span className='font-medium text-sm'>
+						{t.toAccount.name}
+					</span>
+					<Badge variant='outline' className='text-xs'>
+						{t.toAccount.type}
+					</Badge>
+				</div>
+			),
+		},
+		{
+			key: 'amount',
+			header: 'Amount',
+			className: 'text-right',
+			render: (t) => (
+				<span className='font-bold'>
+					{formatCurrency(Number(t.amount))}
+				</span>
+			),
+		},
+		{
+			key: 'fee',
+			header: 'Fee',
+			className: 'text-right',
+			render: (t) => {
+				const fee = Number(t.fee || 0);
+				return (
+					<span className='text-sm text-muted-foreground'>
+						{fee > 0 ? formatCurrency(fee) : '-'}
+					</span>
+				);
+			},
+		},
+	];
 
 	return (
-		<div className='rounded-md border bg-card'>
-			<Table>
-				<TableHeader>
-					<TableRow>
-						<TableHead>Date</TableHead>
-						<TableHead>Description</TableHead>
-						<TableHead>From</TableHead>
-						<TableHead></TableHead>
-						<TableHead>To</TableHead>
-						<TableHead className='text-right'>Amount</TableHead>
-						<TableHead className='w-[50px]'></TableHead>
-					</TableRow>
-				</TableHeader>
-				<TableBody>
-					{transfers.length === 0 ? (
-						<TableRow>
-							<TableCell
-								colSpan={7}
-								className='text-center h-24 text-muted-foreground'
-							>
-								No transfers found.
-							</TableCell>
-						</TableRow>
-					) : (
-						transfers.map((transfer) => (
-							<TableRow key={transfer.id}>
-								<TableCell>
-									{format(new Date(transfer.date), 'PPP')}
-								</TableCell>
-								<TableCell>{transfer.description}</TableCell>
-								<TableCell className='font-medium text-red-600'>
-									{transfer.fromAccount.name}
-								</TableCell>
-								<TableCell>
-									<ArrowRight className='h-4 w-4 text-muted-foreground' />
-								</TableCell>
-								<TableCell className='font-medium text-green-600'>
-									{transfer.toAccount.name}
-								</TableCell>
-								<TableCell className='text-right font-bold'>
-									{formatCurrency(transfer.amount)}
-								</TableCell>
-								<TableCell>
-									<Button
-										variant='ghost'
-										size='icon'
-										className='h-8 w-8 text-destructive'
-										onClick={() =>
-											handleDelete(transfer.id)
-										}
-									>
-										<Trash2 className='h-4 w-4' />
-									</Button>
-								</TableCell>
-							</TableRow>
-						))
-					)}
-				</TableBody>
-			</Table>
-		</div>
+		<>
+			<DataTable
+				data={transfers}
+				columns={columns}
+				searchPlaceholder='Search transfers...'
+				emptyMessage='No transfers yet. Create a transfer to move money between accounts.'
+				onRowClick={setSelectedTransfer}
+				getRowId={(t) => t.id}
+			/>
+
+			<TransferDetailDialog
+				transfer={selectedTransfer}
+				open={!!selectedTransfer}
+				onOpenChange={(open) => !open && setSelectedTransfer(null)}
+			/>
+		</>
 	);
 }

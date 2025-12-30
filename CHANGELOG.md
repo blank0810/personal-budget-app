@@ -2,6 +2,34 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v1.4] - December 30, 2024
+
+### Financial Analytics & UX Overhaul
+
+**A massive update delivering professional-grade reporting tools, envelope budgeting, and a streamlined data management experience.**
+
+#### Reporting Intelligence
+
+-   **Net Worth Trend Chart**: Visualizes wealth growth over time with a retroactive "reverse-replay" algorithm.
+-   **Tabbed Reports Dashboard**: Consolidated analytics into distinct Overview, P&L, and Balance Sheet views.
+-   **Global Date Controls**: Unified sticky toolbar for filtering all charts simultaneously.
+
+#### Data Management Excellence
+
+-   **Interactive DataTables**: Added pagination, sorting, filtering, and search to Income, Expense, Transfer, and Budget lists.
+-   **Bulk Visibility**: Optimized UI to handle thousands of records without performance degradation.
+
+#### Envelope Budgeting
+
+-   **Named Budgets**: Users can now create multiple recurring budgets per category (e.g., "Car Insurance" and "Life Insurance" under the Insurance category).
+-   **Budget Tracking**: Enhanced precision in linking expenses to specific budget envelopes.
+
+#### Financial Accuracy & Core UX
+
+-   **Transfer Fees**: Added explicit handling for bank fees during transfers.
+-   **Account Archiving**: Implemented "Soft Delete" to hide old accounts without losing historical data.
+-   **Liability Accounting Standard**: Standardized "Balance = Amount Owed" across all forms and reports.
+
 ## [v1.3] - December 27, 2024
 
 ### Credit Logic Hotpatch

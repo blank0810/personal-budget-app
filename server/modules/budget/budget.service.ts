@@ -8,7 +8,7 @@ import { CategoryService } from '../category/category.service';
 
 export const BudgetService = {
 	/**
-	 * Create a new budget
+	 * Create a new budget (envelope-style)
 	 */
 	async createBudget(userId: string, data: CreateBudgetInput) {
 		// Handle category: get existing or create new
@@ -29,6 +29,7 @@ export const BudgetService = {
 
 		return await prisma.budget.create({
 			data: {
+				name: data.name,
 				amount: data.amount,
 				month: data.month,
 				categoryId,

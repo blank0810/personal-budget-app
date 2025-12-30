@@ -3,13 +3,14 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import { format } from 'date-fns';
-import { CalendarIcon } from 'lucide-react';
+import { CalendarIcon, Wallet } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
 import {
 	Form,
 	FormControl,
+	FormDescription,
 	FormField,
 	FormItem,
 	FormLabel,
@@ -46,9 +47,10 @@ export function BudgetForm({ categories }: BudgetFormProps) {
 	const [showCustomCategoryInput, setShowCustomCategoryInput] =
 		useState(false);
 
-	const form = useForm({
+	const form = useForm<CreateBudgetInput>({
 		resolver: zodResolver(createBudgetSchema),
 		defaultValues: {
+			name: '',
 			amount: 0,
 			categoryId: undefined,
 			categoryName: '',
@@ -59,6 +61,7 @@ export function BudgetForm({ categories }: BudgetFormProps) {
 	async function onSubmit(data: CreateBudgetInput) {
 		setIsPending(true);
 		const formData = new FormData();
+		formData.append('name', data.name);
 		formData.append('amount', data.amount.toString());
 
 		// Handle category: pass either categoryId or categoryName
@@ -84,6 +87,31 @@ export function BudgetForm({ categories }: BudgetFormProps) {
 	return (
 		<Form {...form}>
 			<form onSubmit={form.handleSubmit(onSubmit)} className='space-y-4'>
+				{/* Budget Name - Primary identifier */}
+				<FormField
+					control={form.control}
+					name='name'
+					render={({ field }) => (
+						<FormItem>
+							<FormLabel className='flex items-center gap-2'>
+								<Wallet className='h-4 w-4' />
+								Budget Name
+							</FormLabel>
+							<FormControl>
+								<Input
+									placeholder='e.g., "My Insurance", "Groceries Budget"'
+									{...field}
+								/>
+							</FormControl>
+							<FormDescription>
+								Give your budget a unique name (envelope-style)
+							</FormDescription>
+							<FormMessage />
+						</FormItem>
+					)}
+				/>
+
+				{/* Budget Amount */}
 				<FormField
 					control={form.control}
 					name='amount'
@@ -102,6 +130,7 @@ export function BudgetForm({ categories }: BudgetFormProps) {
 					)}
 				/>
 
+				{/* Category Selection */}
 				<FormField
 					control={form.control}
 					name='categoryName'
@@ -160,6 +189,7 @@ export function BudgetForm({ categories }: BudgetFormProps) {
 					)}
 				/>
 
+				{/* Month Picker */}
 				<FormField
 					control={form.control}
 					name='month'
@@ -203,8 +233,8 @@ export function BudgetForm({ categories }: BudgetFormProps) {
 					)}
 				/>
 
-				<Button type='submit' disabled={isPending}>
-					{isPending ? 'Saving...' : 'Set Budget'}
+				<Button type='submit' disabled={isPending} className='w-full'>
+					{isPending ? 'Creating...' : 'Create Budget'}
 				</Button>
 			</form>
 		</Form>

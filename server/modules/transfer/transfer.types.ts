@@ -6,6 +6,7 @@ export const createTransferSchema = z
 		amount: z.number().positive('Amount must be positive'),
 		date: z.date(),
 		description: z.string().optional(),
+		fee: z.number().optional(),
 		fromAccountId: z.string().min(1, 'Source account is required'),
 		toAccountId: z.string().min(1, 'Destination account is required'),
 	})
