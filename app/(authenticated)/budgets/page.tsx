@@ -6,12 +6,16 @@ import { auth } from '@/auth';
 import { redirect } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { serialize } from '@/lib/serialization';
+import { startOfMonth } from 'date-fns';
 
 export default async function BudgetsPage() {
 	const session = await auth();
 	if (!session?.user?.id) {
 		redirect('/api/auth/signin');
 	}
+
+	// Get stable current month (first day) to avoid hydration mismatch
+	const currentMonth = startOfMonth(new Date());
 
 	const [budgets, categories] = await Promise.all([
 		BudgetService.getBudgets(session.user.id),
@@ -37,7 +41,10 @@ export default async function BudgetsPage() {
 				</div>
 
 				<div className='space-y-6'>
-					<BudgetViews budgets={serialize(budgets)} />
+					<BudgetViews
+						budgets={serialize(budgets)}
+						initialMonth={currentMonth}
+					/>
 				</div>
 			</div>
 		</div>

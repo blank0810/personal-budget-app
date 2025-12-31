@@ -2,7 +2,13 @@
 
 import { useState, useMemo } from 'react';
 import { Budget, Category, Expense } from '@prisma/client';
-import { format, isSameMonth, startOfYear, addMonths } from 'date-fns';
+import {
+	format,
+	isSameMonth,
+	startOfYear,
+	addMonths,
+	startOfMonth,
+} from 'date-fns';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { BudgetList } from './BudgetList';
@@ -23,13 +29,22 @@ interface BudgetWithRelations extends Budget {
 
 interface BudgetViewsProps {
 	budgets: BudgetWithRelations[];
+	initialMonth?: Date;
 }
 
-export function BudgetViews({ budgets }: BudgetViewsProps) {
+// Get stable initial month (first of current month) - avoids hydration mismatch
+function getInitialMonth(): Date {
+	const now = new Date();
+	return startOfMonth(now);
+}
+
+export function BudgetViews({ budgets, initialMonth }: BudgetViewsProps) {
 	const [viewMode, setViewMode] = useState<'months' | 'list'>('list');
-	const [selectedMonth, setSelectedMonth] = useState<Date>(new Date());
+	const [selectedMonth, setSelectedMonth] = useState<Date>(
+		initialMonth ?? getInitialMonth()
+	);
 	const [selectedYear, setSelectedYear] = useState<number>(
-		new Date().getFullYear()
+		(initialMonth ?? getInitialMonth()).getFullYear()
 	);
 
 	// Generate all 12 months for the selected year
@@ -87,7 +102,9 @@ export function BudgetViews({ budgets }: BudgetViewsProps) {
 		setSelectedYear((prev) => prev + 1);
 	};
 
-	const isCurrentYear = selectedYear === new Date().getFullYear();
+	const currentYear = new Date().getFullYear();
+	// Allow navigating up to 5 years in the future (matches BudgetForm)
+	const maxYear = currentYear + 4;
 
 	return (
 		<div className='space-y-6'>
@@ -137,7 +154,7 @@ export function BudgetViews({ budgets }: BudgetViewsProps) {
 							variant='outline'
 							size='icon'
 							onClick={handleNextYear}
-							disabled={isCurrentYear}
+							disabled={selectedYear >= maxYear}
 						>
 							<ChevronRight className='h-4 w-4' />
 						</Button>

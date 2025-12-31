@@ -2,15 +2,18 @@ import { auth } from '@/auth';
 import { redirect } from 'next/navigation';
 import { ReportService } from '@/server/modules/report/report.service';
 import { DashboardService } from '@/server/modules/dashboard/dashboard.service';
+import { BudgetService } from '@/server/modules/budget/budget.service';
 import { CategoryBreakdownChart } from '@/components/modules/reports/CategoryBreakdownChart';
 import { MonthlyComparisonChart } from '@/components/modules/reports/MonthlyComparisonChart';
 import { BudgetPerformanceChart } from '@/components/modules/reports/BudgetPerformanceChart';
-import { subMonths, startOfMonth, endOfMonth } from 'date-fns';
+import { BudgetAnalytics } from '@/components/modules/reports/BudgetAnalytics';
+import { subMonths, startOfMonth, endOfMonth, parse, parseISO, isValid } from 'date-fns';
 import { KPICard } from '@/components/modules/reports/KPICard';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { NetWorthTrendChart } from '@/components/modules/reports/NetWorthTrendChart';
 import { ReportsToolbar } from '@/components/modules/reports/ReportsToolbar';
 import { FinancialStatement } from '@/components/modules/reports/FinancialStatement';
+import { CashFlowWaterfallChart } from '@/components/modules/reports/CashFlowWaterfallChart';
 import { serialize } from '@/lib/serialization';
 
 export default async function ReportsPage({
@@ -27,12 +30,23 @@ export default async function ReportsPage({
 	const resolvedSearchParams = await searchParams;
 	const now = new Date();
 
-	// Global Date Range
+	// Helper to parse date strings - handles both YYYY-MM-DD and ISO formats
+	const parseDate = (dateStr: string): Date | null => {
+		// Try YYYY-MM-DD format first (local date, no timezone shift)
+		const parsed = parse(dateStr, 'yyyy-MM-dd', new Date());
+		if (isValid(parsed)) return parsed;
+		// Fall back to ISO format
+		const isoDate = parseISO(dateStr);
+		if (isValid(isoDate)) return isoDate;
+		return null;
+	};
+
+	// Global Date Range - parse as local dates to avoid timezone shifts
 	const from = resolvedSearchParams.from
-		? new Date(resolvedSearchParams.from)
+		? parseDate(resolvedSearchParams.from) ?? startOfMonth(now)
 		: startOfMonth(now);
 	const to = resolvedSearchParams.to
-		? new Date(resolvedSearchParams.to)
+		? parseDate(resolvedSearchParams.to) ?? endOfMonth(now)
 		: endOfMonth(now);
 
 	const [
@@ -43,14 +57,20 @@ export default async function ReportsPage({
 		kpis,
 		accounts,
 		netWorthHistory,
+		budgetTrends,
+		budgetRecommendations,
+		cashFlowWaterfall,
 	] = await Promise.all([
 		ReportService.getCategoryBreakdown(userId, from, to),
 		ReportService.getMonthlyComparison(userId, subMonths(to, 5), to),
-		ReportService.getBudgetVsActual(userId, to),
+		ReportService.getBudgetVsActual(userId, from, to),
 		ReportService.getFinancialStatement(userId, from, to),
 		ReportService.getDashboardKPIs(userId, from, to),
 		DashboardService.getAccountBalances(userId),
 		ReportService.getNetWorthHistory(userId, from, to),
+		BudgetService.getBudgetTrends(userId, from, to),
+		BudgetService.getBudgetRecommendations(userId, 6),
+		ReportService.getCashFlowWaterfall(userId, from, to),
 	]);
 
 	const formatCurrency = (val: number) => {
@@ -80,6 +100,7 @@ export default async function ReportsPage({
 				<TabsList>
 					<TabsTrigger value='overview'>Overview</TabsTrigger>
 					<TabsTrigger value='pnl'>Income & Expenses</TabsTrigger>
+					<TabsTrigger value='budget'>Budget Analytics</TabsTrigger>
 					<TabsTrigger value='ledger'>Statements</TabsTrigger>
 				</TabsList>
 
@@ -138,14 +159,25 @@ export default async function ReportsPage({
 							/>
 						</div>
 						<div className='col-span-7'>
-							<BudgetPerformanceChart
-								data={serialize(budgetPerformance)}
+							<CashFlowWaterfallChart
+								data={serialize(cashFlowWaterfall)}
 							/>
 						</div>
 					</div>
 				</TabsContent>
 
-				{/* 3. LEDGER / STATEMENTS TAB */}
+				{/* 3. BUDGET ANALYTICS TAB */}
+				<TabsContent value='budget' className='space-y-4'>
+					<BudgetPerformanceChart
+						data={serialize(budgetPerformance)}
+					/>
+					<BudgetAnalytics
+						trends={serialize(budgetTrends)}
+						recommendations={serialize(budgetRecommendations)}
+					/>
+				</TabsContent>
+
+				{/* 4. LEDGER / STATEMENTS TAB */}
 				<TabsContent value='ledger'>
 					<FinancialStatement
 						data={serialize(financialStatement)}

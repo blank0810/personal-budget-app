@@ -3,7 +3,7 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import { format } from 'date-fns';
-import { CalendarIcon } from 'lucide-react';
+import { CalendarIcon, AlertTriangle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
@@ -256,7 +256,7 @@ export function ExpenseForm({
 				{isSavingsAccount && selectedAccount && (
 					<div className='rounded-md bg-amber-50 dark:bg-amber-950/30 p-4 border border-amber-200 dark:border-amber-800'>
 						<div className='flex items-start gap-3'>
-							<div className='text-xl'>⚠️</div>
+							<AlertTriangle className='h-5 w-5 text-amber-600 dark:text-amber-500 mt-0.5' />
 							<div className='space-y-2 w-full'>
 								<h4 className='text-sm font-semibold text-amber-800 dark:text-amber-500'>
 									Spending from Savings detected

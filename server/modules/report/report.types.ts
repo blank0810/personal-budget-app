@@ -60,3 +60,17 @@ export type NetWorthHistoryPoint = {
 	liabilities: number;
 	netWorth: number;
 };
+
+export type CashFlowWaterfallItem = {
+	name: string;
+	value: number;
+	type: 'income' | 'expense' | 'net';
+	color?: string;
+};
+
+export type CashFlowWaterfall = {
+	items: CashFlowWaterfallItem[];
+	totalIncome: number;
+	totalExpenses: number;
+	netResult: number;
+};

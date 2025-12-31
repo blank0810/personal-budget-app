@@ -201,8 +201,9 @@ export function AccountForm() {
 								</FormControl>
 								<SelectContent>
 									<SelectGroup>
-										<SelectLabel className='text-green-600 font-semibold'>
-											💰 Asset Accounts
+										<SelectLabel className='text-green-600 font-semibold flex items-center gap-1'>
+											<Wallet className='h-4 w-4' />
+											Asset Accounts
 										</SelectLabel>
 										<SelectItem value='BANK'>
 											<span className='flex items-center gap-2'>

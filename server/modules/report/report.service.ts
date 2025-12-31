@@ -5,9 +5,11 @@ import {
 	FinancialStatement,
 	DashboardKPIs,
 	NetWorthHistoryPoint,
+	CashFlowWaterfall,
 } from './report.types';
 import {
 	endOfMonth,
+	startOfMonth,
 	eachMonthOfInterval,
 	format,
 	differenceInDays,
@@ -15,7 +17,6 @@ import {
 	isSameDay,
 	startOfDay,
 	isAfter,
-	isBefore,
 	endOfDay,
 } from 'date-fns';
 
@@ -117,22 +118,26 @@ export const ReportService = {
 	},
 
 	/**
-	 * Get Budget vs Actual spending for a specific month
+	 * Get Budget vs Actual spending for a date range
+	 * Aggregates budgets and expenses across all months in the range
 	 */
-	async getBudgetVsActual(userId: string, month: Date) {
-		const start = new Date(month.getFullYear(), month.getMonth(), 1);
-		const end = endOfMonth(start);
+	async getBudgetVsActual(userId: string, from: Date, to: Date) {
+		const start = startOfMonth(from);
+		const end = endOfMonth(to);
 
-		// 1. Fetch Budgets for this month
+		// 1. Fetch all Budgets in the date range
 		const budgets = await prisma.budget.findMany({
 			where: {
 				userId,
-				month: start,
+				month: {
+					gte: start,
+					lte: end,
+				},
 			},
 			include: { category: true },
 		});
 
-		// 2. Fetch Expenses for this month, grouped by category
+		// 2. Fetch Expenses for the date range, grouped by category
 		const expenses = await prisma.expense.groupBy({
 			by: ['categoryId'],
 			where: {
@@ -142,28 +147,41 @@ export const ReportService = {
 			_sum: { amount: true },
 		});
 
-		// 3. Merge and Calculate Variance
-		const report = budgets.map((budget) => {
-			const expenseEntry = expenses.find(
-				(e) => e.categoryId === budget.categoryId
-			);
-			const actual = expenseEntry?._sum.amount?.toNumber() || 0;
-			const budgeted = budget.amount.toNumber();
+		// 3. Aggregate budgets by category (sum across months)
+		const budgetsByCategory = new Map<
+			string,
+			{ budgeted: number; category: (typeof budgets)[0]['category'] }
+		>();
+		for (const budget of budgets) {
+			const existing = budgetsByCategory.get(budget.categoryId);
+			if (existing) {
+				existing.budgeted += budget.amount.toNumber();
+			} else {
+				budgetsByCategory.set(budget.categoryId, {
+					budgeted: budget.amount.toNumber(),
+					category: budget.category,
+				});
+			}
+		}
 
-			return {
-				categoryId: budget.categoryId,
-				categoryName: budget.category.name,
-				color: budget.category.color,
-				icon: budget.category.icon,
-				budgeted,
-				actual,
-				variance: budgeted - actual, // Positive = Under budget (Good), Negative = Over budget (Bad)
-				percentUsed: budgeted > 0 ? (actual / budgeted) * 100 : 0,
-			};
-		});
+		// 4. Build report with aggregated data
+		const report = Array.from(budgetsByCategory.entries()).map(
+			([categoryId, { budgeted, category }]) => {
+				const expenseEntry = expenses.find((e) => e.categoryId === categoryId);
+				const actual = expenseEntry?._sum.amount?.toNumber() || 0;
 
-		// Add categories with expenses but NO budget? (Optional improvement for later)
-		// For now, focusing on "Budget Performance" implies tracking what *was* budgeted.
+				return {
+					categoryId,
+					categoryName: category.name,
+					color: category.color,
+					icon: category.icon,
+					budgeted,
+					actual,
+					variance: budgeted - actual, // Positive = Under budget (Good), Negative = Over budget (Bad)
+					percentUsed: budgeted > 0 ? (actual / budgeted) * 100 : 0,
+				};
+			}
+		);
 
 		return report.sort((a, b) => b.percentUsed - a.percentUsed);
 	},
@@ -624,5 +642,96 @@ export const ReportService = {
 					new Date(h.date) >= startDate && new Date(h.date) <= endDate
 			)
 			.reverse(); // Return Chronological
+	},
+
+	/**
+	 * Get Cash Flow Waterfall data showing income → expenses → net result
+	 */
+	async getCashFlowWaterfall(
+		userId: string,
+		startDate: Date,
+		endDate: Date
+	): Promise<CashFlowWaterfall> {
+		// 1. Get total income
+		const incomeResult = await prisma.income.aggregate({
+			where: {
+				userId,
+				date: { gte: startDate, lte: endDate },
+			},
+			_sum: { amount: true },
+		});
+		const totalIncome = incomeResult._sum.amount?.toNumber() || 0;
+
+		// 2. Get expenses grouped by category
+		const expenseGroups = await prisma.expense.groupBy({
+			by: ['categoryId'],
+			where: {
+				userId,
+				date: { gte: startDate, lte: endDate },
+			},
+			_sum: { amount: true },
+		});
+
+		// 3. Fetch category details
+		const categoryIds = expenseGroups.map((e) => e.categoryId);
+		const categories = await prisma.category.findMany({
+			where: { id: { in: categoryIds } },
+		});
+
+		// 4. Format expense items and sort by amount (descending)
+		const expenseItems = expenseGroups
+			.map((group) => {
+				const category = categories.find((c) => c.id === group.categoryId);
+				return {
+					name: category?.name || 'Unknown',
+					value: group._sum.amount?.toNumber() || 0,
+					type: 'expense' as const,
+					color: category?.color || undefined,
+				};
+			})
+			.sort((a, b) => b.value - a.value);
+
+		// 5. Limit to top 6 categories, group rest as "Other"
+		const TOP_COUNT = 6;
+		const topExpenses = expenseItems.slice(0, TOP_COUNT);
+		const otherExpenses = expenseItems.slice(TOP_COUNT);
+
+		if (otherExpenses.length > 0) {
+			const otherTotal = otherExpenses.reduce((sum, e) => sum + e.value, 0);
+			topExpenses.push({
+				name: 'Other',
+				value: otherTotal,
+				type: 'expense',
+				color: '#9ca3af', // gray-400
+			});
+		}
+
+		// 6. Calculate totals
+		const totalExpenses = expenseItems.reduce((sum, e) => sum + e.value, 0);
+		const netResult = totalIncome - totalExpenses;
+
+		// 7. Build waterfall items
+		const items = [
+			{
+				name: 'Income',
+				value: totalIncome,
+				type: 'income' as const,
+				color: '#22c55e', // green-500
+			},
+			...topExpenses,
+			{
+				name: 'Net Result',
+				value: netResult,
+				type: 'net' as const,
+				color: netResult >= 0 ? '#22c55e' : '#ef4444', // green or red
+			},
+		];
+
+		return {
+			items,
+			totalIncome,
+			totalExpenses,
+			netResult,
+		};
 	},
 };

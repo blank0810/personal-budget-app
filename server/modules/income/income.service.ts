@@ -46,17 +46,23 @@ export const IncomeService = {
 
 			// If linked to an account, update the balance
 			if (data.accountId) {
+				// Check if this is a liability account (credit card, loan)
+				const account = await tx.account.findUnique({
+					where: { id: data.accountId, userId },
+					select: { isLiability: true },
+				});
+
 				await tx.account.update({
 					where: { id: data.accountId, userId },
 					data: {
-						balance: {
-							increment: data.amount,
-						},
+						balance: account?.isLiability
+							? { decrement: data.amount } // Liability: income/payment reduces debt
+							: { increment: data.amount }, // Asset: income increases balance
 					},
 				});
 
-				// Handle Church Tithe
-				if (data.titheEnabled && data.tithePercentage) {
+				// Handle Church Tithe (only for asset accounts, not liabilities)
+				if (data.titheEnabled && data.tithePercentage && !account?.isLiability) {
 					const titheAmount =
 						data.amount * (data.tithePercentage / 100);
 
@@ -187,9 +193,22 @@ export const IncomeService = {
 				) {
 					const difference =
 						updateData.amount - oldIncome.amount.toNumber();
+
+					// Check if liability account
+					const account = await tx.account.findUnique({
+						where: { id: oldIncome.accountId, userId },
+						select: { isLiability: true },
+					});
+
+					// For assets: more income = more balance (increment)
+					// For liabilities: more income/payment = less debt (decrement)
 					await tx.account.update({
 						where: { id: oldIncome.accountId, userId },
-						data: { balance: { increment: difference } },
+						data: {
+							balance: account?.isLiability
+								? { decrement: difference }
+								: { increment: difference },
+						},
 					});
 				}
 			}
@@ -200,18 +219,33 @@ export const IncomeService = {
 			) {
 				// Revert old account balance
 				if (oldIncome.accountId) {
+					const oldAccount = await tx.account.findUnique({
+						where: { id: oldIncome.accountId, userId },
+						select: { isLiability: true },
+					});
+
 					await tx.account.update({
 						where: { id: oldIncome.accountId, userId },
-						data: { balance: { decrement: oldIncome.amount } },
+						data: {
+							balance: oldAccount?.isLiability
+								? { increment: oldIncome.amount } // Liability: revert = add back debt
+								: { decrement: oldIncome.amount }, // Asset: revert = subtract
+						},
 					});
 				}
+
 				// Add to new account balance
+				const newAccount = await tx.account.findUnique({
+					where: { id: updateData.accountId, userId },
+					select: { isLiability: true },
+				});
+
 				await tx.account.update({
 					where: { id: updateData.accountId, userId },
 					data: {
-						balance: {
-							increment: updateData.amount ?? oldIncome.amount,
-						},
+						balance: newAccount?.isLiability
+							? { decrement: updateData.amount ?? oldIncome.amount } // Liability: income = reduce debt
+							: { increment: updateData.amount ?? oldIncome.amount }, // Asset: income = add
 					},
 				});
 			}
@@ -231,12 +265,18 @@ export const IncomeService = {
 			});
 
 			if (income.accountId) {
+				// Check if liability account
+				const account = await tx.account.findUnique({
+					where: { id: income.accountId, userId },
+					select: { isLiability: true },
+				});
+
 				await tx.account.update({
 					where: { id: income.accountId, userId },
 					data: {
-						balance: {
-							decrement: income.amount,
-						},
+						balance: account?.isLiability
+							? { increment: income.amount } // Liability: delete income = add back debt
+							: { decrement: income.amount }, // Asset: delete income = subtract
 					},
 				});
 			}

@@ -5,11 +5,12 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { format } from 'date-fns';
-import { Trash2, Wallet } from 'lucide-react';
+import { FileText, Trash2, Wallet } from 'lucide-react';
 import { deleteBudgetAction } from '@/server/modules/budget/budget.controller';
 import { formatCurrency } from '@/lib/formatters';
 import { Budget, Category } from '@prisma/client';
 import { cn } from '@/lib/utils';
+import Link from 'next/link';
 
 interface BudgetWithStats extends Budget {
 	category: Category;
@@ -113,16 +114,28 @@ export function BudgetList({ budgets }: BudgetListProps) {
 			header: '',
 			sortable: false,
 			searchable: false,
-			className: 'w-[50px]',
+			className: 'w-[100px]',
 			render: (budget) => (
-				<Button
-					variant='ghost'
-					size='icon'
-					className='h-8 w-8 text-destructive'
-					onClick={(e) => handleDelete(budget.id, e)}
-				>
-					<Trash2 className='h-4 w-4' />
-				</Button>
+				<div className='flex justify-end gap-2'>
+					<Button
+						variant='ghost'
+						size='icon'
+						className='h-8 w-8 text-muted-foreground hover:text-primary'
+						asChild
+					>
+						<Link href={`/budgets/${budget.id}`}>
+							<FileText className='h-4 w-4' />
+						</Link>
+					</Button>
+					<Button
+						variant='ghost'
+						size='icon'
+						className='h-8 w-8 text-destructive'
+						onClick={(e) => handleDelete(budget.id, e)}
+					>
+						<Trash2 className='h-4 w-4' />
+					</Button>
+				</div>
 			),
 		},
 	];

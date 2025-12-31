@@ -15,6 +15,11 @@ import {
 	Wallet,
 	CreditCard,
 	Landmark,
+	AlertTriangle,
+	Scale,
+	TrendingUp,
+	Zap,
+	Trophy,
 } from 'lucide-react';
 
 import { Account } from '@prisma/client';
@@ -360,7 +365,7 @@ export function FinancialStatement({
 							let borderClass =
 								'border-emerald-200 dark:border-emerald-800';
 							let statusMessage = '';
-							let statusEmoji = '';
+							let StatusIcon: typeof Trophy = Trophy;
 
 							if (netWorth < 0) {
 								colorClass = 'text-red-600 dark:text-red-400';
@@ -368,7 +373,7 @@ export function FinancialStatement({
 									'from-red-50/50 to-red-100/30 dark:from-red-950/30 dark:to-red-900/20';
 								borderClass =
 									'border-red-200 dark:border-red-800';
-								statusEmoji = '⚠️';
+								StatusIcon = AlertTriangle;
 								statusMessage =
 									'Liabilities exceed assets — focus on debt reduction';
 							} else if (netWorth === 0) {
@@ -378,19 +383,19 @@ export function FinancialStatement({
 									'from-yellow-50/50 to-yellow-100/30 dark:from-yellow-950/30 dark:to-yellow-900/20';
 								borderClass =
 									'border-yellow-200 dark:border-yellow-800';
-								statusEmoji = '⚖️';
+								StatusIcon = Scale;
 								statusMessage =
 									'Break-even point — assets equal liabilities';
 							} else if (netWorth > 0 && netWorth < 10000) {
-								statusEmoji = '📈';
+								StatusIcon = TrendingUp;
 								statusMessage =
 									'Building foundation — keep growing assets';
 							} else if (netWorth >= 10000 && netWorth < 50000) {
-								statusEmoji = '💪';
+								StatusIcon = Zap;
 								statusMessage =
 									'Solid progress — financial cushion developing';
 							} else {
-								statusEmoji = '🏆';
+								StatusIcon = Trophy;
 								statusMessage =
 									'Strong financial position — well done!';
 							}
@@ -417,9 +422,10 @@ export function FinancialStatement({
 									</div>
 									<div className='mt-3 pt-3 border-t border-inherit'>
 										<p
-											className={`text-sm ${colorClass} font-medium`}
+											className={`text-sm ${colorClass} font-medium flex items-center gap-1`}
 										>
-											{statusEmoji} {statusMessage}
+											<StatusIcon className='h-4 w-4' />
+											{statusMessage}
 										</p>
 									</div>
 								</div>
