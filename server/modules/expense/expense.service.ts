@@ -44,14 +44,20 @@ export const ExpenseService = {
 				},
 			});
 
-			// If linked to an account, update the balance (Decrement)
+			// If linked to an account, update the balance
 			if (data.accountId) {
+				// Check if this is a liability account (credit card, loan)
+				const account = await tx.account.findUnique({
+					where: { id: data.accountId, userId },
+					select: { isLiability: true },
+				});
+
 				await tx.account.update({
 					where: { id: data.accountId, userId },
 					data: {
-						balance: {
-							decrement: data.amount,
-						},
+						balance: account?.isLiability
+							? { increment: data.amount } // Liability: expense increases debt
+							: { decrement: data.amount }, // Asset: expense decreases balance
 					},
 				});
 			}
@@ -132,11 +138,22 @@ export const ExpenseService = {
 				) {
 					const difference =
 						updateData.amount - oldExpense.amount.toNumber();
-					// If amount increased, balance decreases further. If amount decreased, balance increases (refund).
-					// New Amount: 150, Old: 100. Diff: 50. Balance should decrease by 50.
+
+					// Check if liability account
+					const account = await tx.account.findUnique({
+						where: { id: oldExpense.accountId, userId },
+						select: { isLiability: true },
+					});
+
+					// For assets: more expense = less balance (decrement)
+					// For liabilities: more expense = more debt (increment)
 					await tx.account.update({
 						where: { id: oldExpense.accountId, userId },
-						data: { balance: { decrement: difference } },
+						data: {
+							balance: account?.isLiability
+								? { increment: difference }
+								: { decrement: difference },
+						},
 					});
 				}
 			}
@@ -147,18 +164,33 @@ export const ExpenseService = {
 			) {
 				// Refund old account
 				if (oldExpense.accountId) {
+					const oldAccount = await tx.account.findUnique({
+						where: { id: oldExpense.accountId, userId },
+						select: { isLiability: true },
+					});
+
 					await tx.account.update({
 						where: { id: oldExpense.accountId, userId },
-						data: { balance: { increment: oldExpense.amount } },
+						data: {
+							balance: oldAccount?.isLiability
+								? { decrement: oldExpense.amount } // Liability: refund = reduce debt
+								: { increment: oldExpense.amount }, // Asset: refund = add back
+						},
 					});
 				}
+
 				// Deduct from new account
+				const newAccount = await tx.account.findUnique({
+					where: { id: updateData.accountId, userId },
+					select: { isLiability: true },
+				});
+
 				await tx.account.update({
 					where: { id: updateData.accountId, userId },
 					data: {
-						balance: {
-							decrement: updateData.amount ?? oldExpense.amount,
-						},
+						balance: newAccount?.isLiability
+							? { increment: updateData.amount ?? oldExpense.amount } // Liability: expense = add debt
+							: { decrement: updateData.amount ?? oldExpense.amount }, // Asset: expense = subtract
 					},
 				});
 			}
@@ -178,12 +210,18 @@ export const ExpenseService = {
 			});
 
 			if (expense.accountId) {
+				// Check if liability account
+				const account = await tx.account.findUnique({
+					where: { id: expense.accountId, userId },
+					select: { isLiability: true },
+				});
+
 				await tx.account.update({
 					where: { id: expense.accountId, userId },
 					data: {
-						balance: {
-							increment: expense.amount,
-						},
+						balance: account?.isLiability
+							? { decrement: expense.amount } // Liability: delete expense = reduce debt
+							: { increment: expense.amount }, // Asset: delete expense = refund
 					},
 				});
 			}

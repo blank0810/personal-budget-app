@@ -28,12 +28,55 @@ interface Version {
 
 const versions: Version[] = [
 	{
+		version: 'v1.5',
+		date: 'December 31, 2024',
+		title: 'Budget Analytics & Liability Fixes',
+		description:
+			'A major update introducing intelligent budget analytics with problem detection, progress tracking, and critical fixes for liability account balance handling.',
+		status: 'current',
+		features: [
+			{
+				title: 'Budget Health Summary',
+				items: [
+					'Quick Health Overview: New summary card at the top of the Budget page showing budget status at a glance.',
+					'Problem Detection: Automatically flags categories that are consistently over budget (3+ months).',
+					'Status Indicators: Color-coded badges showing on-track, warning, and over-budget counts.',
+				],
+			},
+			{
+				title: 'Budget Analytics Tab',
+				items: [
+					'6-Month Trend Chart: Visualizes budget adherence over time with monthly breakdown.',
+					'Category Performance Table: Shows average budget vs spent, variance percentage, and trend indicators.',
+					'Smart Recommendations: AI-driven suggestions to increase, decrease, or maintain budget amounts.',
+					'Budget Health Score: Weighted score combining categories on track, overall adherence, and improvement trend.',
+				],
+			},
+			{
+				title: 'Liability Balance Fixes',
+				items: [
+					'Fixed Expense Calculation: Expenses on credit cards now correctly increase the balance (debt goes up).',
+					'Fixed Payment Calculation: Payments to credit cards now correctly decrease the balance (debt goes down).',
+					'Consistent Liability Handling: All CRUD operations for expenses and income now properly check the isLiability flag.',
+					'Tithe Logic Exclusion: Church tithe calculations are now correctly skipped for liability accounts.',
+				],
+			},
+			{
+				title: 'UI Improvements',
+				items: [
+					'Dynamic Label: Liability accounts now display "Amount Owed" instead of "Current Balance" for clarity.',
+					'Icon Standardization: Replaced all hardcoded Unicode emojis with Lucide React icons for consistency and maintainability.',
+				],
+			},
+		],
+	},
+	{
 		version: 'v1.4',
 		date: 'December 30, 2024',
 		title: 'Financial Analytics & UX Overhaul',
 		description:
 			'A massive update delivering professional-grade reporting tools, envelope budgeting, and a streamlined data management experience.',
-		status: 'current',
+		status: 'released',
 		patches: [
 			{
 				version: 'v1.4.1',

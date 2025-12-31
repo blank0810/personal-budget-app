@@ -41,6 +41,12 @@ export function DateRangePicker({
 	setDate,
 }: DateRangePickerProps) {
 	const [month, setMonth] = React.useState<Date>(new Date());
+	const [mounted, setMounted] = React.useState(false);
+
+	// Prevent hydration mismatch by only rendering dates after mount
+	React.useEffect(() => {
+		setMounted(true);
+	}, []);
 
 	// Presets for quick selection
 	const presets = [
@@ -101,7 +107,9 @@ export function DateRangePicker({
 						)}
 					>
 						<CalendarIcon className='mr-2 h-4 w-4' />
-						{date?.from ? (
+						{!mounted ? (
+							<span>Loading...</span>
+						) : date?.from ? (
 							date.to ? (
 								<>
 									{format(date.from, 'LLL dd, y')} -{' '}

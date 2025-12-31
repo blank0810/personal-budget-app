@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { DateRangePicker } from '@/components/ui/date-range-picker';
 import { DateRange } from 'react-day-picker';
+import { format } from 'date-fns';
 
 interface ReportsToolbarProps {
 	initialFrom: Date;
@@ -23,8 +24,9 @@ export function ReportsToolbar({
 	useEffect(() => {
 		if (date?.from && date?.to) {
 			const params = new URLSearchParams();
-			params.set('from', date.from.toISOString());
-			params.set('to', date.to.toISOString());
+			// Use date-only format (YYYY-MM-DD) to avoid timezone shifts
+			params.set('from', format(date.from, 'yyyy-MM-dd'));
+			params.set('to', format(date.to, 'yyyy-MM-dd'));
 
 			// Replace to avoid history stack buildup
 			router.push(`?${params.toString()}`);

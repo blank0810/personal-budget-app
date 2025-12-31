@@ -1,12 +1,9 @@
 'use client';
 
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useForm } from 'react-hook-form';
-import { format } from 'date-fns';
-import { CalendarIcon, Wallet } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { useForm, useWatch } from 'react-hook-form';
+import { Wallet } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Calendar } from '@/components/ui/calendar';
 import {
 	Form,
 	FormControl,
@@ -18,11 +15,6 @@ import {
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { CurrencyInput } from '@/components/ui/currency-input';
-import {
-	Popover,
-	PopoverContent,
-	PopoverTrigger,
-} from '@/components/ui/popover';
 import {
 	Select,
 	SelectContent,
@@ -36,6 +28,7 @@ import {
 } from '@/server/modules/budget/budget.types';
 import { createBudgetAction } from '@/server/modules/budget/budget.controller';
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { Category } from '@prisma/client';
 
 interface BudgetFormProps {
@@ -43,19 +36,27 @@ interface BudgetFormProps {
 }
 
 export function BudgetForm({ categories }: BudgetFormProps) {
+	const router = useRouter();
 	const [isPending, setIsPending] = useState(false);
 	const [showCustomCategoryInput, setShowCustomCategoryInput] =
 		useState(false);
+	const [showCustomYearInput, setShowCustomYearInput] = useState(false);
 
 	const form = useForm<CreateBudgetInput>({
 		resolver: zodResolver(createBudgetSchema),
 		defaultValues: {
 			name: '',
 			amount: 0,
-			categoryId: undefined,
+			categoryId: '',
 			categoryName: '',
 			month: new Date(),
 		},
+	});
+
+	// Watch categoryId for the Select component
+	const watchedCategoryId = useWatch({
+		control: form.control,
+		name: 'categoryId',
 	});
 
 	async function onSubmit(data: CreateBudgetInput) {
@@ -65,9 +66,9 @@ export function BudgetForm({ categories }: BudgetFormProps) {
 		formData.append('amount', data.amount.toString());
 
 		// Handle category: pass either categoryId or categoryName
-		if (data.categoryId) {
+		if (data.categoryId && data.categoryId.length > 0) {
 			formData.append('categoryId', data.categoryId);
-		} else if (data.categoryName) {
+		} else if (data.categoryName && data.categoryName.length > 0) {
 			formData.append('categoryName', data.categoryName);
 		}
 
@@ -81,6 +82,8 @@ export function BudgetForm({ categories }: BudgetFormProps) {
 		} else {
 			form.reset();
 			setShowCustomCategoryInput(false);
+			setShowCustomYearInput(false);
+			router.refresh();
 		}
 	}
 
@@ -130,6 +133,9 @@ export function BudgetForm({ categories }: BudgetFormProps) {
 					)}
 				/>
 
+				{/* Register categoryId with the form */}
+				<input type='hidden' {...form.register('categoryId')} />
+
 				{/* Category Selection */}
 				<FormField
 					control={form.control}
@@ -141,19 +147,16 @@ export function BudgetForm({ categories }: BudgetFormProps) {
 								<Select
 									onValueChange={(value) => {
 										if (value === '__custom__') {
-											form.setValue(
-												'categoryId',
-												undefined
-											);
-											field.onChange('');
+											form.setValue('categoryId', '', { shouldValidate: true });
+											form.setValue('categoryName', '');
 											setShowCustomCategoryInput(true);
 										} else {
-											form.setValue('categoryId', value);
-											field.onChange('');
+											form.setValue('categoryId', value, { shouldValidate: true });
+											form.setValue('categoryName', '');
 											setShowCustomCategoryInput(false);
 										}
 									}}
-									defaultValue={form.getValues('categoryId')}
+									value={watchedCategoryId || ''}
 								>
 									<FormControl>
 										<SelectTrigger>
@@ -170,7 +173,7 @@ export function BudgetForm({ categories }: BudgetFormProps) {
 											</SelectItem>
 										))}
 										<SelectItem value='__custom__'>
-											➕ Create Custom Category
+											+ Create Custom Category
 										</SelectItem>
 									</SelectContent>
 								</Select>
@@ -189,48 +192,179 @@ export function BudgetForm({ categories }: BudgetFormProps) {
 					)}
 				/>
 
-				{/* Month Picker */}
+				{/* Month Picker - Month and Year only */}
 				<FormField
 					control={form.control}
 					name='month'
-					render={({ field }) => (
-						<FormItem className='flex flex-col'>
-							<FormLabel>Month</FormLabel>
-							<Popover>
-								<PopoverTrigger asChild>
-									<FormControl>
-										<Button
-											variant={'outline'}
-											className={cn(
-												'w-full pl-3 text-left font-normal',
-												!field.value &&
-													'text-muted-foreground'
-											)}
+					render={({ field }) => {
+						const selectedDate = field.value || new Date();
+						const selectedMonth = selectedDate.getMonth();
+						const selectedYear = selectedDate.getFullYear();
+
+						const months = [
+							'January',
+							'February',
+							'March',
+							'April',
+							'May',
+							'June',
+							'July',
+							'August',
+							'September',
+							'October',
+							'November',
+							'December',
+						];
+
+						// Generate year options (current year + 4 more = 5 years)
+						const currentYear = new Date().getFullYear();
+						const years = Array.from(
+							{ length: 5 },
+							(_, i) => currentYear + i
+						);
+
+						const handleMonthChange = (monthIndex: string) => {
+							const newDate = new Date(
+								selectedYear,
+								parseInt(monthIndex),
+								1
+							);
+							field.onChange(newDate);
+						};
+
+						// Check if current year is outside dropdown range
+						const isCustomYear = !years.includes(selectedYear);
+
+						return (
+							<FormItem>
+								<FormLabel>Budget Month</FormLabel>
+								<div className='flex gap-2'>
+									<Select
+										value={selectedMonth.toString()}
+										onValueChange={handleMonthChange}
+									>
+										<FormControl>
+											<SelectTrigger className='flex-1'>
+												<SelectValue placeholder='Month' />
+											</SelectTrigger>
+										</FormControl>
+										<SelectContent>
+											{months.map((month, index) => (
+												<SelectItem
+													key={month}
+													value={index.toString()}
+												>
+													{month}
+												</SelectItem>
+											))}
+										</SelectContent>
+									</Select>
+
+									{/* Year: Dropdown or Custom Input */}
+									{showCustomYearInput || isCustomYear ? (
+										<div className='flex gap-1'>
+											<Input
+												type='number'
+												className='w-[100px]'
+												placeholder='Year'
+												min={1900}
+												max={2100}
+												value={selectedYear}
+												onChange={(e) => {
+													const year = parseInt(
+														e.target.value
+													);
+													if (
+														!isNaN(year) &&
+														year >= 1900 &&
+														year <= 2100
+													) {
+														const newDate =
+															new Date(
+																year,
+																selectedMonth,
+																1
+															);
+														field.onChange(newDate);
+													}
+												}}
+											/>
+											<Button
+												type='button'
+												variant='ghost'
+												size='icon'
+												className='h-9 w-9'
+												onClick={() => {
+													setShowCustomYearInput(
+														false
+													);
+													// Reset to current year if outside range
+													if (
+														!years.includes(
+															selectedYear
+														)
+													) {
+														const newDate =
+															new Date(
+																currentYear,
+																selectedMonth,
+																1
+															);
+														field.onChange(newDate);
+													}
+												}}
+											>
+												<span className='text-xs'>
+													×
+												</span>
+											</Button>
+										</div>
+									) : (
+										<Select
+											value={selectedYear.toString()}
+											onValueChange={(value) => {
+												if (value === '__custom__') {
+													setShowCustomYearInput(
+														true
+													);
+												} else {
+													const newDate = new Date(
+														parseInt(value),
+														selectedMonth,
+														1
+													);
+													field.onChange(newDate);
+												}
+											}}
 										>
-											{field.value ? (
-												format(field.value, 'MMMM yyyy')
-											) : (
-												<span>Pick a month</span>
-											)}
-											<CalendarIcon className='ml-auto h-4 w-4 opacity-50' />
-										</Button>
-									</FormControl>
-								</PopoverTrigger>
-								<PopoverContent
-									className='w-auto p-0'
-									align='start'
-								>
-									<Calendar
-										mode='single'
-										selected={field.value}
-										onSelect={field.onChange}
-										initialFocus
-									/>
-								</PopoverContent>
-							</Popover>
-							<FormMessage />
-						</FormItem>
-					)}
+											<FormControl>
+												<SelectTrigger className='w-[120px]'>
+													<SelectValue placeholder='Year' />
+												</SelectTrigger>
+											</FormControl>
+											<SelectContent>
+												{years.map((year) => (
+													<SelectItem
+														key={year}
+														value={year.toString()}
+													>
+														{year}
+													</SelectItem>
+												))}
+												<SelectItem value='__custom__'>
+													Other...
+												</SelectItem>
+											</SelectContent>
+										</Select>
+									)}
+								</div>
+								<FormDescription>
+									Select the month this budget applies to
+								</FormDescription>
+								<FormMessage />
+							</FormItem>
+						);
+					}}
 				/>
 
 				<Button type='submit' disabled={isPending} className='w-full'>

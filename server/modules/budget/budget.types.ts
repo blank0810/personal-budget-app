@@ -27,3 +27,49 @@ export const getBudgetsSchema = z.object({
 });
 
 export type GetBudgetsInput = z.infer<typeof getBudgetsSchema>;
+
+// Budget Analytics Types
+
+export interface ProblemCategory {
+	categoryId: string;
+	name: string;
+	status: 'warning' | 'over';
+	detail: string; // e.g., "over 3 months" or "at 95%"
+	monthsOver: number;
+}
+
+export interface BudgetHealthSummary {
+	totalBudgets: number;
+	onTrack: number; // < 80% spent
+	warning: number; // 80-100% spent
+	over: number; // > 100% spent
+	totalBudgeted: number;
+	totalSpent: number;
+	problemCategories: ProblemCategory[];
+}
+
+export interface MonthlyTrend {
+	month: Date;
+	monthLabel: string; // e.g., "Dec 2025"
+	totalBudgeted: number;
+	totalSpent: number;
+	savings: number; // budgeted - spent (can be negative)
+	adherencePercent: number; // (spent / budgeted) * 100, capped at 100 for display
+	categoriesOnTrack: number;
+	categoriesOver: number;
+	totalCategories: number;
+}
+
+export interface CategoryRecommendation {
+	categoryId: string;
+	categoryName: string;
+	monthsAnalyzed: number;
+	avgBudget: number;
+	avgSpent: number;
+	variance: number; // (avgSpent - avgBudget) / avgBudget * 100
+	monthsOver: number; // times spent > budget
+	monthsUnder: number; // times spent < 60% of budget
+	recommendation: 'increase' | 'decrease' | 'stable';
+	suggestedAmount: number | null; // null if stable
+	trend: string; // e.g., "Over 4/6 months"
+}

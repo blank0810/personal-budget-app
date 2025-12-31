@@ -2,6 +2,52 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v1.5] - December 31, 2024
+
+### Budget Analytics & Liability Fixes
+
+**A major update introducing intelligent budget analytics with problem detection, progress tracking, and critical fixes for liability account balance handling.**
+
+---
+
+#### Budget Analytics
+
+##### Budget Health Summary (Budget Page)
+
+-   **Quick Health Overview**: New summary card at the top of the Budget page showing budget status at a glance.
+-   **Problem Detection**: Automatically flags categories that are consistently over budget (3+ months).
+-   **Status Indicators**: Color-coded badges showing on-track, warning, and over-budget counts.
+
+##### Budget Analytics Tab (Reports Page)
+
+-   **6-Month Trend Chart**: Visualizes budget adherence over time with monthly breakdown.
+-   **Category Performance Table**: Shows average budget vs spent, variance percentage, and trend indicators.
+-   **Smart Recommendations**: AI-driven suggestions to increase, decrease, or maintain budget amounts based on historical spending patterns.
+-   **Budget Health Score**: Weighted score combining categories on track (50%), overall adherence (30%), and improvement trend (20%).
+
+##### Recommendation Thresholds
+
+-   **Needs Increase**: Over budget 3+ of last 6 months.
+-   **Consider Reduce**: Under 60% utilization for 3+ months.
+-   **Stable**: Within 60-100% most months.
+
+---
+
+#### Bug Fixes
+
+##### Liability Account Balance Logic
+
+-   **Fixed Expense Balance Calculation**: Expenses on credit cards now correctly **increase** the balance (debt goes up), not decrease it.
+-   **Fixed Income/Payment Balance Calculation**: Payments to credit cards now correctly **decrease** the balance (debt goes down).
+-   **Consistent Liability Handling**: All CRUD operations (create, update, delete) for expenses and income now properly check the `isLiability` flag.
+-   **Tithe Logic Exclusion**: Church tithe calculations are now correctly skipped for liability accounts.
+
+##### AccountLedger Terminology
+
+-   **Dynamic Label**: Liability accounts now display "Amount Owed" instead of "Current Balance" for clarity.
+
+---
+
 ## [v1.4] - December 30, 2024
 
 ### Financial Analytics & UX Overhaul

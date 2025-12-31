@@ -1,14 +1,32 @@
 import { auth } from '@/auth';
 import { redirect } from 'next/navigation';
 import { DashboardService } from '@/server/modules/dashboard/dashboard.service';
+import { BudgetService } from '@/server/modules/budget/budget.service';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { format } from 'date-fns';
+import { format, startOfMonth } from 'date-fns';
+import { BudgetHealthSummary } from '@/components/modules/budget/BudgetHealthSummary';
 import {
 	ArrowDownLeft,
 	ArrowUpRight,
 	Wallet,
 	CreditCard,
 	DollarSign,
+	AlertTriangle,
+	BarChart3,
+	Umbrella,
+	Zap,
+	Flame,
+	Skull,
+	CircleDollarSign,
+	Trophy,
+	Rocket,
+	TrendingUp,
+	Meh,
+	Banknote,
+	CheckCircle,
+	ThumbsUp,
+	AlertOctagon,
+	PartyPopper,
 } from 'lucide-react';
 import { formatCurrency } from '@/lib/formatters';
 
@@ -22,13 +40,15 @@ export default async function DashboardPage() {
 	}
 
 	const userId = session.user.id;
+	const currentMonth = startOfMonth(new Date());
 
-	const [netWorthData, recentTransactions, accounts, financialHealth] =
+	const [netWorthData, recentTransactions, accounts, financialHealth, budgetHealth] =
 		await Promise.all([
 			DashboardService.getNetWorth(userId),
 			DashboardService.getRecentTransactions(userId, 5),
 			DashboardService.getAccountBalances(userId),
 			DashboardService.getFinancialHealthMetrics(userId),
+			BudgetService.getBudgetHealthSummary(userId, currentMonth),
 		]);
 
 	return (
@@ -88,8 +108,9 @@ export default async function DashboardPage() {
 							Assets: {formatCurrency(netWorthData.assets)}
 						</p>
 						{netWorthData.netWorth < 0 && (
-							<p className='text-xs text-red-600 dark:text-red-400 mt-1'>
-								⚠️ Liabilities exceed assets
+							<p className='text-xs text-red-600 dark:text-red-400 mt-1 flex items-center gap-1'>
+								<AlertTriangle className='h-3 w-3' />
+								Liabilities exceed assets
 							</p>
 						)}
 					</CardContent>
@@ -134,40 +155,48 @@ export default async function DashboardPage() {
 
 							// Determine display value and status
 							let displayValue: string;
-							let statusMessage: string;
+							let statusText: string;
+							let StatusIcon: typeof BarChart3;
 							let colorClass: string;
 
 							if (noExpenses) {
 								displayValue = '—';
-								statusMessage = '📊 Add expenses to track';
+								statusText = 'Add expenses to track';
+								StatusIcon = BarChart3;
 								colorClass = 'text-muted-foreground';
 							} else if (runway >= 12) {
 								displayValue = '12+';
-								statusMessage = '🏖️ Living the dream';
+								statusText = 'Living the dream';
+								StatusIcon = Umbrella;
 								colorClass =
 									'text-green-600 dark:text-green-400';
 							} else if (runway >= 6) {
 								displayValue = runway.toFixed(1);
-								statusMessage = '💪 Healthy cushion';
+								statusText = 'Healthy cushion';
+								StatusIcon = Zap;
 								colorClass =
 									'text-green-600 dark:text-green-400';
 							} else if (runway >= 3) {
 								displayValue = runway.toFixed(1);
-								statusMessage = '⚠️ Getting thin...';
+								statusText = 'Getting thin...';
+								StatusIcon = AlertTriangle;
 								colorClass =
 									'text-yellow-600 dark:text-yellow-400';
 							} else if (runway >= 1) {
 								displayValue = runway.toFixed(1);
-								statusMessage = '🔥 Danger zone';
+								statusText = 'Danger zone';
+								StatusIcon = Flame;
 								colorClass =
 									'text-orange-600 dark:text-orange-400';
 							} else if (runway > 0) {
 								displayValue = runway.toFixed(1);
-								statusMessage = "💀 You're cooked";
+								statusText = "You're cooked";
+								StatusIcon = Skull;
 								colorClass = 'text-red-600 dark:text-red-400';
 							} else {
 								displayValue = '0';
-								statusMessage = '🪦 Financially deceased';
+								statusText = 'Financially deceased';
+								StatusIcon = Skull;
 								colorClass = 'text-red-600 dark:text-red-400';
 							}
 
@@ -178,8 +207,9 @@ export default async function DashboardPage() {
 									>
 										{displayValue} {!noExpenses && 'mo'}
 									</div>
-									<p className='text-xs text-muted-foreground mt-1'>
-										{statusMessage}
+									<p className='text-xs text-muted-foreground mt-1 flex items-center gap-1'>
+										<StatusIcon className='h-3 w-3' />
+										{statusText}
 									</p>
 								</>
 							);
@@ -203,51 +233,60 @@ export default async function DashboardPage() {
 							const noIncome = financialHealth.ytdIncome === 0;
 
 							let displayValue: string;
-							let statusMessage: string;
+							let statusText: string;
+							let StatusIcon: typeof BarChart3;
 							let colorClass: string;
 
 							if (noIncome) {
 								displayValue = '—';
-								statusMessage = '📊 Add income to track';
+								statusText = 'Add income to track';
+								StatusIcon = BarChart3;
 								colorClass = 'text-muted-foreground';
 							} else if (rate >= 50) {
 								displayValue = rate.toFixed(1) + '%';
-								statusMessage = '🤑 Money hoarder (respect)';
+								statusText = 'Money hoarder (respect)';
+								StatusIcon = CircleDollarSign;
 								colorClass =
 									'text-green-600 dark:text-green-400';
 							} else if (rate >= 30) {
 								displayValue = rate.toFixed(1) + '%';
-								statusMessage = '🏆 FIRE candidate';
+								statusText = 'FIRE candidate';
+								StatusIcon = Trophy;
 								colorClass =
 									'text-green-600 dark:text-green-400';
 							} else if (rate >= 20) {
 								displayValue = rate.toFixed(1) + '%';
-								statusMessage = '🚀 Building wealth';
+								statusText = 'Building wealth';
+								StatusIcon = Rocket;
 								colorClass =
 									'text-green-600 dark:text-green-400';
 							} else if (rate >= 10) {
 								displayValue = rate.toFixed(1) + '%';
-								statusMessage = '📈 Making progress';
+								statusText = 'Making progress';
+								StatusIcon = TrendingUp;
 								colorClass =
 									'text-yellow-600 dark:text-yellow-400';
 							} else if (rate > 0) {
 								displayValue = rate.toFixed(1) + '%';
-								statusMessage = '😬 Barely saving';
+								statusText = 'Barely saving';
+								StatusIcon = Meh;
 								colorClass =
 									'text-yellow-600 dark:text-yellow-400';
 							} else if (rate === 0) {
 								displayValue = '0%';
-								statusMessage =
-									'💸 Living paycheck to paycheck';
+								statusText = 'Living paycheck to paycheck';
+								StatusIcon = Banknote;
 								colorClass =
 									'text-orange-600 dark:text-orange-400';
 							} else if (rate >= -20) {
 								displayValue = rate.toFixed(1) + '%';
-								statusMessage = '🔥 Spending more than earning';
+								statusText = 'Spending more than earning';
+								StatusIcon = Flame;
 								colorClass = 'text-red-600 dark:text-red-400';
 							} else {
 								displayValue = rate.toFixed(1) + '%';
-								statusMessage = '💀 Bleeding money';
+								statusText = 'Bleeding money';
+								StatusIcon = Skull;
 								colorClass = 'text-red-600 dark:text-red-400';
 							}
 
@@ -258,8 +297,9 @@ export default async function DashboardPage() {
 									>
 										{displayValue}
 									</div>
-									<p className='text-xs text-muted-foreground mt-1'>
-										{statusMessage}
+									<p className='text-xs text-muted-foreground mt-1 flex items-center gap-1'>
+										<StatusIcon className='h-3 w-3' />
+										{statusText}
 									</p>
 								</>
 							);
@@ -351,25 +391,22 @@ export default async function DashboardPage() {
 									</div>
 								</div>
 								<div className='flex justify-between items-center mt-2'>
-									<p className='text-xs text-muted-foreground'>
-										{financialHealth.creditUtilization === 0
-											? '🏆 Zero utilization - perfect!'
-											: financialHealth.creditUtilization <
-											  10
-											? '✅ Excellent - minimal credit use'
-											: financialHealth.creditUtilization <
-											  30
-											? '👍 Healthy range'
-											: financialHealth.creditUtilization <
-											  50
-											? '⚠️ Getting high - pay down soon'
-											: financialHealth.creditUtilization <
-											  70
-											? '🔥 High utilization - credit score suffering'
-											: financialHealth.creditUtilization <
-											  90
-											? '🚨 Critical - seriously hurting your credit'
-											: '💀 Maxed out - immediate action needed'}
+									<p className='text-xs text-muted-foreground flex items-center gap-1'>
+										{financialHealth.creditUtilization === 0 ? (
+											<><Trophy className='h-3 w-3' /> Zero utilization - perfect!</>
+										) : financialHealth.creditUtilization < 10 ? (
+											<><CheckCircle className='h-3 w-3' /> Excellent - minimal credit use</>
+										) : financialHealth.creditUtilization < 30 ? (
+											<><ThumbsUp className='h-3 w-3' /> Healthy range</>
+										) : financialHealth.creditUtilization < 50 ? (
+											<><AlertTriangle className='h-3 w-3' /> Getting high - pay down soon</>
+										) : financialHealth.creditUtilization < 70 ? (
+											<><Flame className='h-3 w-3' /> High utilization - credit score suffering</>
+										) : financialHealth.creditUtilization < 90 ? (
+											<><AlertOctagon className='h-3 w-3' /> Critical - seriously hurting your credit</>
+										) : (
+											<><Skull className='h-3 w-3' /> Maxed out - immediate action needed</>
+										)}
 									</p>
 								</div>
 								<div className='flex justify-between text-xs text-muted-foreground mt-2 pt-2 border-t'>
@@ -392,8 +429,9 @@ export default async function DashboardPage() {
 								<div className='text-2xl font-bold text-muted-foreground'>
 									—
 								</div>
-								<p className='text-xs text-muted-foreground mt-1'>
-									💳 No credit cards added
+								<p className='text-xs text-muted-foreground mt-1 flex items-center gap-1'>
+									<CreditCard className='h-3 w-3' />
+									No credit cards added
 								</p>
 							</>
 						)}
@@ -462,19 +500,20 @@ export default async function DashboardPage() {
 										% of debt)
 									</span>
 								</div>
-								<p className='text-xs text-muted-foreground mt-1'>
-									{financialHealth.debtPaydown === 0
-										? '💀 Zero payments — debt growing'
-										: financialHealth.debtPaydownPercent < 1
-										? '😬 Token payment — barely a dent'
-										: financialHealth.debtPaydownPercent < 3
-										? '⚠️ Minimum effort — debt lingers'
-										: financialHealth.debtPaydownPercent < 5
-										? '📈 Making progress — keep pushing'
-										: financialHealth.debtPaydownPercent <
-										  10
-										? "💪 Strong paydown — you're serious"
-										: '🔥 Aggressive — debt-free soon!'}
+								<p className='text-xs text-muted-foreground mt-1 flex items-center gap-1'>
+									{financialHealth.debtPaydown === 0 ? (
+										<><Skull className='h-3 w-3' /> Zero payments — debt growing</>
+									) : financialHealth.debtPaydownPercent < 1 ? (
+										<><Meh className='h-3 w-3' /> Token payment — barely a dent</>
+									) : financialHealth.debtPaydownPercent < 3 ? (
+										<><AlertTriangle className='h-3 w-3' /> Minimum effort — debt lingers</>
+									) : financialHealth.debtPaydownPercent < 5 ? (
+										<><TrendingUp className='h-3 w-3' /> Making progress — keep pushing</>
+									) : financialHealth.debtPaydownPercent < 10 ? (
+										<><Zap className='h-3 w-3' /> Strong paydown — you&apos;re serious</>
+									) : (
+										<><Flame className='h-3 w-3' /> Aggressive — debt-free soon!</>
+									)}
 								</p>
 								<div className='flex justify-between text-xs text-muted-foreground mt-2 pt-2 border-t'>
 									<span>
@@ -484,7 +523,7 @@ export default async function DashboardPage() {
 										)}
 									</span>
 									<span
-										className={
+										className={`flex items-center gap-1 ${
 											financialHealth.monthsToPayoff ===
 											-1
 												? 'text-red-600 dark:text-red-400'
@@ -495,39 +534,37 @@ export default async function DashboardPage() {
 												  36
 												? 'text-yellow-600 dark:text-yellow-400'
 												: 'text-orange-600 dark:text-orange-400'
-										}
+										}`}
 									>
-										{financialHealth.monthsToPayoff === -1
-											? '⚠️ Never at this rate'
-											: financialHealth.monthsToPayoff <=
-											  12
-											? `~${financialHealth.monthsToPayoff} mo to freedom`
-											: financialHealth.monthsToPayoff <=
-											  24
-											? `~${Math.round(
-													financialHealth.monthsToPayoff /
-														12
-											  )} yr to go`
-											: `~${Math.round(
-													financialHealth.monthsToPayoff /
-														12
-											  )}+ yrs remaining`}
+										{financialHealth.monthsToPayoff === -1 ? (
+											<><AlertTriangle className='h-3 w-3' /> Never at this rate</>
+										) : financialHealth.monthsToPayoff <= 12 ? (
+											`~${financialHealth.monthsToPayoff} mo to freedom`
+										) : financialHealth.monthsToPayoff <= 24 ? (
+											`~${Math.round(financialHealth.monthsToPayoff / 12)} yr to go`
+										) : (
+											`~${Math.round(financialHealth.monthsToPayoff / 12)}+ yrs remaining`
+										)}
 									</span>
 								</div>
 							</>
 						) : (
 							<>
-								<div className='text-2xl font-bold text-green-600 dark:text-green-400'>
-									Debt Free! 🎉
+								<div className='text-2xl font-bold text-green-600 dark:text-green-400 flex items-center gap-2'>
+									Debt Free! <PartyPopper className='h-5 w-5' />
 								</div>
-								<p className='text-xs text-muted-foreground mt-1'>
-									🏆 No liabilities — keep it up!
+								<p className='text-xs text-muted-foreground mt-1 flex items-center gap-1'>
+									<Trophy className='h-3 w-3' />
+									No liabilities — keep it up!
 								</p>
 							</>
 						)}
 					</CardContent>
 				</Card>
 			</div>
+
+			{/* Budget Health Summary - Full Width */}
+			<BudgetHealthSummary health={budgetHealth} month={currentMonth} />
 
 			<div className='grid gap-4 md:grid-cols-2 lg:grid-cols-7'>
 				{/* Recent Transactions - Top 5 with Summary */}

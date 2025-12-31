@@ -137,7 +137,7 @@ export function AccountLedger({ account, transactions }: AccountLedgerProps) {
 					<div className='flex items-center gap-2 text-muted-foreground'>
 						<Badge variant='outline'>{account.type}</Badge>
 						<span>
-							Current Balance:{' '}
+							{account.isLiability ? 'Amount Owed' : 'Current Balance'}:{' '}
 							<span className='font-bold text-foreground'>
 								{formatCurrency(Number(account.balance))}
 							</span>

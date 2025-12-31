@@ -22,11 +22,14 @@ async function getAuthenticatedUser() {
 export async function createBudgetAction(formData: FormData) {
 	const userId = await getAuthenticatedUser();
 
+	const categoryIdRaw = formData.get('categoryId');
+	const categoryNameRaw = formData.get('categoryName');
+
 	const rawData = {
 		name: formData.get('name') as string,
 		amount: Number(formData.get('amount')),
-		categoryId: formData.get('categoryId') as string,
-		categoryName: formData.get('categoryName') as string | undefined,
+		categoryId: categoryIdRaw ? (categoryIdRaw as string) : undefined,
+		categoryName: categoryNameRaw ? (categoryNameRaw as string) : undefined,
 		month: new Date(formData.get('month') as string),
 	};
 
@@ -57,6 +60,7 @@ export async function updateBudgetAction(formData: FormData) {
 
 	const rawData = {
 		id: formData.get('id') as string,
+		name: formData.get('name') as string,
 		amount: Number(formData.get('amount')),
 		categoryId: formData.get('categoryId') as string,
 		month: formData.get('month')
