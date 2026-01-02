@@ -12,7 +12,6 @@ import {
 	CartesianGrid,
 } from 'recharts';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
 import {
 	Table,
@@ -29,7 +28,6 @@ import type {
 	MonthlyTrend,
 	CategoryRecommendation,
 } from '@/server/modules/budget/budget.types';
-import { format } from 'date-fns';
 
 interface BudgetAnalyticsProps {
 	trends: MonthlyTrend[];
@@ -40,40 +38,6 @@ export function BudgetAnalytics({
 	trends,
 	recommendations,
 }: BudgetAnalyticsProps) {
-	// Calculate aggregate summary across all months in the selected period
-	const periodSummary = trends.reduce(
-		(acc, month) => ({
-			totalBudgeted: acc.totalBudgeted + month.totalBudgeted,
-			totalSpent: acc.totalSpent + month.totalSpent,
-			categoriesOnTrack: acc.categoriesOnTrack + month.categoriesOnTrack,
-			categoriesOver: acc.categoriesOver + month.categoriesOver,
-			totalCategories: acc.totalCategories + month.totalCategories,
-		}),
-		{
-			totalBudgeted: 0,
-			totalSpent: 0,
-			categoriesOnTrack: 0,
-			categoriesOver: 0,
-			totalCategories: 0,
-		}
-	);
-	const periodSavings = periodSummary.totalBudgeted - periodSummary.totalSpent;
-	const periodUtilization =
-		periodSummary.totalBudgeted > 0
-			? (periodSummary.totalSpent / periodSummary.totalBudgeted) * 100
-			: 0;
-
-	// Get date range label
-	const getDateRangeLabel = () => {
-		if (trends.length === 0) return 'Selected Period';
-		if (trends.length === 1) {
-			return format(new Date(trends[0].month), 'MMMM yyyy');
-		}
-		const firstMonth = format(new Date(trends[0].month), 'MMM yyyy');
-		const lastMonth = format(new Date(trends[trends.length - 1].month), 'MMM yyyy');
-		return `${firstMonth} - ${lastMonth}`;
-	};
-
 	// Empty state
 	if (trends.length === 0 || trends.every((t) => t.totalCategories === 0)) {
 		return (
@@ -96,108 +60,6 @@ export function BudgetAnalytics({
 
 	return (
 		<div className='space-y-6'>
-			{/* Period Summary Card */}
-			<Card>
-				<CardHeader>
-					<CardTitle>{getDateRangeLabel()} Summary</CardTitle>
-				</CardHeader>
-				<CardContent className='space-y-4'>
-					{periodSummary.totalBudgeted > 0 ? (
-						<>
-							<div className='grid gap-4 md:grid-cols-3'>
-								<div className='text-center p-4 bg-muted/50 rounded-lg'>
-									<p className='text-sm text-muted-foreground'>
-										Budgeted
-									</p>
-									<p className='text-2xl font-bold'>
-										{formatCurrency(periodSummary.totalBudgeted)}
-									</p>
-								</div>
-								<div className='text-center p-4 bg-muted/50 rounded-lg'>
-									<p className='text-sm text-muted-foreground'>Spent</p>
-									<p
-										className={cn(
-											'text-2xl font-bold',
-											periodSummary.totalSpent >
-												periodSummary.totalBudgeted
-												? 'text-red-600'
-												: ''
-										)}
-									>
-										{formatCurrency(periodSummary.totalSpent)}
-									</p>
-								</div>
-								<div className='text-center p-4 bg-muted/50 rounded-lg'>
-									<p className='text-sm text-muted-foreground'>
-										{periodSavings >= 0 ? 'Saved' : 'Over'}
-									</p>
-									<p
-										className={cn(
-											'text-2xl font-bold',
-											periodSavings >= 0
-												? 'text-emerald-600'
-												: 'text-red-600'
-										)}
-									>
-										{formatCurrency(Math.abs(periodSavings))}
-									</p>
-								</div>
-							</div>
-							<div className='space-y-2'>
-								<div className='flex justify-between text-sm'>
-									<span className='text-muted-foreground'>
-										Budget Utilization
-									</span>
-									<span
-										className={cn(
-											'font-medium',
-											periodUtilization > 100
-												? 'text-red-600'
-												: periodUtilization > 80
-												? 'text-amber-600'
-												: 'text-emerald-600'
-										)}
-									>
-										{periodUtilization.toFixed(1)}%
-									</span>
-								</div>
-								<Progress
-									value={Math.min(periodUtilization, 100)}
-									className={cn(
-										'h-3',
-										periodUtilization > 100
-											? '[&>div]:bg-red-500'
-											: periodUtilization > 80
-											? '[&>div]:bg-amber-500'
-											: '[&>div]:bg-emerald-500'
-									)}
-								/>
-								<div className='flex gap-4 text-xs text-muted-foreground'>
-									<span>
-										{periodSummary.categoriesOnTrack} categories on
-										track
-									</span>
-									{periodSummary.categoriesOver > 0 && (
-										<span className='text-red-600'>
-											{periodSummary.categoriesOver} over budget
-										</span>
-									)}
-								</div>
-							</div>
-						</>
-					) : (
-						<div className='text-center py-8 space-y-2'>
-							<p className='text-muted-foreground'>
-								No budgets set for {getDateRangeLabel()}
-							</p>
-							<p className='text-sm text-muted-foreground'>
-								Create a budget to start tracking your spending
-							</p>
-						</div>
-					)}
-				</CardContent>
-			</Card>
-
 			{/* Budget Trend Chart */}
 			<Card>
 				<CardHeader>

@@ -13,9 +13,9 @@ const versions = [
 			{
 				version: 'v1.5.1',
 				date: 'January 1, 2026',
-				title: 'Budget Health Timezone Fix',
+				title: 'Budget Health Timezone Fix & Changelog UI Redesign',
 				description:
-					'Fixed timezone mismatch between browser and server that prevented Budget Health from displaying on the dashboard.',
+					'Fixed timezone mismatch for Budget Health, simplified Budget Analytics tab, and redesigned the changelog page for better scalability.',
 				features: [
 					{
 						title: 'Bug Fixes',
@@ -23,6 +23,22 @@ const versions = [
 							'Fixed Budget Health not displaying despite budgets being defined for the current month.',
 							'Normalized budget month storage to UTC midnight on the 1st of the month.',
 							'Added date normalization in budget creation and update actions.',
+						],
+					},
+					{
+						title: 'Budget Analytics Simplification',
+						items: [
+							'Summary Cards: Added 3 cards at top showing Total Budgeted, Total Spent, and Saved/Over amount.',
+							'Collapsible Progress Bars: Category details now collapsed by default to reduce visual clutter.',
+							'Removed Duplicate Summary: Eliminated redundant Period Summary Card.',
+						],
+					},
+					{
+						title: 'Changelog Redesign',
+						items: [
+							'Collapsible Timeline: Main versions now collapse/expand for easier navigation.',
+							'Nested Patches: Patch versions shown as collapsible sections within their parent release.',
+							'Latest First: Most recent version auto-expanded by default.',
 						],
 					},
 				],

@@ -15,6 +15,8 @@ import { ReportsToolbar } from '@/components/modules/reports/ReportsToolbar';
 import { FinancialStatement } from '@/components/modules/reports/FinancialStatement';
 import { CashFlowWaterfallChart } from '@/components/modules/reports/CashFlowWaterfallChart';
 import { serialize } from '@/lib/serialization';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Wallet, TrendingDown, PiggyBank } from 'lucide-react';
 
 export default async function ReportsPage({
 	searchParams,
@@ -80,6 +82,16 @@ export default async function ReportsPage({
 			maximumFractionDigits: 0,
 		}).format(val);
 	};
+
+	// Budget Summary Calculations
+	const budgetSummary = budgetTrends.reduce(
+		(acc, trend) => ({
+			totalBudgeted: acc.totalBudgeted + trend.totalBudgeted,
+			totalSpent: acc.totalSpent + trend.totalSpent,
+		}),
+		{ totalBudgeted: 0, totalSpent: 0 }
+	);
+	const budgetSavedOrOver = budgetSummary.totalBudgeted - budgetSummary.totalSpent;
 
 	return (
 		<div className='container mx-auto py-10 space-y-8'>
@@ -168,6 +180,57 @@ export default async function ReportsPage({
 
 				{/* 3. BUDGET ANALYTICS TAB */}
 				<TabsContent value='budget' className='space-y-4'>
+					{/* Budget Summary Cards */}
+					<div className='grid gap-4 md:grid-cols-3'>
+						<Card>
+							<CardHeader className='flex flex-row items-center justify-between space-y-0 pb-2'>
+								<CardTitle className='text-sm font-medium'>
+									Total Budgeted
+								</CardTitle>
+								<Wallet className='h-4 w-4 text-muted-foreground' />
+							</CardHeader>
+							<CardContent>
+								<div className='text-2xl font-bold'>
+									{formatCurrency(budgetSummary.totalBudgeted)}
+								</div>
+								<p className='text-xs text-muted-foreground'>
+									Planned spending for period
+								</p>
+							</CardContent>
+						</Card>
+						<Card>
+							<CardHeader className='flex flex-row items-center justify-between space-y-0 pb-2'>
+								<CardTitle className='text-sm font-medium'>
+									Total Spent
+								</CardTitle>
+								<TrendingDown className='h-4 w-4 text-muted-foreground' />
+							</CardHeader>
+							<CardContent>
+								<div className={`text-2xl font-bold ${budgetSummary.totalSpent > budgetSummary.totalBudgeted ? 'text-red-600' : ''}`}>
+									{formatCurrency(budgetSummary.totalSpent)}
+								</div>
+								<p className='text-xs text-muted-foreground'>
+									Actual spending for period
+								</p>
+							</CardContent>
+						</Card>
+						<Card>
+							<CardHeader className='flex flex-row items-center justify-between space-y-0 pb-2'>
+								<CardTitle className='text-sm font-medium'>
+									{budgetSavedOrOver >= 0 ? 'Under Budget' : 'Over Budget'}
+								</CardTitle>
+								<PiggyBank className={`h-4 w-4 ${budgetSavedOrOver >= 0 ? 'text-emerald-600' : 'text-red-600'}`} />
+							</CardHeader>
+							<CardContent>
+								<div className={`text-2xl font-bold ${budgetSavedOrOver >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+									{formatCurrency(Math.abs(budgetSavedOrOver))}
+								</div>
+								<p className='text-xs text-muted-foreground'>
+									{budgetSavedOrOver >= 0 ? 'Saved from budget' : 'Exceeded budget'}
+								</p>
+							</CardContent>
+						</Card>
+					</div>
 					<BudgetPerformanceChart
 						data={serialize(budgetPerformance)}
 					/>
