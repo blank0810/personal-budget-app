@@ -51,7 +51,12 @@ export const BudgetService = {
 		const budgets = await prisma.budget.findMany({
 			where: {
 				userId,
-				month: filters?.month,
+				month: filters?.month
+					? {
+							gte: startOfMonth(filters.month),
+							lte: endOfMonth(filters.month),
+						}
+					: undefined,
 			},
 			include: {
 				category: true,

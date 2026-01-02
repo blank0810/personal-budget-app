@@ -13,6 +13,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { formatCurrency } from '@/lib/formatters';
+import { ChevronDown } from 'lucide-react';
 
 interface BudgetMetric {
 	categoryId: string;
@@ -95,59 +96,67 @@ export function BudgetPerformanceChart({ data }: BudgetPerformanceChartProps) {
 					</ResponsiveContainer>
 				</div>
 
-				{/* Detailed List View */}
-				<div className='space-y-4 pt-4 border-t'>
-					{data.map((item) => (
-						<div key={item.categoryId} className='space-y-2'>
-							<div className='flex items-center justify-between text-sm'>
-								<div className='flex items-center gap-2'>
-									<span className='font-medium'>
-										{item.categoryName}
-									</span>
-									{item.variance < 0 && (
-										<span className='text-xs text-red-500 font-bold'>
-											Over Budget
+				{/* Detailed List View - Collapsible */}
+				<details className='group pt-4 border-t'>
+					<summary className='cursor-pointer list-none flex items-center justify-between py-2 px-1 hover:bg-muted/50 rounded transition-colors'>
+						<span className='text-sm font-medium'>
+							Category Details ({data.length} categories)
+						</span>
+						<ChevronDown className='h-4 w-4 text-muted-foreground transition-transform duration-200 group-open:rotate-180' />
+					</summary>
+					<div className='space-y-4 pt-4'>
+						{data.map((item) => (
+							<div key={item.categoryId} className='space-y-2'>
+								<div className='flex items-center justify-between text-sm'>
+									<div className='flex items-center gap-2'>
+										<span className='font-medium'>
+											{item.categoryName}
 										</span>
-									)}
+										{item.variance < 0 && (
+											<span className='text-xs text-red-500 font-bold'>
+												Over Budget
+											</span>
+										)}
+									</div>
+									<div className='text-muted-foreground'>
+										<span
+											className={
+												item.actual > item.budgeted
+													? 'text-red-600 font-bold'
+													: ''
+											}
+										>
+											{formatCurrency(item.actual, {
+												decimals: 0,
+											})}
+										</span>
+										{' / '}
+										<span>
+											{formatCurrency(item.budgeted, {
+												decimals: 0,
+											})}
+										</span>
+									</div>
 								</div>
-								<div className='text-muted-foreground'>
-									<span
-										className={
-											item.actual > item.budgeted
-												? 'text-red-600 font-bold'
-												: ''
-										}
-									>
-										{formatCurrency(item.actual, {
-											decimals: 0,
-										})}
-									</span>
-									{' / '}
-									<span>
-										{formatCurrency(item.budgeted, {
-											decimals: 0,
-										})}
-									</span>
-								</div>
+								<Progress
+									value={Math.min(item.percentUsed, 100)}
+									className={`h-2 ${
+										item.actual > item.budgeted
+											? 'bg-red-100'
+											: ''
+									}`}
+									indicatorClassName={
+										item.actual > item.budgeted
+											? 'bg-red-500'
+											: item.percentUsed > 80
+											? 'bg-yellow-500'
+											: 'bg-green-500'
+									}
+								/>
 							</div>
-							<Progress
-								value={Math.min(item.percentUsed, 100)}
-								className={`h-2 ${
-									item.actual > item.budgeted
-										? 'bg-red-100'
-										: ''
-								}`}
-								indicatorClassName={
-									item.actual > item.budgeted
-										? 'bg-red-500'
-										: item.percentUsed > 80
-										? 'bg-yellow-500'
-										: 'bg-green-500'
-								}
-							/>
-						</div>
-					))}
-				</div>
+						))}
+					</div>
+				</details>
 			</CardContent>
 		</Card>
 	);

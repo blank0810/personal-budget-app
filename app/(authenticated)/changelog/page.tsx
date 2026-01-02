@@ -1,39 +1,49 @@
-import { Badge } from '@/components/ui/badge';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { CheckCircle2, Rocket, Zap, Wrench } from 'lucide-react';
+import { Rocket } from 'lucide-react';
+import { ChangelogView } from '@/components/modules/changelog/ChangelogView';
 
-interface Patch {
-	version: string;
-	date: string;
-	title: string;
-	description: string;
-	features: {
-		title: string;
-		items: string[];
-	}[];
-}
-
-interface Version {
-	version: string;
-	date: string;
-	title: string;
-	description: string;
-	features: {
-		title: string;
-		items: string[];
-	}[];
-	status: 'current' | 'released';
-	patches?: Patch[];
-}
-
-const versions: Version[] = [
+const versions = [
 	{
 		version: 'v1.5',
-		date: 'December 31, 2024',
+		date: 'December 31, 2025',
 		title: 'Budget Analytics & Liability Fixes',
 		description:
 			'A major update introducing intelligent budget analytics with problem detection, progress tracking, and critical fixes for liability account balance handling.',
-		status: 'current',
+		status: 'current' as const,
+		patches: [
+			{
+				version: 'v1.5.1',
+				date: 'January 1, 2026',
+				title: 'Budget Health Timezone Fix & Changelog UI Redesign',
+				description:
+					'Fixed timezone mismatch for Budget Health, simplified Budget Analytics tab, and redesigned the changelog page for better scalability.',
+				features: [
+					{
+						title: 'Bug Fixes',
+						items: [
+							'Fixed Budget Health not displaying despite budgets being defined for the current month.',
+							'Normalized budget month storage to UTC midnight on the 1st of the month.',
+							'Added date normalization in budget creation and update actions.',
+						],
+					},
+					{
+						title: 'Budget Analytics Simplification',
+						items: [
+							'Summary Cards: Added 3 cards at top showing Total Budgeted, Total Spent, and Saved/Over amount.',
+							'Collapsible Progress Bars: Category details now collapsed by default to reduce visual clutter.',
+							'Removed Duplicate Summary: Eliminated redundant Period Summary Card.',
+						],
+					},
+					{
+						title: 'Changelog Redesign',
+						items: [
+							'Collapsible Timeline: Main versions now collapse/expand for easier navigation.',
+							'Nested Patches: Patch versions shown as collapsible sections within their parent release.',
+							'Latest First: Most recent version auto-expanded by default.',
+						],
+					},
+				],
+			},
+		],
 		features: [
 			{
 				title: 'Budget Health Summary',
@@ -72,15 +82,15 @@ const versions: Version[] = [
 	},
 	{
 		version: 'v1.4',
-		date: 'December 30, 2024',
+		date: 'December 30, 2025',
 		title: 'Financial Analytics & UX Overhaul',
 		description:
 			'A massive update delivering professional-grade reporting tools, envelope budgeting, and a streamlined data management experience.',
-		status: 'released',
+		status: 'released' as const,
 		patches: [
 			{
 				version: 'v1.4.1',
-				date: 'December 30, 2024',
+				date: 'December 30, 2025',
 				title: 'Credit & Debt Metrics Enhancement',
 				description:
 					'A patch to fix color logic bugs and enhance dashboard metrics with no-sugarcoating, granular feedback.',
@@ -114,7 +124,7 @@ const versions: Version[] = [
 							'6-Tier Paydown Thresholds: Honest feedback from "Zero payments" to "Aggressive".',
 							'Context-Rich Display: Shows payment as percentage of total debt.',
 							'Time-to-Payoff Estimate: Displays "~12 mo to freedom" or "Never at this rate".',
-							'Debt-Free State: Celebrates "Debt Free! 🎉" when no liabilities exist.',
+							'Debt-Free State: Celebrates "Debt Free!" when no liabilities exist.',
 						],
 					},
 					{
@@ -163,11 +173,11 @@ const versions: Version[] = [
 	},
 	{
 		version: 'v1.3',
-		date: 'December 28, 2024',
+		date: 'December 28, 2025',
 		title: 'Credit Logic Hotpatch',
 		description:
 			'A critical update to align system logic with our financial reality regarding credit utilization and debt calculation.',
-		status: 'released',
+		status: 'released' as const,
 		features: [
 			{
 				title: 'Hotfix',
@@ -182,11 +192,11 @@ const versions: Version[] = [
 	},
 	{
 		version: 'v1.2',
-		date: 'December 27, 2024',
+		date: 'December 27, 2025',
 		title: 'Solvency & Integrity Update',
 		description:
 			'A major architectural shift focusing on financial solvency, credit integrity, and accurate liability tracking. We moved away from simple cash flow tracking to a more robust "Net Worth" model.',
-		status: 'released',
+		status: 'released' as const,
 		features: [
 			{
 				title: 'Dashboard Refactor',
@@ -224,11 +234,11 @@ const versions: Version[] = [
 	},
 	{
 		version: 'v1.1',
-		date: 'December 15, 2024',
+		date: 'December 15, 2025',
 		title: 'Analytics & Account Management',
 		description:
 			'Enhanced the application with deep-dive reporting capabilities and full account lifecycle management.',
-		status: 'released',
+		status: 'released' as const,
 		features: [
 			{
 				title: 'Advanced Reports',
@@ -250,11 +260,11 @@ const versions: Version[] = [
 	},
 	{
 		version: 'v1.0',
-		date: 'December 1, 2024',
+		date: 'December 1, 2025',
 		title: 'Foundation Release',
 		description:
 			'The initial launch of the Personal Budget Planner, establishing the core pillars of financial tracking.',
-		status: 'released',
+		status: 'released' as const,
 		features: [
 			{
 				title: 'Core Tracking',
@@ -278,186 +288,19 @@ const versions: Version[] = [
 
 export default function ChangelogPage() {
 	return (
-		<div className='container max-w-4xl py-10 space-y-8'>
+		<div className='container py-10 space-y-8'>
 			<div className='flex flex-col gap-2'>
 				<h1 className='text-3xl font-bold tracking-tight flex items-center gap-3'>
 					<Rocket className='h-8 w-8 text-primary' />
 					Product Updates
 				</h1>
 				<p className='text-muted-foreground text-lg'>
-					A timeline of how the Budget Planner is evolving to help you
-					build wealth.
+					A timeline of how the Budget Planner is evolving to help you build
+					wealth.
 				</p>
 			</div>
 
-			<div className='relative border-l border-muted ml-4 md:ml-6 space-y-12'>
-				{versions.map((version) => (
-					<div
-						key={version.version}
-						className='relative pl-8 md:pl-12'
-					>
-						{/* Timeline Dot */}
-						<div
-							className={`absolute -left-[9px] top-6 h-4 w-4 rounded-full border-2 ${
-								version.status === 'current'
-									? 'bg-primary border-primary ring-4 ring-primary/20'
-									: 'bg-background border-muted-foreground'
-							}`}
-						/>
-
-						<div className='flex flex-col gap-6 pt-5'>
-							{/* Header */}
-							<div className='flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b pb-4'>
-								<div className='space-y-1'>
-									<div className='flex items-center gap-3'>
-										<h2 className='text-2xl font-bold text-foreground'>
-											{version.version}
-										</h2>
-										{version.status === 'current' && (
-											<Badge
-												variant='default'
-												className='bg-emerald-600 hover:bg-emerald-700'
-											>
-												Latest Release
-											</Badge>
-										)}
-									</div>
-									<h3 className='text-xl font-semibold text-primary'>
-										{version.title}
-									</h3>
-								</div>
-								<div className='text-sm text-muted-foreground font-medium bg-secondary/50 px-3 py-1 rounded-full w-fit'>
-									{version.date}
-								</div>
-							</div>
-
-							{/* Content */}
-							<div className='space-y-6'>
-								<p className='text-muted-foreground leading-relaxed'>
-									{version.description}
-								</p>
-
-								{/* Patches - Show first if they exist */}
-								{version.patches &&
-									version.patches.length > 0 && (
-										<div className='space-y-4'>
-											{version.patches.map((patch) => (
-												<div
-													key={patch.version}
-													className='border-l-4 border-l-amber-500 bg-amber-50/50 dark:bg-amber-950/20 rounded-r-lg p-4 space-y-4'
-												>
-													<div className='flex flex-col sm:flex-row sm:items-center justify-between gap-2'>
-														<div className='flex items-center gap-2'>
-															<Wrench className='h-4 w-4 text-amber-600' />
-															<span className='font-bold text-lg'>
-																{patch.version}
-															</span>
-															<Badge
-																variant='outline'
-																className='border-amber-500 text-amber-700 dark:text-amber-400'
-															>
-																Patch
-															</Badge>
-														</div>
-														<span className='text-xs text-muted-foreground'>
-															{patch.date}
-														</span>
-													</div>
-													<p className='text-sm font-medium text-amber-800 dark:text-amber-300'>
-														{patch.title}
-													</p>
-													<p className='text-sm text-muted-foreground'>
-														{patch.description}
-													</p>
-													<div className='grid gap-4 md:grid-cols-2'>
-														{patch.features.map(
-															(feature) => (
-																<Card
-																	key={
-																		feature.title
-																	}
-																	className='bg-background/80 border-amber-200 dark:border-amber-800 shadow-sm'
-																>
-																	<CardHeader className='pb-2'>
-																		<CardTitle className='text-sm font-semibold flex items-center gap-2'>
-																			<Wrench className='h-3 w-3 text-amber-500' />
-																			{
-																				feature.title
-																			}
-																		</CardTitle>
-																	</CardHeader>
-																	<CardContent>
-																		<ul className='space-y-1.5'>
-																			{feature.items.map(
-																				(
-																					item,
-																					i
-																				) => (
-																					<li
-																						key={
-																							i
-																						}
-																						className='text-xs text-muted-foreground flex items-start gap-2'
-																					>
-																						<span className='mt-1 h-1 w-1 rounded-full bg-amber-500 shrink-0' />
-																						{
-																							item
-																						}
-																					</li>
-																				)
-																			)}
-																		</ul>
-																	</CardContent>
-																</Card>
-															)
-														)}
-													</div>
-												</div>
-											))}
-										</div>
-									)}
-
-								{/* Main Version Features */}
-								<div className='grid gap-6 md:grid-cols-2'>
-									{version.features.map((feature) => (
-										<Card
-											key={feature.title}
-											className='bg-card/50 border-none shadow-sm'
-										>
-											<CardHeader className='pb-3'>
-												<CardTitle className='text-base font-semibold flex items-center gap-2'>
-													{version.status ===
-													'current' ? (
-														<Zap className='h-4 w-4 text-amber-500' />
-													) : (
-														<CheckCircle2 className='h-4 w-4 text-emerald-500' />
-													)}
-													{feature.title}
-												</CardTitle>
-											</CardHeader>
-											<CardContent>
-												<ul className='space-y-2.5'>
-													{feature.items.map(
-														(item, i) => (
-															<li
-																key={i}
-																className='text-sm text-muted-foreground flex items-start gap-2'
-															>
-																<span className='mt-1.5 h-1.5 w-1.5 rounded-full bg-primary/40 shrink-0' />
-																{item}
-															</li>
-														)
-													)}
-												</ul>
-											</CardContent>
-										</Card>
-									))}
-								</div>
-							</div>
-						</div>
-					</div>
-				))}
-			</div>
+			<ChangelogView versions={versions} />
 		</div>
 	);
 }

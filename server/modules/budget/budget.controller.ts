@@ -17,6 +17,14 @@ async function getAuthenticatedUser() {
 }
 
 /**
+ * Normalize a date to UTC midnight on the 1st of the month
+ * This ensures consistent storage regardless of client timezone
+ */
+function normalizeMonthToUTC(date: Date): Date {
+	return new Date(Date.UTC(date.getFullYear(), date.getMonth(), 1, 0, 0, 0, 0));
+}
+
+/**
  * Server Action: Create Budget
  */
 export async function createBudgetAction(formData: FormData) {
@@ -30,7 +38,7 @@ export async function createBudgetAction(formData: FormData) {
 		amount: Number(formData.get('amount')),
 		categoryId: categoryIdRaw ? (categoryIdRaw as string) : undefined,
 		categoryName: categoryNameRaw ? (categoryNameRaw as string) : undefined,
-		month: new Date(formData.get('month') as string),
+		month: normalizeMonthToUTC(new Date(formData.get('month') as string)),
 	};
 
 	const validatedFields = createBudgetSchema.safeParse(rawData);
@@ -64,7 +72,7 @@ export async function updateBudgetAction(formData: FormData) {
 		amount: Number(formData.get('amount')),
 		categoryId: formData.get('categoryId') as string,
 		month: formData.get('month')
-			? new Date(formData.get('month') as string)
+			? normalizeMonthToUTC(new Date(formData.get('month') as string))
 			: undefined,
 	};
 
