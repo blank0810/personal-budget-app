@@ -46,7 +46,7 @@ export function CategoryBreakdownChart({ data }: CategoryBreakdownChartProps) {
 										: '0'
 								}%`
 							}
-							outerRadius={120}
+							outerRadius='70%'
 							fill='#8884d8'
 							dataKey='amount'
 							nameKey='categoryName'

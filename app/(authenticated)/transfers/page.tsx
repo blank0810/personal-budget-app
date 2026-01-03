@@ -24,13 +24,13 @@ export default async function TransfersPage() {
 	]);
 
 	return (
-		<div className='container mx-auto py-10 space-y-8'>
+		<div className='container mx-auto py-6 md:py-10 space-y-8'>
 			<div className='flex justify-between items-center'>
-				<h1 className='text-3xl font-bold tracking-tight'>Transfers</h1>
+				<h1 className='text-2xl sm:text-3xl font-bold tracking-tight'>Transfers</h1>
 			</div>
 
-			<div className='grid gap-8 md:grid-cols-[350px_1fr]'>
-				<div className='space-y-6'>
+			<div className='grid grid-cols-1 gap-8 lg:grid-cols-[350px_1fr]'>
+				<div className='min-w-0 space-y-6'>
 					<Card>
 						<CardHeader>
 							<CardTitle>New Transfer</CardTitle>
@@ -41,8 +41,8 @@ export default async function TransfersPage() {
 					</Card>
 				</div>
 
-				<div className='space-y-6'>
-					<h2 className='text-xl font-semibold tracking-tight'>
+				<div className='min-w-0 space-y-6'>
+					<h2 className='text-lg sm:text-xl font-semibold tracking-tight'>
 						Recent Transfers
 					</h2>
 					<TransferList

@@ -149,9 +149,9 @@ export function BudgetAnalytics({
 				<CardHeader>
 					<CardTitle>Category Performance & Recommendations</CardTitle>
 				</CardHeader>
-				<CardContent>
+				<CardContent className='overflow-x-auto'>
 					{recommendations.length > 0 ? (
-						<Table>
+						<Table className='min-w-[600px]'>
 							<TableHeader>
 								<TableRow>
 									<TableHead>Category</TableHead>

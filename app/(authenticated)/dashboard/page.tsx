@@ -52,9 +52,9 @@ export default async function DashboardPage() {
 		]);
 
 	return (
-		<div className='container mx-auto py-10 space-y-8'>
+		<div className='container mx-auto py-6 md:py-10 space-y-8'>
 			<div className='flex justify-between items-center'>
-				<h1 className='text-3xl font-bold tracking-tight'>Dashboard</h1>
+				<h1 className='text-2xl sm:text-3xl font-bold tracking-tight'>Dashboard</h1>
 				<ClearCacheButton />
 			</div>
 
@@ -568,7 +568,7 @@ export default async function DashboardPage() {
 
 			<div className='grid gap-4 md:grid-cols-2 lg:grid-cols-7'>
 				{/* Recent Transactions - Top 5 with Summary */}
-				<Card className='col-span-4'>
+				<Card className='md:col-span-2 lg:col-span-4'>
 					<CardHeader className='flex flex-row items-center justify-between'>
 						<CardTitle>Recent Transactions</CardTitle>
 						<span className='text-xs text-muted-foreground'>
@@ -686,7 +686,7 @@ export default async function DashboardPage() {
 				</Card>
 
 				{/* Split Account List: Assets vs Liabilities */}
-				<Card className='col-span-3'>
+				<Card className='md:col-span-2 lg:col-span-3'>
 					<CardHeader>
 						<CardTitle>Accounts</CardTitle>
 					</CardHeader>

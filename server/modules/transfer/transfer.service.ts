@@ -15,6 +15,16 @@ export const TransferService = {
 		const fee = data.fee || 0;
 
 		return await prisma.$transaction(async (tx) => {
+			// Fetch both accounts to check liability status
+			const [fromAccount, toAccount] = await Promise.all([
+				tx.account.findUniqueOrThrow({
+					where: { id: data.fromAccountId, userId },
+				}),
+				tx.account.findUniqueOrThrow({
+					where: { id: data.toAccountId, userId },
+				}),
+			]);
+
 			// 1. Create Transfer Record (including fee for audit trail)
 			const transfer = await tx.transfer.create({
 				data: {
@@ -28,16 +38,28 @@ export const TransferService = {
 				},
 			});
 
-			// 2. Debit Source Account (amount only - fee handled separately)
+			// 2. Update Source Account
+			// - Asset: decrement (money leaves)
+			// - Liability: increment (borrowing more, debt increases)
 			await tx.account.update({
 				where: { id: data.fromAccountId, userId },
-				data: { balance: { decrement: data.amount } },
+				data: {
+					balance: fromAccount.isLiability
+						? { increment: data.amount }
+						: { decrement: data.amount },
+				},
 			});
 
-			// 3. Credit Destination Account
+			// 3. Update Destination Account
+			// - Asset: increment (money arrives)
+			// - Liability: decrement (paying off debt, debt decreases)
 			await tx.account.update({
 				where: { id: data.toAccountId, userId },
-				data: { balance: { increment: data.amount } },
+				data: {
+					balance: toAccount.isLiability
+						? { decrement: data.amount }
+						: { increment: data.amount },
+				},
 			});
 
 			// 4. Handle Fee (if any)
@@ -64,9 +86,15 @@ export const TransferService = {
 				});
 
 				// Debit Fee from Source Account
+				// - Asset: decrement (fee deducted)
+				// - Liability: increment (fee adds to debt)
 				await tx.account.update({
 					where: { id: data.fromAccountId, userId },
-					data: { balance: { decrement: fee } },
+					data: {
+						balance: fromAccount.isLiability
+							? { increment: fee }
+							: { decrement: fee },
+					},
 				});
 			}
 
@@ -127,29 +155,51 @@ export const TransferService = {
 		return await prisma.$transaction(async (tx) => {
 			const transfer = await tx.transfer.findUniqueOrThrow({
 				where: { id: transferId, userId },
+				include: {
+					fromAccount: true,
+					toAccount: true,
+				},
 			});
 
 			const fee = Number(transfer.fee) || 0;
 			const amount = Number(transfer.amount);
 
-			// 1. Revert Source Account (Credit back amount)
+			// 1. Revert Source Account
+			// - Asset: increment (money returns)
+			// - Liability: decrement (undo the borrowing, debt decreases)
 			await tx.account.update({
 				where: { id: transfer.fromAccountId, userId },
-				data: { balance: { increment: amount } },
+				data: {
+					balance: transfer.fromAccount.isLiability
+						? { decrement: amount }
+						: { increment: amount },
+				},
 			});
 
-			// 2. Revert Destination Account (Debit back)
+			// 2. Revert Destination Account
+			// - Asset: decrement (undo the credit)
+			// - Liability: increment (undo the payment, debt increases back)
 			await tx.account.update({
 				where: { id: transfer.toAccountId, userId },
-				data: { balance: { decrement: amount } },
+				data: {
+					balance: transfer.toAccount.isLiability
+						? { increment: amount }
+						: { decrement: amount },
+				},
 			});
 
 			// 3. Revert Fee if it was charged
 			if (fee > 0) {
 				// Credit fee back to source account
+				// - Asset: increment (fee returned)
+				// - Liability: decrement (undo fee from debt)
 				await tx.account.update({
 					where: { id: transfer.fromAccountId, userId },
-					data: { balance: { increment: fee } },
+					data: {
+						balance: transfer.fromAccount.isLiability
+							? { decrement: fee }
+							: { increment: fee },
+					},
 				});
 
 				// Delete the fee expense record
