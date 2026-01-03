@@ -2,6 +2,85 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v1.6] - January 3, 2026
+
+### Mobile-First Responsive Design
+
+**A comprehensive responsive design overhaul making the entire application mobile-friendly with adaptive layouts, touch-optimized navigation, and responsive data tables.**
+
+---
+
+#### Mobile Navigation
+
+-   **Slide-in Drawer**: New Sheet-based mobile sidebar that slides in from the left on small screens.
+-   **Touch-Optimized**: Large tap targets and smooth animations for mobile interaction.
+-   **Consistent Navigation**: Shared nav items between desktop sidebar and mobile drawer.
+-   **Mobile Header**: Sticky header with hamburger menu and app branding on mobile.
+
+#### Responsive Page Layouts
+
+-   **Adaptive Grids**: All page layouts now stack vertically on mobile and expand to multi-column on larger screens.
+-   **Form Layouts**: Forms now take full width on mobile, fixed 350px sidebar on desktop (breakpoint at `lg`).
+-   **Container Padding**: Reduced vertical padding on mobile (`py-6`) expanding on desktop (`md:py-10`).
+-   **Header Text**: Responsive text sizing (`text-2xl sm:text-3xl`) for all page headers.
+
+#### DataTable Improvements
+
+-   **Responsive Pagination**: Controls stack vertically on mobile, inline row on desktop.
+-   **Search Layout**: Search bar and result counter adapt to available screen width.
+-   **Horizontal Scroll**: Tables with many columns scroll horizontally when content exceeds viewport.
+
+#### Reports & Charts
+
+-   **Scrollable Tabs**: Report tabs now scroll horizontally on mobile devices.
+-   **Responsive Pie Chart**: Category breakdown chart uses percentage-based radius (`70%`) instead of fixed pixels.
+-   **Stacking Grids**: P&L multi-column chart layouts (`lg:col-span-*`) stack to single column on mobile.
+-   **Cash Flow Summary**: Summary row stacks vertically on mobile (`grid-cols-1 sm:grid-cols-3`).
+-   **Budget Analytics Table**: Added horizontal scroll support with minimum width.
+
+#### Ledger Views
+
+-   **Account Ledger**: Header actions wrap on mobile with `flex-col sm:flex-row`, table scrolls horizontally.
+-   **Budget Ledger**: Metrics grid changes from 4 columns to 2 on mobile (`grid-cols-2 lg:grid-cols-4`).
+-   **Export Buttons**: Show abbreviated text on mobile ("CSV" vs "Export CSV").
+-   **Truncated Headers**: Long account/budget names truncate with ellipsis on small screens.
+
+#### Bug Fixes
+
+##### Transfer Liability Logic
+
+-   **Fixed Transfer Balance Calculation**: Transfers to/from liability accounts now correctly update balances.
+-   **Paying Debt (Asset → Liability)**: Destination liability balance now correctly decreases (debt paid off).
+-   **Borrowing (Liability → Asset)**: Source liability balance now correctly increases (more debt incurred).
+-   **Fee Handling**: Transfer fees now properly account for liability source accounts.
+
+##### Adjust Balance Dialog
+
+-   **Fixed Liability Adjustment**: Adjusting debt on liability accounts now works correctly.
+-   **Increase Debt**: Now creates an Expense (which increases liability balance).
+-   **Decrease Debt**: Now creates an Income (which decreases liability balance / payment).
+
+##### DataTable Header Alignment
+
+-   **Fixed Right-Aligned Headers**: Sortable column headers with `text-right` now properly align with cell values.
+
+#### Files Changed
+
+| Component | Changes |
+|-----------|---------|
+| `layout.tsx` | Added mobile header with MobileSidebar |
+| `mobile-sidebar.tsx` | New component for mobile navigation drawer |
+| `nav-items.ts` | Shared navigation items configuration |
+| `DataTable.tsx` | Responsive search, pagination, and header alignment fix |
+| `AccountLedger.tsx` | Responsive header and table |
+| `BudgetLedger.tsx` | Responsive metrics grid and header |
+| `reports/page.tsx` | Responsive grids and scrollable tabs |
+| `transfer.service.ts` | Fixed liability balance logic for transfers |
+| `account.controller.ts` | Fixed liability logic for balance adjustments |
+| All page files | Consistent responsive container and header patterns |
+
+---
+
 ## [v1.5] - December 31, 2024
 
 ### Budget Analytics & Liability Fixes

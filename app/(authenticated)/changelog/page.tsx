@@ -3,12 +3,71 @@ import { ChangelogView } from '@/components/modules/changelog/ChangelogView';
 
 const versions = [
 	{
+		version: 'v1.6',
+		date: 'January 3, 2026',
+		title: 'Mobile-First Responsive Design',
+		description:
+			'A comprehensive responsive design overhaul making the entire application mobile-friendly with adaptive layouts, touch-optimized navigation, and responsive data tables.',
+		status: 'current' as const,
+		features: [
+			{
+				title: 'Mobile Navigation',
+				items: [
+					'Slide-in Drawer: New Sheet-based mobile sidebar that slides in from the left on small screens.',
+					'Touch-Optimized: Large tap targets and smooth animations for mobile interaction.',
+					'Consistent Navigation: Shared nav items between desktop sidebar and mobile drawer.',
+				],
+			},
+			{
+				title: 'Responsive Layouts',
+				items: [
+					'Adaptive Grids: All page layouts now stack vertically on mobile and expand to multi-column on larger screens.',
+					'Form Layouts: Forms now take full width on mobile, fixed 350px sidebar on desktop.',
+					'Container Padding: Reduced vertical padding on mobile for better space utilization.',
+				],
+			},
+			{
+				title: 'DataTable Improvements',
+				items: [
+					'Responsive Pagination: Controls stack vertically on mobile, inline on desktop.',
+					'Search Layout: Search bar and result counter adapt to screen size.',
+					'Horizontal Scroll: Tables scroll horizontally when content exceeds viewport.',
+					'Header Alignment: Fixed right-aligned column headers not aligning with cell values.',
+				],
+			},
+			{
+				title: 'Reports & Charts',
+				items: [
+					'Scrollable Tabs: Report tabs now scroll horizontally on mobile devices.',
+					'Responsive Charts: Pie chart radius and grid layouts adapt to screen size.',
+					'Stacking Grids: Multi-column chart layouts stack to single column on mobile.',
+				],
+			},
+			{
+				title: 'Ledger Views',
+				items: [
+					'Account Ledger: Header actions wrap on mobile, table scrolls horizontally.',
+					'Budget Ledger: Metrics grid changes from 4 columns to 2 on mobile.',
+					'Export Buttons: Show abbreviated text on mobile (CSV vs Export CSV).',
+				],
+			},
+			{
+				title: 'Bug Fixes',
+				items: [
+					'Transfer Liability Logic: Transfers to/from liability accounts now correctly update balances (paying debt decreases balance, borrowing increases it).',
+					'Adjust Debt Dialog: Adjusting debt on liability accounts now works correctly (increasing debt creates expense, decreasing creates income).',
+					'Fee Handling: Transfer fees now properly account for liability source accounts.',
+				],
+			},
+		],
+	},
+	{
 		version: 'v1.5',
 		date: 'December 31, 2025',
 		title: 'Budget Analytics & Liability Fixes',
 		description:
 			'A major update introducing intelligent budget analytics with problem detection, progress tracking, and critical fixes for liability account balance handling.',
-		status: 'current' as const,
+		status: 'released' as const,
 		patches: [
 			{
 				version: 'v1.5.1',
@@ -288,13 +347,13 @@ const versions = [
 
 export default function ChangelogPage() {
 	return (
-		<div className='container py-10 space-y-8'>
+		<div className='container py-6 md:py-10 space-y-8'>
 			<div className='flex flex-col gap-2'>
-				<h1 className='text-3xl font-bold tracking-tight flex items-center gap-3'>
-					<Rocket className='h-8 w-8 text-primary' />
+				<h1 className='text-2xl sm:text-3xl font-bold tracking-tight flex items-center gap-3'>
+					<Rocket className='h-6 w-6 sm:h-8 sm:w-8 text-primary' />
 					Product Updates
 				</h1>
-				<p className='text-muted-foreground text-lg'>
+				<p className='text-muted-foreground text-base sm:text-lg'>
 					A timeline of how the Budget Planner is evolving to help you build
 					wealth.
 				</p>

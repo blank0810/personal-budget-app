@@ -94,11 +94,11 @@ export default async function ReportsPage({
 	const budgetSavedOrOver = budgetSummary.totalBudgeted - budgetSummary.totalSpent;
 
 	return (
-		<div className='container mx-auto py-10 space-y-8'>
+		<div className='container mx-auto py-6 md:py-10 space-y-8'>
 			{/* Global Header & Controls */}
 			<div className='flex flex-col md:flex-row justify-between items-start md:items-center gap-4'>
 				<div>
-					<h1 className='text-3xl font-bold tracking-tight'>
+					<h1 className='text-2xl sm:text-3xl font-bold tracking-tight'>
 						Financial Analytics
 					</h1>
 					<p className='text-muted-foreground'>
@@ -109,7 +109,7 @@ export default async function ReportsPage({
 			</div>
 
 			<Tabs defaultValue='overview' className='space-y-4'>
-				<TabsList>
+				<TabsList className='w-full justify-start overflow-x-auto'>
 					<TabsTrigger value='overview'>Overview</TabsTrigger>
 					<TabsTrigger value='pnl'>Income & Expenses</TabsTrigger>
 					<TabsTrigger value='budget'>Budget Analytics</TabsTrigger>
@@ -159,18 +159,18 @@ export default async function ReportsPage({
 
 				{/* 2. INCOME & EXPENSES TAB */}
 				<TabsContent value='pnl' className='space-y-4'>
-					<div className='grid gap-4 md:grid-cols-2 lg:grid-cols-7'>
-						<div className='col-span-4'>
+					<div className='grid gap-4 grid-cols-1 lg:grid-cols-7'>
+						<div className='lg:col-span-4'>
 							<MonthlyComparisonChart
 								data={serialize(monthlyComparison)}
 							/>
 						</div>
-						<div className='col-span-3'>
+						<div className='lg:col-span-3'>
 							<CategoryBreakdownChart
 								data={serialize(categoryBreakdown)}
 							/>
 						</div>
-						<div className='col-span-7'>
+						<div className='lg:col-span-7'>
 							<CashFlowWaterfallChart
 								data={serialize(cashFlowWaterfall)}
 							/>

@@ -178,15 +178,20 @@ export async function adjustAccountBalanceAction(formData: FormData) {
 
 		const currentBalance = account.balance.toNumber();
 		const diff = newBalance - currentBalance;
+		const isLiability = account.isLiability;
 
 		if (Math.abs(diff) < 0.01) {
 			return { success: true }; // No change
 		}
 
-		if (diff > 0) {
-			// Income
+		// For assets: diff > 0 means money came in (Income), diff < 0 means money went out (Expense)
+		// For liabilities: diff > 0 means debt increased (Expense), diff < 0 means debt decreased (Income/Payment)
+		const needsIncome = isLiability ? diff < 0 : diff > 0;
+
+		if (needsIncome) {
+			// Income: For assets, increases balance. For liabilities, decreases balance (payment).
 			await IncomeService.createIncome(userId, {
-				amount: diff,
+				amount: Math.abs(diff),
 				date: new Date(),
 				description: 'Manual Balance Adjustment',
 				categoryName: 'Initial Balance/Adjustment', // Will be created if missing
@@ -196,7 +201,7 @@ export async function adjustAccountBalanceAction(formData: FormData) {
 				tithePercentage: 0,
 			});
 		} else {
-			// Expense
+			// Expense: For assets, decreases balance. For liabilities, increases balance (more debt).
 			await ExpenseService.createExpense(userId, {
 				amount: Math.abs(diff),
 				date: new Date(),

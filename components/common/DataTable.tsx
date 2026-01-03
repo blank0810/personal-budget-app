@@ -160,8 +160,8 @@ export function DataTable<T>({
 	return (
 		<div className='space-y-4'>
 			{/* Search Bar */}
-			<div className='flex items-center gap-4'>
-				<div className='relative flex-1 max-w-sm'>
+			<div className='flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-4'>
+				<div className='relative flex-1 sm:max-w-sm'>
 					<Search className='absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground' />
 					<Input
 						placeholder={searchPlaceholder}
@@ -187,7 +187,11 @@ export function DataTable<T>({
 								>
 									{column.sortable !== false ? (
 										<button
-											className='flex items-center hover:text-foreground transition-colors'
+											className={`flex items-center hover:text-foreground transition-colors ${
+												column.className?.includes('text-right')
+													? 'ml-auto'
+													: ''
+											}`}
 											onClick={() =>
 												handleSort(column.key)
 											}
@@ -248,8 +252,8 @@ export function DataTable<T>({
 
 			{/* Pagination */}
 			{totalPages > 1 && (
-				<div className='flex items-center justify-between'>
-					<div className='flex items-center gap-2'>
+				<div className='flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between'>
+					<div className='flex items-center justify-between sm:justify-start gap-2'>
 						<span className='text-sm text-muted-foreground'>
 							Rows per page:
 						</span>
@@ -273,7 +277,7 @@ export function DataTable<T>({
 						</Select>
 					</div>
 
-					<div className='flex items-center gap-2'>
+					<div className='flex items-center justify-between sm:justify-end gap-2'>
 						<span className='text-sm text-muted-foreground'>
 							Page {currentPage} of {totalPages}
 						</span>

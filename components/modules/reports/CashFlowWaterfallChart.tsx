@@ -97,7 +97,7 @@ export function CashFlowWaterfallChart({ data }: CashFlowWaterfallChartProps) {
 			</CardHeader>
 			<CardContent className='space-y-4'>
 				{/* Summary Row */}
-				<div className='grid grid-cols-3 gap-4 text-center p-4 bg-muted/50 rounded-lg'>
+				<div className='grid grid-cols-1 sm:grid-cols-3 gap-4 text-center p-4 bg-muted/50 rounded-lg'>
 					<div>
 						<p className='text-sm text-muted-foreground'>Total Income</p>
 						<p className='text-lg font-bold text-green-600'>

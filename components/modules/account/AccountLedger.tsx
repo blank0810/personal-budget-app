@@ -124,27 +124,29 @@ export function AccountLedger({ account, transactions }: AccountLedgerProps) {
 
 	return (
 		<div className='space-y-6'>
-			<div className='flex items-center gap-4'>
-				<Button variant='outline' size='icon' asChild>
-					<Link href='/accounts'>
-						<ArrowLeft className='h-4 w-4' />
-					</Link>
-				</Button>
-				<div>
-					<h1 className='text-3xl font-bold tracking-tight'>
-						{account.name}
-					</h1>
-					<div className='flex items-center gap-2 text-muted-foreground'>
-						<Badge variant='outline'>{account.type}</Badge>
-						<span>
-							{account.isLiability ? 'Amount Owed' : 'Current Balance'}:{' '}
-							<span className='font-bold text-foreground'>
-								{formatCurrency(Number(account.balance))}
+			<div className='flex flex-col gap-4 sm:flex-row sm:items-center'>
+				<div className='flex items-center gap-4 flex-1'>
+					<Button variant='outline' size='icon' asChild>
+						<Link href='/accounts'>
+							<ArrowLeft className='h-4 w-4' />
+						</Link>
+					</Button>
+					<div className='flex-1 min-w-0'>
+						<h1 className='text-2xl sm:text-3xl font-bold tracking-tight truncate'>
+							{account.name}
+						</h1>
+						<div className='flex items-center gap-2 text-muted-foreground flex-wrap text-sm'>
+							<Badge variant='outline'>{account.type}</Badge>
+							<span>
+								{account.isLiability ? 'Owed' : 'Balance'}:{' '}
+								<span className='font-bold text-foreground'>
+									{formatCurrency(Number(account.balance))}
+								</span>
 							</span>
-						</span>
+						</div>
 					</div>
 				</div>
-				<div className='ml-auto flex items-center gap-2'>
+				<div className='flex items-center gap-2 flex-wrap'>
 					<AdjustBalanceDialog account={account} />
 					<EditAccountDialog account={account} />
 					<Button
@@ -153,12 +155,13 @@ export function AccountLedger({ account, transactions }: AccountLedgerProps) {
 						size='sm'
 					>
 						<Download className='mr-2 h-4 w-4' />
-						Export CSV
+						<span className='hidden sm:inline'>Export CSV</span>
+						<span className='sm:hidden'>CSV</span>
 					</Button>
 				</div>
 			</div>
 
-			<div className='rounded-md border bg-card'>
+			<div className='rounded-md border bg-card overflow-x-auto'>
 				<Table>
 					<TableHeader>
 						<TableRow>
