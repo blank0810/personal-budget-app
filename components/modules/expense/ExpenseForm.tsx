@@ -35,7 +35,7 @@ import {
 	CreateExpenseInput,
 } from '@/server/modules/expense/expense.types';
 import { createExpenseAction } from '@/server/modules/expense/expense.controller';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Account, Category, Budget } from '@prisma/client';
 
 interface BudgetWithCategory extends Budget {
@@ -85,6 +85,20 @@ export function ExpenseForm({
 	const selectedAccountId = form.watch('accountId');
 	const selectedAccount = accounts.find((a) => a.id === selectedAccountId);
 	const isSavingsAccount = selectedAccount?.type === 'SAVINGS';
+
+	// Watch budgetId to auto-populate category
+	const selectedBudgetId = form.watch('budgetId');
+	const selectedBudget = budgets.find((b) => b.id === selectedBudgetId);
+	const isCategoryLocked = !!selectedBudgetId;
+
+	// Auto-populate category when budget is selected
+	useEffect(() => {
+		if (selectedBudgetId && selectedBudget) {
+			form.setValue('categoryId', selectedBudget.category.id);
+			form.setValue('categoryName', '');
+			setShowCustomCategoryInput(false);
+		}
+	}, [selectedBudgetId, selectedBudget, form]);
 
 	const isSubmitDisabled =
 		isPending ||
@@ -340,6 +354,60 @@ export function ExpenseForm({
 					)}
 				/>
 
+				{/* Budget Selection (Optional) - Selecting a budget auto-fills category */}
+				<FormField
+					control={form.control}
+					name='budgetId'
+					render={({ field }) => (
+						<FormItem>
+							<FormLabel>Budget (Optional)</FormLabel>
+							<Select
+								onValueChange={(value) => {
+									if (value === '__none__') {
+										field.onChange(undefined);
+									} else {
+										field.onChange(value);
+									}
+								}}
+								value={field.value || ''}
+							>
+								<FormControl>
+									<SelectTrigger className='w-full overflow-hidden'>
+										<span className='truncate'>
+											<SelectValue placeholder='Link to a budget (optional)' />
+										</span>
+									</SelectTrigger>
+								</FormControl>
+								<SelectContent>
+									<SelectItem
+										value='__placeholder__'
+										disabled
+										className='hidden'
+									>
+										Select a budget
+									</SelectItem>
+									<SelectItem value='__none__'>
+										No budget
+									</SelectItem>
+									{budgets.map((budget) => (
+										<SelectItem
+											key={budget.id}
+											value={budget.id}
+											className='truncate'
+										>
+											<span className='truncate'>
+												{budget.name} -{' '}
+												{format(budget.month, 'MMMM yyyy')}
+											</span>
+										</SelectItem>
+									))}
+								</SelectContent>
+							</Select>
+							<FormMessage />
+						</FormItem>
+					)}
+				/>
+
 				{/* Category Selection: Select or Create Custom */}
 				<FormField
 					control={form.control}
@@ -367,9 +435,15 @@ export function ExpenseForm({
 											? '__custom__'
 											: field.value || ''
 									}
+									disabled={isCategoryLocked}
 								>
 									<FormControl>
-										<SelectTrigger>
+										<SelectTrigger
+											className={cn(
+												isCategoryLocked &&
+													'bg-muted cursor-not-allowed'
+											)}
+										>
 											<SelectValue placeholder='Select a category or create new' />
 										</SelectTrigger>
 									</FormControl>
@@ -389,19 +463,31 @@ export function ExpenseForm({
 												{category.name}
 											</SelectItem>
 										))}
-										<SelectItem value='__custom__'>
+										<SelectItem
+											value='__custom__'
+											disabled={isCategoryLocked}
+											className={cn(
+												isCategoryLocked &&
+													'text-muted-foreground'
+											)}
+										>
 											➕ Create Custom Category
 										</SelectItem>
 									</SelectContent>
 								</Select>
+								{isCategoryLocked && (
+									<p className='text-xs text-muted-foreground'>
+										Category is set by the selected budget
+									</p>
+								)}
 							</div>
 							<FormMessage />
 						</FormItem>
 					)}
 				/>
 
-				{/* Show input field only when user selects "Create Custom Category" */}
-				{showCustomCategoryInput && (
+				{/* Show input field only when user selects "Create Custom Category" and no budget is selected */}
+				{showCustomCategoryInput && !isCategoryLocked && (
 					<FormField
 						control={form.control}
 						name='categoryName'
@@ -418,45 +504,6 @@ export function ExpenseForm({
 						)}
 					/>
 				)}
-
-				<FormField
-					control={form.control}
-					name='budgetId'
-					render={({ field }) => (
-						<FormItem>
-							<FormLabel>Budget (Optional)</FormLabel>
-							<Select
-								onValueChange={field.onChange}
-								value={field.value || ''}
-							>
-								<FormControl>
-									<SelectTrigger>
-										<SelectValue placeholder='Link to a budget (optional)' />
-									</SelectTrigger>
-								</FormControl>
-								<SelectContent>
-									<SelectItem
-										value='__placeholder__'
-										disabled
-										className='hidden'
-									>
-										Select a budget
-									</SelectItem>
-									{budgets.map((budget) => (
-										<SelectItem
-											key={budget.id}
-											value={budget.id}
-										>
-											{budget.name} -{' '}
-											{format(budget.month, 'MMMM yyyy')}
-										</SelectItem>
-									))}
-								</SelectContent>
-							</Select>
-							<FormMessage />
-						</FormItem>
-					)}
-				/>
 
 				<FormField
 					control={form.control}
