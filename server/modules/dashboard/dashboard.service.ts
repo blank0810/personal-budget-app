@@ -3,10 +3,15 @@ import prisma from '@/lib/prisma';
 export const DashboardService = {
 	/**
 	 * Calculate Net Worth (Assets - Liabilities)
+	 * Excludes Fund accounts (EMERGENCY_FUND, FUND, TITHE)
 	 */
 	async getNetWorth(userId: string) {
 		const accounts = await prisma.account.findMany({
-			where: { userId },
+			where: {
+				userId,
+				// Exclude fund accounts from Net Worth calculation
+				type: { notIn: ['EMERGENCY_FUND', 'FUND', 'TITHE'] },
+			},
 			select: {
 				balance: true,
 				type: true,
@@ -270,6 +275,140 @@ export const DashboardService = {
 			ytdExpense,
 			liquidAssets,
 			avgMonthlyExpense,
+		};
+	},
+
+	/**
+	 * Get Fund accounts with calculated health metrics
+	 * Returns all fund accounts with progress and health status
+	 */
+	async getFundHealthMetrics(userId: string) {
+		// 1. Get all fund accounts
+		const fundAccounts = await prisma.account.findMany({
+			where: {
+				userId,
+				type: { in: ['EMERGENCY_FUND', 'FUND'] },
+				isArchived: false,
+			},
+		});
+
+		if (fundAccounts.length === 0) {
+			return {
+				funds: [],
+				totalFundBalance: 0,
+				hasEmergencyFund: false,
+				emergencyFundMonths: null,
+				emergencyFundHealth: null,
+			};
+		}
+
+		// 2. Get total monthly budget for MONTHS_COVERAGE calculation
+		const now = new Date();
+		const currentMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+		const nextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+
+		const budgets = await prisma.budget.findMany({
+			where: {
+				userId,
+				month: {
+					gte: currentMonth,
+					lt: nextMonth,
+				},
+			},
+		});
+
+		const totalMonthlyBudget = budgets.reduce(
+			(sum, b) => sum + Number(b.amount),
+			0
+		);
+
+		// 3. Calculate metrics for each fund
+		const funds = fundAccounts.map((fund) => {
+			const balance = Number(fund.balance);
+			const target = fund.targetAmount ? Number(fund.targetAmount) : null;
+			const mode =
+				fund.fundCalculationMode ||
+				(fund.type === 'EMERGENCY_FUND'
+					? 'MONTHS_COVERAGE'
+					: 'TARGET_PROGRESS');
+
+			// Get thresholds with defaults
+			const thresholdLow = fund.fundThresholdLow ?? 2;
+			const thresholdMid = fund.fundThresholdMid ?? 4;
+			const thresholdHigh = fund.fundThresholdHigh ?? 6;
+
+			let progressPercent = 0;
+			let monthsCoverage: number | null = null;
+			let healthStatus: 'critical' | 'underfunded' | 'building' | 'funded';
+
+			if (mode === 'MONTHS_COVERAGE') {
+				// Calculate months of coverage
+				monthsCoverage =
+					totalMonthlyBudget > 0
+						? balance / totalMonthlyBudget
+						: balance > 0
+						? 999
+						: 0;
+
+				progressPercent = (monthsCoverage / thresholdHigh) * 100;
+
+				// Determine health status
+				if (monthsCoverage < thresholdLow) {
+					healthStatus = 'critical';
+				} else if (monthsCoverage < thresholdMid) {
+					healthStatus = 'underfunded';
+				} else if (monthsCoverage < thresholdHigh) {
+					healthStatus = 'building';
+				} else {
+					healthStatus = 'funded';
+				}
+			} else {
+				// TARGET_PROGRESS mode
+				progressPercent =
+					target && target > 0 ? (balance / target) * 100 : 0;
+
+				// Use progress percentage for health status
+				if (progressPercent < 25) {
+					healthStatus = 'critical';
+				} else if (progressPercent < 50) {
+					healthStatus = 'underfunded';
+				} else if (progressPercent < 100) {
+					healthStatus = 'building';
+				} else {
+					healthStatus = 'funded';
+				}
+			}
+
+			return {
+				id: fund.id,
+				name: fund.name,
+				type: fund.type as 'EMERGENCY_FUND' | 'FUND',
+				balance,
+				targetAmount: target,
+				calculationMode: mode,
+				progressPercent: Math.min(progressPercent, 100),
+				monthsCoverage,
+				healthStatus,
+				thresholds: {
+					low: thresholdLow,
+					mid: thresholdMid,
+					high: thresholdHigh,
+				},
+			};
+		});
+
+		// 4. Calculate totals
+		const totalFundBalance = funds.reduce((sum, f) => sum + f.balance, 0);
+
+		// 5. Find Emergency Fund specifically for dashboard replacement
+		const emergencyFund = funds.find((f) => f.type === 'EMERGENCY_FUND');
+
+		return {
+			funds,
+			totalFundBalance,
+			hasEmergencyFund: !!emergencyFund,
+			emergencyFundMonths: emergencyFund?.monthsCoverage ?? null,
+			emergencyFundHealth: emergencyFund?.healthStatus ?? null,
 		};
 	},
 };

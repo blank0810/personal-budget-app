@@ -1,6 +1,15 @@
 import { z } from 'zod';
 import { AccountType } from '@prisma/client';
 
+// Fund calculation modes
+export const FundCalculationMode = {
+	MONTHS_COVERAGE: 'MONTHS_COVERAGE',
+	TARGET_PROGRESS: 'TARGET_PROGRESS',
+} as const;
+
+export type FundCalculationModeType =
+	(typeof FundCalculationMode)[keyof typeof FundCalculationMode];
+
 // Account Schema
 export const createAccountSchema = z.object({
 	name: z.string().min(1, 'Name is required'),
@@ -10,6 +19,15 @@ export const createAccountSchema = z.object({
 	creditLimit: z.number().optional().nullable(),
 	icon: z.string().optional().nullable(),
 	color: z.string().optional().nullable(),
+	// Fund-specific fields
+	targetAmount: z.number().optional().nullable(),
+	fundCalculationMode: z
+		.enum(['MONTHS_COVERAGE', 'TARGET_PROGRESS'])
+		.optional()
+		.nullable(),
+	fundThresholdLow: z.number().int().min(1).optional().nullable(),
+	fundThresholdMid: z.number().int().min(1).optional().nullable(),
+	fundThresholdHigh: z.number().int().min(1).optional().nullable(),
 });
 
 export const updateAccountSchema = createAccountSchema.partial().extend({

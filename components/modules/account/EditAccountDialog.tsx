@@ -62,6 +62,14 @@ export function EditAccountDialog({ account }: EditAccountDialogProps) {
 				: null,
 			icon: account.icon,
 			color: account.color,
+			// Fund defaults
+			targetAmount: account.targetAmount
+				? Number(account.targetAmount)
+				: null,
+			fundCalculationMode: account.fundCalculationMode as 'MONTHS_COVERAGE' | 'TARGET_PROGRESS' | null,
+			fundThresholdLow: account.fundThresholdLow ?? 2,
+			fundThresholdMid: account.fundThresholdMid ?? 4,
+			fundThresholdHigh: account.fundThresholdHigh ?? 6,
 		},
 	});
 
@@ -69,8 +77,13 @@ export function EditAccountDialog({ account }: EditAccountDialogProps) {
 		control: form.control,
 		name: 'type',
 	});
+	const fundCalculationMode = useWatch({
+		control: form.control,
+		name: 'fundCalculationMode',
+	});
 	const isCredit = accountType === 'CREDIT';
 	const isCreditOrLoan = accountType === 'CREDIT' || accountType === 'LOAN';
+	const isFund = accountType === 'EMERGENCY_FUND' || accountType === 'FUND';
 
 	// Auto-set isLiability for Credit/Loan
 	useEffect(() => {
@@ -198,6 +211,145 @@ export function EditAccountDialog({ account }: EditAccountDialogProps) {
 									</FormItem>
 								)}
 							/>
+						)}
+
+						{/* Fund-specific fields */}
+						{isFund && (
+							<>
+								<FormField
+									control={form.control}
+									name='fundCalculationMode'
+									render={({ field }) => (
+										<FormItem>
+											<FormLabel>Tracking Method</FormLabel>
+											<Select
+												onValueChange={field.onChange}
+												value={field.value || 'MONTHS_COVERAGE'}
+											>
+												<FormControl>
+													<SelectTrigger>
+														<SelectValue placeholder='Select tracking method' />
+													</SelectTrigger>
+												</FormControl>
+												<SelectContent>
+													<SelectItem value='MONTHS_COVERAGE'>
+														Months of Coverage
+													</SelectItem>
+													<SelectItem value='TARGET_PROGRESS'>
+														Target Amount
+													</SelectItem>
+												</SelectContent>
+											</Select>
+											<FormMessage />
+										</FormItem>
+									)}
+								/>
+
+								{fundCalculationMode === 'TARGET_PROGRESS' && (
+									<FormField
+										control={form.control}
+										name='targetAmount'
+										render={({ field }) => (
+											<FormItem>
+												<FormLabel>Target Amount</FormLabel>
+												<FormControl>
+													<CurrencyInput
+														placeholder='10000.00'
+														value={field.value ?? undefined}
+														onChange={field.onChange}
+													/>
+												</FormControl>
+												<FormDescription>
+													Your savings goal for this fund
+												</FormDescription>
+												<FormMessage />
+											</FormItem>
+										)}
+									/>
+								)}
+
+								{fundCalculationMode === 'MONTHS_COVERAGE' && (
+									<div className='space-y-3 p-3 border rounded-md'>
+										<span className='text-sm font-medium'>
+											Health Thresholds (Months)
+										</span>
+										<div className='grid grid-cols-3 gap-2'>
+											<FormField
+												control={form.control}
+												name='fundThresholdLow'
+												render={({ field }) => (
+													<FormItem>
+														<FormLabel className='text-xs text-red-600'>
+															Critical
+														</FormLabel>
+														<FormControl>
+															<Input
+																type='number'
+																min={1}
+																{...field}
+																value={field.value ?? 2}
+																onChange={(e) =>
+																	field.onChange(
+																		Number(e.target.value)
+																	)
+																}
+															/>
+														</FormControl>
+													</FormItem>
+												)}
+											/>
+											<FormField
+												control={form.control}
+												name='fundThresholdMid'
+												render={({ field }) => (
+													<FormItem>
+														<FormLabel className='text-xs text-yellow-600'>
+															Underfunded
+														</FormLabel>
+														<FormControl>
+															<Input
+																type='number'
+																min={1}
+																{...field}
+																value={field.value ?? 4}
+																onChange={(e) =>
+																	field.onChange(
+																		Number(e.target.value)
+																	)
+																}
+															/>
+														</FormControl>
+													</FormItem>
+												)}
+											/>
+											<FormField
+												control={form.control}
+												name='fundThresholdHigh'
+												render={({ field }) => (
+													<FormItem>
+														<FormLabel className='text-xs text-green-600'>
+															Funded
+														</FormLabel>
+														<FormControl>
+															<Input
+																type='number'
+																min={1}
+																{...field}
+																value={field.value ?? 6}
+																onChange={(e) =>
+																	field.onChange(
+																		Number(e.target.value)
+																	)
+																}
+															/>
+														</FormControl>
+													</FormItem>
+												)}
+											/>
+										</div>
+									</div>
+								)}
+							</>
 						)}
 
 						<FormField

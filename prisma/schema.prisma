@@ -39,6 +39,8 @@ enum AccountType {
   LOAN
   SAVINGS
   TITHE
+  EMERGENCY_FUND
+  FUND
 }
 
 enum CategoryType {
@@ -58,6 +60,14 @@ model Account {
   isLiability Boolean     @default(false)
   isArchived  Boolean     @default(false)  // Soft delete for data integrity
   creditLimit Decimal?    @db.Decimal(12, 2)
+
+  // Fund-specific fields (only for EMERGENCY_FUND and FUND types)
+  targetAmount        Decimal? @db.Decimal(12, 2) // Goal amount for FUND type
+  fundCalculationMode String? // "MONTHS_COVERAGE" or "TARGET_PROGRESS"
+  fundThresholdLow    Int?     @default(2) // Months for "Critical" status
+  fundThresholdMid    Int?     @default(4) // Months for "Underfunded" status
+  fundThresholdHigh   Int?     @default(6) // Months for "Funded" status
+
   userId      String
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt

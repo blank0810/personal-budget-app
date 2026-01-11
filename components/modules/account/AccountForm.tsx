@@ -41,6 +41,8 @@ import {
 	FileText,
 	AlertTriangle,
 	CheckCircle2,
+	Shield,
+	Target,
 } from 'lucide-react';
 import { formatCurrency } from '@/lib/formatters';
 
@@ -52,6 +54,8 @@ const ACCOUNT_TYPE_META = {
 	INVESTMENT: { icon: TrendingUp, label: 'Investment', category: 'asset' },
 	CREDIT: { icon: CreditCard, label: 'Credit Card', category: 'liability' },
 	LOAN: { icon: FileText, label: 'Loan', category: 'liability' },
+	EMERGENCY_FUND: { icon: Shield, label: 'Emergency Fund', category: 'fund' },
+	FUND: { icon: Target, label: 'Savings Goal', category: 'fund' },
 } as const;
 
 export function AccountForm() {
@@ -65,6 +69,12 @@ export function AccountForm() {
 			balance: 0,
 			isLiability: false,
 			creditLimit: null,
+			// Fund defaults
+			targetAmount: null,
+			fundCalculationMode: null,
+			fundThresholdLow: 2,
+			fundThresholdMid: 4,
+			fundThresholdHigh: 6,
 		},
 	});
 
@@ -75,8 +85,15 @@ export function AccountForm() {
 		name: 'creditLimit',
 	});
 
+	const fundCalculationMode = useWatch({
+		control: form.control,
+		name: 'fundCalculationMode',
+	});
+
 	const isLiability = type === 'CREDIT' || type === 'LOAN';
 	const isCredit = type === 'CREDIT';
+	const isFund = type === 'EMERGENCY_FUND' || type === 'FUND';
+	const isEmergencyFund = type === 'EMERGENCY_FUND';
 	const typeMeta = ACCOUNT_TYPE_META[type as keyof typeof ACCOUNT_TYPE_META];
 
 	// Calculate credit card metrics
@@ -93,6 +110,16 @@ export function AccountForm() {
 			form.setValue('isLiability', false);
 		}
 	}, [isLiability, form]);
+
+	// Auto-set fundCalculationMode based on fund type
+	useEffect(() => {
+		if (isFund && !fundCalculationMode) {
+			form.setValue(
+				'fundCalculationMode',
+				isEmergencyFund ? 'MONTHS_COVERAGE' : 'TARGET_PROGRESS'
+			);
+		}
+	}, [isFund, isEmergencyFund, fundCalculationMode, form]);
 
 	async function onSubmit(data: CreateAccountInput) {
 		setIsPending(true);
@@ -112,6 +139,34 @@ export function AccountForm() {
 
 		if (data.icon) formData.append('icon', data.icon);
 		if (data.color) formData.append('color', data.color);
+
+		// Fund-specific fields
+		if (isFund) {
+			if (data.targetAmount) {
+				formData.append('targetAmount', data.targetAmount.toString());
+			}
+			if (data.fundCalculationMode) {
+				formData.append('fundCalculationMode', data.fundCalculationMode);
+			}
+			if (data.fundThresholdLow) {
+				formData.append(
+					'fundThresholdLow',
+					data.fundThresholdLow.toString()
+				);
+			}
+			if (data.fundThresholdMid) {
+				formData.append(
+					'fundThresholdMid',
+					data.fundThresholdMid.toString()
+				);
+			}
+			if (data.fundThresholdHigh) {
+				formData.append(
+					'fundThresholdHigh',
+					data.fundThresholdHigh.toString()
+				);
+			}
+		}
 
 		const result = await createAccountAction(formData);
 		setIsPending(false);
@@ -247,6 +302,24 @@ export function AccountForm() {
 											</span>
 										</SelectItem>
 									</SelectGroup>
+									<SelectGroup>
+										<SelectLabel className='text-blue-600 font-semibold flex items-center gap-1'>
+											<Shield className='h-4 w-4' />
+											Fund Accounts
+										</SelectLabel>
+										<SelectItem value='EMERGENCY_FUND'>
+											<span className='flex items-center gap-2'>
+												<Shield className='h-4 w-4' />{' '}
+												Emergency Fund
+											</span>
+										</SelectItem>
+										<SelectItem value='FUND'>
+											<span className='flex items-center gap-2'>
+												<Target className='h-4 w-4' />{' '}
+												Savings Goal
+											</span>
+										</SelectItem>
+									</SelectGroup>
 								</SelectContent>
 							</Select>
 							<FormMessage />
@@ -268,6 +341,21 @@ export function AccountForm() {
 							{isCredit
 								? 'Enter the amount you currently OWE on this card, NOT your available credit.'
 								: 'Enter the remaining balance you still OWE on this loan.'}
+						</AlertDescription>
+					</Alert>
+				)}
+
+				{/* Fund Info Banner */}
+				{isFund && (
+					<Alert className='border-blue-500 bg-blue-50 dark:bg-blue-950/30'>
+						<Shield className='h-4 w-4 text-blue-600' />
+						<AlertTitle className='text-blue-700 dark:text-blue-400'>
+							{isEmergencyFund ? 'Emergency Fund' : 'Savings Goal'}
+						</AlertTitle>
+						<AlertDescription className='text-blue-600 dark:text-blue-300'>
+							{isEmergencyFund
+								? 'This fund tracks your financial runway. It will be excluded from Net Worth and replace the Runway metric on your dashboard.'
+								: 'Track progress toward a specific savings goal. This account is excluded from Net Worth calculations.'}
 						</AlertDescription>
 					</Alert>
 				)}
@@ -298,6 +386,179 @@ export function AccountForm() {
 							</FormItem>
 						)}
 					/>
+				)}
+
+				{/* Fund-specific fields */}
+				{isFund && (
+					<>
+						{/* Calculation Mode Selection */}
+						<FormField
+							control={form.control}
+							name='fundCalculationMode'
+							render={({ field }) => (
+								<FormItem>
+									<FormLabel>Tracking Method</FormLabel>
+									<Select
+										onValueChange={field.onChange}
+										value={
+											field.value ||
+											(isEmergencyFund
+												? 'MONTHS_COVERAGE'
+												: 'TARGET_PROGRESS')
+										}
+									>
+										<FormControl>
+											<SelectTrigger>
+												<SelectValue placeholder='Select tracking method' />
+											</SelectTrigger>
+										</FormControl>
+										<SelectContent>
+											<SelectItem value='MONTHS_COVERAGE'>
+												Months of Coverage (based on
+												budget)
+											</SelectItem>
+											<SelectItem value='TARGET_PROGRESS'>
+												Target Amount (specific goal)
+											</SelectItem>
+										</SelectContent>
+									</Select>
+									<FormDescription>
+										{fundCalculationMode === 'MONTHS_COVERAGE'
+											? 'Progress measured by how many months of expenses this fund covers.'
+											: 'Progress measured as percentage toward your goal amount.'}
+									</FormDescription>
+								</FormItem>
+							)}
+						/>
+
+						{/* Target Amount (only for TARGET_PROGRESS mode) */}
+						{fundCalculationMode === 'TARGET_PROGRESS' && (
+							<FormField
+								control={form.control}
+								name='targetAmount'
+								render={({ field }) => (
+									<FormItem>
+										<FormLabel className='flex items-center gap-2'>
+											<Target className='h-4 w-4 text-blue-500' />
+											Target Amount
+										</FormLabel>
+										<FormControl>
+											<CurrencyInput
+												placeholder='10000.00'
+												value={field.value ?? undefined}
+												onChange={field.onChange}
+											/>
+										</FormControl>
+										<FormDescription>
+											Your savings goal for this fund
+										</FormDescription>
+									</FormItem>
+								)}
+							/>
+						)}
+
+						{/* Health Thresholds (for MONTHS_COVERAGE mode) */}
+						{fundCalculationMode === 'MONTHS_COVERAGE' && (
+							<div className='space-y-4 p-4 border rounded-lg bg-muted/30'>
+								<h4 className='text-sm font-medium'>
+									Health Thresholds (Months)
+								</h4>
+								<div className='grid grid-cols-3 gap-4'>
+									<FormField
+										control={form.control}
+										name='fundThresholdLow'
+										render={({ field }) => (
+											<FormItem>
+												<FormLabel className='text-xs text-red-600'>
+													Critical
+												</FormLabel>
+												<FormControl>
+													<Input
+														type='number'
+														min={1}
+														{...field}
+														value={field.value ?? 2}
+														onChange={(e) =>
+															field.onChange(
+																Number(
+																	e.target.value
+																)
+															)
+														}
+													/>
+												</FormControl>
+											</FormItem>
+										)}
+									/>
+									<FormField
+										control={form.control}
+										name='fundThresholdMid'
+										render={({ field }) => (
+											<FormItem>
+												<FormLabel className='text-xs text-yellow-600'>
+													Underfunded
+												</FormLabel>
+												<FormControl>
+													<Input
+														type='number'
+														min={1}
+														{...field}
+														value={field.value ?? 4}
+														onChange={(e) =>
+															field.onChange(
+																Number(
+																	e.target.value
+																)
+															)
+														}
+													/>
+												</FormControl>
+											</FormItem>
+										)}
+									/>
+									<FormField
+										control={form.control}
+										name='fundThresholdHigh'
+										render={({ field }) => (
+											<FormItem>
+												<FormLabel className='text-xs text-green-600'>
+													Funded
+												</FormLabel>
+												<FormControl>
+													<Input
+														type='number'
+														min={1}
+														{...field}
+														value={field.value ?? 6}
+														onChange={(e) =>
+															field.onChange(
+																Number(
+																	e.target.value
+																)
+															)
+														}
+													/>
+												</FormControl>
+											</FormItem>
+										)}
+									/>
+								</div>
+								<p className='text-xs text-muted-foreground'>
+									Below{' '}
+									{form.watch('fundThresholdLow') || 2}mo =
+									Critical,{' '}
+									{form.watch('fundThresholdLow') || 2}-
+									{form.watch('fundThresholdMid') || 4}mo =
+									Underfunded,{' '}
+									{form.watch('fundThresholdMid') || 4}-
+									{form.watch('fundThresholdHigh') || 6}mo =
+									Building,{' '}
+									{form.watch('fundThresholdHigh') || 6}+ mo =
+									Funded
+								</p>
+							</div>
+						)}
+					</>
 				)}
 
 				{/* Balance / Amount Owed Field */}

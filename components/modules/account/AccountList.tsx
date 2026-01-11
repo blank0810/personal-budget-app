@@ -9,7 +9,8 @@ import {
 	TableRow,
 } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
-import { Trash2, FileText } from 'lucide-react';
+import { Trash2, FileText, Shield, Target } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
 import { deleteAccountAction } from '@/server/modules/account/account.controller';
 import { formatCurrency } from '@/lib/formatters';
 import { Account } from '@prisma/client';
@@ -154,6 +155,74 @@ export function AccountList({ accounts }: AccountListProps) {
 												})()}
 											</div>
 										)}
+									{/* Fund Progress Display */}
+									{(account.type === 'EMERGENCY_FUND' ||
+										account.type === 'FUND') && (
+										<div className='flex flex-col items-end gap-1 mt-1'>
+											{(() => {
+												const balance = Number(account.balance);
+												const target = account.targetAmount
+													? Number(account.targetAmount)
+													: null;
+												const mode = account.fundCalculationMode;
+												const FundIcon =
+													account.type === 'EMERGENCY_FUND'
+														? Shield
+														: Target;
+
+												if (mode === 'TARGET_PROGRESS' && target && target > 0) {
+													const progressPercent = Math.min(
+														Math.round((balance / target) * 100),
+														100
+													);
+													const remaining = target - balance;
+
+													// Determine color based on progress (higher = better)
+													let barColor = 'bg-red-500';
+													if (progressPercent >= 100) barColor = 'bg-green-500';
+													else if (progressPercent >= 75) barColor = 'bg-blue-500';
+													else if (progressPercent >= 50) barColor = 'bg-yellow-500';
+													else if (progressPercent >= 25) barColor = 'bg-orange-500';
+
+													return (
+														<>
+															<div className='flex items-center gap-1 text-xs text-muted-foreground'>
+																<FundIcon className='h-3 w-3' />
+																<span>
+																	{progressPercent}% of{' '}
+																	{formatCurrency(target)}
+																</span>
+															</div>
+															<div className='w-full h-1.5 bg-secondary rounded-full overflow-hidden'>
+																<div
+																	className={`h-full ${barColor}`}
+																	style={{ width: `${progressPercent}%` }}
+																/>
+															</div>
+															{remaining > 0 && (
+																<span className='text-xs text-muted-foreground'>
+																	{formatCurrency(remaining)} to go
+																</span>
+															)}
+														</>
+													);
+												} else {
+													// MONTHS_COVERAGE mode - just show badge
+													return (
+														<Badge
+															variant='outline'
+															className='text-blue-600 border-blue-200 text-xs'
+														>
+															<FundIcon className='h-3 w-3 mr-1' />
+															{account.type === 'EMERGENCY_FUND'
+																? 'Emergency Fund'
+																: 'Savings Goal'}
+														</Badge>
+													);
+												}
+											})()}
+										</div>
+									)}
 								</TableCell>
 								<TableCell>
 									<div className='flex justify-end gap-2'>

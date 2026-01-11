@@ -16,7 +16,8 @@ import { FinancialStatement } from '@/components/modules/reports/FinancialStatem
 import { CashFlowWaterfallChart } from '@/components/modules/reports/CashFlowWaterfallChart';
 import { serialize } from '@/lib/serialization';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Wallet, TrendingDown, PiggyBank } from 'lucide-react';
+import { Wallet, TrendingDown, PiggyBank, Shield } from 'lucide-react';
+import { FundHealthReport } from '@/components/modules/reports/FundHealthReport';
 
 export default async function ReportsPage({
 	searchParams,
@@ -62,6 +63,7 @@ export default async function ReportsPage({
 		budgetTrends,
 		budgetRecommendations,
 		cashFlowWaterfall,
+		fundHealth,
 	] = await Promise.all([
 		ReportService.getCategoryBreakdown(userId, from, to),
 		ReportService.getMonthlyComparison(userId, subMonths(to, 5), to),
@@ -73,6 +75,7 @@ export default async function ReportsPage({
 		BudgetService.getBudgetTrends(userId, from, to),
 		BudgetService.getBudgetRecommendations(userId, 6),
 		ReportService.getCashFlowWaterfall(userId, from, to),
+		DashboardService.getFundHealthMetrics(userId),
 	]);
 
 	const formatCurrency = (val: number) => {
@@ -113,6 +116,7 @@ export default async function ReportsPage({
 					<TabsTrigger value='overview'>Overview</TabsTrigger>
 					<TabsTrigger value='pnl'>Income & Expenses</TabsTrigger>
 					<TabsTrigger value='budget'>Budget Analytics</TabsTrigger>
+					<TabsTrigger value='funds'>Fund Health</TabsTrigger>
 					<TabsTrigger value='ledger'>Statements</TabsTrigger>
 				</TabsList>
 
@@ -240,7 +244,12 @@ export default async function ReportsPage({
 					/>
 				</TabsContent>
 
-				{/* 4. LEDGER / STATEMENTS TAB */}
+				{/* 4. FUND HEALTH TAB */}
+				<TabsContent value='funds' className='space-y-4'>
+					<FundHealthReport fundHealth={fundHealth} />
+				</TabsContent>
+
+				{/* 5. LEDGER / STATEMENTS TAB */}
 				<TabsContent value='ledger'>
 					<FinancialStatement
 						data={serialize(financialStatement)}

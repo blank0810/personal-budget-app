@@ -2,6 +2,54 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v1.7] - January 11, 2026
+
+### Fund Account Feature
+
+**Introducing dedicated Fund accounts for tracking emergency funds and savings goals. Funds are excluded from Net Worth calculations and displayed in a dedicated dashboard section with health status tracking.**
+
+---
+
+#### New Account Types
+
+-   **Emergency Fund**: Track months of expense coverage with configurable health thresholds (Critical, Underfunded, Building, Funded).
+-   **Savings Goal (Fund)**: Track progress toward a target amount with percentage-based health status.
+-   **Calculation Modes**: Choose between "Months of Coverage" (budget-linked) or "Target Amount" (goal-based) tracking.
+
+#### Dashboard Integration
+
+-   **Emergency Fund Replaces Runway**: When an Emergency Fund exists, the Runway card displays months of coverage with health status instead of liquid assets calculation.
+-   **Dedicated Funds Section**: New full-width section at bottom of dashboard showing all fund accounts with progress bars and health badges.
+-   **FundCard Component**: Visual cards displaying balance, progress percentage, and health status (critical/underfunded/building/funded).
+
+#### Financial Logic
+
+-   **Net Worth Exclusion**: Fund accounts (EMERGENCY_FUND, FUND, TITHE) are excluded from Net Worth calculation to separate savings tracking from solvency metrics.
+-   **No Opening Balance Income**: Creating fund accounts does not generate "Opening Balance" income entries, keeping income reports clean.
+-   **Health Thresholds**: Configurable thresholds for months-of-coverage mode (default: 2/4/6 months for critical/underfunded/funded).
+
+#### Account Form Updates
+
+-   **Fund Account Group**: New "Fund Accounts" section in account type selector with Shield and Target icons.
+-   **Fund Info Banner**: Blue alert explaining that funds are excluded from Net Worth.
+-   **Dynamic Form Fields**: Calculation mode selector, target amount input, and threshold configuration appear based on selected mode.
+
+#### Files Changed
+
+| Component | Changes |
+|-----------|---------|
+| `prisma/schema.prisma` | Added EMERGENCY_FUND, FUND to AccountType enum; added fund fields |
+| `account.types.ts` | Added FundCalculationMode constant and Zod schema fields |
+| `account.service.ts` | Skip opening balance for fund accounts |
+| `account.controller.ts` | Handle fund-specific form fields |
+| `AccountForm.tsx` | Fund type group, info banner, dynamic form fields |
+| `EditAccountDialog.tsx` | Fund-specific fields for editing |
+| `dashboard.service.ts` | Net Worth exclusion, getFundHealthMetrics method |
+| `dashboard/page.tsx` | Emergency Fund in Runway card, Funds section |
+| `FundCard.tsx` | NEW - Fund display card component |
+
+---
+
 ## [v1.6] - January 3, 2026
 
 ### Mobile-First Responsive Design

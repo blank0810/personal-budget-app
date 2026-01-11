@@ -4,7 +4,7 @@ import {
 	GetAccountsInput,
 	UpdateAccountInput,
 } from './account.types';
-import { Prisma } from '@prisma/client';
+import { AccountType, Prisma } from '@prisma/client';
 
 // System category name for opening balances
 const OPENING_BALANCE_CATEGORY = '💰 Opening Balance';
@@ -21,7 +21,11 @@ export const AccountService = {
 	async createAccount(userId: string, data: CreateAccountInput) {
 		const balance = data.balance || 0;
 		const isLiability = data.isLiability || false;
-		const needsOpeningBalanceEntry = balance > 0 && !isLiability;
+		// Fund accounts should NOT create opening balance entries (like TITHE)
+		const isFundAccount =
+			data.type === AccountType.EMERGENCY_FUND ||
+			data.type === AccountType.FUND;
+		const needsOpeningBalanceEntry = balance > 0 && !isLiability && !isFundAccount;
 
 		// Use transaction to ensure both account and income are created together
 		return await prisma.$transaction(async (tx) => {
