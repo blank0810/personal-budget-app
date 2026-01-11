@@ -447,7 +447,7 @@ export function ExpenseForm({
 											key={budget.id}
 											value={budget.id}
 										>
-											{budget.category.name} -{' '}
+											{budget.name} -{' '}
 											{format(budget.month, 'MMMM yyyy')}
 										</SelectItem>
 									))}
