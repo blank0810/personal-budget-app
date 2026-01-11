@@ -4,6 +4,22 @@ All notable changes to this project will be documented in this file.
 
 ## [v1.7] - January 11, 2026
 
+### [v1.7.1] - January 11, 2026
+
+#### Expense Form UX: Budget-Category Auto-Link
+
+**Enhanced expense form UX by auto-linking category when a budget is selected, reducing manual input and preventing mismatches.**
+
+##### UX Improvements
+
+-   **Budget-Category Auto-Link**: Selecting a budget now auto-populates the category field with the budget's linked category.
+-   **Locked Category Field**: Category dropdown is disabled when a budget is selected to prevent mismatches.
+-   **Field Reorder**: Budget field now appears before Category for logical flow.
+-   **Clear Budget Option**: Added "No budget" option to easily unlink and freely select a category.
+-   **Truncated Budget Names**: Long budget names now truncate with ellipsis to prevent overflow.
+
+---
+
 ### Fund Account Feature
 
 **Introducing dedicated Fund accounts for tracking emergency funds and savings goals. Funds are excluded from Net Worth calculations and displayed in a dedicated dashboard section with health status tracking.**

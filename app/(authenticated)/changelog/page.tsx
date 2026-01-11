@@ -43,6 +43,27 @@ const versions = [
 				],
 			},
 		],
+		patches: [
+			{
+				version: 'v1.7.1',
+				date: 'January 11, 2026',
+				title: 'Expense Form UX: Budget-Category Auto-Link',
+				description:
+					'Enhanced expense form UX by auto-linking category when a budget is selected, reducing manual input and preventing mismatches.',
+				features: [
+					{
+						title: 'UX Improvements',
+						items: [
+							'Budget-Category Auto-Link: Selecting a budget now auto-populates the category field with the budget\'s linked category.',
+							'Locked Category Field: Category dropdown is disabled when a budget is selected to prevent mismatches.',
+							'Field Reorder: Budget field now appears before Category for logical flow.',
+							'Clear Budget Option: Added "No budget" option to easily unlink and freely select a category.',
+							'Truncated Budget Names: Long budget names now truncate with ellipsis to prevent overflow.',
+						],
+					},
+				],
+			},
+		],
 	},
 	{
 		version: 'v1.6',
