@@ -3,12 +3,54 @@ import { ChangelogView } from '@/components/modules/changelog/ChangelogView';
 
 const versions = [
 	{
+		version: 'v1.7',
+		date: 'January 11, 2026',
+		title: 'Fund Account Feature',
+		description:
+			'Introducing dedicated Fund accounts for tracking emergency funds and savings goals. Funds are excluded from Net Worth calculations and displayed in a dedicated dashboard section with health status tracking.',
+		status: 'current' as const,
+		features: [
+			{
+				title: 'New Account Types',
+				items: [
+					'Emergency Fund: Track months of expense coverage with configurable health thresholds (Critical, Underfunded, Building, Funded).',
+					'Savings Goal (Fund): Track progress toward a target amount with percentage-based health status.',
+					'Calculation Modes: Choose between "Months of Coverage" (budget-linked) or "Target Amount" (goal-based) tracking.',
+				],
+			},
+			{
+				title: 'Dashboard Integration',
+				items: [
+					'Emergency Fund Replaces Runway: When an Emergency Fund exists, the Runway card displays months of coverage with health status.',
+					'Dedicated Funds Section: New full-width section at bottom of dashboard showing all fund accounts with progress bars.',
+					'FundCard Component: Visual cards displaying balance, progress percentage, and health status.',
+				],
+			},
+			{
+				title: 'Financial Logic',
+				items: [
+					'Net Worth Exclusion: Fund accounts (EMERGENCY_FUND, FUND, TITHE) are excluded from Net Worth calculation.',
+					'No Opening Balance Income: Creating fund accounts does not generate "Opening Balance" income entries.',
+					'Health Thresholds: Configurable thresholds for months-of-coverage mode (default: 2/4/6 months).',
+				],
+			},
+			{
+				title: 'Account Form Updates',
+				items: [
+					'Fund Account Group: New "Fund Accounts" section in account type selector with Shield and Target icons.',
+					'Fund Info Banner: Blue alert explaining that funds are excluded from Net Worth.',
+					'Dynamic Form Fields: Calculation mode selector, target amount input, and threshold configuration.',
+				],
+			},
+		],
+	},
+	{
 		version: 'v1.6',
 		date: 'January 3, 2026',
 		title: 'Mobile-First Responsive Design',
 		description:
 			'A comprehensive responsive design overhaul making the entire application mobile-friendly with adaptive layouts, touch-optimized navigation, and responsive data tables.',
-		status: 'current' as const,
+		status: 'released' as const,
 		features: [
 			{
 				title: 'Mobile Navigation',

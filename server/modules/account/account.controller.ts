@@ -37,6 +37,9 @@ export async function createAccountAction(formData: FormData) {
 		? true
 		: isLiabilityInput;
 
+	// Check if this is a fund type
+	const isFundType = ['EMERGENCY_FUND', 'FUND'].includes(type);
+
 	const rawData = {
 		name: formData.get('name') as string,
 		type,
@@ -47,6 +50,26 @@ export async function createAccountAction(formData: FormData) {
 			: null,
 		icon: formData.get('icon') as string | null,
 		color: formData.get('color') as string | null,
+		// Fund-specific fields
+		targetAmount:
+			isFundType && formData.get('targetAmount')
+				? Number(formData.get('targetAmount'))
+				: null,
+		fundCalculationMode: isFundType
+			? (formData.get('fundCalculationMode') as string | null)
+			: null,
+		fundThresholdLow:
+			isFundType && formData.get('fundThresholdLow')
+				? Number(formData.get('fundThresholdLow'))
+				: null,
+		fundThresholdMid:
+			isFundType && formData.get('fundThresholdMid')
+				? Number(formData.get('fundThresholdMid'))
+				: null,
+		fundThresholdHigh:
+			isFundType && formData.get('fundThresholdHigh')
+				? Number(formData.get('fundThresholdHigh'))
+				: null,
 	};
 
 	const validatedFields = createAccountSchema.safeParse(rawData);
@@ -82,6 +105,9 @@ export async function updateAccountAction(formData: FormData) {
 		? true
 		: isLiabilityInput;
 
+	// Check if this is a fund type
+	const isFundType = ['EMERGENCY_FUND', 'FUND'].includes(type);
+
 	const rawData = {
 		id: formData.get('id') as string,
 		name: formData.get('name') as string,
@@ -95,6 +121,26 @@ export async function updateAccountAction(formData: FormData) {
 			: null,
 		icon: formData.get('icon') as string | null,
 		color: formData.get('color') as string | null,
+		// Fund-specific fields
+		targetAmount:
+			isFundType && formData.get('targetAmount')
+				? Number(formData.get('targetAmount'))
+				: null,
+		fundCalculationMode: isFundType
+			? (formData.get('fundCalculationMode') as string | null)
+			: null,
+		fundThresholdLow:
+			isFundType && formData.get('fundThresholdLow')
+				? Number(formData.get('fundThresholdLow'))
+				: null,
+		fundThresholdMid:
+			isFundType && formData.get('fundThresholdMid')
+				? Number(formData.get('fundThresholdMid'))
+				: null,
+		fundThresholdHigh:
+			isFundType && formData.get('fundThresholdHigh')
+				? Number(formData.get('fundThresholdHigh'))
+				: null,
 	};
 
 	const validatedFields = updateAccountSchema.safeParse(rawData);

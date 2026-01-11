@@ -27,11 +27,13 @@ import {
 	ThumbsUp,
 	AlertOctagon,
 	PartyPopper,
+	Shield,
 } from 'lucide-react';
 import { formatCurrency } from '@/lib/formatters';
 
 import { ClearCacheButton } from '@/components/common/clear-cache-button';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { FundCard } from '@/components/modules/fund/FundCard';
 
 export default async function DashboardPage() {
 	const session = await auth();
@@ -42,14 +44,21 @@ export default async function DashboardPage() {
 	const userId = session.user.id;
 	const currentMonth = startOfMonth(new Date());
 
-	const [netWorthData, recentTransactions, accounts, financialHealth, budgetHealth] =
-		await Promise.all([
-			DashboardService.getNetWorth(userId),
-			DashboardService.getRecentTransactions(userId, 5),
-			DashboardService.getAccountBalances(userId),
-			DashboardService.getFinancialHealthMetrics(userId),
-			BudgetService.getBudgetHealthSummary(userId, currentMonth),
-		]);
+	const [
+		netWorthData,
+		recentTransactions,
+		accounts,
+		financialHealth,
+		budgetHealth,
+		fundHealth,
+	] = await Promise.all([
+		DashboardService.getNetWorth(userId),
+		DashboardService.getRecentTransactions(userId, 5),
+		DashboardService.getAccountBalances(userId),
+		DashboardService.getFinancialHealthMetrics(userId),
+		BudgetService.getBudgetHealthSummary(userId, currentMonth),
+		DashboardService.getFundHealthMetrics(userId),
+	]);
 
 	return (
 		<div className='container mx-auto py-6 md:py-10 space-y-8'>
@@ -137,83 +146,147 @@ export default async function DashboardPage() {
 					</CardContent>
 				</Card>
 
-				{/* 3. Runway (Liquidity) - Brutally Honest */}
+				{/* 3. Runway OR Emergency Fund (Liquidity) */}
 				<Card className='transition-all hover:shadow-md'>
 					<CardHeader className='flex flex-row items-center justify-between space-y-0 pb-2'>
 						<CardTitle className='text-sm font-medium'>
-							Runway
+							{fundHealth.hasEmergencyFund
+								? 'Emergency Fund'
+								: 'Runway'}
 						</CardTitle>
 						<div className='h-8 w-8 rounded-full bg-blue-100 dark:bg-blue-900 flex items-center justify-center'>
-							<Wallet className='h-4 w-4 text-blue-600 dark:text-blue-400' />
+							{fundHealth.hasEmergencyFund ? (
+								<Shield className='h-4 w-4 text-blue-600 dark:text-blue-400' />
+							) : (
+								<Wallet className='h-4 w-4 text-blue-600 dark:text-blue-400' />
+							)}
 						</div>
 					</CardHeader>
 					<CardContent>
-						{(() => {
-							const runway = financialHealth.runwayMonths;
-							const noExpenses =
-								financialHealth.avgMonthlyExpense === 0;
+						{fundHealth.hasEmergencyFund ? (
+							// Emergency Fund Display
+							(() => {
+								const months =
+									fundHealth.emergencyFundMonths ?? 0;
+								const health = fundHealth.emergencyFundHealth;
 
-							// Determine display value and status
-							let displayValue: string;
-							let statusText: string;
-							let StatusIcon: typeof BarChart3;
-							let colorClass: string;
+								const statusConfig = {
+									critical: {
+										color: 'text-red-600 dark:text-red-400',
+										icon: Skull,
+										text: 'Critical - build urgently',
+									},
+									underfunded: {
+										color: 'text-yellow-600 dark:text-yellow-400',
+										icon: AlertTriangle,
+										text: 'Underfunded',
+									},
+									building: {
+										color: 'text-blue-600 dark:text-blue-400',
+										icon: Zap,
+										text: 'Building momentum',
+									},
+									funded: {
+										color: 'text-green-600 dark:text-green-400',
+										icon: Shield,
+										text: 'Fully funded!',
+									},
+								};
 
-							if (noExpenses) {
-								displayValue = '—';
-								statusText = 'Add expenses to track';
-								StatusIcon = BarChart3;
-								colorClass = 'text-muted-foreground';
-							} else if (runway >= 12) {
-								displayValue = '12+';
-								statusText = 'Living the dream';
-								StatusIcon = Umbrella;
-								colorClass =
-									'text-green-600 dark:text-green-400';
-							} else if (runway >= 6) {
-								displayValue = runway.toFixed(1);
-								statusText = 'Healthy cushion';
-								StatusIcon = Zap;
-								colorClass =
-									'text-green-600 dark:text-green-400';
-							} else if (runway >= 3) {
-								displayValue = runway.toFixed(1);
-								statusText = 'Getting thin...';
-								StatusIcon = AlertTriangle;
-								colorClass =
-									'text-yellow-600 dark:text-yellow-400';
-							} else if (runway >= 1) {
-								displayValue = runway.toFixed(1);
-								statusText = 'Danger zone';
-								StatusIcon = Flame;
-								colorClass =
-									'text-orange-600 dark:text-orange-400';
-							} else if (runway > 0) {
-								displayValue = runway.toFixed(1);
-								statusText = "You're cooked";
-								StatusIcon = Skull;
-								colorClass = 'text-red-600 dark:text-red-400';
-							} else {
-								displayValue = '0';
-								statusText = 'Financially deceased';
-								StatusIcon = Skull;
-								colorClass = 'text-red-600 dark:text-red-400';
-							}
+								const config =
+									statusConfig[
+										(health as keyof typeof statusConfig) ||
+											'critical'
+									];
+								const StatusIcon = config.icon;
 
-							return (
-								<>
-									<div
-										className={`text-2xl font-bold ${colorClass}`}
-									>
-										{displayValue} {!noExpenses && 'mo'}
-									</div>
-									<p className='text-xs text-muted-foreground mt-1 flex items-center gap-1'>
-										<StatusIcon className='h-3 w-3' />
-										{statusText}
-									</p>
-								</>
-							);
-						})()}
+								return (
+									<>
+										<div
+											className={`text-2xl font-bold ${config.color}`}
+										>
+											{months >= 12
+												? '12+'
+												: months.toFixed(1)}{' '}
+											mo
+										</div>
+										<p className='text-xs text-muted-foreground mt-1 flex items-center gap-1'>
+											<StatusIcon className='h-3 w-3' />
+											{config.text}
+										</p>
+									</>
+								);
+							})()
+						) : (
+							// Original Runway Display
+							(() => {
+								const runway = financialHealth.runwayMonths;
+								const noExpenses =
+									financialHealth.avgMonthlyExpense === 0;
+
+								let displayValue: string;
+								let statusText: string;
+								let StatusIcon: typeof BarChart3;
+								let colorClass: string;
+
+								if (noExpenses) {
+									displayValue = '—';
+									statusText = 'Add expenses to track';
+									StatusIcon = BarChart3;
+									colorClass = 'text-muted-foreground';
+								} else if (runway >= 12) {
+									displayValue = '12+';
+									statusText = 'Living the dream';
+									StatusIcon = Umbrella;
+									colorClass =
+										'text-green-600 dark:text-green-400';
+								} else if (runway >= 6) {
+									displayValue = runway.toFixed(1);
+									statusText = 'Healthy cushion';
+									StatusIcon = Zap;
+									colorClass =
+										'text-green-600 dark:text-green-400';
+								} else if (runway >= 3) {
+									displayValue = runway.toFixed(1);
+									statusText = 'Getting thin...';
+									StatusIcon = AlertTriangle;
+									colorClass =
+										'text-yellow-600 dark:text-yellow-400';
+								} else if (runway >= 1) {
+									displayValue = runway.toFixed(1);
+									statusText = 'Danger zone';
+									StatusIcon = Flame;
+									colorClass =
+										'text-orange-600 dark:text-orange-400';
+								} else if (runway > 0) {
+									displayValue = runway.toFixed(1);
+									statusText = "You're cooked";
+									StatusIcon = Skull;
+									colorClass =
+										'text-red-600 dark:text-red-400';
+								} else {
+									displayValue = '0';
+									statusText = 'Financially deceased';
+									StatusIcon = Skull;
+									colorClass =
+										'text-red-600 dark:text-red-400';
+								}
+
+								return (
+									<>
+										<div
+											className={`text-2xl font-bold ${colorClass}`}
+										>
+											{displayValue} {!noExpenses && 'mo'}
+										</div>
+										<p className='text-xs text-muted-foreground mt-1 flex items-center gap-1'>
+											<StatusIcon className='h-3 w-3' />
+											{statusText}
+										</p>
+									</>
+								);
+							})()
+						)}
 					</CardContent>
 				</Card>
 
@@ -841,6 +914,25 @@ export default async function DashboardPage() {
 					</CardContent>
 				</Card>
 			</div>
+
+			{/* Funds Section - Only show if user has funds */}
+			{fundHealth.funds.length > 0 && (
+				<Card>
+					<CardHeader>
+						<CardTitle className='flex items-center gap-2'>
+							<Shield className='h-5 w-5 text-blue-600' />
+							Your Funds
+						</CardTitle>
+					</CardHeader>
+					<CardContent>
+						<div className='grid gap-4 md:grid-cols-2 lg:grid-cols-3'>
+							{fundHealth.funds.map((fund) => (
+								<FundCard key={fund.id} fund={fund} />
+							))}
+						</div>
+					</CardContent>
+				</Card>
+			)}
 		</div>
 	);
 }
