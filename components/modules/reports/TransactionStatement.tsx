@@ -100,7 +100,7 @@ export function TransactionStatement({
 					</div>
 
 					{/* Transaction Table - Scrollable Container */}
-					<div className='rounded-md border'>
+					<div className='rounded-md border overflow-hidden'>
 						{/* Transaction count indicator */}
 						{data.transactions.length > 0 && (
 							<div className='px-4 py-2 bg-muted/30 border-b text-sm text-muted-foreground flex justify-between items-center'>
@@ -111,22 +111,27 @@ export function TransactionStatement({
 							</div>
 						)}
 
-						<div className='max-h-[500px] overflow-y-auto'>
+						{/* Fixed Header */}
+						<Table>
+							<TableHeader className='bg-background'>
+								<TableRow>
+									<TableHead className='w-[100px]'>Date</TableHead>
+									<TableHead>Description</TableHead>
+									<TableHead>Category</TableHead>
+									<TableHead>Budget Status</TableHead>
+									<TableHead className='text-right'>Amount</TableHead>
+									<TableHead className='text-right'>Balance</TableHead>
+								</TableRow>
+							</TableHeader>
+						</Table>
+
+						{/* Scrollable Body */}
+						<div className='max-h-[400px] overflow-y-auto'>
 							<Table>
-								<TableHeader className='sticky top-0 bg-background z-10'>
-									<TableRow>
-										<TableHead className='w-[100px]'>Date</TableHead>
-										<TableHead>Description</TableHead>
-										<TableHead>Category</TableHead>
-										<TableHead>Budget Status</TableHead>
-										<TableHead className='text-right'>Amount</TableHead>
-										<TableHead className='text-right'>Balance</TableHead>
-									</TableRow>
-								</TableHeader>
 								<TableBody>
 									{/* Opening Balance Row */}
 									<TableRow className='bg-muted/30'>
-										<TableCell>
+										<TableCell className='w-[100px]'>
 											{format(new Date(data.periodStart), 'MMM d')}
 										</TableCell>
 										<TableCell colSpan={3} className='font-medium'>
@@ -140,7 +145,7 @@ export function TransactionStatement({
 
 									{data.transactions.map((tx) => (
 										<TableRow key={tx.id}>
-											<TableCell className='text-muted-foreground'>
+											<TableCell className='w-[100px] text-muted-foreground'>
 												{format(new Date(tx.date), 'MMM d')}
 											</TableCell>
 											<TableCell>{tx.description || '-'}</TableCell>
@@ -185,29 +190,33 @@ export function TransactionStatement({
 											</TableCell>
 										</TableRow>
 									))}
-
-									{/* Closing Balance Row */}
-									<TableRow className='bg-muted/30 font-bold'>
-										<TableCell>
-											{format(new Date(data.periodEnd), 'MMM d')}
-										</TableCell>
-										<TableCell colSpan={3}>Closing Balance</TableCell>
-										<TableCell
-											className={cn(
-												'text-right',
-												data.netChange >= 0 ? 'text-green-600' : 'text-red-600'
-											)}
-										>
-											{data.netChange >= 0 ? '+' : ''}
-											{formatCurrency(data.netChange)}
-										</TableCell>
-										<TableCell className='text-right'>
-											{formatCurrency(data.closingBalance)}
-										</TableCell>
-									</TableRow>
 								</TableBody>
 							</Table>
 						</div>
+
+						{/* Fixed Footer - Closing Balance */}
+						<Table>
+							<TableBody>
+								<TableRow className='bg-muted/50 font-bold border-t'>
+									<TableCell className='w-[100px]'>
+										{format(new Date(data.periodEnd), 'MMM d')}
+									</TableCell>
+									<TableCell colSpan={3}>Closing Balance</TableCell>
+									<TableCell
+										className={cn(
+											'text-right',
+											data.netChange >= 0 ? 'text-green-600' : 'text-red-600'
+										)}
+									>
+										{data.netChange >= 0 ? '+' : ''}
+										{formatCurrency(data.netChange)}
+									</TableCell>
+									<TableCell className='text-right'>
+										{formatCurrency(data.closingBalance)}
+									</TableCell>
+								</TableRow>
+							</TableBody>
+						</Table>
 					</div>
 
 					{data.transactions.length === 0 && (
