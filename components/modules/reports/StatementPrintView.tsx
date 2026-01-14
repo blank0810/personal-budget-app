@@ -28,6 +28,66 @@ export function StatementPrintView({
 	const periodStart = new Date(statement.periodStart);
 	const periodEnd = new Date(statement.periodEnd);
 
+	// Derive Category Summary from transactions
+	const expenseTransactions = statement.transactions.filter(
+		(tx) => tx.type === 'EXPENSE'
+	);
+
+	const categoryMap = new Map<
+		string,
+		{ categoryName: string; amount: number }
+	>();
+	expenseTransactions.forEach((tx) => {
+		const existing = categoryMap.get(tx.categoryId);
+		if (existing) {
+			existing.amount += tx.amount;
+		} else {
+			categoryMap.set(tx.categoryId, {
+				categoryName: tx.categoryName,
+				amount: tx.amount,
+			});
+		}
+	});
+
+	const categorySummary = Array.from(categoryMap.values())
+		.sort((a, b) => b.amount - a.amount)
+		.map((cat) => ({
+			...cat,
+			percentage:
+				statement.totalExpenses > 0
+					? (cat.amount / statement.totalExpenses) * 100
+					: 0,
+		}));
+
+	// Derive Budget Summary from transactions
+	const budgetMap = new Map<string, { budgetName: string; amount: number }>();
+	let unbudgetedTotal = 0;
+
+	expenseTransactions.forEach((tx) => {
+		if (tx.budgetStatus === 'budgeted' && tx.budgetName) {
+			const existing = budgetMap.get(tx.budgetName);
+			if (existing) {
+				existing.amount += tx.amount;
+			} else {
+				budgetMap.set(tx.budgetName, {
+					budgetName: tx.budgetName,
+					amount: tx.amount,
+				});
+			}
+		} else {
+			unbudgetedTotal += tx.amount;
+		}
+	});
+
+	const budgetSummary = Array.from(budgetMap.values()).sort(
+		(a, b) => b.amount - a.amount
+	);
+	const budgetedTotal = budgetSummary.reduce((sum, b) => sum + b.amount, 0);
+	const budgetedPercentage =
+		statement.totalExpenses > 0
+			? (budgetedTotal / statement.totalExpenses) * 100
+			: 0;
+
 	return (
 		<>
 			{/* Print-specific styles */}
@@ -304,6 +364,154 @@ export function StatementPrintView({
 						</div>
 					)}
 				</section>
+
+				{/* Category Expense Summary */}
+				{categorySummary.length > 0 && (
+					<section className='mt-8'>
+						<h3 className='text-sm font-bold text-slate-900 mb-3 uppercase tracking-wide'>
+							Expense by Category
+						</h3>
+
+						<table className='w-full text-sm'>
+							<thead>
+								<tr className='border-b-2 border-slate-200'>
+									<th className='text-left py-3 text-xs text-slate-500 uppercase tracking-wide font-medium'>
+										Category
+									</th>
+									<th className='text-right py-3 text-xs text-slate-500 uppercase tracking-wide font-medium'>
+										Amount
+									</th>
+									<th className='text-right py-3 text-xs text-slate-500 uppercase tracking-wide font-medium w-24'>
+										% of Total
+									</th>
+								</tr>
+							</thead>
+							<tbody>
+								{categorySummary.map((cat, index) => (
+									<tr
+										key={cat.categoryName}
+										className={index % 2 === 0 ? 'bg-white' : 'bg-slate-50'}
+									>
+										<td className='py-2.5 text-slate-900'>
+											{cat.categoryName}
+										</td>
+										<td className='py-2.5 text-right font-mono text-red-400'>
+											{formatCurrency(cat.amount)}
+										</td>
+										<td className='py-2.5 text-right font-mono text-slate-600'>
+											{cat.percentage.toFixed(1)}%
+										</td>
+									</tr>
+								))}
+
+								{/* Total Row */}
+								<tr className='bg-slate-100 font-bold border-t-2 border-slate-200'>
+									<td className='py-2.5 text-slate-900'>TOTAL</td>
+									<td className='py-2.5 text-right font-mono text-red-400'>
+										{formatCurrency(statement.totalExpenses)}
+									</td>
+									<td className='py-2.5 text-right font-mono text-slate-900'>
+										100.0%
+									</td>
+								</tr>
+							</tbody>
+						</table>
+					</section>
+				)}
+
+				{/* Budget Summary */}
+				{expenseTransactions.length > 0 && (
+					<section className='mt-8'>
+						<h3 className='text-sm font-bold text-slate-900 mb-3 uppercase tracking-wide'>
+							Budget Summary
+						</h3>
+
+						<table className='w-full text-sm'>
+							<thead>
+								<tr className='border-b-2 border-slate-200'>
+									<th className='text-left py-3 text-xs text-slate-500 uppercase tracking-wide font-medium'>
+										Budget
+									</th>
+									<th className='text-right py-3 text-xs text-slate-500 uppercase tracking-wide font-medium'>
+										Spent
+									</th>
+									<th className='text-right py-3 text-xs text-slate-500 uppercase tracking-wide font-medium w-24'>
+										Status
+									</th>
+								</tr>
+							</thead>
+							<tbody>
+								{budgetSummary.map((budget, index) => (
+									<tr
+										key={budget.budgetName}
+										className={index % 2 === 0 ? 'bg-white' : 'bg-slate-50'}
+									>
+										<td className='py-2.5 text-slate-900'>
+											{budget.budgetName}
+										</td>
+										<td className='py-2.5 text-right font-mono text-slate-900'>
+											{formatCurrency(budget.amount)}
+										</td>
+										<td className='py-2.5 text-right'>
+											<span className='inline-flex items-center gap-1 text-teal-600'>
+												<span className='w-1.5 h-1.5 rounded-full bg-teal-500'></span>
+												Budgeted
+											</span>
+										</td>
+									</tr>
+								))}
+
+								{/* Unbudgeted Row */}
+								{unbudgetedTotal > 0 && (
+									<tr
+										className={
+											budgetSummary.length % 2 === 0
+												? 'bg-white'
+												: 'bg-slate-50'
+										}
+									>
+										<td className='py-2.5 text-slate-600 italic'>
+											Unbudgeted Expenses
+										</td>
+										<td className='py-2.5 text-right font-mono text-red-400'>
+											{formatCurrency(unbudgetedTotal)}
+										</td>
+										<td className='py-2.5 text-right'>
+											<span className='inline-flex items-center gap-1 text-red-400'>
+												<span className='w-1.5 h-1.5 rounded-full bg-red-400'></span>
+												Unbudgeted
+											</span>
+										</td>
+									</tr>
+								)}
+
+								{/* Summary Rows */}
+								<tr className='border-t-2 border-slate-200 bg-slate-50'>
+									<td className='py-2.5 text-slate-700 font-medium'>
+										Budgeted Total
+									</td>
+									<td className='py-2.5 text-right font-mono text-teal-600 font-medium'>
+										{formatCurrency(budgetedTotal)}
+									</td>
+									<td className='py-2.5 text-right font-mono text-teal-600 font-medium'>
+										{budgetedPercentage.toFixed(1)}%
+									</td>
+								</tr>
+								<tr className='bg-slate-100 font-bold'>
+									<td className='py-2.5 text-slate-700'>
+										Unbudgeted Total
+									</td>
+									<td className='py-2.5 text-right font-mono text-red-400 font-medium'>
+										{formatCurrency(unbudgetedTotal)}
+									</td>
+									<td className='py-2.5 text-right font-mono text-red-400 font-medium'>
+										{(100 - budgetedPercentage).toFixed(1)}%
+									</td>
+								</tr>
+							</tbody>
+						</table>
+					</section>
+				)}
 
 				{/* Footer */}
 				<footer className='mt-12 pt-6 border-t border-slate-200'>
