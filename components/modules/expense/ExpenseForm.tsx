@@ -37,9 +37,14 @@ import {
 import { createExpenseAction } from '@/server/modules/expense/expense.controller';
 import { useState, useEffect } from 'react';
 import { Account, Category, Budget } from '@prisma/client';
+import { CategoryCombobox } from './CategoryCombobox';
+import { formatCurrency } from '@/lib/formatters';
 
 interface BudgetWithCategory extends Budget {
 	category: Category;
+	spent: number;
+	remaining: number;
+	percentage: number;
 }
 
 interface ExpenseFormProps {
@@ -224,7 +229,14 @@ export function ExpenseForm({
 												key={account.id}
 												value={account.id}
 											>
-												{account.name}
+												<span className='truncate'>
+													{account.name} (
+													{formatCurrency(
+														Number(account.balance),
+														{ decimals: 0 }
+													)}
+													)
+												</span>
 											</SelectItem>
 										))}
 
@@ -257,7 +269,14 @@ export function ExpenseForm({
 												value={account.id}
 												className='text-amber-600 dark:text-amber-500 font-medium'
 											>
-												🔒 {account.name}
+												<span className='truncate'>
+													🔒 {account.name} (
+													{formatCurrency(
+														Number(account.balance),
+														{ decimals: 0 }
+													)}
+													)
+												</span>
 											</SelectItem>
 										))}
 								</SelectContent>
@@ -389,18 +408,47 @@ export function ExpenseForm({
 									<SelectItem value='__none__'>
 										No budget
 									</SelectItem>
-									{budgets.map((budget) => (
-										<SelectItem
-											key={budget.id}
-											value={budget.id}
-											className='truncate'
-										>
-											<span className='truncate'>
-												{budget.name} -{' '}
-												{format(budget.month, 'MMMM yyyy')}
-											</span>
-										</SelectItem>
-									))}
+									{budgets.map((budget) => {
+										const isOverBudget = budget.remaining < 0;
+										const isNearLimit =
+											budget.percentage >= 80 &&
+											budget.percentage < 100;
+
+										return (
+											<SelectItem
+												key={budget.id}
+												value={budget.id}
+												className='truncate'
+											>
+												<span className='flex items-center gap-2 truncate'>
+													<span className='truncate'>
+														{budget.name} -{' '}
+														{format(
+															budget.month,
+															'MMM yyyy'
+														)}
+													</span>
+													<span
+														className={cn(
+															'text-xs font-medium shrink-0',
+															isOverBudget
+																? 'text-red-600'
+																: isNearLimit
+																? 'text-amber-600'
+																: 'text-green-600'
+														)}
+													>
+														(
+														{formatCurrency(
+															budget.remaining,
+															{ decimals: 0 }
+														)}{' '}
+														left)
+													</span>
+												</span>
+											</SelectItem>
+										);
+									})}
 								</SelectContent>
 							</Select>
 							<FormMessage />
@@ -408,7 +456,7 @@ export function ExpenseForm({
 					)}
 				/>
 
-				{/* Category Selection: Select or Create Custom */}
+				{/* Category Selection: Combobox with Search + Frequent */}
 				<FormField
 					control={form.control}
 					name='categoryId'
@@ -416,65 +464,32 @@ export function ExpenseForm({
 						<FormItem>
 							<FormLabel>Category</FormLabel>
 							<div className='space-y-2'>
-								<Select
-									onValueChange={(value) => {
-										if (value === '__custom__') {
-											// Clear categoryId and show custom input
+								<FormControl>
+									<CategoryCombobox
+										categories={categories}
+										value={
+											showCustomCategoryInput
+												? undefined
+												: field.value
+										}
+										onChange={(val) => {
+											field.onChange(val);
+											form.setValue('categoryName', '');
+											setShowCustomCategoryInput(false);
+										}}
+										onCreateNew={() => {
 											field.onChange(undefined);
 											form.setValue('categoryName', '');
 											setShowCustomCategoryInput(true);
-										} else {
-											// Set categoryId, clear categoryName, and hide custom input
-											field.onChange(value);
-											form.setValue('categoryName', '');
-											setShowCustomCategoryInput(false);
+										}}
+										disabled={isCategoryLocked}
+										lockedCategoryId={
+											isCategoryLocked
+												? selectedBudget?.category.id
+												: undefined
 										}
-									}}
-									value={
-										showCustomCategoryInput
-											? '__custom__'
-											: field.value || ''
-									}
-									disabled={isCategoryLocked}
-								>
-									<FormControl>
-										<SelectTrigger
-											className={cn(
-												isCategoryLocked &&
-													'bg-muted cursor-not-allowed'
-											)}
-										>
-											<SelectValue placeholder='Select a category or create new' />
-										</SelectTrigger>
-									</FormControl>
-									<SelectContent>
-										<SelectItem
-											value='__placeholder__'
-											disabled
-											className='hidden'
-										>
-											Select a category
-										</SelectItem>
-										{categories.map((category) => (
-											<SelectItem
-												key={category.id}
-												value={category.id}
-											>
-												{category.name}
-											</SelectItem>
-										))}
-										<SelectItem
-											value='__custom__'
-											disabled={isCategoryLocked}
-											className={cn(
-												isCategoryLocked &&
-													'text-muted-foreground'
-											)}
-										>
-											➕ Create Custom Category
-										</SelectItem>
-									</SelectContent>
-								</Select>
+									/>
+								</FormControl>
 								{isCategoryLocked && (
 									<p className='text-xs text-muted-foreground'>
 										Category is set by the selected budget

@@ -4,6 +4,69 @@ All notable changes to this project will be documented in this file.
 
 ## [v1.7] - January 11, 2026
 
+### [v1.7.2] - January 14, 2026
+
+#### Reports, Smart Savings & Form UX
+
+**Major enhancements including Maya Bank-style transaction statements, smart Emergency Fund auto-deductions based on income stability analysis, and improved form dropdowns with search and balance visibility.**
+
+##### Transaction Statement Report
+
+-   **Maya Bank-Style PDF**: Professional statement design with teal/coral color scheme for credits/debits.
+-   **Browser Print Export**: Click "Export PDF" to open a dedicated print page with automatic print dialog.
+-   **Statement Summary Card**: Shows opening balance, income, expenses, transfers, and closing balance.
+-   **Transaction Table**: Separate Debit/Credit columns with running balance and budget status badges.
+-   **Filtering Options**: Filter by transaction type (income, expense, transfer) and category.
+
+##### Emergency Fund Auto-Deduction
+
+-   **Smart Percentage Suggestion**: Analyzes 6 months of income history using Coefficient of Variation (CV).
+-   **Income Stability Analysis**: Suggests 15% (stable, CV<15%), 10% (moderate, CV<30%), or 5% (variable, CV≥30%) based on income consistency.
+-   **Automatic Transfer**: Creates transfer record to Emergency Fund account with full audit trail.
+-   **Conditional Display**: EF contribution option only appears when an Emergency Fund account exists.
+
+##### ExpenseForm Dropdown Enhancements
+
+-   **Searchable Category Combobox**: Type to filter categories with keyboard navigation using cmdk.
+-   **Frequent Categories Section**: Shows top 5 most-used categories (last 3 months) with flame icon.
+-   **Budget Remaining Display**: Budget dropdown shows remaining amount with health-based color coding.
+-   **Color Thresholds**: Green (>20% remaining), Amber (0-20% remaining), Red (over budget).
+
+##### Account Balance Visibility
+
+-   **ExpenseForm**: Account dropdown shows current balance for all account types (spendable and savings).
+-   **IncomeForm**: Account dropdown shows current balance alongside account name.
+-   **TransferForm**: Both From and To account dropdowns now display current balance.
+
+##### Budget List Enhancement
+
+-   **Available Amount Display**: Replaced percentage display with "X left" showing actual remaining amount.
+-   **Color-Coded Status**: Green for positive remaining, Red for negative (over budget).
+
+##### Files Changed
+
+| Component | Changes |
+|-----------|---------|
+| `report.types.ts` | Added StatementPrintPayload type |
+| `report.service.ts` | Enhanced transaction statement generation |
+| `reports/page.tsx` | Pass userName and accountName to statement |
+| `TransactionStatement.tsx` | Simplified export using browser print |
+| `StatementPrintView.tsx` | NEW - Maya Bank-style print layout |
+| `app/reports/statement/print/page.tsx` | NEW - Dedicated print route |
+| `income.types.ts` | Added emergencyFundEnabled/Percentage fields |
+| `income.service.ts` | Added analyzeIncomeStability, EF transfer logic |
+| `income.controller.ts` | Added getIncomeStabilityAction |
+| `IncomeForm.tsx` | EF checkbox, smart suggestion UI, balance display |
+| `income/page.tsx` | Check for EF account existence |
+| `category.service.ts` | Added getFrequentCategories method |
+| `category.controller.ts` | Added getFrequentCategoriesAction |
+| `CategoryCombobox.tsx` | NEW - Searchable combobox with frequent categories |
+| `ExpenseForm.tsx` | Category combobox, budget remaining, balance display |
+| `TransferForm.tsx` | Added balance to To Account dropdown |
+| `BudgetList.tsx` | Show remaining amount instead of percentage |
+
+---
+
 ### [v1.7.1] - January 11, 2026
 
 #### Expense Form UX: Budget-Category Auto-Link

@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation';
 import { ReportService } from '@/server/modules/report/report.service';
 import { DashboardService } from '@/server/modules/dashboard/dashboard.service';
 import { BudgetService } from '@/server/modules/budget/budget.service';
+import { CategoryService } from '@/server/modules/category/category.service';
 import { CategoryBreakdownChart } from '@/components/modules/reports/CategoryBreakdownChart';
 import { MonthlyComparisonChart } from '@/components/modules/reports/MonthlyComparisonChart';
 import { BudgetPerformanceChart } from '@/components/modules/reports/BudgetPerformanceChart';
@@ -13,6 +14,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { NetWorthTrendChart } from '@/components/modules/reports/NetWorthTrendChart';
 import { ReportsToolbar } from '@/components/modules/reports/ReportsToolbar';
 import { FinancialStatement } from '@/components/modules/reports/FinancialStatement';
+import { TransactionStatement } from '@/components/modules/reports/TransactionStatement';
 import { CashFlowWaterfallChart } from '@/components/modules/reports/CashFlowWaterfallChart';
 import { serialize } from '@/lib/serialization';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -64,6 +66,8 @@ export default async function ReportsPage({
 		budgetRecommendations,
 		cashFlowWaterfall,
 		fundHealth,
+		transactionStatement,
+		allCategories,
 	] = await Promise.all([
 		ReportService.getCategoryBreakdown(userId, from, to),
 		ReportService.getMonthlyComparison(userId, subMonths(to, 5), to),
@@ -76,6 +80,8 @@ export default async function ReportsPage({
 		BudgetService.getBudgetRecommendations(userId, 6),
 		ReportService.getCashFlowWaterfall(userId, from, to),
 		DashboardService.getFundHealthMetrics(userId),
+		ReportService.getTransactionStatement(userId, from, to),
+		CategoryService.getCategories(userId),
 	]);
 
 	const formatCurrency = (val: number) => {
@@ -250,7 +256,12 @@ export default async function ReportsPage({
 				</TabsContent>
 
 				{/* 5. LEDGER / STATEMENTS TAB */}
-				<TabsContent value='ledger'>
+				<TabsContent value='ledger' className='space-y-6'>
+					<TransactionStatement
+						data={serialize(transactionStatement)}
+						accountName='All Accounts'
+						userName={session.user.name || 'User'}
+					/>
 					<FinancialStatement
 						data={serialize(financialStatement)}
 						initialFrom={from}

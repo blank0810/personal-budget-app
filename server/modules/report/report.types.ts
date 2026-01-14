@@ -74,3 +74,34 @@ export type CashFlowWaterfall = {
 	totalExpenses: number;
 	netResult: number;
 };
+
+export type TransactionStatementItem = {
+	id: string;
+	date: Date;
+	description: string | null;
+	categoryId: string;
+	categoryName: string;
+	type: 'INCOME' | 'EXPENSE';
+	amount: number;
+	budgetStatus: 'budgeted' | 'unbudgeted' | null;
+	budgetName: string | null;
+	runningBalance: number;
+};
+
+export type TransactionStatement = {
+	transactions: TransactionStatementItem[];
+	openingBalance: number;
+	closingBalance: number;
+	totalIncome: number;
+	totalExpenses: number;
+	netChange: number;
+	periodStart: Date;
+	periodEnd: Date;
+};
+
+// Payload for print page
+export type StatementPrintPayload = {
+	statement: TransactionStatement;
+	accountName: string;
+	userName: string;
+};

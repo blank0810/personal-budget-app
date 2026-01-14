@@ -194,7 +194,13 @@ export function TransferForm({ accounts }: TransferFormProps) {
 													className='truncate'
 												>
 													<span className='truncate'>
-														{account.name}
+														{account.name} (
+														{formatCurrency(
+															Number(
+																account.balance
+															)
+														)}
+														)
 													</span>
 												</SelectItem>
 											))}

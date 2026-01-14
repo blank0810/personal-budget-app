@@ -91,10 +91,19 @@ export function BudgetList({ budgets }: BudgetListProps) {
 									: ''
 							)}
 						>
-							{formatCurrency(budget.spent, { decimals: 0 })}{' '}
-							spent
+							{formatCurrency(budget.spent, { decimals: 0 })} spent
 						</span>
-						<span>{budget.percentage.toFixed(0)}%</span>
+						<span
+							className={cn(
+								budget.remaining < 0
+									? 'text-red-600 font-bold'
+									: budget.remaining > 0
+									? 'text-green-600'
+									: ''
+							)}
+						>
+							{formatCurrency(budget.remaining, { decimals: 0 })} left
+						</span>
 					</div>
 				</div>
 			),
