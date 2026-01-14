@@ -17,6 +17,13 @@ export const createIncomeSchema = z
 			.min(10, 'Tithe must be at least 10%')
 			.optional()
 			.default(10),
+		emergencyFundEnabled: z.boolean().optional().default(false),
+		emergencyFundPercentage: z
+			.number()
+			.min(1, 'EF percentage must be at least 1%')
+			.max(50, 'EF percentage cannot exceed 50%')
+			.optional()
+			.default(10),
 	})
 	.refine((data) => data.categoryId || data.categoryName, {
 		message: 'Either categoryId or categoryName must be provided',

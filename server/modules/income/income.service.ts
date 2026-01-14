@@ -6,6 +6,7 @@ import {
 } from './income.types';
 import { CategoryService } from '../category/category.service';
 import { AccountType } from '@prisma/client';
+import { subMonths, format } from 'date-fns';
 
 export const IncomeService = {
 	/**
@@ -117,6 +118,51 @@ export const IncomeService = {
 						where: { id: titheAccount.id, userId },
 						data: { balance: { increment: titheAmount } },
 					});
+				}
+
+				// Handle Emergency Fund (only for asset accounts with EF account)
+				if (
+					data.emergencyFundEnabled &&
+					data.emergencyFundPercentage &&
+					!account?.isLiability
+				) {
+					const efAmount =
+						data.amount * (data.emergencyFundPercentage / 100);
+
+					// Find Emergency Fund account (must exist - user opted in)
+					const efAccount = await tx.account.findFirst({
+						where: {
+							userId,
+							type: AccountType.EMERGENCY_FUND,
+							isArchived: false,
+						},
+					});
+
+					if (efAccount) {
+						// Create Transfer record for audit trail
+						await tx.transfer.create({
+							data: {
+								amount: efAmount,
+								date: data.date,
+								description: `Emergency Fund contribution for ${data.description || 'Income'}`,
+								fromAccountId: data.accountId,
+								toAccountId: efAccount.id,
+								userId,
+							},
+						});
+
+						// Deduct from income account
+						await tx.account.update({
+							where: { id: data.accountId, userId },
+							data: { balance: { decrement: efAmount } },
+						});
+
+						// Add to Emergency Fund
+						await tx.account.update({
+							where: { id: efAccount.id, userId },
+							data: { balance: { increment: efAmount } },
+						});
+					}
 				}
 			}
 
@@ -285,5 +331,85 @@ export const IncomeService = {
 				where: { id: incomeId, userId },
 			});
 		});
+	},
+
+	/**
+	 * Analyze income stability to suggest Emergency Fund percentage
+	 * Uses Coefficient of Variation (CV) to measure income consistency
+	 */
+	async analyzeIncomeStability(
+		userId: string,
+		months: number = 6
+	): Promise<{
+		suggestedPercentage: number;
+		reasoning: string;
+		isStable: boolean;
+		averageIncome: number;
+		coefficientOfVariation: number;
+	}> {
+		const startDate = subMonths(new Date(), months);
+
+		const incomes = await prisma.income.findMany({
+			where: {
+				userId,
+				date: { gte: startDate },
+			},
+			select: { amount: true, date: true },
+		});
+
+		// Group by month
+		const monthlyTotals = new Map<string, number>();
+		incomes.forEach((income) => {
+			const monthKey = format(income.date, 'yyyy-MM');
+			const current = monthlyTotals.get(monthKey) || 0;
+			monthlyTotals.set(monthKey, current + income.amount.toNumber());
+		});
+
+		const values = Array.from(monthlyTotals.values());
+
+		if (values.length < 2) {
+			return {
+				suggestedPercentage: 10,
+				reasoning: 'Not enough income history. Using default 10%.',
+				isStable: false,
+				averageIncome: values[0] || 0,
+				coefficientOfVariation: 0,
+			};
+		}
+
+		// Calculate statistics
+		const mean = values.reduce((a, b) => a + b, 0) / values.length;
+		const variance =
+			values.reduce((sum, val) => sum + Math.pow(val - mean, 2), 0) /
+			values.length;
+		const stdDev = Math.sqrt(variance);
+		const coefficientOfVariation = (stdDev / mean) * 100;
+
+		// CV < 15% = Very stable, CV < 30% = Moderate, CV >= 30% = Variable
+		let suggestedPercentage: number;
+		let reasoning: string;
+		let isStable: boolean;
+
+		if (coefficientOfVariation < 15) {
+			suggestedPercentage = 15;
+			reasoning = `Your income is very consistent (${coefficientOfVariation.toFixed(0)}% variation). You can safely save 15% to your emergency fund.`;
+			isStable = true;
+		} else if (coefficientOfVariation < 30) {
+			suggestedPercentage = 10;
+			reasoning = `Your income has moderate variation (${coefficientOfVariation.toFixed(0)}% variation). A 10% contribution balances savings with flexibility.`;
+			isStable = true;
+		} else {
+			suggestedPercentage = 5;
+			reasoning = `Your income varies significantly (${coefficientOfVariation.toFixed(0)}% variation). Start with 5% to maintain cash flow flexibility.`;
+			isStable = false;
+		}
+
+		return {
+			suggestedPercentage,
+			reasoning,
+			isStable,
+			averageIncome: mean,
+			coefficientOfVariation,
+		};
 	},
 };

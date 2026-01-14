@@ -7,6 +7,7 @@ import { auth } from '@/auth';
 import { redirect } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { serialize } from '@/lib/serialization';
+import { AccountType } from '@prisma/client';
 
 export default async function IncomePage() {
 	const session = await auth();
@@ -19,6 +20,11 @@ export default async function IncomePage() {
 	const categories = await CategoryService.getCategories(
 		session.user.id,
 		'INCOME'
+	);
+
+	// Check if user has an Emergency Fund account
+	const hasEmergencyFundAccount = accounts.some(
+		(acc) => acc.type === AccountType.EMERGENCY_FUND && !acc.isArchived
 	);
 
 	return (
@@ -37,6 +43,7 @@ export default async function IncomePage() {
 							<IncomeForm
 								accounts={serialize(accounts)}
 								categories={serialize(categories)}
+								hasEmergencyFundAccount={hasEmergencyFundAccount}
 							/>
 						</CardContent>
 					</Card>

@@ -45,6 +45,58 @@ const versions = [
 		],
 		patches: [
 			{
+				version: 'v1.7.2',
+				date: 'January 14, 2026',
+				title: 'Reports, Smart Savings & Form UX',
+				description:
+					'Major enhancements including Maya Bank-style transaction statements, smart Emergency Fund auto-deductions based on income stability analysis, and improved form dropdowns with search and balance visibility.',
+				features: [
+					{
+						title: 'Transaction Statement Report',
+						items: [
+							'Maya Bank-Style PDF: Professional statement design with teal/coral color scheme for credits/debits.',
+							'Browser Print Export: Click "Export PDF" to open a dedicated print page with automatic print dialog.',
+							'Statement Summary Card: Shows opening balance, income, expenses, transfers, and closing balance.',
+							'Transaction Table: Separate Debit/Credit columns with running balance and budget status badges.',
+							'Filtering Options: Filter by transaction type (income, expense, transfer) and category.',
+						],
+					},
+					{
+						title: 'Emergency Fund Auto-Deduction',
+						items: [
+							'Smart Percentage Suggestion: Analyzes 6 months of income history using Coefficient of Variation.',
+							'Income Stability Analysis: Suggests 15% (stable), 10% (moderate), or 5% (variable) based on income consistency.',
+							'Automatic Transfer: Creates transfer record to Emergency Fund account with audit trail.',
+							'Conditional Display: EF option only appears when an Emergency Fund account exists.',
+						],
+					},
+					{
+						title: 'ExpenseForm Dropdown Enhancements',
+						items: [
+							'Searchable Category Combobox: Type to filter categories with keyboard navigation.',
+							'Frequent Categories Section: Shows top 5 most-used categories (last 3 months) with flame icon.',
+							'Budget Remaining Display: Budget dropdown shows remaining amount with color coding (green/amber/red).',
+							'Health-Based Colors: Green (>20% left), Amber (0-20% left), Red (over budget).',
+						],
+					},
+					{
+						title: 'Account Balance Visibility',
+						items: [
+							'ExpenseForm: Account dropdown shows current balance for all account types.',
+							'IncomeForm: Account dropdown shows current balance alongside account name.',
+							'TransferForm: Both From and To account dropdowns now display current balance.',
+						],
+					},
+					{
+						title: 'Budget List Enhancement',
+						items: [
+							'Replaced percentage display with "X left" showing actual remaining amount.',
+							'Color-coded remaining: Green (positive), Red (negative/over budget).',
+						],
+					},
+				],
+			},
+			{
 				version: 'v1.7.1',
 				date: 'January 11, 2026',
 				title: 'Expense Form UX: Budget-Category Auto-Link',

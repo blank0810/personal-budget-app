@@ -5,6 +5,7 @@ import { useForm } from 'react-hook-form';
 import { format } from 'date-fns';
 import { CalendarIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { formatCurrency } from '@/lib/formatters';
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
 import {
@@ -34,19 +35,32 @@ import {
 	createIncomeSchema,
 	CreateIncomeInput,
 } from '@/server/modules/income/income.types';
-import { createIncomeAction } from '@/server/modules/income/income.controller';
-import { useState } from 'react';
+import {
+	createIncomeAction,
+	getIncomeStabilityAction,
+} from '@/server/modules/income/income.controller';
+import { useState, useEffect } from 'react';
 import { Account, Category } from '@prisma/client';
 
 interface IncomeFormProps {
 	accounts: Account[];
 	categories: Category[];
+	hasEmergencyFundAccount?: boolean;
 }
 
-export function IncomeForm({ accounts, categories }: IncomeFormProps) {
+export function IncomeForm({
+	accounts,
+	categories,
+	hasEmergencyFundAccount,
+}: IncomeFormProps) {
 	const [isPending, setIsPending] = useState(false);
 	const [showCustomCategoryInput, setShowCustomCategoryInput] =
 		useState(false);
+	const [efSuggestion, setEfSuggestion] = useState<{
+		suggestedPercentage: number;
+		reasoning: string;
+	} | null>(null);
+	const [loadingEfSuggestion, setLoadingEfSuggestion] = useState(false);
 
 	const form = useForm({
 		resolver: zodResolver(createIncomeSchema),
@@ -60,12 +74,35 @@ export function IncomeForm({ accounts, categories }: IncomeFormProps) {
 			accountId: undefined,
 			titheEnabled: true,
 			tithePercentage: 10,
+			emergencyFundEnabled: false,
+			emergencyFundPercentage: 10,
 		},
 	});
 
 	const isRecurring = form.watch('isRecurring');
 	const titheEnabled = form.watch('titheEnabled');
 	const categoryId = form.watch('categoryId');
+	const emergencyFundEnabled = form.watch('emergencyFundEnabled');
+
+	// Fetch EF suggestion when enabled
+	useEffect(() => {
+		if (emergencyFundEnabled && !efSuggestion) {
+			setLoadingEfSuggestion(true);
+			getIncomeStabilityAction().then((result) => {
+				if (result.success && result.data) {
+					setEfSuggestion({
+						suggestedPercentage: result.data.suggestedPercentage,
+						reasoning: result.data.reasoning,
+					});
+					form.setValue(
+						'emergencyFundPercentage',
+						result.data.suggestedPercentage
+					);
+				}
+				setLoadingEfSuggestion(false);
+			});
+		}
+	}, [emergencyFundEnabled, efSuggestion, form]);
 
 	async function onSubmit(data: CreateIncomeInput) {
 		setIsPending(true);
@@ -89,6 +126,13 @@ export function IncomeForm({ accounts, categories }: IncomeFormProps) {
 			formData.append('titheEnabled', 'on');
 			formData.append('tithePercentage', data.tithePercentage.toString());
 		}
+		if (data.emergencyFundEnabled) {
+			formData.append('emergencyFundEnabled', 'on');
+			formData.append(
+				'emergencyFundPercentage',
+				data.emergencyFundPercentage?.toString() || '10'
+			);
+		}
 
 		const result = await createIncomeAction(formData);
 		setIsPending(false);
@@ -107,9 +151,12 @@ export function IncomeForm({ accounts, categories }: IncomeFormProps) {
 				accountId: undefined,
 				titheEnabled: true,
 				tithePercentage: 10,
+				emergencyFundEnabled: false,
+				emergencyFundPercentage: 10,
 				recurringPeriod: undefined,
 			});
 			setShowCustomCategoryInput(false);
+			setEfSuggestion(null);
 			// Handle success (toast)
 		}
 	}
@@ -300,7 +347,14 @@ export function IncomeForm({ accounts, categories }: IncomeFormProps) {
 											key={account.id}
 											value={account.id}
 										>
-											{account.name}
+											<span className='truncate'>
+												{account.name} (
+												{formatCurrency(
+													Number(account.balance),
+													{ decimals: 0 }
+												)}
+												)
+											</span>
 										</SelectItem>
 									))}
 								</SelectContent>
@@ -401,6 +455,72 @@ export function IncomeForm({ accounts, categories }: IncomeFormProps) {
 							</FormItem>
 						)}
 					/>
+				)}
+
+				{hasEmergencyFundAccount && (
+					<>
+						<FormField
+							control={form.control}
+							name='emergencyFundEnabled'
+							render={({ field }) => (
+								<FormItem className='flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4'>
+									<FormControl>
+										<Checkbox
+											checked={field.value}
+											onCheckedChange={field.onChange}
+										/>
+									</FormControl>
+									<div className='space-y-1 leading-none'>
+										<FormLabel>
+											Contribute to Emergency Fund?
+										</FormLabel>
+										<p className='text-sm text-muted-foreground'>
+											Automatically transfer a percentage
+											to your Emergency Fund.
+										</p>
+									</div>
+								</FormItem>
+							)}
+						/>
+
+						{emergencyFundEnabled && (
+							<div className='space-y-3'>
+								{loadingEfSuggestion ? (
+									<div className='text-sm text-muted-foreground animate-pulse'>
+										Analyzing your income patterns...
+									</div>
+								) : (
+									efSuggestion && (
+										<div className='rounded-lg border border-blue-200 bg-blue-50 dark:bg-blue-950/20 dark:border-blue-800 p-3'>
+											<p className='text-sm text-blue-800 dark:text-blue-200'>
+												<strong>Smart Suggestion:</strong>{' '}
+												{efSuggestion.reasoning}
+											</p>
+										</div>
+									)
+								)}
+
+								<FormField
+									control={form.control}
+									name='emergencyFundPercentage'
+									render={({ field }) => (
+										<FormItem>
+											<FormLabel>
+												Emergency Fund Percentage (%)
+											</FormLabel>
+											<FormControl>
+												<CurrencyInput
+													value={field.value}
+													onChange={field.onChange}
+												/>
+											</FormControl>
+											<FormMessage />
+										</FormItem>
+									)}
+								/>
+							</div>
+						)}
+					</>
 				)}
 
 				<Button type='submit' disabled={isPending}>

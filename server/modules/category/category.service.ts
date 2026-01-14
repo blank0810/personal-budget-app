@@ -1,5 +1,6 @@
 import prisma from '@/lib/prisma';
 import type { Category, CategoryType } from '@prisma/client';
+import { subMonths } from 'date-fns';
 
 /**
  * Category Service
@@ -130,5 +131,42 @@ export class CategoryService {
 		await prisma.category.delete({
 			where: { id: categoryId },
 		});
+	}
+
+	/**
+	 * Get the most frequently used expense categories
+	 * Based on expense count in the last 3 months
+	 */
+	static async getFrequentCategories(
+		userId: string,
+		limit: number = 5
+	): Promise<Category[]> {
+		const threeMonthsAgo = subMonths(new Date(), 3);
+
+		const categoryUsage = await prisma.expense.groupBy({
+			by: ['categoryId'],
+			where: {
+				userId,
+				date: { gte: threeMonthsAgo },
+			},
+			_count: { id: true },
+			orderBy: { _count: { id: 'desc' } },
+			take: limit,
+		});
+
+		const categoryIds = categoryUsage.map((c) => c.categoryId);
+
+		if (categoryIds.length === 0) {
+			return [];
+		}
+
+		const categories = await prisma.category.findMany({
+			where: { id: { in: categoryIds } },
+		});
+
+		// Return in order of usage frequency
+		return categoryIds
+			.map((id) => categories.find((c) => c.id === id))
+			.filter((c): c is Category => c !== undefined);
 	}
 }

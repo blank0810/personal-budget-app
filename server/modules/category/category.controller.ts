@@ -25,3 +25,25 @@ export async function getCategoriesAction(type?: CategoryType) {
 		return { error: 'Failed to fetch categories' };
 	}
 }
+
+/**
+ * Get frequently used expense categories (last 3 months)
+ */
+export async function getFrequentCategoriesAction() {
+	const session = await auth();
+
+	if (!session?.user?.id) {
+		return { error: 'Unauthorized' };
+	}
+
+	try {
+		const frequentCategories = await CategoryService.getFrequentCategories(
+			session.user.id,
+			5
+		);
+		return { success: true, data: frequentCategories };
+	} catch (error) {
+		console.error('Failed to get frequent categories:', error);
+		return { error: 'Failed to get frequent categories' };
+	}
+}

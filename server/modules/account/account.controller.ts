@@ -245,6 +245,8 @@ export async function adjustAccountBalanceAction(formData: FormData) {
 				isRecurring: false,
 				titheEnabled: false,
 				tithePercentage: 0,
+				emergencyFundEnabled: false,
+				emergencyFundPercentage: 0,
 			});
 		} else {
 			// Expense: For assets, decreases balance. For liabilities, increases balance (more debt).

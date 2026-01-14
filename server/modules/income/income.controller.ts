@@ -38,6 +38,9 @@ export async function createIncomeAction(formData: FormData) {
 				| 'YEARLY') || undefined,
 		titheEnabled: formData.get('titheEnabled') === 'on',
 		tithePercentage: Number(formData.get('tithePercentage')) || undefined,
+		emergencyFundEnabled: formData.get('emergencyFundEnabled') === 'on',
+		emergencyFundPercentage:
+			Number(formData.get('emergencyFundPercentage')) || undefined,
 	};
 
 	// Validate
@@ -113,5 +116,20 @@ export async function deleteIncomeAction(incomeId: string) {
 	} catch (error) {
 		console.error('Failed to delete income:', error);
 		return { error: 'Failed to delete income' };
+	}
+}
+
+/**
+ * Get income stability analysis for EF suggestion
+ */
+export async function getIncomeStabilityAction() {
+	const userId = await getAuthenticatedUser();
+
+	try {
+		const analysis = await IncomeService.analyzeIncomeStability(userId, 6);
+		return { success: true, data: analysis };
+	} catch (error) {
+		console.error('Failed to analyze income stability:', error);
+		return { error: 'Failed to analyze income stability' };
 	}
 }

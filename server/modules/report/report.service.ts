@@ -6,6 +6,7 @@ import {
 	DashboardKPIs,
 	NetWorthHistoryPoint,
 	CashFlowWaterfall,
+	TransactionStatement,
 } from './report.types';
 import {
 	endOfMonth,
@@ -732,6 +733,132 @@ export const ReportService = {
 			totalIncome,
 			totalExpenses,
 			netResult,
+		};
+	},
+
+	/**
+	 * Get detailed transaction statement for a date range
+	 * Combines income and expenses with running balance
+	 */
+	async getTransactionStatement(
+		userId: string,
+		startDate: Date,
+		endDate: Date,
+		filters?: {
+			transactionType?: 'all' | 'income' | 'expense';
+			categoryId?: string;
+		}
+	): Promise<TransactionStatement> {
+		const transactionType = filters?.transactionType || 'all';
+		const categoryId = filters?.categoryId;
+
+		// Get current net worth from accounts
+		const accounts = await prisma.account.findMany({
+			where: { userId, isArchived: false },
+		});
+
+		const currentNetWorth = accounts.reduce((sum, acc) => {
+			return acc.isLiability
+				? sum - acc.balance.toNumber()
+				: sum + acc.balance.toNumber();
+		}, 0);
+
+		// Fetch incomes
+		const incomes =
+			transactionType !== 'expense'
+				? await prisma.income.findMany({
+						where: {
+							userId,
+							date: { gte: startDate, lte: endDate },
+							...(categoryId && { categoryId }),
+						},
+						include: { category: true },
+						orderBy: { date: 'asc' },
+					})
+				: [];
+
+		// Fetch expenses
+		const expenses =
+			transactionType !== 'income'
+				? await prisma.expense.findMany({
+						where: {
+							userId,
+							date: { gte: startDate, lte: endDate },
+							...(categoryId && { categoryId }),
+						},
+						include: { category: true, budget: true },
+						orderBy: { date: 'asc' },
+					})
+				: [];
+
+		// Combine and sort
+		const combined: Array<{
+			id: string;
+			date: Date;
+			description: string | null;
+			categoryId: string;
+			categoryName: string;
+			type: 'INCOME' | 'EXPENSE';
+			amount: number;
+			budgetStatus: 'budgeted' | 'unbudgeted' | null;
+			budgetName: string | null;
+		}> = [
+			...incomes.map((inc) => ({
+				id: inc.id,
+				date: inc.date,
+				description: inc.description,
+				categoryId: inc.categoryId,
+				categoryName: inc.category.name,
+				type: 'INCOME' as const,
+				amount: inc.amount.toNumber(),
+				budgetStatus: null as 'budgeted' | 'unbudgeted' | null,
+				budgetName: null as string | null,
+			})),
+			...expenses.map((exp) => ({
+				id: exp.id,
+				date: exp.date,
+				description: exp.description,
+				categoryId: exp.categoryId,
+				categoryName: exp.category.name,
+				type: 'EXPENSE' as const,
+				amount: exp.amount.toNumber(),
+				budgetStatus: (exp.budgetId ? 'budgeted' : 'unbudgeted') as
+					| 'budgeted'
+					| 'unbudgeted'
+					| null,
+				budgetName: exp.budget?.name || null,
+			})),
+		].sort((a, b) => a.date.getTime() - b.date.getTime());
+
+		// Calculate totals
+		const totalIncome = incomes.reduce(
+			(sum, i) => sum + i.amount.toNumber(),
+			0
+		);
+		const totalExpenses = expenses.reduce(
+			(sum, e) => sum + e.amount.toNumber(),
+			0
+		);
+		const netChange = totalIncome - totalExpenses;
+		const closingBalance = currentNetWorth;
+		const openingBalance = closingBalance - netChange;
+
+		// Add running balance
+		let runningBalance = openingBalance;
+		const transactions = combined.map((tx) => {
+			runningBalance += tx.type === 'INCOME' ? tx.amount : -tx.amount;
+			return { ...tx, runningBalance };
+		});
+
+		return {
+			transactions,
+			openingBalance,
+			closingBalance,
+			totalIncome,
+			totalExpenses,
+			netChange,
+			periodStart: startDate,
+			periodEnd: endDate,
 		};
 	},
 };
