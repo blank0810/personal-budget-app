@@ -99,103 +99,115 @@ export function TransactionStatement({
 						</div>
 					</div>
 
-					{/* Transaction Table */}
+					{/* Transaction Table - Scrollable Container */}
 					<div className='rounded-md border'>
-						<Table>
-							<TableHeader>
-								<TableRow>
-									<TableHead className='w-[100px]'>Date</TableHead>
-									<TableHead>Description</TableHead>
-									<TableHead>Category</TableHead>
-									<TableHead>Budget Status</TableHead>
-									<TableHead className='text-right'>Amount</TableHead>
-									<TableHead className='text-right'>Balance</TableHead>
-								</TableRow>
-							</TableHeader>
-							<TableBody>
-								{/* Opening Balance Row */}
-								<TableRow className='bg-muted/30'>
-									<TableCell>
-										{format(new Date(data.periodStart), 'MMM d')}
-									</TableCell>
-									<TableCell colSpan={3} className='font-medium'>
-										Opening Balance
-									</TableCell>
-									<TableCell className='text-right'>-</TableCell>
-									<TableCell className='text-right font-bold'>
-										{formatCurrency(data.openingBalance)}
-									</TableCell>
-								</TableRow>
+						{/* Transaction count indicator */}
+						{data.transactions.length > 0 && (
+							<div className='px-4 py-2 bg-muted/30 border-b text-sm text-muted-foreground flex justify-between items-center'>
+								<span>{data.transactions.length} transactions</span>
+								{data.transactions.length > 10 && (
+									<span className='text-xs'>Scroll to view all</span>
+								)}
+							</div>
+						)}
 
-								{data.transactions.map((tx) => (
-									<TableRow key={tx.id}>
-										<TableCell className='text-muted-foreground'>
-											{format(new Date(tx.date), 'MMM d')}
-										</TableCell>
-										<TableCell>{tx.description || '-'}</TableCell>
+						<div className='max-h-[500px] overflow-y-auto'>
+							<Table>
+								<TableHeader className='sticky top-0 bg-background z-10'>
+									<TableRow>
+										<TableHead className='w-[100px]'>Date</TableHead>
+										<TableHead>Description</TableHead>
+										<TableHead>Category</TableHead>
+										<TableHead>Budget Status</TableHead>
+										<TableHead className='text-right'>Amount</TableHead>
+										<TableHead className='text-right'>Balance</TableHead>
+									</TableRow>
+								</TableHeader>
+								<TableBody>
+									{/* Opening Balance Row */}
+									<TableRow className='bg-muted/30'>
 										<TableCell>
-											<Badge variant='outline' className='text-xs'>
-												{tx.categoryName}
-											</Badge>
+											{format(new Date(data.periodStart), 'MMM d')}
 										</TableCell>
-										<TableCell>
-											{tx.type === 'EXPENSE' ? (
-												tx.budgetStatus === 'budgeted' ? (
-													<Badge variant='default' className='bg-green-600'>
-														{tx.budgetName || 'Budgeted'}
-													</Badge>
-												) : (
-													<Badge variant='destructive'>Unbudgeted</Badge>
-												)
-											) : (
-												<span className='text-muted-foreground'>-</span>
-											)}
+										<TableCell colSpan={3} className='font-medium'>
+											Opening Balance
 										</TableCell>
-										<TableCell
-											className={cn(
-												'text-right font-medium',
-												tx.type === 'INCOME'
-													? 'text-green-600'
-													: 'text-red-600'
-											)}
-										>
-											<span className='flex items-center justify-end gap-1'>
-												{tx.type === 'INCOME' ? (
-													<ArrowDownLeft className='h-3 w-3' />
-												) : (
-													<ArrowUpRight className='h-3 w-3' />
-												)}
-												{tx.type === 'INCOME' ? '+' : '-'}
-												{formatCurrency(tx.amount)}
-											</span>
-										</TableCell>
-										<TableCell className='text-right font-medium'>
-											{formatCurrency(tx.runningBalance)}
+										<TableCell className='text-right'>-</TableCell>
+										<TableCell className='text-right font-bold'>
+											{formatCurrency(data.openingBalance)}
 										</TableCell>
 									</TableRow>
-								))}
 
-								{/* Closing Balance Row */}
-								<TableRow className='bg-muted/30 font-bold'>
-									<TableCell>
-										{format(new Date(data.periodEnd), 'MMM d')}
-									</TableCell>
-									<TableCell colSpan={3}>Closing Balance</TableCell>
-									<TableCell
-										className={cn(
-											'text-right',
-											data.netChange >= 0 ? 'text-green-600' : 'text-red-600'
-										)}
-									>
-										{data.netChange >= 0 ? '+' : ''}
-										{formatCurrency(data.netChange)}
-									</TableCell>
-									<TableCell className='text-right'>
-										{formatCurrency(data.closingBalance)}
-									</TableCell>
-								</TableRow>
-							</TableBody>
-						</Table>
+									{data.transactions.map((tx) => (
+										<TableRow key={tx.id}>
+											<TableCell className='text-muted-foreground'>
+												{format(new Date(tx.date), 'MMM d')}
+											</TableCell>
+											<TableCell>{tx.description || '-'}</TableCell>
+											<TableCell>
+												<Badge variant='outline' className='text-xs'>
+													{tx.categoryName}
+												</Badge>
+											</TableCell>
+											<TableCell>
+												{tx.type === 'EXPENSE' ? (
+													tx.budgetStatus === 'budgeted' ? (
+														<Badge variant='default' className='bg-green-600'>
+															{tx.budgetName || 'Budgeted'}
+														</Badge>
+													) : (
+														<Badge variant='destructive'>Unbudgeted</Badge>
+													)
+												) : (
+													<span className='text-muted-foreground'>-</span>
+												)}
+											</TableCell>
+											<TableCell
+												className={cn(
+													'text-right font-medium',
+													tx.type === 'INCOME'
+														? 'text-green-600'
+														: 'text-red-600'
+												)}
+											>
+												<span className='flex items-center justify-end gap-1'>
+													{tx.type === 'INCOME' ? (
+														<ArrowDownLeft className='h-3 w-3' />
+													) : (
+														<ArrowUpRight className='h-3 w-3' />
+													)}
+													{tx.type === 'INCOME' ? '+' : '-'}
+													{formatCurrency(tx.amount)}
+												</span>
+											</TableCell>
+											<TableCell className='text-right font-medium'>
+												{formatCurrency(tx.runningBalance)}
+											</TableCell>
+										</TableRow>
+									))}
+
+									{/* Closing Balance Row */}
+									<TableRow className='bg-muted/30 font-bold'>
+										<TableCell>
+											{format(new Date(data.periodEnd), 'MMM d')}
+										</TableCell>
+										<TableCell colSpan={3}>Closing Balance</TableCell>
+										<TableCell
+											className={cn(
+												'text-right',
+												data.netChange >= 0 ? 'text-green-600' : 'text-red-600'
+											)}
+										>
+											{data.netChange >= 0 ? '+' : ''}
+											{formatCurrency(data.netChange)}
+										</TableCell>
+										<TableCell className='text-right'>
+											{formatCurrency(data.closingBalance)}
+										</TableCell>
+									</TableRow>
+								</TableBody>
+							</Table>
+						</div>
 					</div>
 
 					{data.transactions.length === 0 && (
