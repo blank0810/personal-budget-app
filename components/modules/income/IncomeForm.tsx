@@ -71,7 +71,7 @@ export function IncomeForm({
 			isRecurring: false,
 			categoryId: undefined,
 			categoryName: '',
-			accountId: undefined,
+			accountId: accounts.length === 1 ? accounts[0].id : undefined,
 			titheEnabled: true,
 			tithePercentage: 10,
 			emergencyFundEnabled: false,

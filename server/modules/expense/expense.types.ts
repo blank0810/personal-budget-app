@@ -3,19 +3,23 @@ import { z } from 'zod';
 // Expense Schema
 export const createExpenseSchema = z
 	.object({
-		amount: z.number().positive('Amount must be positive'),
+		amount: z
+			.number({ message: 'Please enter an amount' })
+			.positive({ message: 'Amount must be greater than zero' }),
 		description: z.string().optional(),
 		date: z.date(),
 		notes: z.string().optional(),
 		categoryId: z.string().optional(), // Optional if categoryName is provided
 		categoryName: z.string().optional(), // For creating custom categories
-		accountId: z.string().min(1, 'Account is required'), // Where money came from
+		accountId: z
+			.string({ message: 'Please select an account' })
+			.min(1, { message: 'Please select an account' }),
 		budgetId: z.string().optional(), // Link to a budget
 		isRecurring: z.boolean().optional().default(false),
 		recurringPeriod: z.enum(['MONTHLY', 'WEEKLY', 'YEARLY']).optional(),
 	})
 	.refine((data) => data.categoryId || data.categoryName, {
-		message: 'Either categoryId or categoryName must be provided',
+		message: 'Please select a category',
 		path: ['categoryId'],
 	});
 
