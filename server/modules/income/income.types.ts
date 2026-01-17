@@ -3,12 +3,16 @@ import { z } from 'zod';
 // Income Schema for Validation
 export const createIncomeSchema = z
 	.object({
-		amount: z.number().positive('Amount must be positive'),
+		amount: z
+			.number({ message: 'Please enter an amount' })
+			.positive({ message: 'Amount must be greater than zero' }),
 		description: z.string().optional(),
 		date: z.date(),
 		categoryId: z.string().optional(), // Optional if categoryName is provided
 		categoryName: z.string().optional(), // For creating custom categories
-		accountId: z.string().optional(), // Optional: Link to an account
+		accountId: z
+			.string({ message: 'Please select an account' })
+			.min(1, { message: 'Please select an account' }),
 		isRecurring: z.boolean().optional().default(false),
 		recurringPeriod: z.enum(['MONTHLY', 'WEEKLY', 'YEARLY']).optional(),
 		titheEnabled: z.boolean().optional().default(true),
@@ -26,7 +30,7 @@ export const createIncomeSchema = z
 			.default(10),
 	})
 	.refine((data) => data.categoryId || data.categoryName, {
-		message: 'Either categoryId or categoryName must be provided',
+		message: 'Please select a category',
 		path: ['categoryId'],
 	});
 

@@ -4,6 +4,35 @@ All notable changes to this project will be documented in this file.
 
 ## [v1.7] - January 11, 2026
 
+### [v1.7.3] - January 17, 2026
+
+#### Form Validation & UX Improvements
+
+**Fixed validation bugs and improved error messages across Income and Expense forms for a better user experience.**
+
+##### Bug Fixes
+
+-   **Required Account Validation**: Income entries now require an account to be selected (was previously optional).
+-   **Schema Enforcement**: Added server-side validation to prevent income creation without an account.
+
+##### UX Improvements
+
+-   **Auto-Select Single Account**: When user has only one account, it is automatically pre-selected in the income form.
+-   **User-Friendly Error Messages**: Replaced cryptic validation errors with clear, actionable messages.
+-   **Amount Field**: Now shows "Please enter an amount" instead of technical type errors.
+-   **Account Field**: Now shows "Please select an account" instead of "Invalid input: expected string, received undefined".
+-   **Category Field**: Now shows "Please select a category" instead of technical refine errors.
+
+##### Files Changed
+
+| Component | Changes |
+|-----------|---------|
+| `income.types.ts` | Required `accountId`, user-friendly validation messages |
+| `expense.types.ts` | User-friendly validation messages for amount, account, category |
+| `IncomeForm.tsx` | Auto-select logic for single account users |
+
+---
+
 ### [v1.7.2] - January 14, 2026
 
 #### Reports, Smart Savings & Form UX

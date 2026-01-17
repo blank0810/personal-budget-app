@@ -45,6 +45,32 @@ const versions = [
 		],
 		patches: [
 			{
+				version: 'v1.7.3',
+				date: 'January 17, 2026',
+				title: 'Form Validation & UX Improvements',
+				description:
+					'Fixed validation bugs and improved error messages across Income and Expense forms for a better user experience.',
+				features: [
+					{
+						title: 'Bug Fixes',
+						items: [
+							'Required Account Validation: Income entries now require an account to be selected (was previously optional).',
+							'Schema Enforcement: Added server-side validation to prevent income creation without an account.',
+						],
+					},
+					{
+						title: 'UX Improvements',
+						items: [
+							'Auto-Select Single Account: When user has only one account, it is automatically pre-selected in the income form.',
+							'User-Friendly Error Messages: Replaced cryptic validation errors with clear, actionable messages.',
+							'Amount Field: Now shows "Please enter an amount" instead of technical type errors.',
+							'Account Field: Now shows "Please select an account" instead of "Invalid input: expected string, received undefined".',
+							'Category Field: Now shows "Please select a category" instead of technical refine errors.',
+						],
+					},
+				],
+			},
+			{
 				version: 'v1.7.2',
 				date: 'January 14, 2026',
 				title: 'Reports, Smart Savings & Form UX',
