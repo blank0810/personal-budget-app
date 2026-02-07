@@ -16,10 +16,11 @@ import { ReportsToolbar } from '@/components/modules/reports/ReportsToolbar';
 import { FinancialStatement } from '@/components/modules/reports/FinancialStatement';
 import { TransactionStatement } from '@/components/modules/reports/TransactionStatement';
 import { CashFlowWaterfallChart } from '@/components/modules/reports/CashFlowWaterfallChart';
+import { IncomeExpenseRatioChart } from '@/components/modules/reports/IncomeExpenseRatioChart';
 import { serialize } from '@/lib/serialization';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Wallet, TrendingDown, PiggyBank, Shield } from 'lucide-react';
-import { FundHealthReport } from '@/components/modules/reports/FundHealthReport';
+import { Wallet, TrendingDown, PiggyBank } from 'lucide-react';
+import { FinancialHealthCheck } from '@/components/modules/reports/FinancialHealthCheck';
 
 export default async function ReportsPage({
 	searchParams,
@@ -65,9 +66,9 @@ export default async function ReportsPage({
 		budgetTrends,
 		budgetRecommendations,
 		cashFlowWaterfall,
-		fundHealth,
 		transactionStatement,
 		allCategories,
+		healthScore,
 	] = await Promise.all([
 		ReportService.getCategoryBreakdown(userId, from, to),
 		ReportService.getMonthlyComparison(userId, subMonths(to, 5), to),
@@ -79,9 +80,9 @@ export default async function ReportsPage({
 		BudgetService.getBudgetTrends(userId, from, to),
 		BudgetService.getBudgetRecommendations(userId, 6),
 		ReportService.getCashFlowWaterfall(userId, from, to),
-		DashboardService.getFundHealthMetrics(userId),
 		ReportService.getTransactionStatement(userId, from, to),
 		CategoryService.getCategories(userId),
+		DashboardService.getFinancialHealthScore(userId),
 	]);
 
 	const formatCurrency = (val: number) => {
@@ -122,14 +123,16 @@ export default async function ReportsPage({
 					<TabsTrigger value='overview'>Overview</TabsTrigger>
 					<TabsTrigger value='pnl'>Income & Expenses</TabsTrigger>
 					<TabsTrigger value='budget'>Budget Analytics</TabsTrigger>
-					<TabsTrigger value='funds'>Fund Health</TabsTrigger>
 					<TabsTrigger value='ledger'>Statements</TabsTrigger>
 				</TabsList>
 
-				{/* 1. OVERVIEW TAB */}
+				{/* 1. OVERVIEW TAB — Financial Command Center */}
 				<TabsContent value='overview' className='space-y-6'>
-					{/* KPI Cards */}
-					<div className='grid gap-4 md:grid-cols-2 lg:grid-cols-4'>
+					{/* Row 1: Health Badge + KPI Cards */}
+					<div className='grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-5'>
+						{/* Health Badge — inline anchor */}
+						<FinancialHealthCheck data={healthScore} variant='badge' />
+						{/* KPI Cards */}
 						<KPICard
 							title='Net Result'
 							value={formatCurrency(kpis.netIncome.value)}
@@ -161,10 +164,11 @@ export default async function ReportsPage({
 						/>
 					</div>
 
-					{/* Net Worth Trend - The "Hero" Chart of Overview */}
-					<div className='grid gap-4 md:grid-cols-1'>
-						<NetWorthTrendChart data={netWorthHistory} />
-					</div>
+					{/* Row 2: Net Worth Trend (full width, animated) */}
+					<NetWorthTrendChart data={netWorthHistory} />
+
+					{/* Row 3: 5-Pillar Breakdown */}
+					<FinancialHealthCheck data={healthScore} variant='pillars-only' />
 				</TabsContent>
 
 				{/* 2. INCOME & EXPENSES TAB */}
@@ -183,6 +187,11 @@ export default async function ReportsPage({
 						<div className='lg:col-span-7'>
 							<CashFlowWaterfallChart
 								data={serialize(cashFlowWaterfall)}
+							/>
+						</div>
+						<div className='lg:col-span-7'>
+							<IncomeExpenseRatioChart
+								data={serialize(monthlyComparison)}
 							/>
 						</div>
 					</div>
@@ -250,12 +259,7 @@ export default async function ReportsPage({
 					/>
 				</TabsContent>
 
-				{/* 4. FUND HEALTH TAB */}
-				<TabsContent value='funds' className='space-y-4'>
-					<FundHealthReport fundHealth={fundHealth} />
-				</TabsContent>
-
-				{/* 5. LEDGER / STATEMENTS TAB */}
+				{/* 4. LEDGER / STATEMENTS TAB */}
 				<TabsContent value='ledger' className='space-y-6'>
 					<TransactionStatement
 						data={serialize(transactionStatement)}
