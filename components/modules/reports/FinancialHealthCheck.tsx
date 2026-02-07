@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import {
 	Shield,
@@ -10,6 +12,7 @@ import {
 	CreditCard,
 	ArrowLeftRight,
 	ChevronDown,
+	ChevronsUpDown,
 	Lightbulb,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -190,6 +193,7 @@ function PillarsOnlyCard({ data }: { data: FinancialHealthScoreData }) {
 	);
 	const [hasInteracted, setHasInteracted] = useState(false);
 	const [mounted, setMounted] = useState(false);
+	const [isOpen, setIsOpen] = useState(true);
 
 	useEffect(() => {
 		const id = requestAnimationFrame(() => setMounted(true));
@@ -197,12 +201,20 @@ function PillarsOnlyCard({ data }: { data: FinancialHealthScoreData }) {
 	}, []);
 
 	return (
-		<Card>
-			<CardHeader>
-				<CardTitle>Financial Health Breakdown</CardTitle>
-			</CardHeader>
-			<CardContent className='space-y-2'>
-				{data.pillars.map((pillar, index) => {
+		<Collapsible open={isOpen} onOpenChange={setIsOpen}>
+			<Card>
+				<CardHeader className='flex flex-row items-center justify-between space-y-0'>
+					<CardTitle>Financial Health Breakdown</CardTitle>
+					<CollapsibleTrigger asChild>
+						<Button variant='ghost' size='sm'>
+							<ChevronsUpDown className='h-4 w-4' />
+							<span className='sr-only'>Toggle breakdown</span>
+						</Button>
+					</CollapsibleTrigger>
+				</CardHeader>
+				<CollapsibleContent>
+					<CardContent className='space-y-2'>
+						{data.pillars.map((pillar, index) => {
 					const Icon = PILLAR_ICONS[pillar.name] || Shield;
 					const isExpanded = expandedPillar === pillar.name;
 					const isWeakest = topRecommendation?.name === pillar.name;
@@ -296,8 +308,10 @@ function PillarsOnlyCard({ data }: { data: FinancialHealthScoreData }) {
 						</div>
 					);
 				})}
-			</CardContent>
-		</Card>
+					</CardContent>
+				</CollapsibleContent>
+			</Card>
+		</Collapsible>
 	);
 }
 
