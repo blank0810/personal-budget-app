@@ -2,6 +2,271 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v1.8] - January 31, 2026
+
+### Liability Payments Feature
+
+**Dedicated payment portal for paying off credit cards and loans, with clean separation from asset transfers.**
+
+#### Features
+
+-   **New Payments Page**: Dedicated `/payments` route for managing debt payments.
+-   **Payment Form**: Pay from asset accounts to liability accounts with optional transaction fee.
+-   **Payment History**: View all past payments with detailed breakdown.
+-   **Smart Account Filtering**: Form shows only asset accounts as source, only liabilities as destination.
+-   **Available Credit Display**: Liability dropdown shows both debt owed and available credit.
+-   **Review Dialog**: Confirm payment details before submission.
+-   **Delete with Revert**: Delete payments and automatically revert all balance changes.
+
+#### Architectural Changes
+
+-   **Transfer Form**: Now restricted to asset-to-asset transfers only (no liabilities).
+-   **Clean Separation**: Payments and Transfers serve distinct purposes with no overlap.
+
+#### Bug Fixes
+
+-   **Account Ledger Labels**: Payments now display as "DEBT PAYMENT" (on asset accounts) and "PAYMENT RECEIVED" (on liability accounts) instead of misleading "TRANSFER IN/OUT" labels.
+-   **Liability Ledger Amount Signs**: Payment amounts on liability accounts now show "-" (debt reduced) instead of misleading "+", with green color indicating positive outcome for user.
+
+#### Files Changed
+
+| Component | Changes |
+|-----------|---------|
+| `app/(authenticated)/payments/page.tsx` | NEW - Payments page |
+| `server/modules/payment/payment.types.ts` | NEW - Zod schemas for payment validation |
+| `server/modules/payment/payment.service.ts` | NEW - Payment business logic |
+| `server/modules/payment/payment.controller.ts` | NEW - Server actions for payments |
+| `components/modules/payment/PaymentForm.tsx` | NEW - Payment form component |
+| `components/modules/payment/PaymentList.tsx` | NEW - Payment history list |
+| `components/modules/payment/PaymentDetailDialog.tsx` | NEW - Payment detail view with delete |
+| `components/modules/transfer/TransferForm.tsx` | Filter to show only asset accounts |
+| `components/common/nav-items.ts` | Added grouped navigation structure |
+| `components/common/sidebar-nav.tsx` | Support for collapsible nav groups |
+| `components/common/mobile-sidebar.tsx` | Mirror grouped navigation for mobile |
+
+---
+
+### Sidebar Reorganization
+
+**Cleaner navigation with grouped menu items to reduce clutter.**
+
+#### Features
+
+-   **Transactions Group**: Income, Expenses, Transfers, and Payments grouped under collapsible "Transactions" section.
+-   **Collapsible Sections**: Click to expand/collapse navigation groups.
+-   **Visual Hierarchy**: Child items indented with border for clear grouping.
+-   **Active State**: Group header highlights when any child is active.
+-   **Mobile Support**: Same grouped navigation in mobile sidebar drawer.
+
+---
+
+### Expense/Income CSV Export
+
+**Export your expense and income data to CSV files for external analysis or record-keeping.**
+
+#### Features
+
+-   **Export Button**: New "Export CSV" button in the header of Expense and Income pages.
+-   **Filtered Export**: Exports respect current filters (month and category for expenses, month for income).
+-   **Smart Filenames**: Files named with context (e.g., `expenses_january_2026_food.csv`).
+-   **Mobile-Friendly**: Button shows abbreviated "CSV" text on small screens.
+
+---
+
+### Budget Replication Feature
+
+**Quickly replicate budgets from previous months to new months, saving time on repetitive budget setup.**
+
+#### Features
+
+-   **Replicate Budgets Dialog**: New dialog accessible from the Budget page to copy budgets from any previous month.
+-   **Source Month Selection**: Dropdown showing all months with existing budgets to copy from.
+-   **Target Month Selection**: Choose destination month (current month + next 12 months).
+-   **Selective Replication**: Checkbox selection to choose which budgets to replicate.
+-   **Amount Editing**: Adjust budget amounts before replication if needed.
+-   **Duplicate Prevention**: Automatically skips budgets that already exist in the target month (matched by name).
+-   **Bulk Creation**: Creates all selected budgets in a single transaction.
+
+### Financial Health Check (Merged into Overview)
+
+**Comprehensive financial health scoring system merged into the Overview tab as a unified financial command center. Brutally honest feedback that roasts bad habits and celebrates good ones.**
+
+#### Features
+
+-   **Merged into Overview Tab**: Health Check consolidated into Overview (5 tabs → 4: Overview | Income & Expenses | Budget Analytics | Statements).
+-   **Inline Health Badge**: Compact horizontal card (80px score ring + label + roast) sits alongside KPI cards in Row 1 for at-a-glance health status.
+-   **5-Pillar Assessment**: Solvency (25%), Liquidity (20%), Savings (20%), Debt Management (20%), Cash Flow (15%).
+-   **Score Ring Animation**: SVG ring animates from 0 → actual score on mount with health-colored glow (emerald → red). Text scales proportionally for different ring sizes.
+-   **Pillar One-Liners**: Each pillar has a plain-language subtitle always visible (e.g., "Can you survive an emergency?" for Liquidity).
+-   **Staggered Animations**: Pillar rows fade in with 80ms stagger, progress bars animate width from 0% → score with delay.
+-   **Auto-Expand Weakest Pillar**: Lowest-scoring non-A pillar auto-expands on load with nudge text ("Your weakest area — check the recommendation above") that disappears after first interaction.
+-   **Collapsible Sections**: Both Net Worth Trend chart and Financial Health Breakdown card have collapse/expand toggles (default open).
+-   **Roast-Style Feedback**: Messages scale with severity — genuine praise for strong performance, escalating roasts for poor performance.
+-   **Fund Health Removed from Reports**: Fund Health Report removed (already displayed on Dashboard), reducing redundancy.
+
+#### Files Changed
+
+| Component | Changes |
+|-----------|---------|
+| `server/modules/dashboard/dashboard.service.ts` | Added `getFinancialHealthScore()` method with 5-pillar scoring logic |
+| `components/modules/reports/FinancialHealthCheck.tsx` | Health score with 3 variants (badge, pillars-only, full), animated ring, pillar one-liners, auto-expand, nudge text, collapsible breakdown |
+| `components/modules/reports/NetWorthTrendChart.tsx` | Added collapsible toggle with animated expand/collapse |
+| `components/ui/collapsible.tsx` | NEW - shadcn Collapsible primitive with animated transitions |
+| `app/(authenticated)/reports/page.tsx` | Merged Health Check into Overview tab, removed Health Check tab, flat 5-col grid layout |
+
+---
+
+### Income vs Expense Ratio Chart
+
+**Visual analysis of spending efficiency with dual-axis chart showing expense-to-income ratio and savings gap over time.**
+
+#### Features
+
+-   **Dual-Axis Composed Chart**: Expense ratio (%) on left axis, savings amount on right axis.
+-   **Health Zone Reference Lines**: Color-coded thresholds at 70% (green/healthy), 90% (yellow/tight), 100% (red/critical).
+-   **Color-Coded Data Points**: Each month's dot colored by its health zone for instant assessment.
+-   **Savings Gap Area**: Green gradient area showing monthly savings amount.
+-   **Summary Row**: Average ratio, best/worst months with values, and trend direction (improving/stable/worsening).
+
+#### Files Changed
+
+| Component | Changes |
+|-----------|---------|
+| `components/modules/reports/IncomeExpenseRatioChart.tsx` | NEW - Dual-axis ratio chart component |
+| `app/(authenticated)/reports/page.tsx` | Added to Income & Expenses tab |
+
+---
+
+### Dashboard Layout Reorder
+
+**Funds section moved above Recent Transactions for strategic-first information hierarchy.**
+
+#### Features
+
+-   **Strategic Positioning**: Fund accounts and savings goals now appear above operational transaction data.
+-   **UX Philosophy**: Users see their strategic financial goals before day-to-day transaction noise.
+
+#### Files Changed
+
+| Component | Changes |
+|-----------|---------|
+| `app/(authenticated)/dashboard/page.tsx` | Reordered Funds section above Recent Transactions grid |
+
+---
+
+### Emergency Fund Calculation Fix
+
+**Emergency Fund now uses actual spending history instead of budgeted amounts for more accurate coverage calculations.**
+
+#### Features
+
+-   **Hybrid Expense Calculation**: Uses 3-month average of actual expenses as primary, with monthly budget as fallback for new users.
+-   **Expense Source Indicator**: Dashboard card now shows "Based on actual spending" or "Based on monthly budget" for transparency.
+-   **Accountant-Approved Logic**: Aligns with industry best practices - actual spending provides more conservative and realistic coverage estimates.
+
+---
+
+### Budget Detail View Scoping
+
+**Budget ledger now correctly scopes to individual budget envelopes, with unlinked expenses shown separately for full transparency.**
+
+#### Features
+
+-   **Envelope Isolation**: Budget ledger now shows only expenses linked to that specific budget, not all expenses in the category.
+-   **Unlinked Expenses Section**: Expenses in the same category but not linked to any budget are displayed in a separate section with muted styling and a summary total.
+-   **Accurate Metrics**: Budget progress, remaining amount, and daily pace now reflect only the linked expenses.
+
+#### Files Changed
+
+| Component | Changes |
+|-----------|---------|
+| `budget.service.ts` | Query scoped to `budgetId` instead of `categoryId`; added unlinked expenses query |
+| `BudgetLedger.tsx` | Added `unlinkedExpenses` prop and rendering section |
+| `budgets/[id]/page.tsx` | Pass unlinked expenses to BudgetLedger |
+
+---
+
+### Smart Budget Dropdown
+
+**Expense form budget selector now groups budgets by month with current month primary and previous months accessible for flexibility.**
+
+#### Features
+
+-   **Sectioned Dropdown**: Budget selector groups budgets into "current month" (primary) and "Previous Months" (secondary) sections.
+-   **3-Month Lookback**: Previous months section shows budgets from up to 3 months back, sorted newest first, with month labels.
+-   **Auto-Reset on Month Change**: Budget selection automatically clears when the expense date month changes to prevent stale selections.
+-   **Color-Coded Remaining**: Each budget option displays remaining amount with health-based color coding (green >20%, amber 0-20%, red over budget).
+
+#### Files Changed
+
+| Component | Changes |
+|-----------|---------|
+| `ExpenseForm.tsx` | Sectioned SelectGroups, `useMemo` grouping logic, `useRef` month-change detection |
+
+---
+
+### Account Type Separation
+
+**Accounts page and dashboard now use a 4-group classification system for clearer financial organization.**
+
+#### Features
+
+-   **4-Group Classification**: Accounts organized into Liquid Assets (Bank, Cash), Savings & Investments (Savings, Investment), Liabilities (Credit, Loan), and Funds & Goals (Emergency Fund, Fund, Tithe).
+-   **Group Headers**: Each group displays a colored header with icon, label, and balance subtotal.
+-   **Dashboard Update**: Accounts card shows 3 distinct groups (Liquid, Savings, Liabilities) with color-coded icons instead of the previous binary asset/liability split.
+-   **Preserved Details**: Credit utilization bars and fund progress indicators remain inline within their respective account groups.
+
+#### Files Changed
+
+| Component | Changes |
+|-----------|---------|
+| `lib/account-utils.ts` | NEW - Account classification utility (AccountClass type, grouping function) |
+| `AccountList.tsx` | Rewritten with grouped sections, extracted sub-components |
+| `dashboard/page.tsx` | 3-group account display with color-coded headers |
+
+---
+
+### Expense Category Filter
+
+**Filter expenses by category within the selected month for easier expense review and analysis.**
+
+#### Features
+
+-   **Category Filter Dropdown**: New dropdown next to the search bar to filter expenses by category.
+-   **Generic DataTable Filters**: Added reusable filter support to DataTable component for future extensibility.
+-   **Month-Scoped Filtering**: Filter applies within the selected month only.
+-   **Auto-Reset on Month Change**: Category filter resets to "All" when switching months.
+
+#### Bug Fixes
+
+-   **Fixed Month Off-by-One Error**: Resolved timezone issue where selecting February would create budgets for January. Now uses UTC dates consistently between client and server.
+-   **Fixed Liability Ledger Running Balance**: Account ledger now correctly calculates running balance for credit cards and other liability accounts. Previously treated all accounts as assets, causing inverted balance display.
+-   **Fixed Empty Amount Field UX**: Amount fields now start empty with placeholder instead of showing "0". Users can type directly without clearing first. Applies to Expense, Income, Transfer, and Budget forms.
+
+#### Files Changed
+
+| Component | Changes |
+|-----------|---------|
+| `budget.types.ts` | Added ReplicateBudgetsInput schema |
+| `budget.service.ts` | Added replicateBudgets method, getAvailableBudgetMonths |
+| `budget.controller.ts` | Added replicateBudgetsAction, getAvailableBudgetMonthsAction |
+| `ReplicateBudgetDialog.tsx` | NEW - Dialog component for budget replication |
+| `BudgetList.tsx` | Added Replicate Budget button |
+| `BudgetViews.tsx` | Integrated ReplicateBudgetDialog |
+| `tooltip.tsx` | NEW - Tooltip component for UI hints |
+| `account.service.ts` | Fixed running balance calculation for liability accounts |
+| `DataTable.tsx` | Added Filter interface and filters prop for generic filtering |
+| `ExpenseList.tsx` | Accept and pass filters to DataTable |
+| `ExpenseViews.tsx` | Added category filter state, options, and filtering logic |
+| `dashboard.service.ts` | Hybrid expense calculation for Emergency Fund (actual + budget fallback) |
+| `dashboard/page.tsx` | Display expense source indicator in Emergency Fund card |
+| `ExpenseForm.tsx` | Amount field defaults to empty instead of 0 |
+| `IncomeForm.tsx` | Amount field defaults to empty instead of 0 |
+| `TransferForm.tsx` | Amount and fee fields default to empty instead of 0 |
+| `BudgetForm.tsx` | Amount field defaults to empty instead of 0 |
+
+---
+
 ## [v1.7] - January 11, 2026
 
 ### [v1.7.3] - January 17, 2026
