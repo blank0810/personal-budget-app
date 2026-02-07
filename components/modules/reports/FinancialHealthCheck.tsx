@@ -203,17 +203,20 @@ function HealthBadge({ data }: { data: FinancialHealthScoreData }) {
 // ─── Pillars-Only Card (for Overview breakdown row) ─
 
 function PillarsOnlyCard({ data }: { data: FinancialHealthScoreData }) {
-	const [expandedPillar, setExpandedPillar] = useState<string | null>(null);
+	const topRecommendation = [...data.pillars]
+		.filter((p) => p.grade !== 'A')
+		.sort((a, b) => a.score - b.score)[0];
+
+	const [expandedPillar, setExpandedPillar] = useState<string | null>(
+		topRecommendation?.name ?? null
+	);
+	const [hasInteracted, setHasInteracted] = useState(false);
 	const [mounted, setMounted] = useState(false);
 
 	useEffect(() => {
 		const id = requestAnimationFrame(() => setMounted(true));
 		return () => cancelAnimationFrame(id);
 	}, []);
-
-	const topRecommendation = [...data.pillars]
-		.filter((p) => p.grade !== 'A')
-		.sort((a, b) => a.score - b.score)[0];
 
 	return (
 		<Card>
@@ -245,7 +248,10 @@ function PillarsOnlyCard({ data }: { data: FinancialHealthScoreData }) {
 							<button
 								type='button'
 								className='w-full flex items-center gap-3 p-3 hover:bg-accent/50 transition-colors rounded-lg'
-								onClick={() => setExpandedPillar(isExpanded ? null : pillar.name)}
+								onClick={() => {
+									setExpandedPillar(isExpanded ? null : pillar.name);
+									if (!hasInteracted) setHasInteracted(true);
+								}}
 							>
 								<Icon className='h-4 w-4 text-muted-foreground shrink-0' />
 								<div className='w-28 sm:w-36 text-left shrink-0'>
@@ -301,6 +307,14 @@ function PillarsOnlyCard({ data }: { data: FinancialHealthScoreData }) {
 									</p>
 								</div>
 							</div>
+
+							{/* Nudge for weakest pillar */}
+							{isWeakest && !hasInteracted && (
+								<p className='text-xs text-muted-foreground px-3 pb-2 flex items-center gap-1.5'>
+									<span className='text-yellow-500'>&#9889;</span>
+									Your weakest area — check the recommendation above
+								</p>
+							)}
 						</div>
 					);
 				})}
