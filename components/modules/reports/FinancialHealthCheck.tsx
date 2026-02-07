@@ -33,7 +33,7 @@ interface FinancialHealthScoreData {
 
 interface FinancialHealthCheckProps {
 	data: FinancialHealthScoreData;
-	variant?: 'full' | 'score-only' | 'pillars-only' | 'badge';
+	variant?: 'full' | 'pillars-only' | 'badge';
 }
 
 // ─── Constants ──────────────────────────────────────
@@ -153,28 +153,6 @@ function ScoreRing({ score, size = 120 }: { score: number; size?: number }) {
 				)}>/100</span>
 			</div>
 		</div>
-	);
-}
-
-// ─── Score-Only Card (for Overview hero row) ────────
-
-function ScoreOnlyCard({ data }: { data: FinancialHealthScoreData }) {
-	const colors = getScoreColor(data.overallScore);
-
-	return (
-		<Card className='h-full flex flex-col justify-center'>
-			<CardContent className='flex flex-col items-center gap-3 pt-6'>
-				<ScoreRing score={data.overallScore} />
-				<div className='text-center'>
-					<p className={cn('text-lg font-bold', colors.text)}>
-						{data.overallLabel}
-					</p>
-					<p className='text-xs text-muted-foreground mt-1 max-w-[200px]'>
-						{getLabelDescription(data.overallLabel)}
-					</p>
-				</div>
-			</CardContent>
-		</Card>
 	);
 }
 
@@ -454,10 +432,6 @@ function FullHealthCheck({ data }: { data: FinancialHealthScoreData }) {
 export function FinancialHealthCheck({ data, variant = 'full' }: FinancialHealthCheckProps) {
 	if (variant === 'badge') {
 		return <HealthBadge data={data} />;
-	}
-
-	if (variant === 'score-only') {
-		return <ScoreOnlyCard data={data} />;
 	}
 
 	if (variant === 'pillars-only') {
