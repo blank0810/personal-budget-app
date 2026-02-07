@@ -142,18 +142,84 @@ Note: Vercel free tier allows 2 cron jobs. This uses both. The process-reports c
 - Self-hosted: cron command passes same secret as header
 - Manual trigger uses NextAuth session (no CRON_SECRET needed)
 
-## Database Change
+## Database Changes
 
-Add to User model:
+### User model update
 
 ```prisma
 model User {
   ...existing fields...
-  monthlyReportEnabled Boolean @default(true)
+  monthlyReportEnabled Boolean        @default(true)
+  monthlyReports      MonthlyReport[]
 }
 ```
 
-Single migration. All existing users default to opted-in (opt-out model).
+### New: MonthlyReport model
+
+Tracks every generated report for history and deduplication.
+
+```prisma
+model MonthlyReport {
+  id        String   @id @default(cuid())
+  userId    String
+  period    DateTime                        // first day of month (e.g. 2026-01-01)
+  blobUrl   String                          // Vercel Blob download URL
+  fileName  String                          // Budget_Planner_January_2026.pdf
+  status    String   @default("completed")  // completed, failed
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, period])                // one report per user per month
+  @@map("monthly_reports")
+}
+```
+
+**Design decisions:**
+- `@@unique([userId, period])` -- Prevents duplicate reports. If the cron tries to generate January 2026 twice for the same user, the second job checks for an existing record and skips.
+- `blobUrl` -- Direct link to the PDF in Vercel Blob. Future "Report History" page just queries this table and renders download links.
+- `status` -- Tracks generation outcome. Failed reports can be retried by the queue.
+- `onDelete: Cascade` -- User deletion removes all their reports.
+- Blob path convention: `monthly-reports/[userId]/Budget_Planner_January_2026.pdf`
+
+### Updated pipeline
+
+```
+generateDigest()
+  → renderPDF()
+  → uploadBlob() → get blobUrl
+  → save MonthlyReport record (userId, period, blobUrl, fileName, status)
+  → sendEmail() with PDF attachment
+```
+
+### Deduplication logic (in job processor)
+
+```typescript
+// Before generating, check if report already exists
+const existing = await prisma.monthlyReport.findUnique({
+  where: { userId_period: { userId, period } }
+});
+if (existing?.status === 'completed') {
+  // Skip — already generated. Mark job as completed.
+  return;
+}
+```
+
+### Future: Report History page (not building now)
+
+The MonthlyReport table is designed to support a future `/reports/history` page:
+
+```
+Report History
+
+January 2026    72/100    Feb 1, 2026   [Download PDF]
+December 2025   68/100    Jan 1, 2026   [Download PDF]
+November 2025   71/100    Dec 1, 2025   [Download PDF]
+```
+
+Query: `SELECT * FROM monthly_reports WHERE userId = ? AND status = 'completed' ORDER BY period DESC`
+
+Single migration covers both the User field addition and the new MonthlyReport table.
 
 ## Dynamic Email Content
 
