@@ -81,6 +81,44 @@ async function main() {
 	});
 
 	console.log({ user });
+
+	// Seed notification types
+	const notificationTypes = [
+		{
+			id: 'nt_monthly_report',
+			key: 'monthly_report',
+			label: 'Monthly Financial Report',
+			description: 'Receive a PDF financial digest on the 1st of each month',
+			category: 'reports',
+			defaultEnabled: true,
+		},
+		{
+			id: 'nt_budget_alerts',
+			key: 'budget_alerts',
+			label: 'Budget Alerts',
+			description: 'Get notified when a budget reaches 80% or exceeds 100%',
+			category: 'alerts',
+			defaultEnabled: true,
+		},
+		{
+			id: 'nt_income_notifications',
+			key: 'income_notifications',
+			label: 'Income Notifications',
+			description: 'Get notified when income is recorded to your account',
+			category: 'activity',
+			defaultEnabled: true,
+		},
+	];
+
+	for (const nt of notificationTypes) {
+		await prisma.notificationType.upsert({
+			where: { key: nt.key },
+			update: { label: nt.label, description: nt.description, category: nt.category, defaultEnabled: nt.defaultEnabled },
+			create: nt,
+		});
+	}
+
+	console.log('Seeded notification types');
 }
 
 main()

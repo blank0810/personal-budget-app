@@ -47,6 +47,41 @@ export class EmailService {
 	}
 
 	/**
+	 * Send an email with file attachments
+	 */
+	static async sendWithAttachment({
+		to,
+		subject,
+		html,
+		attachments,
+	}: {
+		to: string;
+		subject: string;
+		html: string;
+		attachments: Array<{
+			filename: string;
+			content: Buffer;
+			contentType: string;
+		}>;
+	}) {
+		try {
+			const info = await transporter.sendMail({
+				from: EMAIL_FROM,
+				to,
+				subject,
+				html,
+				attachments,
+			});
+			return { id: info.messageId };
+		} catch (error) {
+			console.error('Failed to send email with attachment:', error);
+			throw new Error(
+				`Failed to send email: ${error instanceof Error ? error.message : 'Unknown error'}`
+			);
+		}
+	}
+
+	/**
 	 * Send a password reset email
 	 */
 	static async sendPasswordReset({

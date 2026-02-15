@@ -17,7 +17,9 @@ import {
 	CalendarDays,
 	ChevronLeft,
 	ChevronRight,
+	Copy,
 } from 'lucide-react';
+import { ReplicateBudgetDialog } from './ReplicateBudgetDialog';
 
 interface BudgetWithRelations extends Budget {
 	category: Category;
@@ -89,6 +91,28 @@ export function BudgetViews({ budgets, initialMonth }: BudgetViewsProps) {
 		);
 	}, [budgets, selectedMonth]);
 
+	// Get unique months that have budgets (for replication source)
+	const availableMonths = useMemo(() => {
+		const monthSet = new Map<string, Date>();
+		for (const budget of budgets) {
+			const budgetDate = new Date(budget.month);
+			// Normalize to UTC midnight on 1st of month
+			const month = new Date(Date.UTC(
+				budgetDate.getUTCFullYear(),
+				budgetDate.getUTCMonth(),
+				1, 0, 0, 0, 0
+			));
+			const key = month.toISOString();
+			if (!monthSet.has(key)) {
+				monthSet.set(key, month);
+			}
+		}
+		// Sort descending (most recent first)
+		return Array.from(monthSet.values()).sort(
+			(a, b) => b.getTime() - a.getTime()
+		);
+	}, [budgets]);
+
 	const handleMonthClick = (date: Date) => {
 		setSelectedMonth(date);
 		setViewMode('list');
@@ -115,14 +139,25 @@ export function BudgetViews({ budgets, initialMonth }: BudgetViewsProps) {
 						: `Budget Overview - ${selectedYear}`}
 				</h2>
 				{viewMode === 'list' && (
-					<Button
-						variant='outline'
-						size='sm'
-						onClick={() => setViewMode('months')}
-					>
-						<CalendarDays className='mr-2 h-4 w-4' />
-						View All Months
-					</Button>
+					<div className='flex items-center gap-2'>
+						<ReplicateBudgetDialog
+							trigger={
+								<Button variant='outline' size='sm'>
+									<Copy className='mr-2 h-4 w-4' />
+									Replicate Budgets
+								</Button>
+							}
+							availableMonths={availableMonths}
+						/>
+						<Button
+							variant='outline'
+							size='sm'
+							onClick={() => setViewMode('months')}
+						>
+							<CalendarDays className='mr-2 h-4 w-4' />
+							View All Months
+						</Button>
+					</div>
 				)}
 				{viewMode === 'months' && (
 					<Button
@@ -229,7 +264,10 @@ export function BudgetViews({ budgets, initialMonth }: BudgetViewsProps) {
 					</div>
 				</>
 			) : (
-				<BudgetList budgets={filteredBudgets} />
+				<BudgetList
+					budgets={filteredBudgets}
+					availableMonths={availableMonths}
+				/>
 			)}
 		</div>
 	);

@@ -7,6 +7,8 @@ import {
 	MonthlyTrend,
 	CategoryRecommendation,
 	ProblemCategory,
+	ReplicateBudgetsInput,
+	BudgetReplicationItem,
 } from './budget.types';
 import { CategoryService } from '../category/category.service';
 import { startOfMonth, endOfMonth, subMonths, format, eachMonthOfInterval } from 'date-fns';
@@ -106,30 +108,46 @@ export const BudgetService = {
 
 		if (!budget) return null;
 
-		// Get expenses for this category in this budget's month
-		const startOfMonth = new Date(budget.month);
-		startOfMonth.setDate(1);
-		startOfMonth.setHours(0, 0, 0, 0);
+		// Define month boundaries for time-based metrics
+		const monthStart = new Date(budget.month);
+		monthStart.setDate(1);
+		monthStart.setHours(0, 0, 0, 0);
 
-		const endOfMonth = new Date(startOfMonth);
-		endOfMonth.setMonth(endOfMonth.getMonth() + 1);
-		endOfMonth.setDate(0);
-		endOfMonth.setHours(23, 59, 59, 999);
+		const monthEnd = new Date(monthStart);
+		monthEnd.setMonth(monthEnd.getMonth() + 1);
+		monthEnd.setDate(0);
+		monthEnd.setHours(23, 59, 59, 999);
 
+		// Fetch only expenses linked to THIS specific budget (envelope isolation)
 		const expenses = await prisma.expense.findMany({
 			where: {
 				userId,
-				categoryId: budget.categoryId,
+				budgetId: budget.id,
 				date: {
-					gte: startOfMonth,
-					lte: endOfMonth,
+					gte: monthStart,
+					lte: monthEnd,
 				},
 			},
 			orderBy: { date: 'asc' },
 			include: { account: true },
 		});
 
-		// Calculate metrics
+		// Fetch unlinked expenses in the same category for transparency
+		const unlinkedExpenses = await prisma.expense.findMany({
+			where: {
+				userId,
+				categoryId: budget.categoryId,
+				budgetId: null,
+				date: {
+					gte: monthStart,
+					lte: monthEnd,
+				},
+			},
+			orderBy: { date: 'asc' },
+			include: { account: true },
+		});
+
+		// Calculate metrics based on budget-linked expenses only
 		const totalSpent = expenses.reduce(
 			(sum, e) => sum + Number(e.amount),
 			0
@@ -143,11 +161,11 @@ export const BudgetService = {
 		const daysElapsed = Math.max(
 			1,
 			Math.ceil(
-				(today.getTime() - startOfMonth.getTime()) /
+				(today.getTime() - monthStart.getTime()) /
 					(1000 * 60 * 60 * 24)
 			)
 		);
-		const daysInMonth = endOfMonth.getDate();
+		const daysInMonth = monthEnd.getDate();
 		const daysRemaining = Math.max(0, daysInMonth - daysElapsed);
 
 		const dailyBurnRate = totalSpent / daysElapsed;
@@ -167,6 +185,7 @@ export const BudgetService = {
 		return {
 			budget,
 			expenses: expensesWithRunning,
+			unlinkedExpenses,
 			metrics: {
 				limit: budgetLimit,
 				spent: totalSpent,
@@ -589,5 +608,158 @@ export const BudgetService = {
 		});
 
 		return recommendations;
+	},
+
+	/**
+	 * Get budgets from a source month with recommendation data for replication preview
+	 */
+	async getBudgetsForReplication(
+		userId: string,
+		sourceMonth: Date
+	): Promise<BudgetReplicationItem[]> {
+		// Normalize to UTC midnight on 1st of month to match stored format
+		const monthStart = new Date(Date.UTC(
+			sourceMonth.getFullYear(),
+			sourceMonth.getMonth(),
+			1, 0, 0, 0, 0
+		));
+		const monthEnd = new Date(Date.UTC(
+			sourceMonth.getFullYear(),
+			sourceMonth.getMonth() + 1,
+			0, 23, 59, 59, 999
+		));
+
+		// Get budgets for the source month
+		const budgets = await prisma.budget.findMany({
+			where: {
+				userId,
+				month: {
+					gte: monthStart,
+					lte: monthEnd,
+				},
+			},
+			include: {
+				category: true,
+			},
+			orderBy: { name: 'asc' },
+		});
+
+		if (budgets.length === 0) {
+			return [];
+		}
+
+		// Get recommendations for all categories (reuse existing logic)
+		const recommendations = await this.getBudgetRecommendations(userId, 6);
+		const recommendationMap = new Map(
+			recommendations.map((r) => [r.categoryId, r])
+		);
+
+		// Merge budget data with recommendations
+		return budgets.map((budget) => {
+			const rec = recommendationMap.get(budget.categoryId);
+			return {
+				id: budget.id,
+				name: budget.name,
+				amount: Number(budget.amount),
+				categoryId: budget.categoryId,
+				categoryName: budget.category.name,
+				recommendation: rec?.recommendation ?? 'stable',
+				suggestedAmount: rec?.suggestedAmount ?? null,
+				trend: rec?.trend ?? 'No history',
+			};
+		});
+	},
+
+	/**
+	 * Replicate budgets from source month to target month
+	 * Skips budgets that already exist in target month (by name)
+	 */
+	async replicateBudgets(
+		userId: string,
+		input: ReplicateBudgetsInput
+	): Promise<{ success: boolean; created: number; skipped: string[] }> {
+		// Use UTC methods to avoid timezone issues
+		// The input date should already be UTC midnight on 1st of month
+		const targetMonthStart = new Date(
+			Date.UTC(
+				input.targetMonth.getUTCFullYear(),
+				input.targetMonth.getUTCMonth(),
+				1,
+				0,
+				0,
+				0,
+				0
+			)
+		);
+		const targetMonthEnd = new Date(
+			Date.UTC(
+				input.targetMonth.getUTCFullYear(),
+				input.targetMonth.getUTCMonth() + 1,
+				0,
+				23,
+				59,
+				59,
+				999
+			)
+		);
+
+		// Get existing budgets in target month to check for duplicates
+		const existingBudgets = await prisma.budget.findMany({
+			where: {
+				userId,
+				month: {
+					gte: targetMonthStart,
+					lte: targetMonthEnd,
+				},
+			},
+			select: { name: true },
+		});
+
+		const existingNames = new Set(existingBudgets.map((b) => b.name));
+
+		// Separate items into create vs skip
+		const toCreate: typeof input.budgetItems = [];
+		const skipped: string[] = [];
+
+		for (const item of input.budgetItems) {
+			if (existingNames.has(item.name)) {
+				skipped.push(item.name);
+			} else {
+				toCreate.push(item);
+			}
+		}
+
+		// Batch create new budgets
+		if (toCreate.length > 0) {
+			await prisma.budget.createMany({
+				data: toCreate.map((item) => ({
+					name: item.name,
+					amount: item.amount,
+					categoryId: item.categoryId,
+					month: targetMonthStart,
+					userId,
+				})),
+			});
+		}
+
+		return {
+			success: true,
+			created: toCreate.length,
+			skipped,
+		};
+	},
+
+	/**
+	 * Get all months that have budgets (for source month picker)
+	 */
+	async getMonthsWithBudgets(userId: string): Promise<Date[]> {
+		const budgets = await prisma.budget.findMany({
+			where: { userId },
+			select: { month: true },
+			distinct: ['month'],
+			orderBy: { month: 'desc' },
+		});
+
+		return budgets.map((b) => b.month);
 	},
 };

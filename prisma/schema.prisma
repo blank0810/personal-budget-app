@@ -16,9 +16,11 @@ model User {
   id            String    @id @default(cuid())
   email         String    @unique
   name          String?
-  password      String
+  password      String?
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
+
+  phoneNumber   String?
 
   // Relations
   accounts      Account[]
@@ -27,8 +29,43 @@ model User {
   expenses      Expense[]
   transfers     Transfer[]
   budgets       Budget[]
+  authAccounts  AuthAccount[]
+  monthlyReports MonthlyReport[]
+  notificationPreferences UserNotificationPreference[]
+  featureRequests FeatureRequest[]
 
   @@map("users")
+}
+
+// OAuth account linking (named AuthAccount to avoid collision with financial Account)
+model AuthAccount {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@map("auth_accounts")
+}
+
+// Password reset tokens
+model PasswordResetToken {
+  id        String   @id @default(cuid())
+  email     String
+  token     String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@map("password_reset_tokens")
 }
 
 enum AccountType {
@@ -46,6 +83,18 @@ enum AccountType {
 enum CategoryType {
   INCOME
   EXPENSE
+}
+
+enum NotificationChannel {
+  EMAIL
+  SMS
+}
+
+enum RequestCategory {
+  BUG
+  ENHANCEMENT
+  NEW_FEATURE
+  UI_UX
 }
 
 // Account model (Bank, Cash, Credit Card, Investment, Loan)
@@ -198,4 +247,65 @@ model Budget {
   @@index([userId, month])
   @@index([userId, categoryId])    // For querying budgets by category
   @@map("budgets")
+}
+
+// Monthly Report - Generated PDF snapshots
+model MonthlyReport {
+  id        String   @id @default(cuid())
+  userId    String
+  period    DateTime                        // First day of month (e.g. 2026-01-01)
+  blobUrl   String                          // Vercel Blob download URL
+  fileName  String                          // Budget_Planner_January_2026.pdf
+  status    String   @default("completed")  // completed, failed
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, period])
+  @@map("monthly_reports")
+}
+
+// Notification type definitions (seeded, not user-created)
+model NotificationType {
+  id             String  @id @default(cuid())
+  key            String  @unique
+  label          String
+  description    String
+  category       String
+  defaultEnabled Boolean @default(true)
+
+  userPreferences UserNotificationPreference[]
+
+  @@map("notification_types")
+}
+
+// Per-user notification preference overrides (per channel)
+model UserNotificationPreference {
+  id                 String              @id @default(cuid())
+  userId             String
+  notificationTypeId String
+  channel            NotificationChannel @default(EMAIL)
+  enabled            Boolean
+
+  user             User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  notificationType NotificationType @relation(fields: [notificationTypeId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, notificationTypeId, channel])
+  @@map("user_notification_preferences")
+}
+
+// Feature Request - User-submitted feature requests and bug reports
+model FeatureRequest {
+  id          String          @id @default(cuid())
+  title       String
+  description String
+  category    RequestCategory
+  email       String
+  userId      String?
+  ip          String?
+  createdAt   DateTime        @default(now())
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@map("feature_requests")
 }

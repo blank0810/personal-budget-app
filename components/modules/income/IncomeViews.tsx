@@ -11,6 +11,7 @@ import {
 	CalendarDays,
 	ChevronLeft,
 	ChevronRight,
+	Download,
 } from 'lucide-react';
 
 interface IncomeWithRelations extends Income {
@@ -70,6 +71,35 @@ export function IncomeViews({ incomes }: IncomeViewsProps) {
 		setViewMode('list');
 	};
 
+	const handleExportCSV = () => {
+		const headers = ['Date', 'Description', 'Category', 'Account', 'Amount'];
+		const csvContent = [
+			headers.join(','),
+			...filteredIncomes.map((income) =>
+				[
+					format(new Date(income.date), 'yyyy-MM-dd'),
+					`"${(income.description || '').replace(/"/g, '""')}"`,
+					`"${income.category?.name || ''}"`,
+					`"${income.account?.name || ''}"`,
+					income.amount.toString(),
+				].join(',')
+			),
+		].join('\n');
+
+		const monthName = format(selectedMonth, 'MMMM_yyyy').toLowerCase();
+		const filename = `income_${monthName}.csv`;
+
+		const blob = new Blob([csvContent], { type: 'text/csv' });
+		const url = window.URL.createObjectURL(blob);
+		const a = document.createElement('a');
+		a.href = url;
+		a.download = filename;
+		document.body.appendChild(a);
+		a.click();
+		document.body.removeChild(a);
+		window.URL.revokeObjectURL(url);
+	};
+
 	const handlePreviousYear = () => {
 		setSelectedYear((prev) => prev - 1);
 	};
@@ -89,14 +119,25 @@ export function IncomeViews({ incomes }: IncomeViewsProps) {
 						: `Income Overview - ${selectedYear}`}
 				</h2>
 				{viewMode === 'list' && (
-					<Button
-						variant='outline'
-						size='sm'
-						onClick={() => setViewMode('months')}
-					>
-						<CalendarDays className='mr-2 h-4 w-4' />
-						View All Months
-					</Button>
+					<div className='flex items-center gap-2'>
+						<Button
+							variant='outline'
+							size='sm'
+							onClick={handleExportCSV}
+						>
+							<Download className='mr-2 h-4 w-4' />
+							<span className='hidden sm:inline'>Export CSV</span>
+							<span className='sm:hidden'>CSV</span>
+						</Button>
+						<Button
+							variant='outline'
+							size='sm'
+							onClick={() => setViewMode('months')}
+						>
+							<CalendarDays className='mr-2 h-4 w-4' />
+							View All Months
+						</Button>
+					</div>
 				)}
 				{viewMode === 'months' && (
 					<Button

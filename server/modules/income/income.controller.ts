@@ -4,6 +4,8 @@ import { auth } from '@/auth';
 import { IncomeService } from './income.service';
 import { createIncomeSchema, updateIncomeSchema } from './income.types';
 import { revalidatePath } from 'next/cache';
+import prisma from '@/lib/prisma';
+import { NotificationService } from '@/server/modules/notification/notification.service';
 
 /**
  * Helper to authenticate user
@@ -56,6 +58,44 @@ export async function createIncomeAction(formData: FormData) {
 	try {
 		await IncomeService.createIncome(userId, validatedFields.data);
 		revalidatePath('/', 'layout');
+
+		// Fire-and-forget income notification
+		const categoryId = validatedFields.data.categoryId;
+		const accountId = validatedFields.data.accountId;
+
+		let categoryName = 'Uncategorized';
+		if (categoryId) {
+			const cat = await prisma.category.findUnique({
+				where: { id: categoryId },
+				select: { name: true },
+			});
+			if (cat) categoryName = cat.name;
+		}
+
+		let accountInfo: { name: string; newBalance: number } | null = null;
+		if (accountId) {
+			const acc = await prisma.account.findUnique({
+				where: { id: accountId },
+				select: { name: true, balance: true },
+			});
+			if (acc) {
+				accountInfo = {
+					name: acc.name,
+					newBalance: acc.balance.toNumber(),
+				};
+			}
+		}
+
+		NotificationService.sendIncomeNotification(
+			userId,
+			{
+				amount: validatedFields.data.amount,
+				description: validatedFields.data.description || null,
+				categoryName,
+			},
+			accountInfo
+		).catch(() => {});
+
 		return { success: true };
 	} catch (error) {
 		console.error('Failed to create income:', error);

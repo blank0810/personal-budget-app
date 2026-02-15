@@ -2,7 +2,13 @@
 
 import { auth } from '@/auth';
 import { BudgetService } from './budget.service';
-import { createBudgetSchema, updateBudgetSchema } from './budget.types';
+import {
+	createBudgetSchema,
+	updateBudgetSchema,
+	replicateBudgetsSchema,
+	BudgetReplicationItem,
+	ReplicateBudgetsInput,
+} from './budget.types';
 import { revalidatePath } from 'next/cache';
 
 /**
@@ -108,5 +114,66 @@ export async function deleteBudgetAction(budgetId: string) {
 	} catch (error) {
 		console.error('Failed to delete budget:', error);
 		return { error: 'Failed to delete budget' };
+	}
+}
+
+/**
+ * Server Action: Get budgets for replication preview
+ * Returns budgets from source month with recommendation data
+ */
+export async function getBudgetsForReplicationAction(
+	sourceMonth: Date
+): Promise<BudgetReplicationItem[] | { error: string }> {
+	try {
+		const userId = await getAuthenticatedUser();
+		const budgets = await BudgetService.getBudgetsForReplication(
+			userId,
+			sourceMonth
+		);
+		return budgets;
+	} catch (error) {
+		console.error('Failed to get budgets for replication:', error);
+		return { error: 'Failed to load budgets' };
+	}
+}
+
+/**
+ * Server Action: Replicate budgets to target month
+ */
+export async function replicateBudgetsAction(
+	data: ReplicateBudgetsInput
+): Promise<{ success: boolean; created: number; skipped: string[] } | { error: string }> {
+	try {
+		const userId = await getAuthenticatedUser();
+
+		// Validate input
+		const validatedFields = replicateBudgetsSchema.safeParse(data);
+		if (!validatedFields.success) {
+			return { error: 'Invalid input data' };
+		}
+
+		const result = await BudgetService.replicateBudgets(
+			userId,
+			validatedFields.data
+		);
+
+		revalidatePath('/', 'layout');
+		return result;
+	} catch (error) {
+		console.error('Failed to replicate budgets:', error);
+		return { error: 'Failed to replicate budgets' };
+	}
+}
+
+/**
+ * Server Action: Get months that have budgets
+ */
+export async function getMonthsWithBudgetsAction(): Promise<Date[] | { error: string }> {
+	try {
+		const userId = await getAuthenticatedUser();
+		return await BudgetService.getMonthsWithBudgets(userId);
+	} catch (error) {
+		console.error('Failed to get months with budgets:', error);
+		return { error: 'Failed to load months' };
 	}
 }

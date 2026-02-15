@@ -1,5 +1,6 @@
 import { auth } from '@/auth';
 import { redirect } from 'next/navigation';
+import prisma from '@/lib/prisma';
 import { ReportService } from '@/server/modules/report/report.service';
 import { DashboardService } from '@/server/modules/dashboard/dashboard.service';
 import { BudgetService } from '@/server/modules/budget/budget.service';
@@ -21,6 +22,7 @@ import { serialize } from '@/lib/serialization';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Wallet, TrendingDown, PiggyBank } from 'lucide-react';
 import { FinancialHealthCheck } from '@/components/modules/reports/FinancialHealthCheck';
+import { SendReportDialog } from '@/components/modules/reports/SendReportDialog';
 
 export default async function ReportsPage({
 	searchParams,
@@ -69,6 +71,7 @@ export default async function ReportsPage({
 		transactionStatement,
 		allCategories,
 		healthScore,
+		userPrefs,
 	] = await Promise.all([
 		ReportService.getCategoryBreakdown(userId, from, to),
 		ReportService.getMonthlyComparison(userId, subMonths(to, 5), to),
@@ -83,6 +86,10 @@ export default async function ReportsPage({
 		ReportService.getTransactionStatement(userId, from, to),
 		CategoryService.getCategories(userId),
 		DashboardService.getFinancialHealthScore(userId),
+		prisma.user.findUniqueOrThrow({
+			where: { id: userId },
+			select: { email: true, createdAt: true },
+		}),
 	]);
 
 	const formatCurrency = (val: number) => {
@@ -115,7 +122,12 @@ export default async function ReportsPage({
 						Deep dive into your financial performance and trends.
 					</p>
 				</div>
-				<ReportsToolbar initialFrom={from} initialTo={to} />
+				<div className='flex items-center gap-2'>
+					<ReportsToolbar initialFrom={from} initialTo={to} />
+					<SendReportDialog
+						accountCreatedYear={userPrefs.createdAt.getFullYear()}
+					/>
+				</div>
 			</div>
 
 			<Tabs defaultValue='overview' className='space-y-4'>

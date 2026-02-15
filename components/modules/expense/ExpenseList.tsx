@@ -1,6 +1,6 @@
 'use client';
 
-import { DataTable, Column } from '@/components/common/DataTable';
+import { DataTable, Column, Filter } from '@/components/common/DataTable';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { format } from 'date-fns';
@@ -16,9 +16,10 @@ interface ExpenseWithRelations extends Expense {
 
 interface ExpenseListProps {
 	expenses: ExpenseWithRelations[];
+	filters?: Filter[];
 }
 
-export function ExpenseList({ expenses }: ExpenseListProps) {
+export function ExpenseList({ expenses, filters }: ExpenseListProps) {
 	async function handleDelete(id: string, e: React.MouseEvent) {
 		e.stopPropagation();
 		if (confirm('Are you sure you want to delete this expense?')) {
@@ -89,6 +90,7 @@ export function ExpenseList({ expenses }: ExpenseListProps) {
 		<DataTable
 			data={expenses}
 			columns={columns}
+			filters={filters}
 			searchPlaceholder='Search expenses...'
 			emptyMessage='No expense entries found.'
 			getRowId={(e) => e.id}

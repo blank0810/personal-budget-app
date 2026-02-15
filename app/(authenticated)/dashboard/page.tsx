@@ -28,8 +28,12 @@ import {
 	AlertOctagon,
 	PartyPopper,
 	Shield,
+	PiggyBank,
+	Target,
 } from 'lucide-react';
 import { formatCurrency } from '@/lib/formatters';
+import { groupAccountsByClass, ACCOUNT_CLASS_META } from '@/lib/account-utils';
+import type { AccountClass } from '@/lib/account-utils';
 
 import { ClearCacheButton } from '@/components/common/clear-cache-button';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -200,6 +204,9 @@ export default async function DashboardPage() {
 									];
 								const StatusIcon = config.icon;
 
+								const expenseSource =
+									fundHealth.emergencyFundExpenseSource;
+
 								return (
 									<>
 										<div
@@ -213,6 +220,13 @@ export default async function DashboardPage() {
 										<p className='text-xs text-muted-foreground mt-1 flex items-center gap-1'>
 											<StatusIcon className='h-3 w-3' />
 											{config.text}
+										</p>
+										<p className='text-xs text-muted-foreground mt-1'>
+											{expenseSource === 'actual'
+												? 'Based on actual spending'
+												: expenseSource === 'budget'
+												? 'Based on monthly budget'
+												: 'No expense data'}
 										</p>
 									</>
 								);
@@ -639,6 +653,25 @@ export default async function DashboardPage() {
 			{/* Budget Health Summary - Full Width */}
 			<BudgetHealthSummary health={budgetHealth} month={currentMonth} />
 
+			{/* Funds Section - Strategic goals above operational data */}
+			{fundHealth.funds.length > 0 && (
+				<Card>
+					<CardHeader>
+						<CardTitle className='flex items-center gap-2'>
+							<Shield className='h-5 w-5 text-blue-600' />
+							Your Funds
+						</CardTitle>
+					</CardHeader>
+					<CardContent>
+						<div className='grid gap-4 md:grid-cols-2 lg:grid-cols-3'>
+							{fundHealth.funds.map((fund) => (
+								<FundCard key={fund.id} fund={fund} />
+							))}
+						</div>
+					</CardContent>
+				</Card>
+			)}
+
 			<div className='grid gap-4 md:grid-cols-2 lg:grid-cols-7'>
 				{/* Recent Transactions - Top 5 with Summary */}
 				<Card className='md:col-span-2 lg:col-span-4'>
@@ -758,7 +791,7 @@ export default async function DashboardPage() {
 					</CardContent>
 				</Card>
 
-				{/* Split Account List: Assets vs Liabilities */}
+				{/* Account List: Grouped by Classification */}
 				<Card className='md:col-span-2 lg:col-span-3'>
 					<CardHeader>
 						<CardTitle>Accounts</CardTitle>
@@ -766,173 +799,97 @@ export default async function DashboardPage() {
 					<CardContent>
 						<ScrollArea className='h-[400px] pr-4'>
 							<div className='space-y-6'>
-								{/* Assets Group */}
-								<div>
-									<h3 className='text-xs font-semibold text-muted-foreground mb-3 uppercase tracking-wider flex items-center gap-1'>
-										<Wallet className='h-3 w-3' /> Liquid
-										Assets
-									</h3>
-									<div className='space-y-4'>
-										{accounts
-											.filter((a) => !a.isLiability)
-											.map((account) => (
-												<div
-													key={account.id}
-													className='flex items-center'
-												>
-													<div className='flex h-9 w-9 items-center justify-center rounded-full bg-emerald-100 dark:bg-emerald-900 text-emerald-600'>
-														<Wallet className='h-4 w-4' />
-													</div>
-													<div className='ml-4 space-y-1'>
-														<p className='text-sm font-medium leading-none'>
-															{account.name}
-														</p>
-														<p className='text-xs text-muted-foreground'>
-															{account.type}
-														</p>
-													</div>
-													<div className='ml-auto font-medium'>
-														{formatCurrency(
-															account.balance.toNumber()
-														)}
+								{(() => {
+									const grouped = groupAccountsByClass(accounts);
+									const iconMap = {
+										liquid: Wallet,
+										savings: PiggyBank,
+										liability: CreditCard,
+										fund: Target,
+									};
+									const bgMap = {
+										liquid: 'bg-emerald-100 dark:bg-emerald-900 text-emerald-600',
+										savings: 'bg-blue-100 dark:bg-blue-900 text-blue-600',
+										liability: 'bg-red-100 dark:bg-red-900 text-red-600',
+										fund: 'bg-violet-100 dark:bg-violet-900 text-violet-600',
+									};
+									const colorMap = {
+										liquid: 'text-emerald-600',
+										savings: 'text-blue-600',
+										liability: 'text-red-600',
+										fund: 'text-violet-600',
+									};
+									// Show liquid, savings, liability in the accounts card
+									// Funds have their own section below
+									const classOrder: AccountClass[] = ['liquid', 'savings', 'liability'];
+
+									return classOrder.map((cls, idx) => {
+										const groupAccounts = grouped[cls];
+										if (groupAccounts.length === 0) return null;
+										const meta = ACCOUNT_CLASS_META[cls];
+										const Icon = iconMap[cls];
+										const isLiability = cls === 'liability';
+
+										return (
+											<div key={cls}>
+												{idx > 0 && classOrder.slice(0, idx).some(c => grouped[c].length > 0) && (
+													<div className='border-t border-border mb-6'></div>
+												)}
+												<div>
+													<h3 className={`text-xs font-semibold mb-3 uppercase tracking-wider flex items-center gap-1 ${colorMap[cls]}`}>
+														<Icon className='h-3 w-3' /> {meta.label}
+													</h3>
+													<div className='space-y-4'>
+														{groupAccounts.map((account) => (
+															<div
+																key={account.id}
+																className='flex items-center'
+															>
+																<div className={`flex h-9 w-9 items-center justify-center rounded-full ${bgMap[cls]}`}>
+																	<Icon className='h-4 w-4' />
+																</div>
+																<div className='ml-4 space-y-1'>
+																	<p className='text-sm font-medium leading-none'>
+																		{account.name}
+																	</p>
+																	<div className='flex gap-2 text-xs text-muted-foreground'>
+																		<span>{account.type}</span>
+																		{account.type === 'CREDIT' && account.creditLimit && (
+																			<>
+																				<span
+																					className={(() => {
+																						const utilization = Number(account.balance) / Number(account.creditLimit);
+																						if (utilization >= 0.7) return 'text-red-600 dark:text-red-400';
+																						if (utilization >= 0.5) return 'text-orange-600 dark:text-orange-400';
+																						if (utilization >= 0.3) return 'text-yellow-600 dark:text-yellow-400';
+																						return 'text-green-600 dark:text-green-400';
+																					})()}
+																				>
+																					{Math.round((Number(account.balance) / Number(account.creditLimit)) * 100)}% Util
+																				</span>
+																				<span className='text-green-600 dark:text-green-400'>
+																					Avail: {formatCurrency(Number(account.creditLimit) - Number(account.balance))}
+																				</span>
+																			</>
+																		)}
+																	</div>
+																</div>
+																<div className={`ml-auto font-medium ${isLiability ? 'text-red-600' : ''}`}>
+																	{formatCurrency(Number(account.balance))}
+																</div>
+															</div>
+														))}
 													</div>
 												</div>
-											))}
-										{accounts.filter((a) => !a.isLiability)
-											.length === 0 && (
-											<p className='text-xs text-muted-foreground italic pl-2'>
-												No asset accounts
-											</p>
-										)}
-									</div>
-								</div>
-
-								<div className='border-t border-border'></div>
-
-								{/* Liabilities Group */}
-								<div>
-									<h3 className='text-xs font-semibold text-muted-foreground mb-3 uppercase tracking-wider flex items-center gap-1'>
-										<CreditCard className='h-3 w-3' />{' '}
-										Liabilities
-									</h3>
-									<div className='space-y-4'>
-										{accounts
-											.filter((a) => a.isLiability)
-											.map((account) => (
-												<div
-													key={account.id}
-													className='flex items-center'
-												>
-													<div className='flex h-9 w-9 items-center justify-center rounded-full bg-red-100 dark:bg-red-900 text-red-600'>
-														<CreditCard className='h-4 w-4' />
-													</div>
-													<div className='ml-4 space-y-1'>
-														<p className='text-sm font-medium leading-none'>
-															{account.name}
-														</p>
-														<div className='flex gap-2 text-xs text-muted-foreground'>
-															<span>
-																{account.type}
-															</span>
-															{account.type ===
-																'CREDIT' &&
-																account.creditLimit && (
-																	<>
-																		<span
-																			className={(() => {
-																				const utilization =
-																					Number(
-																						account.balance
-																					) /
-																					Number(
-																						account.creditLimit
-																					);
-																				if (
-																					utilization >=
-																					0.7
-																				)
-																					return 'text-red-600 dark:text-red-400';
-																				if (
-																					utilization >=
-																					0.5
-																				)
-																					return 'text-orange-600 dark:text-orange-400';
-																				if (
-																					utilization >=
-																					0.3
-																				)
-																					return 'text-yellow-600 dark:text-yellow-400';
-																				return 'text-green-600 dark:text-green-400';
-																			})()}
-																		>
-																			{Math.round(
-																				(Number(
-																					account.balance
-																				) /
-																					Number(
-																						account.creditLimit
-																					)) *
-																					100
-																			)}
-																			%
-																			Util
-																		</span>
-																		<span className='text-green-600 dark:text-green-400'>
-																			Avail:{' '}
-																			{formatCurrency(
-																				Number(
-																					account.creditLimit
-																				) -
-																					Number(
-																						account.balance
-																					)
-																			)}
-																		</span>
-																	</>
-																)}
-														</div>
-													</div>
-													<div className='ml-auto font-medium text-red-600'>
-														{formatCurrency(
-															Number(
-																account.balance
-															)
-														)}
-													</div>
-												</div>
-											))}
-										{accounts.filter((a) => a.isLiability)
-											.length === 0 && (
-											<p className='text-xs text-muted-foreground italic pl-2'>
-												No liability accounts
-											</p>
-										)}
-									</div>
-								</div>
+											</div>
+										);
+									});
+								})()}
 							</div>
 						</ScrollArea>
 					</CardContent>
 				</Card>
 			</div>
-
-			{/* Funds Section - Only show if user has funds */}
-			{fundHealth.funds.length > 0 && (
-				<Card>
-					<CardHeader>
-						<CardTitle className='flex items-center gap-2'>
-							<Shield className='h-5 w-5 text-blue-600' />
-							Your Funds
-						</CardTitle>
-					</CardHeader>
-					<CardContent>
-						<div className='grid gap-4 md:grid-cols-2 lg:grid-cols-3'>
-							{fundHealth.funds.map((fund) => (
-								<FundCard key={fund.id} fund={fund} />
-							))}
-						</div>
-					</CardContent>
-				</Card>
-			)}
 		</div>
 	);
 }

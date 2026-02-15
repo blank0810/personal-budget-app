@@ -35,9 +35,10 @@ import {
 	CreateExpenseInput,
 } from '@/server/modules/expense/expense.types';
 import { createExpenseAction } from '@/server/modules/expense/expense.controller';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Account, Category, Budget } from '@prisma/client';
 import { CategoryCombobox } from './CategoryCombobox';
+import { BudgetSelector } from './BudgetSelector';
 import { formatCurrency } from '@/lib/formatters';
 
 interface BudgetWithCategory extends Budget {
@@ -75,7 +76,7 @@ export function ExpenseForm({
 	const form = useForm({
 		resolver: zodResolver(createExpenseSchema),
 		defaultValues: {
-			amount: 0,
+			amount: undefined,
 			description: '',
 			date: new Date(),
 			isRecurring: false,
@@ -95,6 +96,21 @@ export function ExpenseForm({
 	const selectedBudgetId = form.watch('budgetId');
 	const selectedBudget = budgets.find((b) => b.id === selectedBudgetId);
 	const isCategoryLocked = !!selectedBudgetId;
+
+	// Watch date for budget month-change reset
+	const selectedDate = form.watch('date');
+
+	// Reset budget selection when expense date month changes
+	const prevMonthRef = useRef<string | null>(null);
+
+	useEffect(() => {
+		if (!selectedDate) return;
+		const monthKey = `${selectedDate.getFullYear()}-${selectedDate.getMonth()}`;
+		if (prevMonthRef.current && prevMonthRef.current !== monthKey) {
+			form.setValue('budgetId', undefined);
+		}
+		prevMonthRef.current = monthKey;
+	}, [selectedDate, form]);
 
 	// Auto-populate category when budget is selected
 	useEffect(() => {
@@ -138,7 +154,7 @@ export function ExpenseForm({
 			// Handle error (toast)
 		} else {
 			form.reset({
-				amount: 0,
+				amount: undefined,
 				description: '',
 				date: new Date(),
 				isRecurring: false,
@@ -380,77 +396,14 @@ export function ExpenseForm({
 					render={({ field }) => (
 						<FormItem>
 							<FormLabel>Budget (Optional)</FormLabel>
-							<Select
-								onValueChange={(value) => {
-									if (value === '__none__') {
-										field.onChange(undefined);
-									} else {
-										field.onChange(value);
-									}
-								}}
-								value={field.value || ''}
-							>
-								<FormControl>
-									<SelectTrigger className='w-full overflow-hidden'>
-										<span className='truncate'>
-											<SelectValue placeholder='Link to a budget (optional)' />
-										</span>
-									</SelectTrigger>
-								</FormControl>
-								<SelectContent>
-									<SelectItem
-										value='__placeholder__'
-										disabled
-										className='hidden'
-									>
-										Select a budget
-									</SelectItem>
-									<SelectItem value='__none__'>
-										No budget
-									</SelectItem>
-									{budgets.map((budget) => {
-										const isOverBudget = budget.remaining < 0;
-										const isNearLimit =
-											budget.percentage >= 80 &&
-											budget.percentage < 100;
-
-										return (
-											<SelectItem
-												key={budget.id}
-												value={budget.id}
-												className='truncate'
-											>
-												<span className='flex items-center gap-2 truncate'>
-													<span className='truncate'>
-														{budget.name} -{' '}
-														{format(
-															budget.month,
-															'MMM yyyy'
-														)}
-													</span>
-													<span
-														className={cn(
-															'text-xs font-medium shrink-0',
-															isOverBudget
-																? 'text-red-600'
-																: isNearLimit
-																? 'text-amber-600'
-																: 'text-green-600'
-														)}
-													>
-														(
-														{formatCurrency(
-															budget.remaining,
-															{ decimals: 0 }
-														)}{' '}
-														left)
-													</span>
-												</span>
-											</SelectItem>
-										);
-									})}
-								</SelectContent>
-							</Select>
+							<FormControl>
+								<BudgetSelector
+									budgets={budgets}
+									value={field.value}
+									onChange={field.onChange}
+									selectedDate={selectedDate}
+								/>
+							</FormControl>
 							<FormMessage />
 						</FormItem>
 					)}

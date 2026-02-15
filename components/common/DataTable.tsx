@@ -39,6 +39,19 @@ export interface Column<T> {
 	getValue?: (item: T) => unknown; // For sorting/searching nested values
 }
 
+export interface FilterOption {
+	value: string;
+	label: string;
+}
+
+export interface Filter {
+	key: string;
+	label: string;
+	options: FilterOption[];
+	value: string;
+	onChange: (value: string) => void;
+}
+
 interface DataTableProps<T> {
 	data: T[];
 	columns: Column<T>[];
@@ -47,6 +60,7 @@ interface DataTableProps<T> {
 	emptyMessage?: string;
 	onRowClick?: (item: T) => void;
 	getRowId: (item: T) => string;
+	filters?: Filter[];
 }
 
 type SortDirection = 'asc' | 'desc' | null;
@@ -68,6 +82,7 @@ export function DataTable<T>({
 	emptyMessage = 'No items found.',
 	onRowClick,
 	getRowId,
+	filters,
 }: DataTableProps<T>) {
 	const [searchQuery, setSearchQuery] = useState('');
 	const [sortKey, setSortKey] = useState<string | null>(null);
@@ -159,7 +174,7 @@ export function DataTable<T>({
 
 	return (
 		<div className='space-y-4'>
-			{/* Search Bar */}
+			{/* Search Bar and Filters */}
 			<div className='flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-4'>
 				<div className='relative flex-1 sm:max-w-sm'>
 					<Search className='absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground' />
@@ -170,6 +185,27 @@ export function DataTable<T>({
 						className='pl-9'
 					/>
 				</div>
+				{filters?.map((filter) => (
+					<Select
+						key={filter.key}
+						value={filter.value || '__all__'}
+						onValueChange={(val) =>
+							filter.onChange(val === '__all__' ? '' : val)
+						}
+					>
+						<SelectTrigger className='w-[160px]'>
+							<SelectValue placeholder={`All ${filter.label}`} />
+						</SelectTrigger>
+						<SelectContent>
+							<SelectItem value='__all__'>All {filter.label}</SelectItem>
+							{filter.options.map((opt) => (
+								<SelectItem key={opt.value} value={opt.value}>
+									{opt.label}
+								</SelectItem>
+							))}
+						</SelectContent>
+					</Select>
+				))}
 				<div className='text-sm text-muted-foreground'>
 					{filteredData.length} items
 				</div>

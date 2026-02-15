@@ -299,6 +299,8 @@ export const DashboardService = {
 				hasEmergencyFund: false,
 				emergencyFundMonths: null,
 				emergencyFundHealth: null,
+				emergencyFundExpenseSource: null,
+				monthlyExpenseBaseline: 0,
 			};
 		}
 
@@ -322,6 +324,22 @@ export const DashboardService = {
 			0
 		);
 
+		// 2b. Get 3-month average of ACTUAL expenses (hybrid approach)
+		const avgMonthlyExpense = await this.getAverageMonthlyExpense(userId, 3);
+
+		// 2c. Hybrid: Use actual expenses if available, otherwise fall back to budget
+		// This aligns with accounting best practices - actual spending is more accurate
+		// than planned spending for emergency fund calculations
+		const expenseSource: 'actual' | 'budget' | null =
+			avgMonthlyExpense > 0
+				? 'actual'
+				: totalMonthlyBudget > 0
+				? 'budget'
+				: null;
+
+		const monthlyExpenseBaseline =
+			avgMonthlyExpense > 0 ? avgMonthlyExpense : totalMonthlyBudget;
+
 		// 3. Calculate metrics for each fund
 		const funds = fundAccounts.map((fund) => {
 			const balance = Number(fund.balance);
@@ -342,10 +360,11 @@ export const DashboardService = {
 			let healthStatus: 'critical' | 'underfunded' | 'building' | 'funded';
 
 			if (mode === 'MONTHS_COVERAGE') {
-				// Calculate months of coverage
+				// Calculate months of coverage using hybrid expense baseline
+				// (actual expenses if available, otherwise budget)
 				monthsCoverage =
-					totalMonthlyBudget > 0
-						? balance / totalMonthlyBudget
+					monthlyExpenseBaseline > 0
+						? balance / monthlyExpenseBaseline
 						: balance > 0
 						? 999
 						: 0;
@@ -409,6 +428,233 @@ export const DashboardService = {
 			hasEmergencyFund: !!emergencyFund,
 			emergencyFundMonths: emergencyFund?.monthsCoverage ?? null,
 			emergencyFundHealth: emergencyFund?.healthStatus ?? null,
+			// New fields for transparency on calculation source
+			emergencyFundExpenseSource: expenseSource,
+			monthlyExpenseBaseline,
+		};
+	},
+
+	/**
+	 * Financial Health Score (0-100) across 5 pillars:
+	 * Solvency (25%), Liquidity (20%), Savings (20%), Debt Mgmt (20%), Cash Flow (15%)
+	 */
+	async getFinancialHealthScore(userId: string) {
+		const now = new Date();
+		const startCurrentMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+		const endCurrentMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+
+		const [healthMetrics, fundHealth, currentCashFlow] = await Promise.all([
+			this.getFinancialHealthMetrics(userId),
+			this.getFundHealthMetrics(userId),
+			this.getCashFlow(userId, startCurrentMonth, endCurrentMonth),
+		]);
+
+		type Pillar = {
+			name: string;
+			score: number;
+			grade: string;
+			weight: number;
+			details: string;
+			recommendation: string;
+		};
+
+		const gradeFromScore = (score: number): string => {
+			if (score >= 100) return 'A';
+			if (score >= 80) return 'B';
+			if (score >= 60) return 'C';
+			if (score >= 40) return 'D';
+			return 'F';
+		};
+
+		// --- Pillar 1: Solvency (25%) ---
+		const dta = healthMetrics.debtToAssetRatio;
+		const netWorthPositive = healthMetrics.ytdIncome > 0 || healthMetrics.liquidAssets > 0;
+		let solvencyScore: number;
+		let solvencyDetails: string;
+		let solvencyRec: string;
+
+		if (healthMetrics.totalDebt === 0 || (netWorthPositive && dta < 30)) {
+			solvencyScore = 100;
+			solvencyDetails = healthMetrics.totalDebt === 0
+				? 'Completely debt-free. You don\'t owe a single soul a single cent. That\'s not common — that\'s legendary.'
+				: `Debt-to-Asset ratio at ${dta.toFixed(1)}% — your assets dwarf your debt. You\'re built like a financial fortress.`;
+			solvencyRec = 'You\'ve mastered the game most people lose. Seriously, this is rare. Keep this energy forever.';
+		} else if (dta < 50) {
+			solvencyScore = 80;
+			solvencyDetails = `Debt-to-Asset ratio at ${dta.toFixed(1)}% — you\'re winning, just not dominating yet. Solid position though.`;
+			solvencyRec = 'You\'re ahead of most people. Chip that ratio under 30% and you\'ll be untouchable.';
+		} else if (dta < 75) {
+			solvencyScore = 60;
+			solvencyDetails = `Debt-to-Asset ratio at ${dta.toFixed(1)}% — more than half of what you "own" actually belongs to your lenders. Awkward.`;
+			solvencyRec = 'Your stuff is more theirs than yours. Every dollar you don\'t throw at this debt is a dollar you\'re renting from a bank.';
+		} else if (dta < 100) {
+			solvencyScore = 40;
+			solvencyDetails = `Debt-to-Asset ratio at ${dta.toFixed(1)}% — you\'re teetering on the edge of owing more than you\'re worth. Literally.`;
+			solvencyRec = 'You are dangerously close to being worth less than nothing. Stop buying things. Start selling things. Attack this debt like your life depends on it — because your financial life does.';
+		} else {
+			solvencyScore = 20;
+			solvencyDetails = dta > 0
+				? `Debt-to-Asset ratio at ${dta.toFixed(1)}% — you owe more than everything you own combined. If you were a company, shareholders would be jumping ship.`
+				: 'Negative net worth. You are worth less than zero dollars. Let that sink in.';
+			solvencyRec = 'You are underwater. Every possession you have doesn\'t cover what you owe. No vacations, no "retail therapy," no excuses. Scorched earth on spending until this is fixed.';
+		}
+
+		// --- Pillar 2: Liquidity (20%) ---
+		const runway = healthMetrics.runwayMonths;
+		const efHealth = fundHealth.emergencyFundHealth;
+		let liquidityScore: number;
+		let liquidityDetails: string;
+		let liquidityRec: string;
+
+		if (runway >= 6 || efHealth === 'funded') {
+			liquidityScore = 100;
+			liquidityDetails = fundHealth.hasEmergencyFund
+				? `Emergency fund locked and loaded — ${fundHealth.emergencyFundMonths?.toFixed(1)} months of pure "fire me, I dare you" money. Beautiful.`
+				: `${runway.toFixed(1)} months of runway. You could walk out of your job tomorrow and not break a sweat. That\'s freedom.`;
+			liquidityRec = 'You\'ve bought yourself something money can\'t usually buy — peace of mind. Now let the surplus work for you.';
+		} else if (runway >= 3 || efHealth === 'building') {
+			liquidityScore = 80;
+			liquidityDetails = fundHealth.hasEmergencyFund
+				? `Emergency fund at ${fundHealth.emergencyFundMonths?.toFixed(1)} months — you\'re building a real cushion. Respect.`
+				: `${runway.toFixed(1)} months of runway — you\'ve got a buffer, and that puts you ahead of most people.`;
+			liquidityRec = 'Good foundation. Push to 6 months and you\'ll sleep like someone who doesn\'t check their bank account at 2am.';
+		} else if (runway >= 1 || efHealth === 'underfunded') {
+			liquidityScore = 60;
+			liquidityDetails = fundHealth.hasEmergencyFund
+				? `Emergency fund at ${fundHealth.emergencyFundMonths?.toFixed(1)} months — that\'s not a safety net, that\'s a napkin. One emergency and it\'s gone.`
+				: `${runway.toFixed(1)} months of runway — a single car repair or ER visit and you\'re in crisis mode.`;
+			liquidityRec = 'You\'re one flat tire away from a panic attack. This needs to be 3 months minimum before you can relax about anything.';
+		} else if (runway > 0) {
+			liquidityScore = 40;
+			liquidityDetails = `${runway.toFixed(1)} months of runway — that\'s not a safety net, that\'s a trampoline with a hole in it. You\'re one bad week from broke.`;
+			liquidityRec = 'A surprise $500 expense would send you spiraling. Stop eating out, cancel what you don\'t need, and stockpile cash like your rent depends on it — because it does.';
+		} else {
+			liquidityScore = 20;
+			liquidityDetails = 'Absolutely zero liquid reserves. Nothing. You are one missed paycheck away from not making rent. That\'s not living, that\'s surviving.';
+			liquidityRec = 'You have no cushion, no backup, no plan B. If anything goes wrong — anything — you\'re done. Treat saving like a bill that\'s already overdue.';
+		}
+
+		// --- Pillar 3: Savings (20%) ---
+		const savingsRate = healthMetrics.savingsRate;
+		let savingsScore: number;
+		let savingsDetails: string;
+		let savingsRec: string;
+
+		if (savingsRate >= 20) {
+			savingsScore = 100;
+			savingsDetails = `Banking ${savingsRate.toFixed(1)}% of every paycheck. You\'re not just saving — you\'re building an empire, one paycheck at a time. Future you is going to be rich.`;
+			savingsRec = `This is genuinely impressive. Most people can\'t save 5% and you\'re at ${savingsRate.toFixed(0)}%. Keep compounding — this is how generational wealth starts.`;
+		} else if (savingsRate >= 10) {
+			savingsScore = 80;
+			savingsDetails = `Saving ${savingsRate.toFixed(1)}% — that\'s better than the majority of people. You\'re actually building something here.`;
+			savingsRec = 'Solid work. You\'re above average, but "above average" is a low bar. Push to 20% and go from good to unstoppable.';
+		} else if (savingsRate >= 5) {
+			savingsScore = 60;
+			savingsDetails = `Saving ${savingsRate.toFixed(1)}% — that\'s pocket lint. You\'re saving the equivalent of what most people spend on coffee. It\'s almost insulting to call this saving.`;
+			savingsRec = 'You think this is saving? This is finding loose change in the couch. Cut one subscription, eat out two fewer times, and double this number. It\'s embarrassingly easy.';
+		} else if (savingsRate > 0) {
+			savingsScore = 40;
+			savingsDetails = `Saving ${savingsRate.toFixed(1)}% — congratulations, you\'re saving so little that rounding would make it zero. Your piggy bank is on life support.`;
+			savingsRec = 'This "savings rate" wouldn\'t cover a parking ticket. You\'re hemorrhaging money somewhere and lying to yourself about where it\'s going. Audit every dollar.';
+		} else {
+			savingsScore = 20;
+			savingsDetails = savingsRate < 0
+				? `Spending ${Math.abs(savingsRate).toFixed(1)}% more than you earn. You\'re not just not saving — you\'re going backwards. Every month you get poorer. Let that hit you.`
+				: 'Saving exactly nothing. $0.00. Your savings account is collecting dust, not interest. Retirement you is going to be working a cash register.';
+			savingsRec = savingsRate < 0
+				? 'You are spending money you don\'t have. That\'s not a lifestyle, that\'s a countdown timer. Something has to go, and "I deserve it" is not a financial strategy.'
+				: 'Zero percent. In a world with automatic transfers and round-up apps, saving nothing is a choice — and it\'s a terrible one. Set up autopay to savings today. Not tomorrow. Today.';
+		}
+
+		// --- Pillar 4: Debt Management (20%) ---
+		const utilization = healthMetrics.creditUtilization;
+		let debtScore: number;
+		let debtDetails: string;
+		let debtRec: string;
+
+		if (healthMetrics.totalDebt === 0 || utilization < 10) {
+			debtScore = 100;
+			debtDetails = healthMetrics.totalDebt === 0
+				? 'Completely debt-free. You owe nobody nothing. While everyone else pays interest, you keep every cent. That\'s real wealth.'
+				: `Credit utilization at ${utilization.toFixed(1)}% — you use credit like a tool, not a crutch. This is how the financially literate operate.`;
+			debtRec = 'Textbook perfect. Banks love you, your credit score loves you, and you should love yourself for this. Don\'t change a thing.';
+		} else if (utilization < 30) {
+			debtScore = 80;
+			debtDetails = `Credit utilization at ${utilization.toFixed(1)}% — responsible and controlled. You\'re managing debt like an adult. Genuinely well done.`;
+			debtRec = 'You\'re in great shape. Drop it under 10% and your credit score will thank you with the best rates money can buy.';
+		} else if (utilization < 50) {
+			debtScore = 60;
+			debtDetails = `Credit utilization at ${utilization.toFixed(1)}% — half your available credit is already spoken for. Lenders are starting to raise an eyebrow.`;
+			debtRec = 'You\'re not in trouble yet, but the warning signs are flashing. Stop paying minimums — that\'s how banks keep you in debt forever. Pay aggressively or don\'t bother.';
+		} else if (utilization < 70) {
+			debtScore = 40;
+			debtDetails = `Credit utilization at ${utilization.toFixed(1)}% — you\'re burning through your credit like it\'s free money. Spoiler: it\'s the most expensive money there is.`;
+			debtRec = 'Every swipe is digging the hole deeper. The interest alone is eating you alive. Cut the cards up, switch to cash, and stop pretending minimum payments are progress.';
+		} else {
+			debtScore = 20;
+			debtDetails = `Credit utilization at ${utilization.toFixed(1)}% — nearly maxed out. You\'re not using credit anymore, credit is using you. You\'re a bank\'s favorite customer, and that\'s not a compliment.`;
+			debtRec = 'Put the cards in a drawer, a safe, a volcano — whatever it takes. You are paying interest on interest at this point. Cash only until further notice. This is non-negotiable.';
+		}
+
+		// --- Pillar 5: Cash Flow (15%) ---
+		const cashFlowRatio = currentCashFlow.income > 0
+			? (currentCashFlow.expense / currentCashFlow.income) * 100
+			: currentCashFlow.expense > 0 ? 100 : 0;
+		let cashFlowScore: number;
+		let cashFlowDetails: string;
+		let cashFlowRec: string;
+
+		if (cashFlowRatio < 70) {
+			cashFlowScore = 100;
+			cashFlowDetails = `Spending only ${cashFlowRatio.toFixed(1)}% of income — you\'re keeping 30+ cents of every dollar. Money flows in and stays. This is what financial control looks like.`;
+			cashFlowRec = 'Elite-level cash management. You have massive room to save, invest, and build. Most people dream of this margin — you\'re living it.';
+		} else if (cashFlowRatio < 80) {
+			cashFlowScore = 80;
+			cashFlowDetails = `Spending ${cashFlowRatio.toFixed(1)}% of income — you\'re in the green, keeping a healthy gap between what comes in and what goes out.`;
+			cashFlowRec = 'Positive cash flow is the foundation of everything. You\'re doing well — tighten the gap a bit more and you\'ll have real financial firepower.';
+		} else if (cashFlowRatio < 90) {
+			cashFlowScore = 60;
+			cashFlowDetails = `Spending ${cashFlowRatio.toFixed(1)}% of income — you\'re keeping a dime for every dollar. That\'s not a margin, that\'s a sliver. One surprise expense and you\'re at zero.`;
+			cashFlowRec = 'Where is it all going? Seriously. Pull up your expenses and find the leaks, because something is silently draining you. Subscriptions, food delivery, impulse purchases — audit everything.';
+		} else if (cashFlowRatio < 100) {
+			cashFlowScore = 40;
+			cashFlowDetails = `Spending ${cashFlowRatio.toFixed(1)}% of income — your paycheck enters your account and immediately evaporates. You\'re essentially working for free at this point.`;
+			cashFlowRec = 'Money in, money out, nothing left. You\'re a financial treadmill — running hard and going nowhere. Something major needs to be cut. You know exactly what it is. Stop protecting it.';
+		} else {
+			cashFlowScore = 20;
+			cashFlowDetails = cashFlowRatio > 100
+				? `Spending ${cashFlowRatio.toFixed(1)}% of income — you are literally spending money you don\'t have. Every single month you get poorer. This is the financial equivalent of running into traffic.`
+				: 'No income logged this month. Without income data, this score is just guessing — and we don\'t guess, we judge.';
+			cashFlowRec = cashFlowRatio > 100
+				? 'More going out than coming in. This isn\'t a budget problem, this is a math problem, and the math says you\'re going broke. Every day you don\'t fix this is a day you get deeper in the hole.'
+				: 'Log your income so we can give you a real score. Right now we\'re flying blind and so are you.';
+		}
+
+		// --- Build pillars array ---
+		const pillars: Pillar[] = [
+			{ name: 'Solvency', score: solvencyScore, grade: gradeFromScore(solvencyScore), weight: 0.25, details: solvencyDetails, recommendation: solvencyRec },
+			{ name: 'Liquidity', score: liquidityScore, grade: gradeFromScore(liquidityScore), weight: 0.20, details: liquidityDetails, recommendation: liquidityRec },
+			{ name: 'Savings', score: savingsScore, grade: gradeFromScore(savingsScore), weight: 0.20, details: savingsDetails, recommendation: savingsRec },
+			{ name: 'Debt Management', score: debtScore, grade: gradeFromScore(debtScore), weight: 0.20, details: debtDetails, recommendation: debtRec },
+			{ name: 'Cash Flow', score: cashFlowScore, grade: gradeFromScore(cashFlowScore), weight: 0.15, details: cashFlowDetails, recommendation: cashFlowRec },
+		];
+
+		// --- Overall score ---
+		const overallScore = Math.round(
+			pillars.reduce((sum, p) => sum + p.score * p.weight, 0)
+		);
+
+		const overallLabel =
+			overallScore >= 90 ? 'Excellent' :
+			overallScore >= 75 ? 'Good' :
+			overallScore >= 60 ? 'Fair' :
+			overallScore >= 40 ? 'Needs Attention' :
+			'Critical';
+
+		return {
+			overallScore,
+			overallLabel,
+			pillars,
 		};
 	},
 };

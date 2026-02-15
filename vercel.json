@@ -1,0 +1,16 @@
+{
+	"crons": [
+		{
+			"path": "/api/cron/monthly-report",
+			"schedule": "0 0 1 * *"
+		},
+		{
+			"path": "/api/cron/process-reports",
+			"schedule": "* * * * *"
+		},
+		{
+			"path": "/api/cron/process-sms",
+			"schedule": "* * * * *"
+		}
+	]
+}
