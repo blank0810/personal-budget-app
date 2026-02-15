@@ -18,6 +18,7 @@ services:
             BLOB_READ_WRITE_TOKEN: ${BLOB_READ_WRITE_TOKEN}
             SMS_API_KEY: ${SMS_API_KEY}
             SMS_API_URL: ${SMS_API_URL}
+            SMS_USER_ID: ${SMS_USER_ID}
         ports:
             - '3000:3000'
         depends_on:

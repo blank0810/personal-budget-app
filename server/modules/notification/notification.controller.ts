@@ -99,7 +99,7 @@ export async function sendTestSmsAction() {
 			return { error: 'No phone number set' };
 		}
 
-		const message = `[Budget Planner] Test SMS for ${user.name || 'User'}. If you're reading this, SMS notifications are working. Now go check your budget before I roast you for real.`;
+		const message = `[Budget Planner] SMS test passed! Notifications are live for ${user.name || 'User'}. Stay on budget!`;
 
 		const success = await SmsService.send(user.phoneNumber, message);
 		if (!success) {
