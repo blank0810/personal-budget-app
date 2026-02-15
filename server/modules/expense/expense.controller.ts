@@ -4,6 +4,8 @@ import { auth } from '@/auth';
 import { ExpenseService } from './expense.service';
 import { createExpenseSchema, updateExpenseSchema } from './expense.types';
 import { revalidatePath } from 'next/cache';
+import prisma from '@/lib/prisma';
+import { NotificationService } from '@/server/modules/notification/notification.service';
 
 /**
  * Helper to authenticate user
@@ -49,8 +51,41 @@ export async function createExpenseAction(formData: FormData) {
 	}
 
 	try {
+		// If linking to a budget, capture the spent amount BEFORE this expense
+		let prevSpent = 0;
+		const budgetId = validatedFields.data.budgetId;
+		if (budgetId) {
+			const agg = await prisma.expense.aggregate({
+				where: { budgetId, userId },
+				_sum: { amount: true },
+			});
+			prevSpent = agg._sum.amount?.toNumber() ?? 0;
+		}
+
 		await ExpenseService.createExpense(userId, validatedFields.data);
 		revalidatePath('/', 'layout');
+
+		// Fire-and-forget budget alert
+		if (budgetId) {
+			const budget = await prisma.budget.findUnique({
+				where: { id: budgetId },
+			});
+			if (budget) {
+				const budgetAmount = budget.amount.toNumber();
+				const newSpent = prevSpent + validatedFields.data.amount;
+				const prevPct = budgetAmount > 0 ? (prevSpent / budgetAmount) * 100 : 0;
+				const newPct = budgetAmount > 0 ? (newSpent / budgetAmount) * 100 : 0;
+
+				NotificationService.sendBudgetAlert(
+					userId,
+					{ id: budget.id, name: budget.name, amount: budgetAmount },
+					newSpent,
+					prevPct,
+					newPct
+				).catch(() => {});
+			}
+		}
+
 		return { success: true };
 	} catch (error) {
 		console.error('Failed to create expense:', error);
@@ -91,8 +126,56 @@ export async function updateExpenseAction(formData: FormData) {
 	}
 
 	try {
+		const newBudgetId = validatedFields.data.budgetId;
+
+		// If the updated expense is linked to a budget, capture previous spend
+		let prevSpent = 0;
+		let oldExpenseAmount = 0;
+		if (newBudgetId) {
+			const oldExpense = await prisma.expense.findUnique({
+				where: { id: validatedFields.data.id, userId },
+				select: { amount: true, budgetId: true },
+			});
+			oldExpenseAmount = oldExpense?.amount.toNumber() ?? 0;
+
+			const agg = await prisma.expense.aggregate({
+				where: { budgetId: newBudgetId, userId },
+				_sum: { amount: true },
+			});
+			const totalCurrentSpent = agg._sum.amount?.toNumber() ?? 0;
+
+			// If same budget, remove old amount to get the "before" state
+			if (oldExpense?.budgetId === newBudgetId) {
+				prevSpent = totalCurrentSpent - oldExpenseAmount;
+			} else {
+				prevSpent = totalCurrentSpent;
+			}
+		}
+
 		await ExpenseService.updateExpense(userId, validatedFields.data);
 		revalidatePath('/', 'layout');
+
+		// Fire-and-forget budget alert
+		if (newBudgetId) {
+			const budget = await prisma.budget.findUnique({
+				where: { id: newBudgetId },
+			});
+			if (budget) {
+				const budgetAmount = budget.amount.toNumber();
+				const newSpent = prevSpent + (validatedFields.data.amount ?? oldExpenseAmount);
+				const prevPct = budgetAmount > 0 ? (prevSpent / budgetAmount) * 100 : 0;
+				const newPct = budgetAmount > 0 ? (newSpent / budgetAmount) * 100 : 0;
+
+				NotificationService.sendBudgetAlert(
+					userId,
+					{ id: budget.id, name: budget.name, amount: budgetAmount },
+					newSpent,
+					prevPct,
+					newPct
+				).catch(() => {});
+			}
+		}
+
 		return { success: true };
 	} catch (error) {
 		console.error('Failed to update expense:', error);

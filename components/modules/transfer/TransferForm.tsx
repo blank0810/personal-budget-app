@@ -47,11 +47,16 @@ export function TransferForm({ accounts }: TransferFormProps) {
 	const [showReview, setShowReview] = useState(false);
 	const [formData, setFormData] = useState<CreateTransferInput | null>(null);
 
+	// Filter to only show asset accounts (non-liability, non-archived)
+	const transferableAccounts = accounts.filter(
+		(account) => !account.isLiability && !account.isArchived
+	);
+
 	const form = useForm<CreateTransferInput>({
 		resolver: zodResolver(createTransferSchema),
 		defaultValues: {
-			amount: 0,
-			fee: 0,
+			amount: undefined,
+			fee: undefined,
 			description: '',
 			date: new Date(),
 			fromAccountId: '',
@@ -91,8 +96,8 @@ export function TransferForm({ accounts }: TransferFormProps) {
 			// Ideally show toast error
 		} else {
 			form.reset({
-				amount: 0,
-				fee: 0,
+				amount: undefined,
+				fee: undefined,
 				description: '',
 				date: new Date(),
 				fromAccountId: '',
@@ -137,7 +142,7 @@ export function TransferForm({ accounts }: TransferFormProps) {
 											</SelectTrigger>
 										</FormControl>
 										<SelectContent>
-											{accounts.map((account) => (
+											{transferableAccounts.map((account) => (
 												<SelectItem
 													key={account.id}
 													value={account.id}
@@ -183,7 +188,7 @@ export function TransferForm({ accounts }: TransferFormProps) {
 											</SelectTrigger>
 										</FormControl>
 										<SelectContent>
-											{accounts.map((account) => (
+											{transferableAccounts.map((account) => (
 												<SelectItem
 													key={account.id}
 													value={account.id}

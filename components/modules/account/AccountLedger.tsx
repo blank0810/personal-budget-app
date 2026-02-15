@@ -16,6 +16,7 @@ import {
 	ArrowUpRight,
 	ArrowDownLeft,
 	ArrowRightLeft,
+	Receipt,
 } from 'lucide-react';
 import { Decimal } from '@prisma/client/runtime/library';
 import { Badge } from '@/components/ui/badge';
@@ -26,7 +27,7 @@ interface Transaction {
 	id: string;
 	date: Date;
 	amount: Decimal;
-	type: 'INCOME' | 'EXPENSE' | 'TRANSFER_IN' | 'TRANSFER_OUT';
+	type: 'INCOME' | 'EXPENSE' | 'TRANSFER_IN' | 'TRANSFER_OUT' | 'PAYMENT_IN' | 'PAYMENT_OUT';
 	description: string | null;
 	categoryName?: string;
 	relatedAccountName?: string;
@@ -54,7 +55,9 @@ export function AccountLedger({ account, transactions }: AccountLedgerProps) {
 		const csvContent = [
 			headers.join(','),
 			...transactions.map((t) => {
-				const typeLabel = t.type.replace('_', ' ');
+				const typeLabel = t.type === 'PAYMENT_IN' ? 'PAYMENT RECEIVED'
+					: t.type === 'PAYMENT_OUT' ? 'DEBT PAYMENT'
+					: t.type.replace('_', ' ');
 				const categoryOrAccount = t.relatedAccountName
 					? `Transfer with ${t.relatedAccountName}`
 					: t.categoryName || '-';
@@ -106,6 +109,18 @@ export function AccountLedger({ account, transactions }: AccountLedgerProps) {
 						TRANSFER OUT
 					</Badge>
 				);
+			case 'PAYMENT_IN':
+				return (
+					<Badge className='bg-emerald-100 text-emerald-800 hover:bg-emerald-100 border-emerald-200'>
+						PAYMENT RECEIVED
+					</Badge>
+				);
+			case 'PAYMENT_OUT':
+				return (
+					<Badge className='bg-purple-100 text-purple-800 hover:bg-purple-100 border-purple-200'>
+						DEBT PAYMENT
+					</Badge>
+				);
 		}
 	};
 
@@ -119,6 +134,10 @@ export function AccountLedger({ account, transactions }: AccountLedgerProps) {
 				return <ArrowRightLeft className='h-4 w-4 text-blue-600' />;
 			case 'TRANSFER_OUT':
 				return <ArrowRightLeft className='h-4 w-4 text-orange-600' />;
+			case 'PAYMENT_IN':
+				return <Receipt className='h-4 w-4 text-emerald-600' />;
+			case 'PAYMENT_OUT':
+				return <Receipt className='h-4 w-4 text-purple-600' />;
 		}
 	};
 
@@ -214,18 +233,30 @@ export function AccountLedger({ account, transactions }: AccountLedgerProps) {
 									</TableCell>
 									<TableCell
 										className={`text-right font-bold ${
-											['INCOME', 'TRANSFER_IN'].includes(
-												t.type
-											)
-												? 'text-green-600'
-												: 'text-red-600'
+											// Green = good for user, Red = bad for user
+											// For liabilities: PAYMENT_IN reduces debt (good), EXPENSE increases debt (bad)
+											// For assets: INCOME/TRANSFER_IN adds money (good), EXPENSE/TRANSFER_OUT removes money (bad)
+											account.isLiability
+												? ['PAYMENT_IN'].includes(t.type)
+													? 'text-green-600' // Payment reduces debt = good
+													: ['EXPENSE'].includes(t.type)
+														? 'text-red-600' // Expense increases debt = bad
+														: 'text-muted-foreground' // Transfers = neutral
+												: ['INCOME', 'TRANSFER_IN'].includes(t.type)
+													? 'text-green-600'
+													: 'text-red-600'
 										}`}
 									>
-										{['INCOME', 'TRANSFER_IN'].includes(
-											t.type
-										)
-											? '+'
-											: '-'}
+										{// Sign based on balance impact
+										account.isLiability
+											? ['PAYMENT_IN'].includes(t.type)
+												? '-' // Payment reduces debt
+												: ['EXPENSE', 'TRANSFER_OUT'].includes(t.type)
+													? '+' // Expense/transfer increases debt
+													: '+' // Default for liability
+											: ['INCOME', 'TRANSFER_IN', 'PAYMENT_IN'].includes(t.type)
+												? '+'
+												: '-'}
 										{formatCurrency(Number(t.amount))}
 									</TableCell>
 									<TableCell className='text-right font-medium text-muted-foreground'>

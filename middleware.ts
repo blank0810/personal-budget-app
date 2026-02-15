@@ -4,14 +4,23 @@ import type { NextRequest } from 'next/server';
 
 export default async function middleware(req: NextRequest) {
 	const session = await auth();
-	const isAuthPage =
-		req.nextUrl.pathname.startsWith('/login') ||
-		req.nextUrl.pathname.startsWith('/register');
+	const { pathname } = req.nextUrl;
 
-	if (isAuthPage) {
-		if (session) {
-			return NextResponse.redirect(new URL('/dashboard', req.url));
-		}
+	const isAuthPage =
+		pathname.startsWith('/login') ||
+		pathname.startsWith('/register') ||
+		pathname.startsWith('/forgot-password') ||
+		pathname.startsWith('/reset-password');
+
+	const isPublicPage = isAuthPage || pathname.startsWith('/changelog');
+
+	// Redirect authenticated users away from auth pages (not changelog)
+	if (isAuthPage && session) {
+		return NextResponse.redirect(new URL('/dashboard', req.url));
+	}
+
+	// Allow public pages without auth
+	if (isPublicPage) {
 		return NextResponse.next();
 	}
 

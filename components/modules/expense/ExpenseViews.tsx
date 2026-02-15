@@ -11,6 +11,7 @@ import {
 	CalendarDays,
 	ChevronLeft,
 	ChevronRight,
+	Download,
 } from 'lucide-react';
 
 interface ExpenseWithRelations extends Expense {
@@ -30,6 +31,18 @@ export function ExpenseViews({ expenses }: ExpenseViewsProps) {
 	const [selectedYear, setSelectedYear] = useState<number>(
 		new Date().getFullYear()
 	);
+	const [selectedCategory, setSelectedCategory] = useState<string>('');
+
+	// Extract unique categories from ALL expenses (not just current month)
+	const categoryOptions = useMemo(() => {
+		const uniqueCategories = new Map<string, string>();
+		expenses.forEach((exp) => {
+			uniqueCategories.set(exp.category.id, exp.category.name);
+		});
+		return Array.from(uniqueCategories.entries())
+			.map(([value, label]) => ({ value, label }))
+			.sort((a, b) => a.label.localeCompare(b.label));
+	}, [expenses]);
 
 	// Generate all 12 months for the selected year
 	const allMonthsData = useMemo(() => {
@@ -59,16 +72,63 @@ export function ExpenseViews({ expenses }: ExpenseViewsProps) {
 		return months;
 	}, [expenses, selectedYear]);
 
-	// Filter expenses for the selected month
+	// Filter expenses for the selected month AND category
 	const filteredExpenses = useMemo(() => {
-		return expenses.filter((expense) =>
-			isSameMonth(new Date(expense.date), selectedMonth)
-		);
-	}, [expenses, selectedMonth]);
+		return expenses.filter((expense) => {
+			const matchesMonth = isSameMonth(new Date(expense.date), selectedMonth);
+			const matchesCategory =
+				!selectedCategory || expense.categoryId === selectedCategory;
+			return matchesMonth && matchesCategory;
+		});
+	}, [expenses, selectedMonth, selectedCategory]);
+
+	// Filter config for ExpenseList
+	const filters = [
+		{
+			key: 'category',
+			label: 'Categories',
+			options: categoryOptions,
+			value: selectedCategory,
+			onChange: setSelectedCategory,
+		},
+	];
 
 	const handleMonthClick = (date: Date) => {
 		setSelectedMonth(date);
+		setSelectedCategory(''); // Reset category filter when changing months
 		setViewMode('list');
+	};
+
+	const handleExportCSV = () => {
+		const headers = ['Date', 'Description', 'Category', 'Account', 'Amount'];
+		const csvContent = [
+			headers.join(','),
+			...filteredExpenses.map((expense) =>
+				[
+					format(new Date(expense.date), 'yyyy-MM-dd'),
+					`"${(expense.description || '').replace(/"/g, '""')}"`,
+					`"${expense.category?.name || ''}"`,
+					`"${expense.account?.name || ''}"`,
+					expense.amount.toString(),
+				].join(',')
+			),
+		].join('\n');
+
+		const monthName = format(selectedMonth, 'MMMM_yyyy').toLowerCase();
+		const categoryName = selectedCategory
+			? `_${categoryOptions.find((c) => c.value === selectedCategory)?.label?.toLowerCase().replace(/\s+/g, '_') || ''}`
+			: '';
+		const filename = `expenses_${monthName}${categoryName}.csv`;
+
+		const blob = new Blob([csvContent], { type: 'text/csv' });
+		const url = window.URL.createObjectURL(blob);
+		const a = document.createElement('a');
+		a.href = url;
+		a.download = filename;
+		document.body.appendChild(a);
+		a.click();
+		document.body.removeChild(a);
+		window.URL.revokeObjectURL(url);
 	};
 
 	const handlePreviousYear = () => {
@@ -90,14 +150,25 @@ export function ExpenseViews({ expenses }: ExpenseViewsProps) {
 						: `Expense Overview - ${selectedYear}`}
 				</h2>
 				{viewMode === 'list' && (
-					<Button
-						variant='outline'
-						size='sm'
-						onClick={() => setViewMode('months')}
-					>
-						<CalendarDays className='mr-2 h-4 w-4' />
-						View All Months
-					</Button>
+					<div className='flex items-center gap-2'>
+						<Button
+							variant='outline'
+							size='sm'
+							onClick={handleExportCSV}
+						>
+							<Download className='mr-2 h-4 w-4' />
+							<span className='hidden sm:inline'>Export CSV</span>
+							<span className='sm:hidden'>CSV</span>
+						</Button>
+						<Button
+							variant='outline'
+							size='sm'
+							onClick={() => setViewMode('months')}
+						>
+							<CalendarDays className='mr-2 h-4 w-4' />
+							View All Months
+						</Button>
+					</div>
 				)}
 				{viewMode === 'months' && (
 					<Button
@@ -179,7 +250,7 @@ export function ExpenseViews({ expenses }: ExpenseViewsProps) {
 					</div>
 				</>
 			) : (
-				<ExpenseList expenses={filteredExpenses} />
+				<ExpenseList expenses={filteredExpenses} filters={filters} />
 			)}
 		</div>
 	);

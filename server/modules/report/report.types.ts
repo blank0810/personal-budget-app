@@ -105,3 +105,78 @@ export type StatementPrintPayload = {
 	accountName: string;
 	userName: string;
 };
+
+// Monthly Digest types for PDF report generation
+export type DigestHealthScore = {
+	score: number;
+	label: string;
+	roast: string;
+	topRecommendation: string;
+	focusPillar: string;
+};
+
+export type DigestIncomeExpense = {
+	totalIncome: number;
+	totalExpense: number;
+	netResult: number;
+	savingsRate: number;
+};
+
+export type DigestTopCategory = {
+	name: string;
+	amount: number;
+	percentage: number;
+};
+
+export type DigestBudgetPerformance = {
+	totalBudgeted: number;
+	totalSpent: number;
+	overUnder: number;
+};
+
+export type DigestLiabilityAccount = {
+	name: string;
+	balance: number;
+	creditLimit?: number;
+	utilization?: number;
+};
+
+export type DigestLiabilities = {
+	accounts: DigestLiabilityAccount[];
+	totalDebt: number;
+	monthlyPaydown: number;
+};
+
+export type DigestFundAccount = {
+	name: string;
+	balance: number;
+	target?: number;
+	progress?: number;
+};
+
+export type DigestFunds = {
+	accounts: DigestFundAccount[];
+	emergencyFundMonths?: number;
+};
+
+export type DigestNetWorth = {
+	current: number;
+	previousMonth: number;
+	change: number;
+	changePercent: number;
+};
+
+export type MonthlyDigest = {
+	userName: string;
+	userEmail: string;
+	month: string; // "January 2026"
+	sections: {
+		healthScore: DigestHealthScore;
+		incomeExpense?: DigestIncomeExpense;
+		topCategories?: DigestTopCategory[];
+		budgetPerformance?: DigestBudgetPerformance;
+		liabilities?: DigestLiabilities;
+		funds?: DigestFunds;
+		netWorth: DigestNetWorth;
+	};
+};

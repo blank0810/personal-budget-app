@@ -65,7 +65,7 @@ export function IncomeForm({
 	const form = useForm({
 		resolver: zodResolver(createIncomeSchema),
 		defaultValues: {
-			amount: 0,
+			amount: undefined,
 			description: '',
 			date: new Date(),
 			isRecurring: false,
@@ -142,7 +142,7 @@ export function IncomeForm({
 			// Handle error (toast)
 		} else {
 			form.reset({
-				amount: 0,
+				amount: undefined,
 				description: '',
 				date: new Date(),
 				isRecurring: false,

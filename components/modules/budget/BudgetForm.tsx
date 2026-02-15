@@ -46,7 +46,7 @@ export function BudgetForm({ categories }: BudgetFormProps) {
 		resolver: zodResolver(createBudgetSchema),
 		defaultValues: {
 			name: '',
-			amount: 0,
+			amount: undefined,
 			categoryId: '',
 			categoryName: '',
 			month: new Date(),

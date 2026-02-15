@@ -7,6 +7,7 @@ import {
 	NetWorthHistoryPoint,
 	CashFlowWaterfall,
 	TransactionStatement,
+	MonthlyDigest,
 } from './report.types';
 import {
 	endOfMonth,
@@ -15,11 +16,18 @@ import {
 	format,
 	differenceInDays,
 	subDays,
+	subMonths,
 	isSameDay,
 	startOfDay,
 	isAfter,
 	endOfDay,
 } from 'date-fns';
+import { DashboardService } from '@/server/modules/dashboard/dashboard.service';
+import { BudgetService } from '@/server/modules/budget/budget.service';
+import { renderMonthlyReportPDF } from './report.templates';
+import { put } from '@vercel/blob';
+import { EmailService } from '@/server/modules/email/email.service';
+import { NotificationService } from '@/server/modules/notification/notification.service';
 
 export const ReportService = {
 	/**
@@ -861,4 +869,267 @@ export const ReportService = {
 			periodEnd: endDate,
 		};
 	},
+
+	/**
+	 * Generate a monthly digest with all report sections
+	 * Gathers data from existing services, only includes sections with data
+	 */
+	async generateMonthlyDigest(
+		userId: string,
+		period: Date
+	): Promise<MonthlyDigest> {
+		const user = await prisma.user.findUniqueOrThrow({
+			where: { id: userId },
+			select: { name: true, email: true },
+		});
+
+		const monthStart = startOfMonth(period);
+		const monthEnd = endOfMonth(period);
+		const monthLabel = format(monthStart, 'MMMM yyyy');
+
+		// Always-present sections
+		const [healthScore, netWorthData] = await Promise.all([
+			DashboardService.getFinancialHealthScore(userId),
+			DashboardService.getNetWorth(userId),
+		]);
+
+		// Find the lowest-scoring pillar for focus area
+		const lowestPillar = healthScore.pillars.reduce((min, p) =>
+			p.score < min.score ? p : min
+		);
+
+		// Conditional sections — fetch in parallel
+		const [
+			financialStatement,
+			categoryBreakdown,
+			budgetTrends,
+			healthMetrics,
+			fundHealth,
+		] = await Promise.all([
+			this.getFinancialStatement(userId, monthStart, monthEnd),
+			this.getCategoryBreakdown(userId, monthStart, monthEnd),
+			BudgetService.getBudgetTrends(userId, monthStart, monthEnd),
+			DashboardService.getFinancialHealthMetrics(userId),
+			DashboardService.getFundHealthMetrics(userId),
+		]);
+
+		// Build sections object
+		const sections: MonthlyDigest['sections'] = {
+			healthScore: {
+				score: healthScore.overallScore,
+				label: healthScore.overallLabel,
+				roast: lowestPillar.details,
+				topRecommendation: lowestPillar.recommendation,
+				focusPillar: `${lowestPillar.name} (${lowestPillar.grade})`,
+			},
+			netWorth: {
+				current: netWorthData.netWorth,
+				previousMonth: 0, // Will calculate below
+				change: 0,
+				changePercent: 0,
+			},
+		};
+
+		// Calculate previous month net worth for comparison
+		const prevMonthStart = startOfMonth(subMonths(period, 1));
+		const prevMonthEnd = endOfMonth(subMonths(period, 1));
+		const prevNetWorthHistory = await this.getNetWorthHistory(
+			userId,
+			prevMonthStart,
+			prevMonthEnd
+		);
+		if (prevNetWorthHistory.length > 0) {
+			const prevNW =
+				prevNetWorthHistory[prevNetWorthHistory.length - 1].netWorth;
+			sections.netWorth.previousMonth = prevNW;
+			sections.netWorth.change = netWorthData.netWorth - prevNW;
+			sections.netWorth.changePercent =
+				prevNW !== 0
+					? ((netWorthData.netWorth - prevNW) / Math.abs(prevNW)) * 100
+					: 0;
+		}
+
+		// Income/Expense — only if there's data
+		if (financialStatement.totalIncome > 0 || financialStatement.totalExpense > 0) {
+			sections.incomeExpense = {
+				totalIncome: financialStatement.totalIncome,
+				totalExpense: financialStatement.totalExpense,
+				netResult: financialStatement.netIncome,
+				savingsRate: financialStatement.savingsRate,
+			};
+		}
+
+		// Top categories — only if expenses exist
+		if (categoryBreakdown.length > 0) {
+			sections.topCategories = categoryBreakdown.slice(0, 5).map((c) => ({
+				name: c.categoryName,
+				amount: c.amount,
+				percentage: c.percentage,
+			}));
+		}
+
+		// Budget performance — only if budgets exist for the month
+		const monthBudget = budgetTrends[0];
+		if (monthBudget && monthBudget.totalBudgeted > 0) {
+			sections.budgetPerformance = {
+				totalBudgeted: monthBudget.totalBudgeted,
+				totalSpent: monthBudget.totalSpent,
+				overUnder: monthBudget.totalBudgeted - monthBudget.totalSpent,
+			};
+		}
+
+		// Liabilities — only if user has liability accounts
+		if (healthMetrics.totalDebt > 0) {
+			const liabilityAccounts = await prisma.account.findMany({
+				where: { userId, isLiability: true, isArchived: false },
+				select: { name: true, balance: true, creditLimit: true },
+			});
+
+			sections.liabilities = {
+				accounts: liabilityAccounts.map((a) => ({
+					name: a.name,
+					balance: Number(a.balance),
+					creditLimit: a.creditLimit ? Number(a.creditLimit) : undefined,
+					utilization:
+						a.creditLimit && Number(a.creditLimit) > 0
+							? (Number(a.balance) / Number(a.creditLimit)) * 100
+							: undefined,
+				})),
+				totalDebt: healthMetrics.totalDebt,
+				monthlyPaydown: healthMetrics.debtPaydown,
+			};
+		}
+
+		// Funds — only if user has fund accounts
+		if (fundHealth.funds.length > 0) {
+			sections.funds = {
+				accounts: fundHealth.funds.map((f) => ({
+					name: f.name,
+					balance: f.balance,
+					target: f.targetAmount ?? undefined,
+					progress: f.progressPercent,
+				})),
+				emergencyFundMonths: fundHealth.emergencyFundMonths ?? undefined,
+			};
+		}
+
+		return {
+			userName: user.name || 'User',
+			userEmail: user.email,
+			month: monthLabel,
+			sections,
+		};
+	},
+
+	/**
+	 * Full pipeline: generate digest → render PDF → upload blob → save record → send email
+	 */
+	async generateAndSend(userId: string, period: Date): Promise<void> {
+		const monthStart = startOfMonth(period);
+
+		// 1. Generate digest data
+		const digest = await this.generateMonthlyDigest(userId, monthStart);
+
+		// 2. Render PDF
+		const pdfBuffer = await renderMonthlyReportPDF(digest);
+
+		// 3. Upload to Vercel Blob
+		const monthStr = format(monthStart, 'MMMM_yyyy');
+		const fileName = `Budget_Planner_${monthStr}.pdf`;
+		const blobPath = `monthly-reports/${userId}/${fileName}`;
+
+		const blob = await put(blobPath, pdfBuffer, {
+			access: 'public',
+			contentType: 'application/pdf',
+		});
+
+		// 4. Save MonthlyReport record
+		await prisma.monthlyReport.upsert({
+			where: { userId_period: { userId, period: monthStart } },
+			update: {
+				blobUrl: blob.url,
+				fileName,
+				status: 'completed',
+			},
+			create: {
+				userId,
+				period: monthStart,
+				blobUrl: blob.url,
+				fileName,
+				status: 'completed',
+			},
+		});
+
+		// 5. Send email with PDF attachment
+		const { score, label } = digest.sections.healthScore;
+		const monthLabel = digest.month;
+
+		const emailHtml = buildReportEmailHtml(digest);
+
+		await EmailService.sendWithAttachment({
+			to: digest.userEmail,
+			subject: `Your ${monthLabel} Financial Report — Score: ${score}/100`,
+			html: emailHtml,
+			attachments: [
+				{
+					filename: fileName,
+					content: Buffer.from(pdfBuffer),
+					contentType: 'application/pdf',
+				},
+			],
+		});
+
+		// 6. Queue SMS summary (if enabled)
+		const netAmount = digest.sections.incomeExpense?.netResult ?? 0;
+		await NotificationService.sendMonthlyReportSms(
+			userId,
+			monthLabel,
+			score,
+			netAmount
+		);
+	},
 };
+
+function buildReportEmailHtml(digest: MonthlyDigest): string {
+	const { healthScore, incomeExpense, netWorth } = digest.sections;
+	const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+
+	const formatCurrency = (val: number) =>
+		new Intl.NumberFormat('en-US', {
+			style: 'currency',
+			currency: 'USD',
+			maximumFractionDigits: 0,
+		}).format(val);
+
+	const netResultLine = incomeExpense
+		? `<tr><td style="padding:8px 0;color:#6b7280;">Net Result</td><td style="padding:8px 0;text-align:right;font-weight:600;color:${incomeExpense.netResult >= 0 ? '#059669' : '#dc2626'};">${incomeExpense.netResult >= 0 ? '+' : ''}${formatCurrency(incomeExpense.netResult)}</td></tr>`
+		: '';
+
+	const changeSign = netWorth.change >= 0 ? '+' : '';
+	const changeColor = netWorth.change >= 0 ? '#059669' : '#dc2626';
+
+	return `
+<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;max-width:600px;margin:0 auto;background:#ffffff;">
+  <div style="padding:32px 24px;border-bottom:3px solid #0d9488;">
+    <h1 style="margin:0;font-size:20px;color:#0d9488;">Budget Planner</h1>
+    <p style="margin:4px 0 0;color:#6b7280;font-size:14px;">Your ${digest.month} Financial Snapshot</p>
+  </div>
+  <div style="padding:24px;">
+    <p style="margin:0 0 20px;font-size:16px;">Hi ${digest.userName},</p>
+    <p style="margin:0 0 24px;color:#374151;">Your ${digest.month} financial snapshot is ready.</p>
+    <table style="width:100%;border-collapse:collapse;margin-bottom:24px;">
+      <tr><td style="padding:8px 0;color:#6b7280;">Health Score</td><td style="padding:8px 0;text-align:right;font-weight:700;font-size:18px;">${healthScore.score} / 100 <span style="color:#6b7280;font-weight:400;font-size:14px;">${healthScore.label}</span></td></tr>
+      ${netResultLine}
+      <tr><td style="padding:8px 0;color:#6b7280;">Net Worth</td><td style="padding:8px 0;text-align:right;font-weight:600;">${formatCurrency(netWorth.current)} <span style="color:${changeColor};font-size:13px;">${changeSign}${netWorth.changePercent.toFixed(1)}%</span></td></tr>
+    </table>
+    <p style="margin:0 0 24px;padding:16px;background:#f9fafb;border-left:3px solid #0d9488;color:#374151;font-style:italic;font-size:14px;">"${healthScore.roast}"</p>
+    <p style="margin:0 0 24px;color:#374151;font-size:14px;">Your full report is attached as a PDF.</p>
+    <hr style="border:none;border-top:1px solid #e5e7eb;margin:24px 0;">
+    <p style="margin:0;font-size:13px;color:#9ca3af;">
+      <a href="${appUrl}/reports" style="color:#0d9488;text-decoration:none;">View full analytics</a> &middot;
+      <a href="${appUrl}/api/unsubscribe?userId=${encodeURIComponent('')}" style="color:#9ca3af;text-decoration:none;">Unsubscribe from monthly reports</a>
+    </p>
+    <p style="margin:8px 0 0;font-size:12px;color:#d1d5db;">Budget Planner — Your personal financial companion</p>
+  </div>
+</div>`;
+}

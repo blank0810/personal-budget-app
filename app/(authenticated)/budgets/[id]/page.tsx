@@ -30,6 +30,7 @@ export default async function BudgetDetailPage({
 			<BudgetLedger
 				budget={serialize(data.budget) as BudgetWithName}
 				expenses={serialize(data.expenses)}
+				unlinkedExpenses={serialize(data.unlinkedExpenses)}
 				metrics={data.metrics}
 				categories={serialize(categories)}
 			/>

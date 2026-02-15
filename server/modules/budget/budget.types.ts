@@ -73,3 +73,32 @@ export interface CategoryRecommendation {
 	suggestedAmount: number | null; // null if stable
 	trend: string; // e.g., "Over 4/6 months"
 }
+
+// Budget Replication Types
+
+export const replicateBudgetItemSchema = z.object({
+	sourceBudgetId: z.string(),
+	name: z.string().min(1),
+	amount: z.number().positive(),
+	categoryId: z.string(),
+});
+
+export const replicateBudgetsSchema = z.object({
+	sourceMonth: z.date(),
+	targetMonth: z.date(),
+	budgetItems: z.array(replicateBudgetItemSchema),
+});
+
+export type ReplicateBudgetItem = z.infer<typeof replicateBudgetItemSchema>;
+export type ReplicateBudgetsInput = z.infer<typeof replicateBudgetsSchema>;
+
+export interface BudgetReplicationItem {
+	id: string;
+	name: string;
+	amount: number;
+	categoryId: string;
+	categoryName: string;
+	recommendation: 'increase' | 'decrease' | 'stable';
+	suggestedAmount: number | null;
+	trend: string;
+}

@@ -54,9 +54,14 @@ export interface BudgetWithName extends Budget {
 	category: Category;
 }
 
+interface UnlinkedExpense extends Expense {
+	account: Account | null;
+}
+
 interface BudgetLedgerProps {
 	budget: BudgetWithName;
 	expenses: ExpenseWithRunning[];
+	unlinkedExpenses?: UnlinkedExpense[];
 	metrics: BudgetMetrics;
 	categories: Category[];
 }
@@ -64,6 +69,7 @@ interface BudgetLedgerProps {
 export function BudgetLedger({
 	budget,
 	expenses,
+	unlinkedExpenses = [],
 	metrics,
 	categories,
 }: BudgetLedgerProps) {
@@ -343,6 +349,65 @@ export function BudgetLedger({
 					</TableBody>
 				</Table>
 			</div>
+
+			{/* Unlinked Expenses in Same Category */}
+			{unlinkedExpenses.length > 0 && (
+				<div className='space-y-3'>
+					<div className='flex items-center gap-2'>
+						<h3 className='text-sm font-semibold text-muted-foreground'>
+							Unlinked {budget.category.name} Expenses
+						</h3>
+						<Badge variant='secondary' className='text-xs'>
+							{unlinkedExpenses.length} expense{unlinkedExpenses.length !== 1 ? 's' : ''}
+						</Badge>
+					</div>
+					<p className='text-xs text-muted-foreground'>
+						These expenses are in the same category but not linked to any budget. They are not counted in the metrics above.
+					</p>
+					<div className='rounded-md border bg-card/50 overflow-x-auto'>
+						<Table>
+							<TableHeader>
+								<TableRow>
+									<TableHead className='w-[120px]'>Date</TableHead>
+									<TableHead>Description</TableHead>
+									<TableHead>Account</TableHead>
+									<TableHead className='text-right'>Amount</TableHead>
+								</TableRow>
+							</TableHeader>
+							<TableBody>
+								{unlinkedExpenses.map((expense) => (
+									<TableRow key={expense.id} className='text-muted-foreground'>
+										<TableCell>
+											{format(new Date(expense.date), 'MMM d, yyyy')}
+										</TableCell>
+										<TableCell>
+											{expense.description || '-'}
+										</TableCell>
+										<TableCell>
+											<Badge variant='outline' className='text-xs'>
+												{expense.account?.name || '-'}
+											</Badge>
+										</TableCell>
+										<TableCell className='text-right font-medium'>
+											-{formatCurrency(Number(expense.amount))}
+										</TableCell>
+									</TableRow>
+								))}
+								<TableRow className='bg-muted/50'>
+									<TableCell colSpan={3} className='text-right text-xs font-semibold'>
+										Unlinked Total
+									</TableCell>
+									<TableCell className='text-right font-bold text-sm'>
+										-{formatCurrency(
+											unlinkedExpenses.reduce((sum, e) => sum + Number(e.amount), 0)
+										)}
+									</TableCell>
+								</TableRow>
+							</TableBody>
+						</Table>
+					</div>
+				</div>
+			)}
 		</div>
 	);
 }

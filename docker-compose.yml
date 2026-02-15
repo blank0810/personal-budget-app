@@ -10,16 +10,37 @@ services:
             DATABASE_URL: ${DATABASE_URL}
             NEXTAUTH_URL: ${NEXTAUTH_URL}
             NEXTAUTH_SECRET: ${NEXTAUTH_SECRET}
+            SMTP_USER: ${SMTP_USER}
+            SMTP_PASS: ${SMTP_PASS}
+            NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL}
+            REDIS_URL: redis://redis:6379
+            CRON_SECRET: ${CRON_SECRET}
+            BLOB_READ_WRITE_TOKEN: ${BLOB_READ_WRITE_TOKEN}
+            SMS_API_KEY: ${SMS_API_KEY}
+            SMS_API_URL: ${SMS_API_URL}
         ports:
             - '3000:3000'
         depends_on:
             db:
                 condition: service_healthy
+            redis:
+                condition: service_started
         networks:
             - budget-network
         volumes:
             - ./:/app
             - /app/node_modules
+
+    redis:
+        image: redis:7-alpine
+        container_name: budget-planner-redis
+        restart: always
+        ports:
+            - '6379:6379'
+        volumes:
+            - redis_data:/data
+        networks:
+            - budget-network
 
     db:
         image: postgres:16-alpine
@@ -42,6 +63,21 @@ services:
             interval: 10s
             timeout: 5s
             retries: 5
+        networks:
+            - budget-network
+
+    bull-board:
+        image: deadly0/bull-board
+        container_name: budget-planner-bull-board
+        restart: always
+        environment:
+            REDIS_HOST: redis
+            REDIS_PORT: 6379
+        ports:
+            - '3002:3000'
+        depends_on:
+            redis:
+                condition: service_started
         networks:
             - budget-network
 
@@ -69,3 +105,4 @@ networks:
 volumes:
     postgres_data:
     pgadmin_data:
+    redis_data:

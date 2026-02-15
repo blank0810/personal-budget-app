@@ -141,12 +141,12 @@ export const AccountService = {
 				}),
 				prisma.transfer.findMany({
 					where: { fromAccountId: accountId, userId },
-					include: { toAccount: true },
+					include: { toAccount: { select: { name: true, isLiability: true } } },
 					orderBy: { date: 'desc' },
 				}),
 				prisma.transfer.findMany({
 					where: { toAccountId: accountId, userId },
-					include: { fromAccount: true },
+					include: { fromAccount: { select: { name: true, isLiability: true } } },
 					orderBy: { date: 'desc' },
 				}),
 			]);
@@ -171,35 +171,54 @@ export const AccountService = {
 				categoryName: e.category.name,
 				relatedAccountName: undefined,
 			})),
-			...transfersFrom.map((t) => ({
-				id: t.id,
-				date: t.date,
-				amount: t.amount,
-				type: 'TRANSFER_OUT' as const,
-				description: t.description,
-				categoryName: 'Transfer Out',
-				relatedAccountName: t.toAccount.name,
-			})),
-			...transfersTo.map((t) => ({
-				id: t.id,
-				date: t.date,
-				amount: t.amount,
-				type: 'TRANSFER_IN' as const,
-				description: t.description,
-				categoryName: 'Transfer In',
-				relatedAccountName: t.fromAccount.name,
-			})),
+			...transfersFrom.map((t) => {
+				// If transferring TO a liability, it's a debt payment
+				const isPayment = t.toAccount.isLiability;
+				return {
+					id: t.id,
+					date: t.date,
+					amount: t.amount,
+					type: isPayment ? ('PAYMENT_OUT' as const) : ('TRANSFER_OUT' as const),
+					description: t.description,
+					categoryName: isPayment ? 'Debt Payment' : 'Transfer Out',
+					relatedAccountName: t.toAccount.name,
+				};
+			}),
+			...transfersTo.map((t) => {
+				// If receiving FROM an asset to this liability, it's a payment received
+				const isPayment = account.isLiability && !t.fromAccount.isLiability;
+				return {
+					id: t.id,
+					date: t.date,
+					amount: t.amount,
+					type: isPayment ? ('PAYMENT_IN' as const) : ('TRANSFER_IN' as const),
+					description: t.description,
+					categoryName: isPayment ? 'Payment Received' : 'Transfer In',
+					relatedAccountName: t.fromAccount.name,
+				};
+			}),
 		].sort((a, b) => b.date.getTime() - a.date.getTime());
 
 		// Calculate running balance
 		let currentBalance = account.balance;
+		const isLiability = account.isLiability;
 		const transactionsWithBalance = transactions.map((t) => {
 			const runningBalance = currentBalance;
 			// Reverse calculation to find balance before this transaction (for the next iteration)
-			if (['EXPENSE', 'TRANSFER_OUT'].includes(t.type)) {
-				currentBalance = currentBalance.plus(t.amount);
+			// For liabilities: expense INCREASES debt, income/transfer-in DECREASES debt
+			// For assets: expense DECREASES balance, income/transfer-in INCREASES balance
+			if (isLiability) {
+				if (['EXPENSE', 'TRANSFER_OUT', 'PAYMENT_OUT'].includes(t.type)) {
+					currentBalance = currentBalance.minus(t.amount);
+				} else {
+					currentBalance = currentBalance.plus(t.amount);
+				}
 			} else {
-				currentBalance = currentBalance.minus(t.amount);
+				if (['EXPENSE', 'TRANSFER_OUT', 'PAYMENT_OUT'].includes(t.type)) {
+					currentBalance = currentBalance.plus(t.amount);
+				} else {
+					currentBalance = currentBalance.minus(t.amount);
+				}
 			}
 			return { ...t, runningBalance };
 		});
