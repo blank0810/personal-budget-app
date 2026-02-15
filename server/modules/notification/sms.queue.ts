@@ -45,11 +45,11 @@ export async function processBatch(batchSize: number = 5): Promise<number> {
 	let processed = 0;
 
 	return new Promise<number>((resolve) => {
-		// If no jobs arrive within 5 seconds, resolve with 0
+		// If no jobs arrive within 30 seconds, resolve with 0
 		const timeout = setTimeout(async () => {
 			await worker.close();
 			resolve(processed);
-		}, 5000);
+		}, 30000);
 
 		const worker = new Worker<SmsJobData>(
 			'sms-notifications',

@@ -10,7 +10,7 @@ export async function GET(req: NextRequest) {
 		return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 	}
 
-	const processed = await processBatch(5);
+	const processed = await processBatch(50);
 
 	return NextResponse.json({
 		message: `Processed ${processed} SMS jobs`,

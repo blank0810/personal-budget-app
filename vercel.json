@@ -6,11 +6,11 @@
 		},
 		{
 			"path": "/api/cron/process-reports",
-			"schedule": "* * * * *"
+			"schedule": "0 0 * * *"
 		},
 		{
 			"path": "/api/cron/process-sms",
-			"schedule": "* * * * *"
+			"schedule": "0 0 * * *"
 		}
 	]
 }
