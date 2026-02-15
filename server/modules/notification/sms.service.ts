@@ -1,5 +1,6 @@
-const SMS_API_URL = process.env.SMS_API_URL || 'https://sms-api-ph.netlify.app';
+const SMS_API_URL = process.env.SMS_API_URL || 'https://sms-api-ph-gceo.onrender.com';
 const SMS_API_KEY = process.env.SMS_API_KEY || '';
+const SMS_USER_ID = process.env.SMS_USER_ID || '';
 
 const PH_NUMBER_REGEX = /^\+639\d{9}$/;
 
@@ -33,7 +34,7 @@ export const SmsService = {
 					'Content-Type': 'application/json',
 					'x-api-key': SMS_API_KEY,
 				},
-				body: JSON.stringify({ to, message }),
+				body: JSON.stringify({ recipient: to, message, userId: SMS_USER_ID || undefined }),
 			});
 
 			if (!res.ok) {

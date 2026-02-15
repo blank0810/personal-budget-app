@@ -30,35 +30,33 @@ function pick<T>(arr: T[]): T {
 	return arr[Math.floor(Math.random() * arr.length)];
 }
 
-// Budget alert roast tiers
+// Budget alert roast tiers (max 120 chars)
 const BUDGET_ROAST_80 = [
-	(name: string, pct: string, spent: string, limit: string, remaining: string) =>
-		`[Budget Planner] ⚠️ ${pct}% of your "${name}" budget gone (₱${spent}/₱${limit}). ₱${remaining} left — maybe cook at home tonight?`,
-	(name: string, pct: string, spent: string, limit: string, remaining: string) =>
-		`[Budget Planner] ⚠️ "${name}" at ${pct}% (₱${spent}/₱${limit}). You've got ₱${remaining} and zero self-control. Good luck.`,
-	(name: string, pct: string, spent: string, limit: string, _remaining: string) =>
-		`[Budget Planner] ⚠️ "${name}" budget ${pct}% cooked (₱${spent}/₱${limit}). Your wallet is sweating. Put the card down.`,
+	(name: string, pct: string, _s: string, _l: string, rem: string) =>
+		`${name} at ${pct}%. P${rem} left. Maybe skip Grab today?`,
+	(name: string, pct: string, _s: string, _l: string, rem: string) =>
+		`${name} ${pct}% used. P${rem} left. Put the card down.`,
 ];
 
 const BUDGET_ROAST_90 = [
-	(name: string, pct: string, spent: string, limit: string, remaining: string) =>
-		`[Budget Planner] 🔥 Your "${name}" budget is on life support — ${pct}% gone (₱${spent}/₱${limit}). ₱${remaining} to survive the rest of the month. Good luck.`,
-	(name: string, pct: string, spent: string, limit: string, remaining: string) =>
-		`[Budget Planner] 🔥 "${name}" at ${pct}% (₱${spent}/₱${limit}). ₱${remaining} left. You're not budgeting, you're speedrunning poverty.`,
+	(name: string, pct: string, _s: string, _l: string, rem: string) =>
+		`${name} at ${pct}%! Only P${rem} left. Budget on life support.`,
+	(name: string, pct: string, _s: string, _l: string, rem: string) =>
+		`${name} ${pct}% gone. P${rem} to survive. Good luck.`,
 ];
 
 const BUDGET_ROAST_100 = [
-	(name: string, pct: string, spent: string, limit: string, over: string) =>
-		`[Budget Planner] 🚨 "${name}" budget OBLITERATED — ₱${spent} on a ₱${limit} limit (${pct}%). You're ₱${over} over. Your budget didn't die, you murdered it.`,
-	(name: string, pct: string, spent: string, limit: string, over: string) =>
-		`[Budget Planner] 🚨 "${name}" at ${pct}% — ₱${spent}/₱${limit}, ₱${over} over. Congratulations, you've unlocked financial self-destruction.`,
+	(name: string, pct: string, _s: string, _l: string, over: string) =>
+		`${name} at ${pct}%! P${over} over budget. You are COOKED.`,
+	(name: string, pct: string, _s: string, _l: string, over: string) =>
+		`${name} BUSTED at ${pct}%. P${over} over limit. Chill.`,
 ];
 
 const BUDGET_ROAST_110 = [
-	(name: string, pct: string, spent: string, limit: string, _over: string) =>
-		`[Budget Planner] 💀 "${name}" budget at ${pct}% — ₱${spent} on ₱${limit}. You're not overspending, you're committing financial arson. You are COOKED.`,
-	(name: string, pct: string, spent: string, limit: string, _over: string) =>
-		`[Budget Planner] 💀 "${name}" at ${pct}% (₱${spent}/₱${limit}). This isn't a budget anymore, it's a crime scene. You are absolutely COOKED.`,
+	(name: string, pct: string, _s: string, _l: string, _o: string) =>
+		`${name} at ${pct}%. This is a crime scene. COOKED.`,
+	(name: string, pct: string, _s: string, _l: string, _o: string) =>
+		`${name} ${pct}%. Financial arson. Absolutely COOKED.`,
 ];
 
 export function getBudgetRoastSms(
@@ -81,26 +79,26 @@ export function getBudgetRoastSms(
 	return pick(BUDGET_ROAST_80)(name, pct, spentStr, limitStr, remainingStr);
 }
 
-// Income roast tiers
+// Income roast tiers (max 120 chars)
 const INCOME_ROAST_SMALL = [
-	(amount: string, category: string, account: string, balance: string) =>
-		`[Budget Planner] ₱${amount} (${category}) → ${account}. Balance: ₱${balance}. That's not income, that's a consolation prize. Stack harder.`,
-	(amount: string, category: string, account: string, balance: string) =>
-		`[Budget Planner] ₱${amount} (${category}) → ${account}. Balance: ₱${balance}. Are you even trying? My lola's tindahan makes more than this.`,
+	(amt: string, cat: string, acct: string, _bal: string) =>
+		`P${amt} ${cat} in ${acct}. That's not income, that's loose change.`,
+	(amt: string, cat: string, acct: string, _bal: string) =>
+		`P${amt} ${cat} in ${acct}. Stack harder, this ain't it.`,
 ];
 
 const INCOME_ROAST_MEDIUM = [
-	(amount: string, category: string, account: string, balance: string) =>
-		`[Budget Planner] 💰 ₱${amount} (${category}) → ${account}. Balance: ₱${balance}. Decent bag. Touch it and I'll know.`,
-	(amount: string, category: string, account: string, balance: string) =>
-		`[Budget Planner] 💰 ₱${amount} (${category}) → ${account}. Balance: ₱${balance}. Not bad. Now pretend it doesn't exist and don't open Shopee.`,
+	(amt: string, cat: string, acct: string, _bal: string) =>
+		`P${amt} ${cat} in ${acct}. Decent bag. Don't touch it.`,
+	(amt: string, cat: string, acct: string, _bal: string) =>
+		`P${amt} ${cat} in ${acct}. Not bad. Stay off Shopee.`,
 ];
 
 const INCOME_ROAST_LARGE = [
-	(amount: string, category: string, account: string, balance: string) =>
-		`[Budget Planner] 🤑 ₱${amount} (${category}) → ${account}. Balance: ₱${balance}. Big bag alert. Invest it before you blow it on Shopee.`,
-	(amount: string, category: string, account: string, balance: string) =>
-		`[Budget Planner] 🤑 ₱${amount} (${category}) → ${account}. Balance: ₱${balance}. Fat stack. If you waste this I will personally haunt your wallet.`,
+	(amt: string, cat: string, acct: string, _bal: string) =>
+		`P${amt} ${cat} in ${acct}. Big bag! Invest, don't blow it.`,
+	(amt: string, cat: string, acct: string, _bal: string) =>
+		`P${amt} ${cat} in ${acct}. Fat stack. Don't waste this.`,
 ];
 
 export function getIncomeRoastSms(
@@ -120,33 +118,33 @@ export function getIncomeRoastSms(
 	return pick(INCOME_ROAST_SMALL)(amountStr, categoryName, account, balance);
 }
 
-// Monthly report roast tiers
+// Monthly report roast tiers (max 120 chars)
 const REPORT_ROAST_GREAT = [
 	(month: string, score: number, net: string) =>
-		`[Budget Planner] 📊 ${month} report: Health ${score}/100 | Net ${net}. You actually cooked this month (the good kind). Don't let it go to your head. Full report in email.`,
+		`${month}: ${score}/100 | ${net}. You cooked! Keep it up. Details in email.`,
 	(month: string, score: number, net: string) =>
-		`[Budget Planner] 📊 ${month}: ${score}/100 | Net ${net}. Okay you ate. Financial discipline unlocked. Keep this energy. Details in email.`,
+		`${month}: ${score}/100 | ${net}. Discipline unlocked. Check email for report.`,
 ];
 
 const REPORT_ROAST_GOOD = [
 	(month: string, score: number, net: string) =>
-		`[Budget Planner] 📊 ${month} report: Health ${score}/100 | Net ${net}. Not bad, not great. Financial C+ student. Room to grow. Details in email.`,
+		`${month}: ${score}/100 | ${net}. Not bad. Room to grow. Report in email.`,
 	(month: string, score: number, net: string) =>
-		`[Budget Planner] 📊 ${month}: ${score}/100 | Net ${net}. Mid performance. You're one bad decision from disaster. Step it up. Report in email.`,
+		`${month}: ${score}/100 | ${net}. Mid but alive. Step it up. Check email.`,
 ];
 
 const REPORT_ROAST_MID = [
 	(month: string, score: number, net: string) =>
-		`[Budget Planner] 📊 ${month} report: Health ${score}/100 | Net ${net}. Barely breathing financially. One impulse purchase from disaster. Wake-up call in email.`,
+		`${month}: ${score}/100 | ${net}. Barely surviving. Wake-up call in email.`,
 	(month: string, score: number, net: string) =>
-		`[Budget Planner] 📊 ${month}: ${score}/100 | Net ${net}. Your finances are on life support. Full damage report in email.`,
+		`${month}: ${score}/100 | ${net}. Finances on life support. Check email.`,
 ];
 
 const REPORT_ROAST_BAD = [
 	(month: string, score: number, net: string) =>
-		`[Budget Planner] 📊 ${month} report: Health ${score}/100 | Net ${net}. You are financially COOKED. This isn't a budget, it's a crime scene. Damage report in email.`,
+		`${month}: ${score}/100 | ${net}. Financially COOKED. Report in email.`,
 	(month: string, score: number, net: string) =>
-		`[Budget Planner] 📊 ${month}: ${score}/100 | Net ${net}. Absolute financial carnage. I've seen dumpster fires with better numbers. Report in email.`,
+		`${month}: ${score}/100 | ${net}. Absolute carnage. Damage report in email.`,
 ];
 
 export function getReportRoastSms(
