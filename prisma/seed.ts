@@ -119,6 +119,32 @@ async function main() {
 	}
 
 	console.log('Seeded notification types');
+
+	// Mark seed user as onboarded and set as ADMIN
+	await prisma.user.update({
+		where: { email },
+		data: { isOnboarded: true, role: 'ADMIN' },
+	});
+
+	console.log('Set seed user as onboarded ADMIN');
+
+	// Seed default feature flags
+	const featureFlags = [
+		{ key: 'recurring_transactions', enabled: true, description: 'Recurring transaction automation' },
+		{ key: 'csv_import', enabled: true, description: 'CSV transaction import' },
+		{ key: 'goals', enabled: true, description: 'Savings goals' },
+		{ key: 'ai_features', enabled: false, description: 'AI-powered features (coming soon)' },
+	];
+
+	for (const flag of featureFlags) {
+		await prisma.featureFlag.upsert({
+			where: { key: flag.key },
+			update: { description: flag.description },
+			create: flag,
+		});
+	}
+
+	console.log('Seeded feature flags');
 }
 
 main()
