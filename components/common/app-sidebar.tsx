@@ -10,6 +10,7 @@ import {
 	Sparkles,
 	MessageSquarePlus,
 	Wallet,
+	Shield,
 } from 'lucide-react';
 
 import { NavMain } from '@/components/common/nav-main';
@@ -73,7 +74,7 @@ const navItems = [
 ];
 
 interface AppSidebarProps extends React.ComponentProps<typeof Sidebar> {
-	user: { name: string; email: string };
+	user: { name: string; email: string; role: string };
 	signOutAction: () => Promise<void>;
 }
 
@@ -125,7 +126,20 @@ function AppSidebarInner({ user, signOutAction, ...props }: AppSidebarProps) {
 			</SidebarHeader>
 			<SidebarSeparator />
 			<SidebarContent>
-				<NavMain items={navItems} />
+				<NavMain
+					items={
+						user.role === 'ADMIN'
+							? [
+									...navItems,
+									{
+										title: 'Admin',
+										url: '/admin',
+										icon: Shield,
+									},
+								]
+							: navItems
+					}
+				/>
 			</SidebarContent>
 			<SidebarSeparator />
 			<SidebarFooter className='p-3'>
