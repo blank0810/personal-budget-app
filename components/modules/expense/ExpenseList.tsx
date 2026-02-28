@@ -7,7 +7,7 @@ import { format } from 'date-fns';
 import { Trash2 } from 'lucide-react';
 import { deleteExpenseAction } from '@/server/modules/expense/expense.controller';
 import { Expense, Category, Account } from '@prisma/client';
-import { formatCurrency } from '@/lib/formatters';
+import { useCurrency } from '@/lib/contexts/currency-context';
 
 interface ExpenseWithRelations extends Expense {
 	category: Category;
@@ -20,6 +20,8 @@ interface ExpenseListProps {
 }
 
 export function ExpenseList({ expenses, filters }: ExpenseListProps) {
+	const { formatCurrency } = useCurrency();
+
 	async function handleDelete(id: string, e: React.MouseEvent) {
 		e.stopPropagation();
 		if (confirm('Are you sure you want to delete this expense?')) {

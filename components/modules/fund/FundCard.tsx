@@ -11,7 +11,7 @@ import {
 	XCircle,
 	Zap,
 } from 'lucide-react';
-import { formatCurrency } from '@/lib/formatters';
+import { useCurrency } from '@/lib/contexts/currency-context';
 import { cn } from '@/lib/utils';
 
 export interface FundMetrics {
@@ -63,6 +63,7 @@ const healthStyles = {
 };
 
 export function FundCard({ fund }: FundCardProps) {
+	const { formatCurrency } = useCurrency();
 	const style = healthStyles[fund.healthStatus];
 	const Icon = fund.type === 'EMERGENCY_FUND' ? Shield : Target;
 	const StatusIcon = style.icon;

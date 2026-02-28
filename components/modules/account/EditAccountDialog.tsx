@@ -39,13 +39,14 @@ import {
 } from '@/components/ui/select';
 import { CurrencyInput } from '@/components/ui/currency-input';
 import { Settings2 } from 'lucide-react';
-import { formatCurrency } from '@/lib/formatters';
+import { useCurrency } from '@/lib/contexts/currency-context';
 
 interface EditAccountDialogProps {
 	account: Account;
 }
 
 export function EditAccountDialog({ account }: EditAccountDialogProps) {
+	const { formatCurrency } = useCurrency();
 	const [open, setOpen] = useState(false);
 	const [isPending, setIsPending] = useState(false);
 

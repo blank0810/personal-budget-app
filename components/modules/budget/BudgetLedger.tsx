@@ -23,7 +23,7 @@ import {
 	AlertTriangle,
 } from 'lucide-react';
 import Link from 'next/link';
-import { formatCurrency } from '@/lib/formatters';
+import { useCurrency } from '@/lib/contexts/currency-context';
 import { Budget, Category, Expense, Account } from '@prisma/client';
 import { cn } from '@/lib/utils';
 import { EditBudgetDialog } from './EditBudgetDialog';
@@ -73,6 +73,8 @@ export function BudgetLedger({
 	metrics,
 	categories,
 }: BudgetLedgerProps) {
+	const { formatCurrency } = useCurrency();
+
 	const handleExportCSV = () => {
 		const headers = [
 			'Date',

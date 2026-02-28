@@ -1,7 +1,7 @@
 'use client';
 
 import { TransactionStatement as TransactionStatementType } from '@/server/modules/report/report.types';
-import { formatCurrency } from '@/lib/formatters';
+import { useCurrency } from '@/lib/contexts/currency-context';
 import { format } from 'date-fns';
 import {
 	Card,
@@ -34,6 +34,8 @@ export function TransactionStatement({
 	accountName,
 	userName,
 }: TransactionStatementProps) {
+	const { formatCurrency } = useCurrency();
+
 	const handleExportPDF = () => {
 		// Encode statement data as base64 JSON
 		const payload = {

@@ -8,7 +8,7 @@ import {
 	TooltipProvider,
 	TooltipTrigger,
 } from '@/components/ui/tooltip';
-import { formatCurrency } from '@/lib/formatters';
+import { useCurrency } from '@/lib/contexts/currency-context';
 import { cn } from '@/lib/utils';
 
 interface RecommendationBadgeProps {
@@ -44,6 +44,7 @@ export function RecommendationBadge({
 	trend,
 	onApply,
 }: RecommendationBadgeProps) {
+	const { formatCurrency } = useCurrency();
 	const { label, icon: Icon, className } = config[recommendation];
 	const hasSuggestion = suggestedAmount !== null && suggestedAmount !== currentAmount;
 	const diff = suggestedAmount ? suggestedAmount - currentAmount : 0;

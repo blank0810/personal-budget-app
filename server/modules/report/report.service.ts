@@ -9,6 +9,7 @@ import {
 	TransactionStatement,
 	MonthlyDigest,
 } from './report.types';
+import { getCurrencyConfig } from '@/lib/currency';
 import {
 	endOfMonth,
 	startOfMonth,
@@ -880,7 +881,7 @@ export const ReportService = {
 	): Promise<MonthlyDigest> {
 		const user = await prisma.user.findUniqueOrThrow({
 			where: { id: userId },
-			select: { name: true, email: true },
+			select: { name: true, email: true, currency: true },
 		});
 
 		const monthStart = startOfMonth(period);
@@ -1016,6 +1017,7 @@ export const ReportService = {
 		return {
 			userName: user.name || 'User',
 			userEmail: user.email,
+			currency: user.currency,
 			month: monthLabel,
 			sections,
 		};
@@ -1094,10 +1096,11 @@ function buildReportEmailHtml(digest: MonthlyDigest): string {
 	const { healthScore, incomeExpense, netWorth } = digest.sections;
 	const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
 
+	const config = getCurrencyConfig(digest.currency);
 	const formatCurrency = (val: number) =>
-		new Intl.NumberFormat('en-US', {
+		new Intl.NumberFormat(config.locale, {
 			style: 'currency',
-			currency: 'USD',
+			currency: digest.currency,
 			maximumFractionDigits: 0,
 		}).format(val);
 

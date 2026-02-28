@@ -21,7 +21,7 @@ import {
 import { Decimal } from '@prisma/client/runtime/library';
 import { Badge } from '@/components/ui/badge';
 import Link from 'next/link';
-import { formatCurrency } from '@/lib/formatters';
+import { useCurrency } from '@/lib/contexts/currency-context';
 
 interface Transaction {
 	id: string;
@@ -44,6 +44,8 @@ interface AccountLedgerProps {
 }
 
 export function AccountLedger({ account, transactions }: AccountLedgerProps) {
+	const { formatCurrency } = useCurrency();
+
 	const handleExportCSV = () => {
 		const headers = [
 			'Date',

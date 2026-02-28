@@ -12,7 +12,7 @@ import {
 	XCircle,
 	Info,
 } from 'lucide-react';
-import { formatCurrency } from '@/lib/formatters';
+import { useCurrency } from '@/lib/contexts/currency-context';
 import { FundCard, type FundMetrics } from '@/components/modules/fund/FundCard';
 
 interface FundHealthData {
@@ -28,6 +28,7 @@ interface FundHealthReportProps {
 }
 
 export function FundHealthReport({ fundHealth }: FundHealthReportProps) {
+	const { formatCurrency } = useCurrency();
 	const { funds, totalFundBalance, hasEmergencyFund, emergencyFundHealth } = fundHealth;
 
 	// Calculate summary stats

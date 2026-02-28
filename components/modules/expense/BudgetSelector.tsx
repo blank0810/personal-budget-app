@@ -11,7 +11,7 @@ import {
 	PopoverTrigger,
 } from '@/components/ui/popover';
 import { Category, Budget } from '@prisma/client';
-import { formatCurrency } from '@/lib/formatters';
+import { useCurrency } from '@/lib/contexts/currency-context';
 
 interface BudgetWithCategory extends Budget {
 	category: Category;
@@ -76,6 +76,7 @@ export function BudgetSelector({
 	selectedDate,
 	disabled,
 }: BudgetSelectorProps) {
+	const { formatCurrency } = useCurrency();
 	const [open, setOpen] = useState(false);
 	const [view, setView] = useState<'current' | 'months'>('current');
 	const [expandedMonth, setExpandedMonth] = useState<string | null>(null);

@@ -8,7 +8,7 @@ import { format } from 'date-fns';
 import { Copy, FileText, PlusCircle, Trash2, Wallet } from 'lucide-react';
 import { ReplicateBudgetDialog } from './ReplicateBudgetDialog';
 import { deleteBudgetAction } from '@/server/modules/budget/budget.controller';
-import { formatCurrency } from '@/lib/formatters';
+import { useCurrency } from '@/lib/contexts/currency-context';
 import { Budget, Category } from '@prisma/client';
 import { cn } from '@/lib/utils';
 import Link from 'next/link';
@@ -26,6 +26,8 @@ interface BudgetListProps {
 }
 
 export function BudgetList({ budgets, availableMonths = [] }: BudgetListProps) {
+	const { formatCurrency } = useCurrency();
+
 	async function handleDelete(id: string, e: React.MouseEvent) {
 		e.stopPropagation();
 		if (confirm('Are you sure you want to delete this budget?')) {

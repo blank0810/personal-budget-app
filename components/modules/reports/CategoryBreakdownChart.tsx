@@ -10,7 +10,7 @@ import {
 } from 'recharts';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { CategoryBreakdown } from '@/server/modules/report/report.types';
-import { formatCurrency } from '@/lib/formatters';
+import { useCurrency } from '@/lib/contexts/currency-context';
 
 interface CategoryBreakdownChartProps {
 	data: CategoryBreakdown[];
@@ -26,6 +26,8 @@ const COLORS = [
 ];
 
 export function CategoryBreakdownChart({ data }: CategoryBreakdownChartProps) {
+	const { formatCurrency } = useCurrency();
+
 	return (
 		<Card className='col-span-4'>
 			<CardHeader>

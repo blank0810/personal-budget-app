@@ -5,7 +5,7 @@ import { useForm } from 'react-hook-form';
 import { format } from 'date-fns';
 import { CalendarIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { formatCurrency } from '@/lib/formatters';
+import { useCurrency } from '@/lib/contexts/currency-context';
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
 import {
@@ -43,6 +43,7 @@ interface TransferFormProps {
 }
 
 export function TransferForm({ accounts }: TransferFormProps) {
+	const { formatCurrency } = useCurrency();
 	const [isPending, setIsPending] = useState(false);
 	const [showReview, setShowReview] = useState(false);
 	const [formData, setFormData] = useState<CreateTransferInput | null>(null);

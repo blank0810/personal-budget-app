@@ -21,7 +21,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { ChevronsUpDown } from 'lucide-react';
 import { NetWorthHistoryPoint } from '@/server/modules/report/report.types';
-import { formatCurrency } from '@/lib/formatters';
+import { useCurrency } from '@/lib/contexts/currency-context';
 import { format } from 'date-fns';
 
 interface NetWorthTrendChartProps {
@@ -29,6 +29,7 @@ interface NetWorthTrendChartProps {
 }
 
 export function NetWorthTrendChart({ data }: NetWorthTrendChartProps) {
+	const { formatCurrency } = useCurrency();
 	const [isOpen, setIsOpen] = useState(true);
 
 	return (

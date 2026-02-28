@@ -1,5 +1,6 @@
 import { auth } from '@/auth';
 import { redirect } from 'next/navigation';
+import prisma from '@/lib/prisma';
 import { DashboardService } from '@/server/modules/dashboard/dashboard.service';
 import { BudgetService } from '@/server/modules/budget/budget.service';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -55,6 +56,7 @@ export default async function DashboardPage() {
 		financialHealth,
 		budgetHealth,
 		fundHealth,
+		dbUser,
 	] = await Promise.all([
 		DashboardService.getNetWorth(userId),
 		DashboardService.getRecentTransactions(userId, 5),
@@ -62,7 +64,13 @@ export default async function DashboardPage() {
 		DashboardService.getFinancialHealthMetrics(userId),
 		BudgetService.getBudgetHealthSummary(userId, currentMonth),
 		DashboardService.getFundHealthMetrics(userId),
+		prisma.user.findUnique({
+			where: { id: userId },
+			select: { currency: true },
+		}),
 	]);
+
+	const currency = dbUser?.currency ?? 'USD';
 
 	return (
 		<div className='container mx-auto py-6 md:py-10 space-y-8'>
@@ -115,10 +123,10 @@ export default async function DashboardPage() {
 									: 'text-red-700 dark:text-red-300'
 							}`}
 						>
-							{formatCurrency(netWorthData.netWorth)}
+							{formatCurrency(netWorthData.netWorth, { currency })}
 						</div>
 						<p className='text-xs text-muted-foreground mt-1'>
-							Assets: {formatCurrency(netWorthData.assets)}
+							Assets: {formatCurrency(netWorthData.assets, { currency })}
 						</p>
 						{netWorthData.netWorth < 0 && (
 							<p className='text-xs text-red-600 dark:text-red-400 mt-1 flex items-center gap-1'>
@@ -141,7 +149,7 @@ export default async function DashboardPage() {
 					</CardHeader>
 					<CardContent>
 						<div className='text-2xl font-bold text-red-600 dark:text-red-400'>
-							{formatCurrency(netWorthData.liabilities)}
+							{formatCurrency(netWorthData.liabilities, { currency })}
 						</div>
 						<p className='text-xs text-muted-foreground mt-1'>
 							{financialHealth.debtToAssetRatio.toFixed(1)}%
@@ -500,13 +508,15 @@ export default async function DashboardPage() {
 									<span>
 										Used:{' '}
 										{formatCurrency(
-											financialHealth.totalCreditUsed
+											financialHealth.totalCreditUsed,
+											{ currency }
 										)}
 									</span>
 									<span className='text-green-600 dark:text-green-400 font-medium'>
 										Available:{' '}
 										{formatCurrency(
-											financialHealth.availableCredit
+											financialHealth.availableCredit,
+											{ currency }
 										)}
 									</span>
 								</div>
@@ -576,7 +586,8 @@ export default async function DashboardPage() {
 										}`}
 									>
 										{formatCurrency(
-											financialHealth.debtPaydown
+											financialHealth.debtPaydown,
+											{ currency }
 										)}
 									</div>
 									<span className='text-sm text-muted-foreground'>
@@ -606,7 +617,8 @@ export default async function DashboardPage() {
 									<span>
 										Total Debt:{' '}
 										{formatCurrency(
-											financialHealth.totalDebt
+											financialHealth.totalDebt,
+											{ currency }
 										)}
 									</span>
 									<span
@@ -728,7 +740,8 @@ export default async function DashboardPage() {
 												: '-'}
 											{formatCurrency(
 												transaction.amount?.toNumber() ??
-													0
+													0,
+												{ currency }
 											)}
 										</div>
 									</div>
@@ -758,7 +771,8 @@ export default async function DashboardPage() {
 															(t.amount?.toNumber() ??
 																0),
 														0
-													)
+													),
+												{ currency }
 											)}
 										</span>
 										<span className='text-red-600'>
@@ -775,7 +789,8 @@ export default async function DashboardPage() {
 															(t.amount?.toNumber() ??
 																0),
 														0
-													)
+													),
+												{ currency }
 											)}
 										</span>
 									</div>
@@ -868,14 +883,14 @@ export default async function DashboardPage() {
 																					{Math.round((Number(account.balance) / Number(account.creditLimit)) * 100)}% Util
 																				</span>
 																				<span className='text-green-600 dark:text-green-400'>
-																					Avail: {formatCurrency(Number(account.creditLimit) - Number(account.balance))}
+																					Avail: {formatCurrency(Number(account.creditLimit) - Number(account.balance), { currency })}
 																				</span>
 																			</>
 																		)}
 																	</div>
 																</div>
 																<div className={`ml-auto font-medium ${isLiability ? 'text-red-600' : ''}`}>
-																	{formatCurrency(Number(account.balance))}
+																	{formatCurrency(Number(account.balance), { currency })}
 																</div>
 															</div>
 														))}

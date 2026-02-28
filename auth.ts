@@ -111,18 +111,35 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
 				// For Google sign-in, look up the actual DB user ID
 				const dbUser = await prisma.user.findUnique({
 					where: { email: user.email },
+					select: { id: true, currency: true, role: true, isOnboarded: true, isDisabled: true },
 				});
 				if (dbUser) {
 					token.sub = dbUser.id;
+					token.currency = dbUser.currency;
+					token.role = dbUser.role;
+					token.isOnboarded = dbUser.isOnboarded;
+					token.isDisabled = dbUser.isDisabled;
 				}
 			} else if (user) {
+				const dbUser = await prisma.user.findUnique({
+					where: { id: user.id },
+					select: { currency: true, role: true, isOnboarded: true, isDisabled: true },
+				});
 				token.sub = user.id;
+				token.currency = dbUser?.currency ?? 'USD';
+				token.role = dbUser?.role ?? 'USER';
+				token.isOnboarded = dbUser?.isOnboarded ?? false;
+				token.isDisabled = dbUser?.isDisabled ?? false;
 			}
 			return token;
 		},
 		async session({ session, token }) {
 			if (token.sub && session.user) {
 				session.user.id = token.sub;
+				session.user.currency = token.currency as string;
+				session.user.role = token.role as string;
+				session.user.isOnboarded = token.isOnboarded as boolean;
+				session.user.isDisabled = token.isDisabled as boolean;
 			}
 			return session;
 		},

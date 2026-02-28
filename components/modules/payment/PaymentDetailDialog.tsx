@@ -10,7 +10,7 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { formatCurrency } from '@/lib/formatters';
+import { useCurrency } from '@/lib/contexts/currency-context';
 import { format } from 'date-fns';
 import { ArrowRight, Calendar, Receipt, FileText, Trash2 } from 'lucide-react';
 import { deletePaymentAction } from '@/server/modules/payment/payment.controller';
@@ -46,6 +46,7 @@ export function PaymentDetailDialog({
 	open,
 	onOpenChange,
 }: PaymentDetailDialogProps) {
+	const { formatCurrency } = useCurrency();
 	const [isDeleting, setIsDeleting] = useState(false);
 	const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 

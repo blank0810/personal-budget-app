@@ -12,7 +12,7 @@ import { Button } from '@/components/ui/button';
 import { Trash2, FileText, Shield, Target } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { deleteAccountAction } from '@/server/modules/account/account.controller';
-import { formatCurrency } from '@/lib/formatters';
+import { useCurrency } from '@/lib/contexts/currency-context';
 import { Account } from '@prisma/client';
 import Link from 'next/link';
 import {
@@ -28,6 +28,7 @@ interface AccountListProps {
 }
 
 export function AccountList({ accounts }: AccountListProps) {
+	const { formatCurrency } = useCurrency();
 	const groups = groupAccountsByClass(accounts);
 
 	async function handleDelete(id: string) {
@@ -98,6 +99,7 @@ function AccountGroup({
 	accounts: Account[];
 	onDelete: (id: string) => void;
 }) {
+	const { formatCurrency } = useCurrency();
 	const isLiability = cls === 'liability';
 
 	return (
@@ -158,6 +160,8 @@ function AccountRow({
 	account: Account;
 	onDelete: (id: string) => void;
 }) {
+	const { formatCurrency } = useCurrency();
+
 	return (
 		<TableRow>
 			<TableCell className='font-medium'>{account.name}</TableCell>
@@ -205,6 +209,7 @@ function AccountRow({
 }
 
 function CreditUtilization({ account }: { account: Account }) {
+	const { formatCurrency } = useCurrency();
 	const creditLimit = Number(account.creditLimit);
 	const balance = Number(account.balance);
 	const utilization = balance / creditLimit;
@@ -251,6 +256,7 @@ function CreditUtilization({ account }: { account: Account }) {
 }
 
 function FundProgress({ account }: { account: Account }) {
+	const { formatCurrency } = useCurrency();
 	const balance = Number(account.balance);
 	const target = account.targetAmount ? Number(account.targetAmount) : null;
 	const mode = account.fundCalculationMode;

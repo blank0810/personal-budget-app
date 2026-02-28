@@ -44,7 +44,7 @@ import {
 	Shield,
 	Target,
 } from 'lucide-react';
-import { formatCurrency } from '@/lib/formatters';
+import { useCurrency } from '@/lib/contexts/currency-context';
 
 // Account type metadata for better UX
 const ACCOUNT_TYPE_META = {
@@ -59,6 +59,7 @@ const ACCOUNT_TYPE_META = {
 } as const;
 
 export function AccountForm() {
+	const { formatCurrency } = useCurrency();
 	const [isPending, setIsPending] = useState(false);
 
 	const form = useForm<CreateAccountInput>({

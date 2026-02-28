@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { DataTable, Column } from '@/components/common/DataTable';
 import { Badge } from '@/components/ui/badge';
-import { formatCurrency } from '@/lib/formatters';
+import { useCurrency } from '@/lib/contexts/currency-context';
 import { format } from 'date-fns';
 import { ArrowRight } from 'lucide-react';
 import {
@@ -18,6 +18,7 @@ interface PaymentListProps {
 export { type PaymentWithRelations } from './PaymentDetailDialog';
 
 export function PaymentList({ payments }: PaymentListProps) {
+	const { formatCurrency } = useCurrency();
 	const [selectedPayment, setSelectedPayment] =
 		useState<PaymentWithRelations | null>(null);
 

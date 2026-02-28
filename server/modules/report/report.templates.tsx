@@ -9,6 +9,7 @@ import {
 	renderToBuffer,
 } from '@react-pdf/renderer';
 import { MonthlyDigest } from './report.types';
+import { getCurrencyConfig } from '@/lib/currency';
 import path from 'path';
 
 // Register fonts from local files (no external URL dependency)
@@ -248,17 +249,21 @@ const styles = StyleSheet.create({
 	},
 });
 
-function formatCurrency(val: number): string {
-	return new Intl.NumberFormat('en-US', {
-		style: 'currency',
-		currency: 'USD',
-		maximumFractionDigits: 0,
-	}).format(val);
+function createCurrencyFormatter(currencyCode: string) {
+	const config = getCurrencyConfig(currencyCode);
+	return (val: number): string =>
+		new Intl.NumberFormat(config.locale, {
+			style: 'currency',
+			currency: currencyCode,
+			maximumFractionDigits: 0,
+		}).format(val);
 }
 
 function formatPercent(val: number): string {
 	return `${val >= 0 ? '+' : ''}${val.toFixed(1)}%`;
 }
+
+type CurrencyFormatter = (val: number) => string;
 
 // --- Section Components ---
 
@@ -311,8 +316,10 @@ function HealthScoreSection({
 
 function IncomeExpenseSection({
 	data,
+	fmt,
 }: {
 	data: NonNullable<MonthlyDigest['sections']['incomeExpense']>;
+	fmt: CurrencyFormatter;
 }) {
 	const saved = data.netResult >= 0;
 	return (
@@ -321,11 +328,11 @@ function IncomeExpenseSection({
 			<Text style={styles.narrative}>
 				You earned{' '}
 				<Text style={styles.narrativeBold}>
-					{formatCurrency(data.totalIncome)}
+					{fmt(data.totalIncome)}
 				</Text>{' '}
 				and spent{' '}
 				<Text style={styles.narrativeBold}>
-					{formatCurrency(data.totalExpense)}
+					{fmt(data.totalExpense)}
 				</Text>
 				.
 			</Text>
@@ -334,7 +341,7 @@ function IncomeExpenseSection({
 					<>
 						You saved{' '}
 						<Text style={{ ...styles.narrativeBold, color: GREEN }}>
-							{formatCurrency(data.netResult)}
+							{fmt(data.netResult)}
 						</Text>{' '}
 						— that&apos;s {data.savingsRate.toFixed(1)}% of your
 						income.
@@ -343,7 +350,7 @@ function IncomeExpenseSection({
 					<>
 						You overspent by{' '}
 						<Text style={{ ...styles.narrativeBold, color: RED }}>
-							{formatCurrency(Math.abs(data.netResult))}
+							{fmt(Math.abs(data.netResult))}
 						</Text>
 						.
 					</>
@@ -355,8 +362,10 @@ function IncomeExpenseSection({
 
 function TopCategoriesSection({
 	data,
+	fmt,
 }: {
 	data: NonNullable<MonthlyDigest['sections']['topCategories']>;
+	fmt: CurrencyFormatter;
 }) {
 	const maxAmount = data[0]?.amount || 1;
 
@@ -375,7 +384,7 @@ function TopCategoriesSection({
 						/>
 					</View>
 					<Text style={styles.progressAmount}>
-						{formatCurrency(cat.amount)}
+						{fmt(cat.amount)}
 					</Text>
 				</View>
 			))}
@@ -385,8 +394,10 @@ function TopCategoriesSection({
 
 function BudgetCheckSection({
 	data,
+	fmt,
 }: {
 	data: NonNullable<MonthlyDigest['sections']['budgetPerformance']>;
+	fmt: CurrencyFormatter;
 }) {
 	const under = data.overUnder >= 0;
 	return (
@@ -395,11 +406,11 @@ function BudgetCheckSection({
 			<Text style={styles.narrative}>
 				You budgeted{' '}
 				<Text style={styles.narrativeBold}>
-					{formatCurrency(data.totalBudgeted)}
+					{fmt(data.totalBudgeted)}
 				</Text>{' '}
 				and spent{' '}
 				<Text style={styles.narrativeBold}>
-					{formatCurrency(data.totalSpent)}
+					{fmt(data.totalSpent)}
 				</Text>
 				.
 			</Text>
@@ -408,7 +419,7 @@ function BudgetCheckSection({
 					<>
 						Under budget by{' '}
 						<Text style={{ ...styles.narrativeBold, color: GREEN }}>
-							{formatCurrency(data.overUnder)}
+							{fmt(data.overUnder)}
 						</Text>
 						. Nice restraint.
 					</>
@@ -416,7 +427,7 @@ function BudgetCheckSection({
 					<>
 						Over budget by{' '}
 						<Text style={{ ...styles.narrativeBold, color: RED }}>
-							{formatCurrency(Math.abs(data.overUnder))}
+							{fmt(Math.abs(data.overUnder))}
 						</Text>
 						. Time to recalibrate.
 					</>
@@ -428,8 +439,10 @@ function BudgetCheckSection({
 
 function LiabilitiesSection({
 	data,
+	fmt,
 }: {
 	data: NonNullable<MonthlyDigest['sections']['liabilities']>;
+	fmt: CurrencyFormatter;
 }) {
 	return (
 		<View style={styles.section}>
@@ -448,21 +461,21 @@ function LiabilitiesSection({
 						/>
 					</View>
 					<Text style={styles.progressAmount}>
-						{formatCurrency(acc.balance)}
+						{fmt(acc.balance)}
 					</Text>
 				</View>
 			))}
 			<View style={styles.tableRow}>
 				<Text style={styles.tableLabel}>Total Debt</Text>
 				<Text style={{ ...styles.tableValue, color: RED }}>
-					{formatCurrency(data.totalDebt)}
+					{fmt(data.totalDebt)}
 				</Text>
 			</View>
 			{data.monthlyPaydown > 0 && (
 				<View style={styles.tableRow}>
 					<Text style={styles.tableLabel}>Paid Down This Month</Text>
 					<Text style={{ ...styles.tableValue, color: GREEN }}>
-						{formatCurrency(data.monthlyPaydown)}
+						{fmt(data.monthlyPaydown)}
 					</Text>
 				</View>
 			)}
@@ -472,8 +485,10 @@ function LiabilitiesSection({
 
 function FundsSection({
 	data,
+	fmt,
 }: {
 	data: NonNullable<MonthlyDigest['sections']['funds']>;
+	fmt: CurrencyFormatter;
 }) {
 	return (
 		<View style={styles.section}>
@@ -491,9 +506,9 @@ function FundsSection({
 						/>
 					</View>
 					<Text style={styles.progressAmount}>
-						{formatCurrency(fund.balance)}
+						{fmt(fund.balance)}
 						{fund.target
-							? ` / ${formatCurrency(fund.target)}`
+							? ` / ${fmt(fund.target)}`
 							: ''}
 					</Text>
 				</View>
@@ -514,15 +529,17 @@ function FundsSection({
 
 function NetWorthSection({
 	data,
+	fmt,
 }: {
 	data: MonthlyDigest['sections']['netWorth'];
+	fmt: CurrencyFormatter;
 }) {
 	const positive = data.change >= 0;
 	return (
 		<View style={styles.section}>
 			<Text style={styles.sectionTitle}>Net Worth</Text>
 			<Text style={styles.netWorthValue}>
-				{formatCurrency(data.current)}
+				{fmt(data.current)}
 			</Text>
 			{data.previousMonth !== 0 && (
 				<Text
@@ -532,7 +549,7 @@ function NetWorthSection({
 					}}
 				>
 					{positive ? '\u2191' : '\u2193'}{' '}
-					{formatCurrency(Math.abs(data.change))} (
+					{fmt(Math.abs(data.change))} (
 					{formatPercent(data.changePercent)}) from last month
 				</Text>
 			)}
@@ -574,6 +591,7 @@ function FooterSection({ digest }: { digest: MonthlyDigest }) {
 
 function MonthlyReportDocument({ digest }: { digest: MonthlyDigest }) {
 	const { sections } = digest;
+	const fmt = createCurrencyFormatter(digest.currency);
 
 	return (
 		<Document
@@ -584,19 +602,19 @@ function MonthlyReportDocument({ digest }: { digest: MonthlyDigest }) {
 				<HeaderSection digest={digest} />
 				<HealthScoreSection data={sections.healthScore} />
 				{sections.incomeExpense && (
-					<IncomeExpenseSection data={sections.incomeExpense} />
+					<IncomeExpenseSection data={sections.incomeExpense} fmt={fmt} />
 				)}
 				{sections.topCategories && (
-					<TopCategoriesSection data={sections.topCategories} />
+					<TopCategoriesSection data={sections.topCategories} fmt={fmt} />
 				)}
 				{sections.budgetPerformance && (
-					<BudgetCheckSection data={sections.budgetPerformance} />
+					<BudgetCheckSection data={sections.budgetPerformance} fmt={fmt} />
 				)}
 				{sections.liabilities && (
-					<LiabilitiesSection data={sections.liabilities} />
+					<LiabilitiesSection data={sections.liabilities} fmt={fmt} />
 				)}
-				{sections.funds && <FundsSection data={sections.funds} />}
-				<NetWorthSection data={sections.netWorth} />
+				{sections.funds && <FundsSection data={sections.funds} fmt={fmt} />}
+				<NetWorthSection data={sections.netWorth} fmt={fmt} />
 				<FooterSection digest={digest} />
 			</Page>
 		</Document>

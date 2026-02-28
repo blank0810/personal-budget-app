@@ -15,7 +15,7 @@ import {
 } from 'recharts';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { MonthlySummary } from '@/server/modules/report/report.types';
-import { formatCurrency } from '@/lib/formatters';
+import { useCurrency } from '@/lib/contexts/currency-context';
 import { format } from 'date-fns';
 import { TrendingDown, TrendingUp, Minus } from 'lucide-react';
 
@@ -47,6 +47,8 @@ function getHealthLabel(ratio: number): string {
 }
 
 export function IncomeExpenseRatioChart({ data }: IncomeExpenseRatioChartProps) {
+	const { formatCurrency } = useCurrency();
+
 	const { chartData, summary } = useMemo(() => {
 		const points: RatioDataPoint[] = data.map((d) => {
 			const ratio = d.income > 0 ? (d.expense / d.income) * 100 : d.expense > 0 ? 100 : 0;

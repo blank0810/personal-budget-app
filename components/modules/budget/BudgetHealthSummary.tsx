@@ -10,7 +10,7 @@ import {
 	Wallet,
 } from 'lucide-react';
 import { format } from 'date-fns';
-import { formatCurrency } from '@/lib/formatters';
+import { useCurrency } from '@/lib/contexts/currency-context';
 import { cn } from '@/lib/utils';
 import type { BudgetHealthSummary as BudgetHealthSummaryType } from '@/server/modules/budget/budget.types';
 
@@ -23,6 +23,8 @@ export function BudgetHealthSummary({
 	health,
 	month,
 }: BudgetHealthSummaryProps) {
+	const { formatCurrency } = useCurrency();
+
 	// Determine overall health status
 	const getHealthStatus = () => {
 		if (health.totalBudgets === 0) return 'empty';

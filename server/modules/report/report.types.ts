@@ -169,6 +169,7 @@ export type DigestNetWorth = {
 export type MonthlyDigest = {
 	userName: string;
 	userEmail: string;
+	currency: string; // e.g. "USD", "PHP"
 	month: string; // "January 2026"
 	sections: {
 		healthScore: DigestHealthScore;
