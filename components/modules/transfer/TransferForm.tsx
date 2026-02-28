@@ -47,9 +47,9 @@ export function TransferForm({ accounts }: TransferFormProps) {
 	const [showReview, setShowReview] = useState(false);
 	const [formData, setFormData] = useState<CreateTransferInput | null>(null);
 
-	// Filter to only show asset accounts (non-liability, non-archived)
+	// Filter to only show non-archived accounts (both asset and liability)
 	const transferableAccounts = accounts.filter(
-		(account) => !account.isLiability && !account.isArchived
+		(account) => !account.isArchived
 	);
 
 	const form = useForm<CreateTransferInput>({
