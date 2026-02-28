@@ -12,7 +12,10 @@ export default async function middleware(req: NextRequest) {
 		pathname.startsWith('/forgot-password') ||
 		pathname.startsWith('/reset-password');
 
-	const isPublicPage = isAuthPage || pathname.startsWith('/changelog');
+	const isPublicPage =
+		isAuthPage || pathname.startsWith('/changelog') || pathname === '/';
+	const isOnboardingPage = pathname.startsWith('/onboarding');
+	const isAdminPage = pathname.startsWith('/admin');
 
 	// Redirect authenticated users away from auth pages (not changelog)
 	if (isAuthPage && session) {
@@ -27,6 +30,28 @@ export default async function middleware(req: NextRequest) {
 	// Protect all other routes
 	if (!session) {
 		return NextResponse.redirect(new URL('/login', req.url));
+	}
+
+	// Block disabled users
+	if (session.user.isDisabled) {
+		return NextResponse.redirect(
+			new URL('/login?error=disabled', req.url)
+		);
+	}
+
+	// Onboarding redirect: if not onboarded, force to onboarding
+	if (!session.user.isOnboarded && !isOnboardingPage) {
+		return NextResponse.redirect(new URL('/onboarding', req.url));
+	}
+
+	// If already onboarded, don't let them go back to onboarding
+	if (session.user.isOnboarded && isOnboardingPage) {
+		return NextResponse.redirect(new URL('/dashboard', req.url));
+	}
+
+	// Admin routes require ADMIN role (sudo check happens in admin layout)
+	if (isAdminPage && session.user.role !== 'ADMIN') {
+		return NextResponse.redirect(new URL('/dashboard', req.url));
 	}
 
 	return NextResponse.next();
