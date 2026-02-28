@@ -44,6 +44,7 @@ const navItems = [
 			{ title: 'Expenses', url: '/expense' },
 			{ title: 'Transfers', url: '/transfers' },
 			{ title: 'Payments', url: '/payments' },
+			{ title: 'Recurring', url: '/recurring' },
 		],
 	},
 	{
