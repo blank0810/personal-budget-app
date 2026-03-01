@@ -145,6 +145,56 @@ async function main() {
 	}
 
 	console.log('Seeded feature flags');
+
+	// Seed sample recurring transaction
+	const seededUser = await prisma.user.findUnique({
+		where: { email },
+		include: { categories: true, accounts: true },
+	});
+
+	if (seededUser) {
+		const salaryCategory = seededUser.categories.find((c) => c.name === 'Salary');
+		const mainBank = seededUser.accounts.find((a) => a.name === 'Main Bank');
+
+		if (salaryCategory && mainBank) {
+			await prisma.recurringTransaction.upsert({
+				where: { id: 'seed_recurring_salary' },
+				update: {},
+				create: {
+					id: 'seed_recurring_salary',
+					name: 'Monthly Salary',
+					type: 'INCOME',
+					amount: 5000,
+					frequency: 'MONTHLY',
+					startDate: new Date('2026-01-01'),
+					nextRunDate: new Date('2026-04-01'),
+					isActive: true,
+					categoryId: salaryCategory.id,
+					accountId: mainBank.id,
+					userId: seededUser.id,
+				},
+			});
+			console.log('Seeded recurring transaction');
+		}
+
+		// Seed sample goal
+		await prisma.goal.upsert({
+			where: { id: 'seed_goal_emergency' },
+			update: {},
+			create: {
+				id: 'seed_goal_emergency',
+				name: 'Emergency Fund',
+				targetAmount: 10000,
+				currentAmount: 3500,
+				icon: 'shield',
+				color: 'emerald',
+				status: 'ACTIVE',
+				deadline: new Date('2026-12-31'),
+				userId: seededUser.id,
+			},
+		});
+		console.log('Seeded goal');
+	}
 }
 
 main()
