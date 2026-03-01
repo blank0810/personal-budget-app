@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "eslint",
     "postinstall": "prisma generate",
-    "build:prod": "npm install && prisma migrate deploy && next build"
+    "build:prod": "npm install && prisma migrate deploy && next build",
+    "db:reset": "prisma migrate reset --force"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",
