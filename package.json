@@ -26,6 +26,7 @@
     "@react-pdf/renderer": "^4.3.2",
     "@tanstack/react-table": "^8.21.3",
     "@types/nodemailer": "^7.0.9",
+    "@vercel/analytics": "^1.6.1",
     "@vercel/blob": "^2.2.0",
     "bcryptjs": "^3.0.3",
     "bullmq": "^5.67.3",
