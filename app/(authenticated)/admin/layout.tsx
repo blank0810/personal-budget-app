@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation';
 import { AdminService } from '@/server/modules/admin/admin.service';
 import { AdminReauthDialog } from '@/components/modules/admin/AdminReauthDialog';
 import { ExitAdminButton } from '@/components/modules/admin/ExitAdminButton';
+import { AdminNav } from '@/components/modules/admin/AdminNav';
 import { Shield } from 'lucide-react';
 
 export default async function AdminLayout({
@@ -29,6 +30,11 @@ export default async function AdminLayout({
 					<span>Admin mode active</span>
 				</div>
 				<ExitAdminButton />
+			</div>
+			<div className='border-b'>
+				<div className='container mx-auto px-4'>
+					<AdminNav />
+				</div>
 			</div>
 			{children}
 		</div>

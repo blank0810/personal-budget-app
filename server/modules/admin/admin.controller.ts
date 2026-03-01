@@ -3,6 +3,7 @@
 import { auth } from '@/auth';
 import { AdminService } from './admin.service';
 import { AdminUsersService } from './admin-users.service';
+import { AdminContentService } from './admin-content.service';
 import { clearCache } from '@/server/actions/cache';
 
 async function requireAdminSession() {
@@ -158,6 +159,99 @@ export async function adminExportUserDataAction(userId: string) {
 				err instanceof Error
 					? err.message
 					: 'Failed to export user data',
+		};
+	}
+}
+
+// --- Content Management Actions ---
+
+export async function adminGetFeatureRequestsAction(
+	page: number = 1,
+	status?: string,
+	category?: string
+) {
+	const { error } = await requireAdminSession();
+	if (error) return { success: false, error };
+
+	try {
+		const result = await AdminContentService.getFeatureRequests(
+			page,
+			status,
+			category
+		);
+		return { success: true, ...result };
+	} catch (err) {
+		return {
+			success: false,
+			error:
+				err instanceof Error
+					? err.message
+					: 'Failed to fetch feature requests',
+		};
+	}
+}
+
+export async function adminUpdateFeatureRequestAction(
+	id: string,
+	status: string,
+	adminNotes?: string
+) {
+	const { error } = await requireAdminSession();
+	if (error) return { success: false, error };
+
+	try {
+		await AdminContentService.updateFeatureRequestStatus(
+			id,
+			status,
+			adminNotes
+		);
+		return { success: true };
+	} catch (err) {
+		return {
+			success: false,
+			error:
+				err instanceof Error
+					? err.message
+					: 'Failed to update feature request',
+		};
+	}
+}
+
+export async function adminGetFeatureFlagsAction() {
+	const { error } = await requireAdminSession();
+	if (error) return { success: false, error };
+
+	try {
+		const flags = await AdminContentService.getFeatureFlags();
+		return { success: true, flags };
+	} catch (err) {
+		return {
+			success: false,
+			error:
+				err instanceof Error
+					? err.message
+					: 'Failed to fetch feature flags',
+		};
+	}
+}
+
+export async function adminToggleFeatureFlagAction(
+	key: string,
+	enabled: boolean
+) {
+	const { error } = await requireAdminSession();
+	if (error) return { success: false, error };
+
+	try {
+		await AdminContentService.toggleFeatureFlag(key, enabled);
+		return { success: true };
+	} catch (err) {
+		return {
+			success: false,
+			error:
+				err instanceof Error
+					? err.message
+					: 'Failed to toggle feature flag',
 		};
 	}
 }
