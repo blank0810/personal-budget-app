@@ -15,6 +15,9 @@ async function main() {
 			email,
 			name: 'Admin User',
 			password: hashedPassword,
+			role: 'ADMIN',
+			isOnboarded: true,
+			currency: 'PHP',
 			accounts: {
 				create: [
 					{ name: 'Main Bank', type: 'BANK', balance: 5000 },
@@ -119,14 +122,6 @@ async function main() {
 	}
 
 	console.log('Seeded notification types');
-
-	// Mark seed user as onboarded and set as ADMIN
-	await prisma.user.update({
-		where: { email },
-		data: { isOnboarded: true, role: 'ADMIN' },
-	});
-
-	console.log('Set seed user as onboarded ADMIN');
 
 	// Seed default feature flags
 	const featureFlags = [
