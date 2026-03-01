@@ -7,7 +7,10 @@ export class OnboardingService {
 			where: { id: userId },
 			select: { isOnboarded: true },
 		});
-		if (user?.isOnboarded) {
+		if (!user) {
+			throw new Error('User not found');
+		}
+		if (user.isOnboarded) {
 			throw new Error('Currency cannot be changed after onboarding');
 		}
 
