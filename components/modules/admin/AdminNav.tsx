@@ -8,6 +8,7 @@ const NAV_ITEMS = [
 	{ label: 'Users', href: '/admin/users' },
 	{ label: 'Feature Requests', href: '/admin/feature-requests' },
 	{ label: 'Feature Flags', href: '/admin/feature-flags' },
+	{ label: 'System', href: '/admin/system' },
 ];
 
 export function AdminNav() {
