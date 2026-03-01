@@ -1,15 +1,35 @@
 import { NextRequest, NextResponse } from 'next/server';
+import crypto from 'crypto';
 import prisma from '@/lib/prisma';
 import { NotificationService } from '@/server/modules/notification/notification.service';
 
+export function generateUnsubscribeToken(userId: string): string {
+	const secret = process.env.NEXTAUTH_SECRET!;
+	return crypto.createHmac('sha256', secret).update(userId).digest('hex');
+}
+
+function verifyUnsubscribeToken(userId: string, token: string): boolean {
+	const expected = generateUnsubscribeToken(userId);
+	if (expected.length !== token.length) return false;
+	return crypto.timingSafeEqual(Buffer.from(token), Buffer.from(expected));
+}
+
 export async function GET(req: NextRequest) {
 	const userId = req.nextUrl.searchParams.get('userId');
+	const token = req.nextUrl.searchParams.get('token');
 
-	if (!userId) {
+	if (!userId || !token) {
 		return new NextResponse(renderHtml('Invalid unsubscribe link.', true), {
 			status: 400,
 			headers: { 'Content-Type': 'text/html' },
 		});
+	}
+
+	if (!verifyUnsubscribeToken(userId, token)) {
+		return new NextResponse(
+			renderHtml('Invalid or expired unsubscribe link.', true),
+			{ status: 403, headers: { 'Content-Type': 'text/html' } }
+		);
 	}
 
 	try {

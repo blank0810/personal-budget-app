@@ -104,6 +104,19 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
 				}
 			}
 
+			// Track last login
+			const loginUserId =
+				account?.provider === 'google' && user?.email
+					? (await prisma.user.findUnique({ where: { email: user.email }, select: { id: true } }))?.id
+					: user?.id;
+
+			if (loginUserId) {
+				await prisma.user.update({
+					where: { id: loginUserId },
+					data: { lastLoginAt: new Date() },
+				});
+			}
+
 			return true;
 		},
 		async jwt({ token, user, account }) {

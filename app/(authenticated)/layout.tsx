@@ -5,6 +5,7 @@ import { SidebarInset, SidebarProvider, SidebarTrigger } from '@/components/ui/s
 import { auth, signOut } from '@/auth';
 import prisma from '@/lib/prisma';
 import { CurrencyProvider } from '@/lib/contexts/currency-context';
+import { ChangelogService } from '@/server/modules/changelog/changelog.service';
 
 export default async function DashboardLayout({
 	children,
@@ -15,7 +16,7 @@ export default async function DashboardLayout({
 
 	const dbUser = await prisma.user.findUnique({
 		where: { id: session!.user!.id },
-		select: { name: true, email: true, currency: true, role: true },
+		select: { name: true, email: true, currency: true, role: true, lastSeenChangelogAt: true },
 	});
 
 	const user = {
@@ -23,6 +24,11 @@ export default async function DashboardLayout({
 		email: dbUser?.email || '',
 		role: dbUser?.role || 'USER',
 	};
+
+	const latestChangelogDate = ChangelogService.getLatestDate();
+	const hasNewChangelog = latestChangelogDate
+		? !dbUser?.lastSeenChangelogAt || latestChangelogDate > dbUser.lastSeenChangelogAt
+		: false;
 
 	const signOutAction = async () => {
 		'use server';
@@ -32,7 +38,7 @@ export default async function DashboardLayout({
 	return (
 		<CurrencyProvider currency={dbUser?.currency ?? 'USD'}>
 			<SidebarProvider>
-				<AppSidebar user={user} signOutAction={signOutAction} />
+				<AppSidebar user={user} signOutAction={signOutAction} hasNewChangelog={hasNewChangelog} />
 				<SidebarInset>
 					<header className='flex h-16 shrink-0 items-center gap-2 border-b px-4 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12'>
 						<div className='flex items-center gap-2'>

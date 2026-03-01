@@ -13,6 +13,7 @@ import {
 	Shield,
 	Upload,
 	Target,
+	Coffee,
 } from 'lucide-react';
 
 import { NavMain } from '@/components/common/nav-main';
@@ -89,9 +90,10 @@ const navItems = [
 interface AppSidebarProps extends React.ComponentProps<typeof Sidebar> {
 	user: { name: string; email: string; role: string };
 	signOutAction: () => Promise<void>;
+	hasNewChangelog?: boolean;
 }
 
-function AppSidebarInner({ user, signOutAction, ...props }: AppSidebarProps) {
+function AppSidebarInner({ user, signOutAction, hasNewChangelog, ...props }: AppSidebarProps) {
 	const { state, setOpen, isMobile } = useSidebar();
 	const wasCollapsedRef = React.useRef(false);
 
@@ -141,7 +143,7 @@ function AppSidebarInner({ user, signOutAction, ...props }: AppSidebarProps) {
 			<SidebarContent>
 				<NavMain
 					items={
-						user.role === 'ADMIN'
+						(user.role === 'ADMIN'
 							? [
 									...navItems,
 									{
@@ -151,11 +153,30 @@ function AppSidebarInner({ user, signOutAction, ...props }: AppSidebarProps) {
 									},
 								]
 							: navItems
+						).map((item) =>
+							item.title === 'Updates' && hasNewChangelog
+								? { ...item, badge: true }
+								: item
+						)
 					}
 				/>
 			</SidebarContent>
 			<SidebarSeparator />
 			<SidebarFooter className='p-3'>
+				<SidebarMenu>
+					<SidebarMenuItem>
+						<SidebarMenuButton asChild size='sm'>
+							<a
+								href='https://ko-fi.com/blanklob'
+								target='_blank'
+								rel='noopener noreferrer'
+							>
+								<Coffee className='h-4 w-4' />
+								<span>Buy me a coffee</span>
+							</a>
+						</SidebarMenuButton>
+					</SidebarMenuItem>
+				</SidebarMenu>
 				<NavUser user={user} signOutAction={signOutAction} />
 			</SidebarFooter>
 			<SidebarRail />

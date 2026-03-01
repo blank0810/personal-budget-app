@@ -1015,6 +1015,7 @@ export const ReportService = {
 		}
 
 		return {
+			userId,
 			userName: user.name || 'User',
 			userEmail: user.email,
 			currency: user.currency,
@@ -1096,6 +1097,12 @@ function buildReportEmailHtml(digest: MonthlyDigest): string {
 	const { healthScore, incomeExpense, netWorth } = digest.sections;
 	const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
 
+	// Import inline to avoid circular deps
+	const crypto = require('crypto');
+	const secret = process.env.NEXTAUTH_SECRET!;
+	const unsubToken = crypto.createHmac('sha256', secret).update(digest.userId).digest('hex');
+	const unsubUrl = `${appUrl}/api/unsubscribe?userId=${encodeURIComponent(digest.userId)}&token=${unsubToken}`;
+
 	const config = getCurrencyConfig(digest.currency);
 	const formatCurrency = (val: number) =>
 		new Intl.NumberFormat(config.locale, {
@@ -1130,7 +1137,7 @@ function buildReportEmailHtml(digest: MonthlyDigest): string {
     <hr style="border:none;border-top:1px solid #e5e7eb;margin:24px 0;">
     <p style="margin:0;font-size:13px;color:#9ca3af;">
       <a href="${appUrl}/reports" style="color:#0d9488;text-decoration:none;">View full analytics</a> &middot;
-      <a href="${appUrl}/api/unsubscribe?userId=${encodeURIComponent('')}" style="color:#9ca3af;text-decoration:none;">Unsubscribe from monthly reports</a>
+      <a href="${unsubUrl}" style="color:#9ca3af;text-decoration:none;">Unsubscribe from monthly reports</a>
     </p>
     <p style="margin:8px 0 0;font-size:12px;color:#d1d5db;">Budget Planner — Your personal financial companion</p>
   </div>
