@@ -143,6 +143,17 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
 				token.role = dbUser?.role ?? 'USER';
 				token.isOnboarded = dbUser?.isOnboarded ?? false;
 				token.isDisabled = dbUser?.isDisabled ?? false;
+			} else if (token.sub && !token.isOnboarded) {
+				// Re-check DB when not yet onboarded so the token picks up
+				// the change after the user completes the onboarding flow
+				const dbUser = await prisma.user.findUnique({
+					where: { id: token.sub },
+					select: { isOnboarded: true, currency: true },
+				});
+				if (dbUser?.isOnboarded) {
+					token.isOnboarded = true;
+					token.currency = dbUser.currency;
+				}
 			}
 			return token;
 		},
