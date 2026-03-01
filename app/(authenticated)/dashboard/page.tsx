@@ -39,6 +39,9 @@ import type { AccountClass } from '@/lib/account-utils';
 import { ClearCacheButton } from '@/components/common/clear-cache-button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { FundCard } from '@/components/modules/fund/FundCard';
+import { GoalService } from '@/server/modules/goal/goal.service';
+import { GoalsDashboardWidget } from '@/components/modules/goal/GoalsDashboardWidget';
+import { serialize } from '@/lib/serialization';
 
 export default async function DashboardPage() {
 	const session = await auth();
@@ -57,6 +60,7 @@ export default async function DashboardPage() {
 		budgetHealth,
 		fundHealth,
 		dbUser,
+		goals,
 	] = await Promise.all([
 		DashboardService.getNetWorth(userId),
 		DashboardService.getRecentTransactions(userId, 5),
@@ -68,6 +72,7 @@ export default async function DashboardPage() {
 			where: { id: userId },
 			select: { currency: true },
 		}),
+		GoalService.getAll(userId),
 	]);
 
 	const currency = dbUser?.currency ?? 'USD';
@@ -683,6 +688,9 @@ export default async function DashboardPage() {
 					</CardContent>
 				</Card>
 			)}
+
+			{/* Goals Widget */}
+			<GoalsDashboardWidget goals={serialize(goals)} />
 
 			<div className='grid gap-4 md:grid-cols-2 lg:grid-cols-7'>
 				{/* Recent Transactions - Top 5 with Summary */}

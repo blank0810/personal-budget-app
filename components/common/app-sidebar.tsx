@@ -12,6 +12,7 @@ import {
 	Wallet,
 	Shield,
 	Upload,
+	Target,
 } from 'lucide-react';
 
 import { NavMain } from '@/components/common/nav-main';
@@ -57,6 +58,11 @@ const navItems = [
 		title: 'Accounts',
 		url: '/accounts',
 		icon: CreditCard,
+	},
+	{
+		title: 'Goals',
+		url: '/goals',
+		icon: Target,
 	},
 	{
 		title: 'Import',
