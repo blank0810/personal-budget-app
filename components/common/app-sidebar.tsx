@@ -11,6 +11,7 @@ import {
 	MessageSquarePlus,
 	Wallet,
 	Shield,
+	Upload,
 } from 'lucide-react';
 
 import { NavMain } from '@/components/common/nav-main';
@@ -56,6 +57,11 @@ const navItems = [
 		title: 'Accounts',
 		url: '/accounts',
 		icon: CreditCard,
+	},
+	{
+		title: 'Import',
+		url: '/import',
+		icon: Upload,
 	},
 	{
 		title: 'Reports',
