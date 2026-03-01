@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import './landing.css';
 
 export const metadata: Metadata = {
 	title: 'Budget Planner — Simple Personal Finance Tracking',
