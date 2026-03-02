@@ -10,7 +10,7 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { formatCurrency } from '@/lib/formatters';
+import { useCurrency } from '@/lib/contexts/currency-context';
 import { format } from 'date-fns';
 import { ArrowRight, Calendar, CreditCard, FileText } from 'lucide-react';
 
@@ -44,6 +44,8 @@ export function TransferDetailDialog({
 	open,
 	onOpenChange,
 }: TransferDetailDialogProps) {
+	const { formatCurrency } = useCurrency();
+
 	if (!transfer) return null;
 
 	const amount = Number(transfer.amount);

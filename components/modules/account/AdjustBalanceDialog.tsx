@@ -28,7 +28,7 @@ import {
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { CurrencyInput } from '@/components/ui/currency-input';
 import { Calculator, AlertTriangle, CreditCard, Wallet } from 'lucide-react';
-import { formatCurrency } from '@/lib/formatters';
+import { useCurrency } from '@/lib/contexts/currency-context';
 import { cn } from '@/lib/utils';
 import { z } from 'zod';
 
@@ -37,6 +37,7 @@ interface AdjustBalanceDialogProps {
 }
 
 export function AdjustBalanceDialog({ account }: AdjustBalanceDialogProps) {
+	const { formatCurrency } = useCurrency();
 	const [open, setOpen] = useState(false);
 	const [isPending, setIsPending] = useState(false);
 
@@ -50,6 +51,7 @@ export function AdjustBalanceDialog({ account }: AdjustBalanceDialogProps) {
 		},
 	});
 
+	// eslint-disable-next-line react-hooks/incompatible-library -- React Hook Form's watch() is not compiler-safe but works correctly
 	const newBalance = form.watch('newBalance');
 	const currentBalance = Number(account.balance);
 	const difference = newBalance - currentBalance;

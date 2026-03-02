@@ -120,7 +120,7 @@ export const IncomeService = {
 					});
 				}
 
-				// Handle Emergency Fund (only for asset accounts with EF account)
+				// Handle Emergency Fund (only for asset accounts with EF goal)
 				if (
 					data.emergencyFundEnabled &&
 					data.emergencyFundPercentage &&
@@ -129,16 +129,18 @@ export const IncomeService = {
 					const efAmount =
 						data.amount * (data.emergencyFundPercentage / 100);
 
-					// Find Emergency Fund account (must exist - user opted in)
-					const efAccount = await tx.account.findFirst({
+					// Find Emergency Fund goal with linked account
+					const efGoal = await tx.goal.findFirst({
 						where: {
 							userId,
-							type: AccountType.EMERGENCY_FUND,
-							isArchived: false,
+							isEmergencyFund: true,
+							status: 'ACTIVE',
+							linkedAccountId: { not: null },
 						},
+						select: { id: true, linkedAccountId: true },
 					});
 
-					if (efAccount) {
+					if (efGoal?.linkedAccountId) {
 						// Create Transfer record for audit trail
 						await tx.transfer.create({
 							data: {
@@ -146,7 +148,7 @@ export const IncomeService = {
 								date: data.date,
 								description: `Emergency Fund contribution for ${data.description || 'Income'}`,
 								fromAccountId: data.accountId,
-								toAccountId: efAccount.id,
+								toAccountId: efGoal.linkedAccountId,
 								userId,
 							},
 						});
@@ -157,10 +159,16 @@ export const IncomeService = {
 							data: { balance: { decrement: efAmount } },
 						});
 
-						// Add to Emergency Fund
+						// Add to Emergency Fund linked account
 						await tx.account.update({
-							where: { id: efAccount.id, userId },
+							where: { id: efGoal.linkedAccountId, userId },
 							data: { balance: { increment: efAmount } },
+						});
+
+						// Update goal's currentAmount
+						await tx.goal.update({
+							where: { id: efGoal.id },
+							data: { currentAmount: { increment: efAmount } },
 						});
 					}
 				}

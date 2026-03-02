@@ -1,6 +1,10 @@
 {
 	"crons": [
 		{
+			"path": "/api/cron/process-recurring",
+			"schedule": "5 0 * * *"
+		},
+		{
 			"path": "/api/cron/monthly-report",
 			"schedule": "0 0 1 * *"
 		},

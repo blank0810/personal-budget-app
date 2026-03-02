@@ -13,6 +13,22 @@ export class ChangelogService {
 		return String(value);
 	}
 
+	static getLatestDate(): Date | null {
+		const files = fs.readdirSync(CHANGELOG_DIR).filter((f) => f.endsWith('.md'));
+		let latest: Date | null = null;
+
+		for (const file of files) {
+			const raw = fs.readFileSync(path.join(CHANGELOG_DIR, file), 'utf-8');
+			const { data } = matter(raw);
+			const d = data.date instanceof Date ? data.date : new Date(String(data.date));
+			if (!isNaN(d.getTime()) && (!latest || d > latest)) {
+				latest = d;
+			}
+		}
+
+		return latest;
+	}
+
 	static getAllVersions(): Version[] {
 		const files = fs.readdirSync(CHANGELOG_DIR).filter((f) => f.endsWith('.md'));
 

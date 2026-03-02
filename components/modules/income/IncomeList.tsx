@@ -7,7 +7,7 @@ import { format } from 'date-fns';
 import { Trash2 } from 'lucide-react';
 import { deleteIncomeAction } from '@/server/modules/income/income.controller';
 import { Income, Category, Account } from '@prisma/client';
-import { formatCurrency } from '@/lib/formatters';
+import { useCurrency } from '@/lib/contexts/currency-context';
 
 interface IncomeWithRelations extends Income {
 	category: Category;
@@ -19,6 +19,8 @@ interface IncomeListProps {
 }
 
 export function IncomeList({ incomes }: IncomeListProps) {
+	const { formatCurrency } = useCurrency();
+
 	async function handleDelete(id: string, e: React.MouseEvent) {
 		e.stopPropagation();
 		if (confirm('Are you sure you want to delete this income?')) {

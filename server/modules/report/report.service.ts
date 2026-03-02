@@ -1,3 +1,4 @@
+import crypto from 'crypto';
 import prisma from '@/lib/prisma';
 import {
 	CategoryBreakdown,
@@ -9,6 +10,7 @@ import {
 	TransactionStatement,
 	MonthlyDigest,
 } from './report.types';
+import { getCurrencyConfig } from '@/lib/currency';
 import {
 	endOfMonth,
 	startOfMonth,
@@ -23,6 +25,7 @@ import {
 	endOfDay,
 } from 'date-fns';
 import { DashboardService } from '@/server/modules/dashboard/dashboard.service';
+import { GoalService } from '@/server/modules/goal/goal.service';
 import { BudgetService } from '@/server/modules/budget/budget.service';
 import { renderMonthlyReportPDF } from './report.templates';
 import { put } from '@vercel/blob';
@@ -880,7 +883,7 @@ export const ReportService = {
 	): Promise<MonthlyDigest> {
 		const user = await prisma.user.findUniqueOrThrow({
 			where: { id: userId },
-			select: { name: true, email: true },
+			select: { name: true, email: true, currency: true },
 		});
 
 		const monthStart = startOfMonth(period);
@@ -904,13 +907,13 @@ export const ReportService = {
 			categoryBreakdown,
 			budgetTrends,
 			healthMetrics,
-			fundHealth,
+			goalHealth,
 		] = await Promise.all([
 			this.getFinancialStatement(userId, monthStart, monthEnd),
 			this.getCategoryBreakdown(userId, monthStart, monthEnd),
 			BudgetService.getBudgetTrends(userId, monthStart, monthEnd),
 			DashboardService.getFinancialHealthMetrics(userId),
-			DashboardService.getFundHealthMetrics(userId),
+			GoalService.getGoalHealthMetrics(userId),
 		]);
 
 		// Build sections object
@@ -1000,22 +1003,27 @@ export const ReportService = {
 			};
 		}
 
-		// Funds — only if user has fund accounts
-		if (fundHealth.funds.length > 0) {
-			sections.funds = {
-				accounts: fundHealth.funds.map((f) => ({
-					name: f.name,
-					balance: f.balance,
-					target: f.targetAmount ?? undefined,
-					progress: f.progressPercent,
+		// Goals — only if user has active goals with health metrics
+		if (goalHealth.goals.length > 0) {
+			sections.goals = {
+				accounts: goalHealth.goals.map((g) => ({
+					name: g.name,
+					balance: g.balance,
+					target: g.targetAmount ?? undefined,
+					progress: g.progressPercent,
+					goalType: g.goalType,
+					healthStatus: g.healthStatus,
+					monthsCoverage: g.monthsCoverage ?? undefined,
 				})),
-				emergencyFundMonths: fundHealth.emergencyFundMonths ?? undefined,
+				emergencyFundMonths: goalHealth.emergencyFundMonths ?? undefined,
 			};
 		}
 
 		return {
+			userId,
 			userName: user.name || 'User',
 			userEmail: user.email,
+			currency: user.currency,
 			month: monthLabel,
 			sections,
 		};
@@ -1061,7 +1069,7 @@ export const ReportService = {
 		});
 
 		// 5. Send email with PDF attachment
-		const { score, label } = digest.sections.healthScore;
+		const { score } = digest.sections.healthScore;
 		const monthLabel = digest.month;
 
 		const emailHtml = buildReportEmailHtml(digest);
@@ -1094,10 +1102,15 @@ function buildReportEmailHtml(digest: MonthlyDigest): string {
 	const { healthScore, incomeExpense, netWorth } = digest.sections;
 	const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
 
+	const secret = process.env.NEXTAUTH_SECRET!;
+	const unsubToken = crypto.createHmac('sha256', secret).update(digest.userId).digest('hex');
+	const unsubUrl = `${appUrl}/api/unsubscribe?userId=${encodeURIComponent(digest.userId)}&token=${unsubToken}`;
+
+	const config = getCurrencyConfig(digest.currency);
 	const formatCurrency = (val: number) =>
-		new Intl.NumberFormat('en-US', {
+		new Intl.NumberFormat(config.locale, {
 			style: 'currency',
-			currency: 'USD',
+			currency: digest.currency,
 			maximumFractionDigits: 0,
 		}).format(val);
 
@@ -1127,7 +1140,7 @@ function buildReportEmailHtml(digest: MonthlyDigest): string {
     <hr style="border:none;border-top:1px solid #e5e7eb;margin:24px 0;">
     <p style="margin:0;font-size:13px;color:#9ca3af;">
       <a href="${appUrl}/reports" style="color:#0d9488;text-decoration:none;">View full analytics</a> &middot;
-      <a href="${appUrl}/api/unsubscribe?userId=${encodeURIComponent('')}" style="color:#9ca3af;text-decoration:none;">Unsubscribe from monthly reports</a>
+      <a href="${unsubUrl}" style="color:#9ca3af;text-decoration:none;">Unsubscribe from monthly reports</a>
     </p>
     <p style="margin:8px 0 0;font-size:12px;color:#d1d5db;">Budget Planner — Your personal financial companion</p>
   </div>

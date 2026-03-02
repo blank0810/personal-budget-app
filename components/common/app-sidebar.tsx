@@ -10,6 +10,10 @@ import {
 	Sparkles,
 	MessageSquarePlus,
 	Wallet,
+	Shield,
+	Upload,
+	Target,
+	Coffee,
 } from 'lucide-react';
 
 import { NavMain } from '@/components/common/nav-main';
@@ -43,6 +47,7 @@ const navItems = [
 			{ title: 'Expenses', url: '/expense' },
 			{ title: 'Transfers', url: '/transfers' },
 			{ title: 'Payments', url: '/payments' },
+			{ title: 'Recurring', url: '/recurring' },
 		],
 	},
 	{
@@ -54,6 +59,16 @@ const navItems = [
 		title: 'Accounts',
 		url: '/accounts',
 		icon: CreditCard,
+	},
+	{
+		title: 'Goals',
+		url: '/goals',
+		icon: Target,
+	},
+	{
+		title: 'Import',
+		url: '/import',
+		icon: Upload,
 	},
 	{
 		title: 'Reports',
@@ -73,11 +88,12 @@ const navItems = [
 ];
 
 interface AppSidebarProps extends React.ComponentProps<typeof Sidebar> {
-	user: { name: string; email: string };
+	user: { name: string; email: string; role: string };
 	signOutAction: () => Promise<void>;
+	hasNewChangelog?: boolean;
 }
 
-function AppSidebarInner({ user, signOutAction, ...props }: AppSidebarProps) {
+function AppSidebarInner({ user, signOutAction, hasNewChangelog, ...props }: AppSidebarProps) {
 	const { state, setOpen, isMobile } = useSidebar();
 	const wasCollapsedRef = React.useRef(false);
 
@@ -125,10 +141,42 @@ function AppSidebarInner({ user, signOutAction, ...props }: AppSidebarProps) {
 			</SidebarHeader>
 			<SidebarSeparator />
 			<SidebarContent>
-				<NavMain items={navItems} />
+				<NavMain
+					items={
+						(user.role === 'ADMIN'
+							? [
+									...navItems,
+									{
+										title: 'Admin',
+										url: '/admin',
+										icon: Shield,
+									},
+								]
+							: navItems
+						).map((item) =>
+							item.title === 'Updates' && hasNewChangelog
+								? { ...item, badge: true }
+								: item
+						)
+					}
+				/>
 			</SidebarContent>
 			<SidebarSeparator />
 			<SidebarFooter className='p-3'>
+				<SidebarMenu>
+					<SidebarMenuItem>
+						<SidebarMenuButton asChild size='sm'>
+							<a
+								href='https://ko-fi.com/blanklob'
+								target='_blank'
+								rel='noopener noreferrer'
+							>
+								<Coffee className='h-4 w-4' />
+								<span>Buy me a coffee</span>
+							</a>
+						</SidebarMenuButton>
+					</SidebarMenuItem>
+				</SidebarMenu>
 				<NavUser user={user} signOutAction={signOutAction} />
 			</SidebarFooter>
 			<SidebarRail />

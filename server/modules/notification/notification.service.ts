@@ -114,6 +114,12 @@ export const NotificationService = {
 		prevPercentage: number,
 		newPercentage: number
 	): Promise<void> {
+		// Fetch user's currency preference
+		const { currency } = await prisma.user.findUniqueOrThrow({
+			where: { id: userId },
+			select: { currency: true },
+		});
+
 		// Determine which threshold was crossed
 		let subject: string;
 		let headline: string;
@@ -125,12 +131,12 @@ export const NotificationService = {
 			subject = `Budget Exceeded: ${budget.name}`;
 			headline = 'Budget Exceeded';
 			color = '#DC2626';
-			message = `Your budget "${budget.name}" has exceeded its limit. You've spent ${formatCurrency(spent)} of your ${formatCurrency(budget.amount)} budget (${newPercentage.toFixed(0)}%).`;
+			message = `Your budget "${budget.name}" has exceeded its limit. You've spent ${formatCurrency(spent, { currency })} of your ${formatCurrency(budget.amount, { currency })} budget (${newPercentage.toFixed(0)}%).`;
 		} else if (prevPercentage < 80 && newPercentage >= 80) {
 			subject = `Budget Warning: ${budget.name} at ${newPercentage.toFixed(0)}%`;
 			headline = 'Budget Warning';
 			color = '#D97706';
-			message = `Your budget "${budget.name}" has reached ${newPercentage.toFixed(0)}%. You've spent ${formatCurrency(spent)} of your ${formatCurrency(budget.amount)} budget with ${formatCurrency(remaining)} remaining.`;
+			message = `Your budget "${budget.name}" has reached ${newPercentage.toFixed(0)}%. You've spent ${formatCurrency(spent, { currency })} of your ${formatCurrency(budget.amount, { currency })} budget with ${formatCurrency(remaining, { currency })} remaining.`;
 		} else {
 			return;
 		}
@@ -166,15 +172,15 @@ export const NotificationService = {
 								</tr>
 								<tr>
 									<td style="padding: 8px 0; color: #6B7280;">Limit</td>
-									<td style="padding: 8px 0; text-align: right; font-weight: 600; color: #111827;">${formatCurrency(budget.amount)}</td>
+									<td style="padding: 8px 0; text-align: right; font-weight: 600; color: #111827;">${formatCurrency(budget.amount, { currency })}</td>
 								</tr>
 								<tr>
 									<td style="padding: 8px 0; color: #6B7280;">Spent</td>
-									<td style="padding: 8px 0; text-align: right; font-weight: 600; color: ${color};">${formatCurrency(spent)}</td>
+									<td style="padding: 8px 0; text-align: right; font-weight: 600; color: ${color};">${formatCurrency(spent, { currency })}</td>
 								</tr>
 								<tr>
 									<td style="padding: 8px 0; color: #6B7280;">Remaining</td>
-									<td style="padding: 8px 0; text-align: right; font-weight: 600; color: #111827;">${formatCurrency(remaining)}</td>
+									<td style="padding: 8px 0; text-align: right; font-weight: 600; color: #111827;">${formatCurrency(remaining, { currency })}</td>
 								</tr>
 							</table>
 						</div>
@@ -219,6 +225,12 @@ export const NotificationService = {
 		income: { amount: number; description: string | null; categoryName: string },
 		account: { name: string; newBalance: number } | null
 	): Promise<void> {
+		// Fetch user's currency preference
+		const { currency } = await prisma.user.findUniqueOrThrow({
+			where: { id: userId },
+			select: { currency: true },
+		});
+
 		// --- Email path ---
 		const emailEnabled = await this.isEnabled(userId, 'income_notifications', 'EMAIL');
 		if (emailEnabled) {
@@ -227,7 +239,7 @@ export const NotificationService = {
 				select: { email: true, name: true },
 			});
 
-			const subject = `Income Received: ${formatCurrency(income.amount)}`;
+			const subject = `Income Received: ${formatCurrency(income.amount, { currency })}`;
 
 			const html = `
 				<div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto; background: #ffffff;">
@@ -240,13 +252,13 @@ export const NotificationService = {
 							Hi ${user.name || 'there'},
 						</p>
 						<p style="margin: 0 0 24px; font-size: 15px; color: #374151; line-height: 1.6;">
-							An income of <strong>${formatCurrency(income.amount)}</strong> has been recorded${income.description ? ` for "${income.description}"` : ''}.
+							An income of <strong>${formatCurrency(income.amount, { currency })}</strong> has been recorded${income.description ? ` for "${income.description}"` : ''}.
 						</p>
 						<div style="background: #F9FAFB; border-radius: 8px; padding: 20px; margin-bottom: 24px;">
 							<table style="width: 100%; border-collapse: collapse; font-size: 14px;">
 								<tr>
 									<td style="padding: 8px 0; color: #6B7280;">Amount</td>
-									<td style="padding: 8px 0; text-align: right; font-weight: 600; color: #059669;">${formatCurrency(income.amount)}</td>
+									<td style="padding: 8px 0; text-align: right; font-weight: 600; color: #059669;">${formatCurrency(income.amount, { currency })}</td>
 								</tr>
 								<tr>
 									<td style="padding: 8px 0; color: #6B7280;">Category</td>
@@ -259,7 +271,7 @@ export const NotificationService = {
 								</tr>
 								<tr>
 									<td style="padding: 8px 0; color: #6B7280;">New Balance</td>
-									<td style="padding: 8px 0; text-align: right; font-weight: 600; color: #111827;">${formatCurrency(account.newBalance)}</td>
+									<td style="padding: 8px 0; text-align: right; font-weight: 600; color: #111827;">${formatCurrency(account.newBalance, { currency })}</td>
 								</tr>
 								` : ''}
 							</table>

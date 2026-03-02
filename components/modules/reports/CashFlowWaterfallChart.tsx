@@ -11,7 +11,7 @@ import {
 	ReferenceLine,
 } from 'recharts';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { formatCurrency } from '@/lib/formatters';
+import { useCurrency } from '@/lib/contexts/currency-context';
 import type { CashFlowWaterfall } from '@/server/modules/report/report.types';
 
 interface CashFlowWaterfallChartProps {
@@ -19,6 +19,8 @@ interface CashFlowWaterfallChartProps {
 }
 
 export function CashFlowWaterfallChart({ data }: CashFlowWaterfallChartProps) {
+	const { formatCurrency } = useCurrency();
+
 	// Transform data for waterfall visualization
 	// Each bar needs: name, start (invisible spacer), value (visible bar)
 	const waterfallData = [];

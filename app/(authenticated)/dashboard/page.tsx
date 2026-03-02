@@ -1,5 +1,6 @@
 import { auth } from '@/auth';
 import { redirect } from 'next/navigation';
+import prisma from '@/lib/prisma';
 import { DashboardService } from '@/server/modules/dashboard/dashboard.service';
 import { BudgetService } from '@/server/modules/budget/budget.service';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -29,7 +30,6 @@ import {
 	PartyPopper,
 	Shield,
 	PiggyBank,
-	Target,
 } from 'lucide-react';
 import { formatCurrency } from '@/lib/formatters';
 import { groupAccountsByClass, ACCOUNT_CLASS_META } from '@/lib/account-utils';
@@ -37,7 +37,10 @@ import type { AccountClass } from '@/lib/account-utils';
 
 import { ClearCacheButton } from '@/components/common/clear-cache-button';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { FundCard } from '@/components/modules/fund/FundCard';
+import { GoalService } from '@/server/modules/goal/goal.service';
+import { GoalsDashboardWidget } from '@/components/modules/goal/GoalsDashboardWidget';
+import type { GoalCardData } from '@/components/modules/goal/GoalCard';
+import { serialize } from '@/lib/serialization';
 
 export default async function DashboardPage() {
 	const session = await auth();
@@ -54,15 +57,24 @@ export default async function DashboardPage() {
 		accounts,
 		financialHealth,
 		budgetHealth,
-		fundHealth,
+		goalHealth,
+		dbUser,
+		goals,
 	] = await Promise.all([
 		DashboardService.getNetWorth(userId),
 		DashboardService.getRecentTransactions(userId, 5),
 		DashboardService.getAccountBalances(userId),
 		DashboardService.getFinancialHealthMetrics(userId),
 		BudgetService.getBudgetHealthSummary(userId, currentMonth),
-		DashboardService.getFundHealthMetrics(userId),
+		GoalService.getGoalHealthMetrics(userId),
+		prisma.user.findUnique({
+			where: { id: userId },
+			select: { currency: true },
+		}),
+		GoalService.getAll(userId),
 	]);
+
+	const currency = dbUser?.currency ?? 'USD';
 
 	return (
 		<div className='container mx-auto py-6 md:py-10 space-y-8'>
@@ -115,10 +127,10 @@ export default async function DashboardPage() {
 									: 'text-red-700 dark:text-red-300'
 							}`}
 						>
-							{formatCurrency(netWorthData.netWorth)}
+							{formatCurrency(netWorthData.netWorth, { currency })}
 						</div>
 						<p className='text-xs text-muted-foreground mt-1'>
-							Assets: {formatCurrency(netWorthData.assets)}
+							Assets: {formatCurrency(netWorthData.assets, { currency })}
 						</p>
 						{netWorthData.netWorth < 0 && (
 							<p className='text-xs text-red-600 dark:text-red-400 mt-1 flex items-center gap-1'>
@@ -141,7 +153,7 @@ export default async function DashboardPage() {
 					</CardHeader>
 					<CardContent>
 						<div className='text-2xl font-bold text-red-600 dark:text-red-400'>
-							{formatCurrency(netWorthData.liabilities)}
+							{formatCurrency(netWorthData.liabilities, { currency })}
 						</div>
 						<p className='text-xs text-muted-foreground mt-1'>
 							{financialHealth.debtToAssetRatio.toFixed(1)}%
@@ -154,12 +166,12 @@ export default async function DashboardPage() {
 				<Card className='transition-all hover:shadow-md'>
 					<CardHeader className='flex flex-row items-center justify-between space-y-0 pb-2'>
 						<CardTitle className='text-sm font-medium'>
-							{fundHealth.hasEmergencyFund
+							{goalHealth.hasEmergencyFund
 								? 'Emergency Fund'
 								: 'Runway'}
 						</CardTitle>
 						<div className='h-8 w-8 rounded-full bg-blue-100 dark:bg-blue-900 flex items-center justify-center'>
-							{fundHealth.hasEmergencyFund ? (
+							{goalHealth.hasEmergencyFund ? (
 								<Shield className='h-4 w-4 text-blue-600 dark:text-blue-400' />
 							) : (
 								<Wallet className='h-4 w-4 text-blue-600 dark:text-blue-400' />
@@ -167,12 +179,12 @@ export default async function DashboardPage() {
 						</div>
 					</CardHeader>
 					<CardContent>
-						{fundHealth.hasEmergencyFund ? (
+						{goalHealth.hasEmergencyFund ? (
 							// Emergency Fund Display
 							(() => {
 								const months =
-									fundHealth.emergencyFundMonths ?? 0;
-								const health = fundHealth.emergencyFundHealth;
+									goalHealth.emergencyFundMonths ?? 0;
+								const health = goalHealth.emergencyFundHealth;
 
 								const statusConfig = {
 									critical: {
@@ -205,7 +217,7 @@ export default async function DashboardPage() {
 								const StatusIcon = config.icon;
 
 								const expenseSource =
-									fundHealth.emergencyFundExpenseSource;
+									goalHealth.emergencyFundExpenseSource;
 
 								return (
 									<>
@@ -500,13 +512,15 @@ export default async function DashboardPage() {
 									<span>
 										Used:{' '}
 										{formatCurrency(
-											financialHealth.totalCreditUsed
+											financialHealth.totalCreditUsed,
+											{ currency }
 										)}
 									</span>
 									<span className='text-green-600 dark:text-green-400 font-medium'>
 										Available:{' '}
 										{formatCurrency(
-											financialHealth.availableCredit
+											financialHealth.availableCredit,
+											{ currency }
 										)}
 									</span>
 								</div>
@@ -576,7 +590,8 @@ export default async function DashboardPage() {
 										}`}
 									>
 										{formatCurrency(
-											financialHealth.debtPaydown
+											financialHealth.debtPaydown,
+											{ currency }
 										)}
 									</div>
 									<span className='text-sm text-muted-foreground'>
@@ -606,7 +621,8 @@ export default async function DashboardPage() {
 									<span>
 										Total Debt:{' '}
 										{formatCurrency(
-											financialHealth.totalDebt
+											financialHealth.totalDebt,
+											{ currency }
 										)}
 									</span>
 									<span
@@ -653,24 +669,17 @@ export default async function DashboardPage() {
 			{/* Budget Health Summary - Full Width */}
 			<BudgetHealthSummary health={budgetHealth} month={currentMonth} />
 
-			{/* Funds Section - Strategic goals above operational data */}
-			{fundHealth.funds.length > 0 && (
-				<Card>
-					<CardHeader>
-						<CardTitle className='flex items-center gap-2'>
-							<Shield className='h-5 w-5 text-blue-600' />
-							Your Funds
-						</CardTitle>
-					</CardHeader>
-					<CardContent>
-						<div className='grid gap-4 md:grid-cols-2 lg:grid-cols-3'>
-							{fundHealth.funds.map((fund) => (
-								<FundCard key={fund.id} fund={fund} />
-							))}
-						</div>
-					</CardContent>
-				</Card>
-			)}
+			{/* Goals Widget */}
+			<GoalsDashboardWidget
+				goals={(serialize(goals) as GoalCardData[]).map((g) => {
+					const metric = goalHealth.goals.find((m) => m.id === g.id);
+					return {
+						...g,
+						monthsCoverage: metric?.monthsCoverage ?? undefined,
+						healthStatus: metric?.healthStatus ?? undefined,
+					};
+				})}
+			/>
 
 			<div className='grid gap-4 md:grid-cols-2 lg:grid-cols-7'>
 				{/* Recent Transactions - Top 5 with Summary */}
@@ -728,7 +737,8 @@ export default async function DashboardPage() {
 												: '-'}
 											{formatCurrency(
 												transaction.amount?.toNumber() ??
-													0
+													0,
+												{ currency }
 											)}
 										</div>
 									</div>
@@ -758,7 +768,8 @@ export default async function DashboardPage() {
 															(t.amount?.toNumber() ??
 																0),
 														0
-													)
+													),
+												{ currency }
 											)}
 										</span>
 										<span className='text-red-600'>
@@ -775,7 +786,8 @@ export default async function DashboardPage() {
 															(t.amount?.toNumber() ??
 																0),
 														0
-													)
+													),
+												{ currency }
 											)}
 										</span>
 									</div>
@@ -801,26 +813,21 @@ export default async function DashboardPage() {
 							<div className='space-y-6'>
 								{(() => {
 									const grouped = groupAccountsByClass(accounts);
-									const iconMap = {
+									const iconMap: Record<AccountClass, typeof Wallet> = {
 										liquid: Wallet,
 										savings: PiggyBank,
 										liability: CreditCard,
-										fund: Target,
 									};
-									const bgMap = {
+									const bgMap: Record<AccountClass, string> = {
 										liquid: 'bg-emerald-100 dark:bg-emerald-900 text-emerald-600',
 										savings: 'bg-blue-100 dark:bg-blue-900 text-blue-600',
 										liability: 'bg-red-100 dark:bg-red-900 text-red-600',
-										fund: 'bg-violet-100 dark:bg-violet-900 text-violet-600',
 									};
-									const colorMap = {
+									const colorMap: Record<AccountClass, string> = {
 										liquid: 'text-emerald-600',
 										savings: 'text-blue-600',
 										liability: 'text-red-600',
-										fund: 'text-violet-600',
 									};
-									// Show liquid, savings, liability in the accounts card
-									// Funds have their own section below
 									const classOrder: AccountClass[] = ['liquid', 'savings', 'liability'];
 
 									return classOrder.map((cls, idx) => {
@@ -868,14 +875,14 @@ export default async function DashboardPage() {
 																					{Math.round((Number(account.balance) / Number(account.creditLimit)) * 100)}% Util
 																				</span>
 																				<span className='text-green-600 dark:text-green-400'>
-																					Avail: {formatCurrency(Number(account.creditLimit) - Number(account.balance))}
+																					Avail: {formatCurrency(Number(account.creditLimit) - Number(account.balance), { currency })}
 																				</span>
 																			</>
 																		)}
 																	</div>
 																</div>
 																<div className={`ml-auto font-medium ${isLiability ? 'text-red-600' : ''}`}>
-																	{formatCurrency(Number(account.balance))}
+																	{formatCurrency(Number(account.balance), { currency })}
 																</div>
 															</div>
 														))}

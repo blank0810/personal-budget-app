@@ -28,7 +28,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Skeleton } from '@/components/ui/skeleton';
 import { CurrencyInput } from '@/components/ui/currency-input';
 import { RecommendationBadge } from './RecommendationBadge';
-import { formatCurrency } from '@/lib/formatters';
+import { useCurrency } from '@/lib/contexts/currency-context';
 import { cn } from '@/lib/utils';
 
 import {
@@ -48,6 +48,7 @@ export function ReplicateBudgetDialog({
 	availableMonths,
 	onSuccess,
 }: ReplicateBudgetDialogProps) {
+	const { formatCurrency } = useCurrency();
 	const router = useRouter();
 	const [open, setOpen] = useState(false);
 	const [isPending, startTransition] = useTransition();

@@ -1,16 +1,18 @@
 import NextAuth from 'next-auth';
 import Credentials from 'next-auth/providers/credentials';
-import Google from 'next-auth/providers/google';
 import { z } from 'zod';
 import bcrypt from 'bcryptjs';
 import prisma from './lib/prisma';
+import authConfig from './auth.config';
 
-export const { handlers, signIn, signOut, auth } = NextAuth({
+export const { handlers, signIn, signOut, auth, unstable_update } = NextAuth({
+	...authConfig,
 	providers: [
-		Google({
-			clientId: process.env.GOOGLE_CLIENT_ID,
-			clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-		}),
+		// Keep Google from config as-is
+		...authConfig.providers.filter(
+			(p) => !('id' in p && p.id === 'credentials')
+		),
+		// Override Credentials with actual authorize function (needs Prisma)
 		Credentials({
 			credentials: {
 				email: { label: 'Email', type: 'email' },
@@ -43,6 +45,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
 		}),
 	],
 	callbacks: {
+		...authConfig.callbacks,
 		async signIn({ user, account }) {
 			if (account?.provider === 'google') {
 				if (!user.email) return false;
@@ -53,14 +56,16 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
 
 				if (existingUser) {
 					// Link Google account to existing user if not already linked
-					const existingAccount = await prisma.authAccount.findUnique({
-						where: {
-							provider_providerAccountId: {
-								provider: account.provider,
-								providerAccountId: account.providerAccountId,
+					const existingAccount =
+						await prisma.authAccount.findUnique({
+							where: {
+								provider_providerAccountId: {
+									provider: account.provider,
+									providerAccountId:
+										account.providerAccountId,
+								},
 							},
-						},
-					});
+						});
 
 					if (!existingAccount) {
 						await prisma.authAccount.create({
@@ -68,7 +73,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
 								userId: existingUser.id,
 								type: account.type,
 								provider: account.provider,
-								providerAccountId: account.providerAccountId,
+								providerAccountId:
+									account.providerAccountId,
 								refresh_token: account.refresh_token,
 								access_token: account.access_token,
 								expires_at: account.expires_at,
@@ -104,31 +110,73 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
 				}
 			}
 
+			// Track last login
+			const loginUserId =
+				account?.provider === 'google' && user?.email
+					? (
+							await prisma.user.findUnique({
+								where: { email: user.email },
+								select: { id: true },
+							})
+						)?.id
+					: user?.id;
+
+			if (loginUserId) {
+				await prisma.user.update({
+					where: { id: loginUserId },
+					data: { lastLoginAt: new Date() },
+				});
+			}
+
 			return true;
 		},
-		async jwt({ token, user, account }) {
+		async jwt({ token, user, account, trigger, session }) {
+			// First, run the Edge-safe base jwt callback
+			token = await (authConfig.callbacks?.jwt?.({
+				token,
+				user,
+				account,
+				trigger,
+				session,
+			} as Parameters<NonNullable<NonNullable<typeof authConfig.callbacks>['jwt']>>[0]) ?? token);
+
+			// Enrich token with DB data at sign-in time (Node runtime only)
 			if (account?.provider === 'google' && user?.email) {
-				// For Google sign-in, look up the actual DB user ID
 				const dbUser = await prisma.user.findUnique({
 					where: { email: user.email },
+					select: {
+						id: true,
+						currency: true,
+						role: true,
+						isOnboarded: true,
+						isDisabled: true,
+					},
 				});
 				if (dbUser) {
 					token.sub = dbUser.id;
+					token.currency = dbUser.currency;
+					token.role = dbUser.role;
+					token.isOnboarded = dbUser.isOnboarded;
+					token.isDisabled = dbUser.isDisabled;
 				}
 			} else if (user) {
+				const dbUser = await prisma.user.findUnique({
+					where: { id: user.id },
+					select: {
+						currency: true,
+						role: true,
+						isOnboarded: true,
+						isDisabled: true,
+					},
+				});
 				token.sub = user.id;
+				token.currency = dbUser?.currency ?? 'USD';
+				token.role = dbUser?.role ?? 'USER';
+				token.isOnboarded = dbUser?.isOnboarded ?? false;
+				token.isDisabled = dbUser?.isDisabled ?? false;
 			}
+
 			return token;
 		},
-		async session({ session, token }) {
-			if (token.sub && session.user) {
-				session.user.id = token.sub;
-			}
-			return session;
-		},
 	},
-	pages: {
-		signIn: '/login',
-	},
-	session: { strategy: 'jwt' },
 });

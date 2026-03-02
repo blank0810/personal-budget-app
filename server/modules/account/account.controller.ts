@@ -37,9 +37,6 @@ export async function createAccountAction(formData: FormData) {
 		? true
 		: isLiabilityInput;
 
-	// Check if this is a fund type
-	const isFundType = ['EMERGENCY_FUND', 'FUND'].includes(type);
-
 	const rawData = {
 		name: formData.get('name') as string,
 		type,
@@ -50,26 +47,6 @@ export async function createAccountAction(formData: FormData) {
 			: null,
 		icon: formData.get('icon') as string | null,
 		color: formData.get('color') as string | null,
-		// Fund-specific fields
-		targetAmount:
-			isFundType && formData.get('targetAmount')
-				? Number(formData.get('targetAmount'))
-				: null,
-		fundCalculationMode: isFundType
-			? (formData.get('fundCalculationMode') as string | null)
-			: null,
-		fundThresholdLow:
-			isFundType && formData.get('fundThresholdLow')
-				? Number(formData.get('fundThresholdLow'))
-				: null,
-		fundThresholdMid:
-			isFundType && formData.get('fundThresholdMid')
-				? Number(formData.get('fundThresholdMid'))
-				: null,
-		fundThresholdHigh:
-			isFundType && formData.get('fundThresholdHigh')
-				? Number(formData.get('fundThresholdHigh'))
-				: null,
 	};
 
 	const validatedFields = createAccountSchema.safeParse(rawData);
@@ -105,9 +82,6 @@ export async function updateAccountAction(formData: FormData) {
 		? true
 		: isLiabilityInput;
 
-	// Check if this is a fund type
-	const isFundType = ['EMERGENCY_FUND', 'FUND'].includes(type);
-
 	const rawData = {
 		id: formData.get('id') as string,
 		name: formData.get('name') as string,
@@ -121,26 +95,6 @@ export async function updateAccountAction(formData: FormData) {
 			: null,
 		icon: formData.get('icon') as string | null,
 		color: formData.get('color') as string | null,
-		// Fund-specific fields
-		targetAmount:
-			isFundType && formData.get('targetAmount')
-				? Number(formData.get('targetAmount'))
-				: null,
-		fundCalculationMode: isFundType
-			? (formData.get('fundCalculationMode') as string | null)
-			: null,
-		fundThresholdLow:
-			isFundType && formData.get('fundThresholdLow')
-				? Number(formData.get('fundThresholdLow'))
-				: null,
-		fundThresholdMid:
-			isFundType && formData.get('fundThresholdMid')
-				? Number(formData.get('fundThresholdMid'))
-				: null,
-		fundThresholdHigh:
-			isFundType && formData.get('fundThresholdHigh')
-				? Number(formData.get('fundThresholdHigh'))
-				: null,
 	};
 
 	const validatedFields = updateAccountSchema.safeParse(rawData);
@@ -203,16 +157,6 @@ export async function adjustAccountBalanceAction(formData: FormData) {
 	const { accountId, newBalance } = validatedFields.data;
 
 	try {
-		// 1. Fetch current account to compare balance
-		// We use a direct service call logic here or import prisma if need strict checking,
-		// but relying on Service is cleaner. Assuming Service has getAccount.
-		// Since AccountService.getAccount is not exported or we are in controller, let's use direct Access or add getAccount to Service.
-		// Actually AccountService.getAccountWithTransactions exists but is heavy.
-		// Let's assume we can trust the AccountService to help us or we use the one-off approach.
-		// Wait, I can't import prisma here directly if I want to stick to patterns, but the Service is right there.
-		// Let's use AccountService.getAccountById if it exists.
-		// Checking AccountService... it has getAccountWithTransactions. I'll use that.
-
 		const account = await AccountService.getAccountWithTransactions(
 			userId,
 			accountId
@@ -230,17 +174,14 @@ export async function adjustAccountBalanceAction(formData: FormData) {
 			return { success: true }; // No change
 		}
 
-		// For assets: diff > 0 means money came in (Income), diff < 0 means money went out (Expense)
-		// For liabilities: diff > 0 means debt increased (Expense), diff < 0 means debt decreased (Income/Payment)
 		const needsIncome = isLiability ? diff < 0 : diff > 0;
 
 		if (needsIncome) {
-			// Income: For assets, increases balance. For liabilities, decreases balance (payment).
 			await IncomeService.createIncome(userId, {
 				amount: Math.abs(diff),
 				date: new Date(),
 				description: 'Manual Balance Adjustment',
-				categoryName: 'Initial Balance/Adjustment', // Will be created if missing
+				categoryName: 'Initial Balance/Adjustment',
 				accountId: accountId,
 				isRecurring: false,
 				titheEnabled: false,
@@ -249,7 +190,6 @@ export async function adjustAccountBalanceAction(formData: FormData) {
 				emergencyFundPercentage: 0,
 			});
 		} else {
-			// Expense: For assets, decreases balance. For liabilities, increases balance (more debt).
 			await ExpenseService.createExpense(userId, {
 				amount: Math.abs(diff),
 				date: new Date(),

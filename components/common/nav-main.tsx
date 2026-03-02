@@ -25,6 +25,7 @@ export function NavMain({
 		url: string;
 		icon?: LucideIcon;
 		isActive?: boolean;
+		badge?: boolean;
 		items?: {
 			title: string;
 			url: string;
@@ -81,6 +82,9 @@ export function NavMain({
 								<a href={item.url}>
 									{item.icon && <item.icon className='size-[1.125rem]' />}
 									<span>{item.title}</span>
+									{item.badge && (
+										<span className='ml-auto h-2 w-2 rounded-full bg-primary animate-pulse' />
+									)}
 								</a>
 							</SidebarMenuButton>
 						</SidebarMenuItem>

@@ -39,7 +39,7 @@ import { useState, useEffect, useRef } from 'react';
 import { Account, Category, Budget } from '@prisma/client';
 import { CategoryCombobox } from './CategoryCombobox';
 import { BudgetSelector } from './BudgetSelector';
-import { formatCurrency } from '@/lib/formatters';
+import { useCurrency } from '@/lib/contexts/currency-context';
 
 interface BudgetWithCategory extends Budget {
 	category: Category;
@@ -59,6 +59,7 @@ export function ExpenseForm({
 	categories,
 	budgets,
 }: ExpenseFormProps) {
+	const { formatCurrency } = useCurrency();
 	const [isPending, setIsPending] = useState(false);
 	const [showCustomCategoryInput, setShowCustomCategoryInput] =
 		useState(false);
@@ -87,6 +88,7 @@ export function ExpenseForm({
 		},
 	});
 
+	// eslint-disable-next-line react-hooks/incompatible-library -- React Hook Form's watch() is not compiler-safe but works correctly
 	const isRecurring = form.watch('isRecurring');
 	const selectedAccountId = form.watch('accountId');
 	const selectedAccount = accounts.find((a) => a.id === selectedAccountId);

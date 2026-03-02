@@ -3,29 +3,27 @@ import { IncomeViews } from '@/components/modules/income/IncomeViews';
 import { IncomeService } from '@/server/modules/income/income.service';
 import { AccountService } from '@/server/modules/account/account.service';
 import { CategoryService } from '@/server/modules/category/category.service';
+import { GoalService } from '@/server/modules/goal/goal.service';
 import { auth } from '@/auth';
 import { redirect } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { serialize } from '@/lib/serialization';
-import { AccountType } from '@prisma/client';
 
 export default async function IncomePage() {
 	const session = await auth();
 	if (!session?.user?.id) {
-		redirect('/api/auth/signin'); // Basic redirect for now
+		redirect('/api/auth/signin');
 	}
 
-	const incomes = await IncomeService.getIncomes(session.user.id);
-	const accounts = await AccountService.getAccounts(session.user.id);
-	const categories = await CategoryService.getCategories(
-		session.user.id,
-		'INCOME'
-	);
+	const [incomes, accounts, categories, efGoal] = await Promise.all([
+		IncomeService.getIncomes(session.user.id),
+		AccountService.getAccounts(session.user.id),
+		CategoryService.getCategories(session.user.id, 'INCOME'),
+		GoalService.getEmergencyFundGoal(session.user.id),
+	]);
 
-	// Check if user has an Emergency Fund account
-	const hasEmergencyFundAccount = accounts.some(
-		(acc) => acc.type === AccountType.EMERGENCY_FUND && !acc.isArchived
-	);
+	// User has an EF goal with a linked account
+	const hasEmergencyFundGoal = !!efGoal?.linkedAccountId;
 
 	return (
 		<div className='container mx-auto py-6 md:py-10 space-y-8'>
@@ -43,7 +41,7 @@ export default async function IncomePage() {
 							<IncomeForm
 								accounts={serialize(accounts)}
 								categories={serialize(categories)}
-								hasEmergencyFundAccount={hasEmergencyFundAccount}
+								hasEmergencyFundGoal={hasEmergencyFundGoal}
 							/>
 						</CardContent>
 					</Card>

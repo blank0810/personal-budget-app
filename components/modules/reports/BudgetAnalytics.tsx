@@ -22,7 +22,7 @@ import {
 	TableRow,
 } from '@/components/ui/table';
 import { ArrowUp, ArrowDown, CheckCircle } from 'lucide-react';
-import { formatCurrency } from '@/lib/formatters';
+import { useCurrency } from '@/lib/contexts/currency-context';
 import { cn } from '@/lib/utils';
 import type {
 	MonthlyTrend,
@@ -38,6 +38,8 @@ export function BudgetAnalytics({
 	trends,
 	recommendations,
 }: BudgetAnalyticsProps) {
+	const { formatCurrency } = useCurrency();
+
 	// Empty state
 	if (trends.length === 0 || trends.every((t) => t.totalCategories === 0)) {
 		return (
@@ -227,6 +229,8 @@ function RecommendationBadge({
 	recommendation: 'increase' | 'decrease' | 'stable';
 	suggestedAmount: number | null;
 }) {
+	const { formatCurrency } = useCurrency();
+
 	switch (recommendation) {
 		case 'increase':
 			return (

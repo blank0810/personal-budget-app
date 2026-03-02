@@ -9,10 +9,18 @@ import {
 	TableRow,
 } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
-import { Trash2, FileText, Shield, Target } from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
+import {
+	Trash2,
+	FileText,
+	Landmark,
+	Wallet,
+	PiggyBank,
+	TrendingUp,
+	CreditCard,
+	Church,
+} from 'lucide-react';
 import { deleteAccountAction } from '@/server/modules/account/account.controller';
-import { formatCurrency } from '@/lib/formatters';
+import { useCurrency } from '@/lib/contexts/currency-context';
 import { Account } from '@prisma/client';
 import Link from 'next/link';
 import {
@@ -22,6 +30,16 @@ import {
 	type AccountClass,
 } from '@/lib/account-utils';
 import { cn } from '@/lib/utils';
+
+const ACCOUNT_TYPE_ICON: Record<string, React.ElementType> = {
+	BANK: Landmark,
+	CASH: Wallet,
+	SAVINGS: PiggyBank,
+	INVESTMENT: TrendingUp,
+	CREDIT: CreditCard,
+	LOAN: FileText,
+	TITHE: Church,
+};
 
 interface AccountListProps {
 	accounts: Account[];
@@ -98,6 +116,7 @@ function AccountGroup({
 	accounts: Account[];
 	onDelete: (id: string) => void;
 }) {
+	const { formatCurrency } = useCurrency();
 	const isLiability = cls === 'liability';
 
 	return (
@@ -108,8 +127,7 @@ function AccountGroup({
 						'text-xs font-semibold uppercase tracking-wider flex items-center gap-1.5',
 						color === 'emerald' && 'text-emerald-600',
 						color === 'blue' && 'text-blue-600',
-						color === 'red' && 'text-red-600',
-						color === 'violet' && 'text-violet-600'
+						color === 'red' && 'text-red-600'
 					)}
 				>
 					{icon}
@@ -158,9 +176,17 @@ function AccountRow({
 	account: Account;
 	onDelete: (id: string) => void;
 }) {
+	const { formatCurrency } = useCurrency();
+	const TypeIcon = ACCOUNT_TYPE_ICON[account.type] || Landmark;
+
 	return (
 		<TableRow>
-			<TableCell className='font-medium'>{account.name}</TableCell>
+			<TableCell className='font-medium'>
+				<span className='flex items-center gap-2'>
+					<TypeIcon className='h-4 w-4 text-muted-foreground shrink-0' />
+					{account.name}
+				</span>
+			</TableCell>
 			<TableCell>
 				<span className='inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 border-transparent bg-primary/10 text-primary hover:bg-primary/20'>
 					{account.type}
@@ -172,10 +198,6 @@ function AccountRow({
 				</div>
 				{account.type === 'CREDIT' && account.creditLimit && (
 					<CreditUtilization account={account} />
-				)}
-				{(account.type === 'EMERGENCY_FUND' ||
-					account.type === 'FUND') && (
-					<FundProgress account={account} />
 				)}
 			</TableCell>
 			<TableCell>
@@ -205,6 +227,7 @@ function AccountRow({
 }
 
 function CreditUtilization({ account }: { account: Account }) {
+	const { formatCurrency } = useCurrency();
 	const creditLimit = Number(account.creditLimit);
 	const balance = Number(account.balance);
 	const utilization = balance / creditLimit;
@@ -246,63 +269,6 @@ function CreditUtilization({ account }: { account: Account }) {
 					}}
 				/>
 			</div>
-		</div>
-	);
-}
-
-function FundProgress({ account }: { account: Account }) {
-	const balance = Number(account.balance);
-	const target = account.targetAmount ? Number(account.targetAmount) : null;
-	const mode = account.fundCalculationMode;
-	const FundIcon = account.type === 'EMERGENCY_FUND' ? Shield : Target;
-
-	if (mode === 'TARGET_PROGRESS' && target && target > 0) {
-		const progressPercent = Math.min(
-			Math.round((balance / target) * 100),
-			100
-		);
-		const remaining = target - balance;
-
-		let barColor = 'bg-red-500';
-		if (progressPercent >= 100) barColor = 'bg-green-500';
-		else if (progressPercent >= 75) barColor = 'bg-blue-500';
-		else if (progressPercent >= 50) barColor = 'bg-yellow-500';
-		else if (progressPercent >= 25) barColor = 'bg-orange-500';
-
-		return (
-			<div className='flex flex-col items-end gap-1 mt-1'>
-				<div className='flex items-center gap-1 text-xs text-muted-foreground'>
-					<FundIcon className='h-3 w-3' />
-					<span>
-						{progressPercent}% of {formatCurrency(target)}
-					</span>
-				</div>
-				<div className='w-full h-1.5 bg-secondary rounded-full overflow-hidden'>
-					<div
-						className={`h-full ${barColor}`}
-						style={{ width: `${progressPercent}%` }}
-					/>
-				</div>
-				{remaining > 0 && (
-					<span className='text-xs text-muted-foreground'>
-						{formatCurrency(remaining)} to go
-					</span>
-				)}
-			</div>
-		);
-	}
-
-	return (
-		<div className='flex flex-col items-end gap-1 mt-1'>
-			<Badge
-				variant='outline'
-				className='text-blue-600 border-blue-200 text-xs'
-			>
-				<FundIcon className='h-3 w-3 mr-1' />
-				{account.type === 'EMERGENCY_FUND'
-					? 'Emergency Fund'
-					: 'Savings Goal'}
-			</Badge>
 		</div>
 	);
 }

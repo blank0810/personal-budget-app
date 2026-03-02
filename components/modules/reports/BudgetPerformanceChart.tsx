@@ -12,7 +12,7 @@ import {
 } from 'recharts';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
-import { formatCurrency } from '@/lib/formatters';
+import { useCurrency } from '@/lib/contexts/currency-context';
 import { ChevronDown } from 'lucide-react';
 
 interface BudgetMetric {
@@ -31,6 +31,8 @@ interface BudgetPerformanceChartProps {
 }
 
 export function BudgetPerformanceChart({ data }: BudgetPerformanceChartProps) {
+	const { formatCurrency } = useCurrency();
+
 	if (data.length === 0) {
 		return (
 			<Card className='col-span-2'>
