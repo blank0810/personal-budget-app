@@ -32,7 +32,7 @@ export default async function DashboardLayout({
 
 	const signOutAction = async () => {
 		'use server';
-		await signOut();
+		await signOut({ redirectTo: '/' });
 	};
 
 	return (

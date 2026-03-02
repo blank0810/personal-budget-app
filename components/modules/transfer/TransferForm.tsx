@@ -66,6 +66,7 @@ export function TransferForm({ accounts }: TransferFormProps) {
 	});
 
 	// Watch values for cross-disabling
+	// eslint-disable-next-line react-hooks/incompatible-library -- React Hook Form's watch() is not compiler-safe but works correctly
 	const fromAccountId = form.watch('fromAccountId');
 	const toAccountId = form.watch('toAccountId');
 

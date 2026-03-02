@@ -147,15 +147,18 @@ export type DigestLiabilities = {
 	monthlyPaydown: number;
 };
 
-export type DigestFundAccount = {
+export type DigestGoalAccount = {
 	name: string;
 	balance: number;
 	target?: number;
 	progress?: number;
+	goalType: string;
+	healthStatus?: string;
+	monthsCoverage?: number;
 };
 
-export type DigestFunds = {
-	accounts: DigestFundAccount[];
+export type DigestGoals = {
+	accounts: DigestGoalAccount[];
 	emergencyFundMonths?: number;
 };
 
@@ -178,7 +181,7 @@ export type MonthlyDigest = {
 		topCategories?: DigestTopCategory[];
 		budgetPerformance?: DigestBudgetPerformance;
 		liabilities?: DigestLiabilities;
-		funds?: DigestFunds;
+		goals?: DigestGoals;
 		netWorth: DigestNetWorth;
 	};
 };

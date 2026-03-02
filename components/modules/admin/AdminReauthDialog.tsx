@@ -13,18 +13,38 @@ import {
 	CardTitle,
 } from '@/components/ui/card';
 import { Shield } from 'lucide-react';
-import { adminReauth } from '@/server/modules/admin/admin.controller';
+import {
+	adminReauth,
+	adminReauthOAuth,
+} from '@/server/modules/admin/admin.controller';
 import { toast } from 'sonner';
 
-export function AdminReauthDialog() {
+interface AdminReauthDialogProps {
+	hasPassword: boolean;
+}
+
+export function AdminReauthDialog({ hasPassword }: AdminReauthDialogProps) {
 	const router = useRouter();
 	const [password, setPassword] = useState('');
 	const [loading, setLoading] = useState(false);
 
-	async function handleSubmit(e: React.FormEvent) {
+	async function handlePasswordSubmit(e: React.FormEvent) {
 		e.preventDefault();
 		setLoading(true);
 		const result = await adminReauth(password);
+		setLoading(false);
+
+		if (result.success) {
+			toast.success('Admin mode activated');
+			router.refresh();
+		} else {
+			toast.error(result.error || 'Authentication failed');
+		}
+	}
+
+	async function handleOAuthSubmit() {
+		setLoading(true);
+		const result = await adminReauthOAuth();
 		setLoading(false);
 
 		if (result.success) {
@@ -44,39 +64,63 @@ export function AdminReauthDialog() {
 					</div>
 					<CardTitle>Admin Authentication Required</CardTitle>
 					<CardDescription>
-						Re-enter your password to access admin controls.
-						Session expires after 15 minutes.
+						{hasPassword
+							? 'Re-enter your password to access admin controls.'
+							: 'Confirm your identity to access admin controls.'}
+						{' '}Session expires after 15 minutes.
 					</CardDescription>
 				</CardHeader>
 				<CardContent>
-					<form onSubmit={handleSubmit} className='space-y-4'>
-						<div className='space-y-2'>
-							<Label htmlFor='password'>Password</Label>
-							<Input
-								id='password'
-								type='password'
-								value={password}
-								onChange={(e) => setPassword(e.target.value)}
-								placeholder='Enter your password'
-								required
-							/>
+					{hasPassword ? (
+						<form onSubmit={handlePasswordSubmit} className='space-y-4'>
+							<div className='space-y-2'>
+								<Label htmlFor='password'>Password</Label>
+								<Input
+									id='password'
+									type='password'
+									value={password}
+									onChange={(e) => setPassword(e.target.value)}
+									placeholder='Enter your password'
+									required
+								/>
+							</div>
+							<Button
+								type='submit'
+								className='w-full'
+								disabled={loading}
+							>
+								{loading ? 'Verifying...' : 'Authenticate'}
+							</Button>
+							<Button
+								type='button'
+								variant='outline'
+								className='w-full'
+								onClick={() => router.push('/dashboard')}
+							>
+								Cancel
+							</Button>
+						</form>
+					) : (
+						<div className='space-y-4'>
+							<p className='text-sm text-muted-foreground text-center'>
+								You signed in with Google. Tap below to confirm your admin access.
+							</p>
+							<Button
+								className='w-full'
+								disabled={loading}
+								onClick={handleOAuthSubmit}
+							>
+								{loading ? 'Verifying...' : 'Confirm Admin Access'}
+							</Button>
+							<Button
+								variant='outline'
+								className='w-full'
+								onClick={() => router.push('/dashboard')}
+							>
+								Cancel
+							</Button>
 						</div>
-						<Button
-							type='submit'
-							className='w-full'
-							disabled={loading}
-						>
-							{loading ? 'Verifying...' : 'Authenticate'}
-						</Button>
-						<Button
-							type='button'
-							variant='outline'
-							className='w-full'
-							onClick={() => router.push('/dashboard')}
-						>
-							Cancel
-						</Button>
-					</form>
+					)}
 				</CardContent>
 			</Card>
 		</div>

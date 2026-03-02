@@ -3,6 +3,9 @@ import type {
 	CreateGoalInput,
 	UpdateGoalInput,
 	AddContributionInput,
+	GoalHealthMetric,
+	GoalHealthSummary,
+	GoalHealthStatus,
 } from './goal.types';
 
 export const GoalService = {
@@ -13,6 +16,11 @@ export const GoalService = {
 			deadline: data.deadline,
 			icon: data.icon,
 			color: data.color,
+			goalType: data.goalType ?? 'FIXED_AMOUNT',
+			isEmergencyFund: data.isEmergencyFund ?? false,
+			thresholdLow: data.thresholdLow,
+			thresholdMid: data.thresholdMid,
+			thresholdHigh: data.thresholdHigh,
 			userId,
 		};
 
@@ -199,5 +207,150 @@ export const GoalService = {
 		const projected = new Date();
 		projected.setMonth(projected.getMonth() + Math.ceil(monthsToGo));
 		return projected;
+	},
+
+	/**
+	 * Get goal health metrics — replaces DashboardService.getFundHealthMetrics()
+	 * For MONTHS_COVERAGE goals: months coverage from linked account balance / expense baseline
+	 * For FIXED_AMOUNT goals with linked account: progress = currentAmount / targetAmount
+	 */
+	async getGoalHealthMetrics(userId: string): Promise<GoalHealthSummary> {
+		// 1. Get all active goals with linked accounts
+		const goals = await prisma.goal.findMany({
+			where: { userId, status: 'ACTIVE' },
+			include: {
+				linkedAccount: { select: { id: true, balance: true } },
+			},
+		});
+
+		if (goals.length === 0) {
+			return {
+				goals: [],
+				totalGoalBalance: 0,
+				hasEmergencyFund: false,
+				emergencyFundMonths: null,
+				emergencyFundHealth: null,
+				emergencyFundExpenseSource: null,
+				monthlyExpenseBaseline: 0,
+			};
+		}
+
+		// 2. Get expense baseline (hybrid: actual 3-month avg, fallback to budget)
+		const now = new Date();
+		const threeMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 3, 1);
+		const endCurrentMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+		const currentMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+		const nextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+
+		const [expenseAgg, budgets] = await Promise.all([
+			prisma.expense.aggregate({
+				where: { userId, date: { gte: threeMonthsAgo, lte: endCurrentMonth } },
+				_sum: { amount: true },
+			}),
+			prisma.budget.findMany({
+				where: { userId, month: { gte: currentMonth, lt: nextMonth } },
+			}),
+		]);
+
+		const avgMonthlyExpense = (expenseAgg._sum.amount?.toNumber() || 0) / 3;
+		const totalMonthlyBudget = budgets.reduce((sum, b) => sum + Number(b.amount), 0);
+
+		const expenseSource: 'actual' | 'budget' | null =
+			avgMonthlyExpense > 0 ? 'actual' : totalMonthlyBudget > 0 ? 'budget' : null;
+		const monthlyExpenseBaseline = avgMonthlyExpense > 0 ? avgMonthlyExpense : totalMonthlyBudget;
+
+		// 3. Calculate metrics for each goal
+		const goalMetrics: GoalHealthMetric[] = goals.map((goal) => {
+			const balance = goal.linkedAccount
+				? Number(goal.linkedAccount.balance)
+				: Number(goal.currentAmount);
+			const target = Number(goal.targetAmount);
+			const goalType = goal.goalType as 'FIXED_AMOUNT' | 'MONTHS_COVERAGE';
+
+			const thresholdLow = goal.thresholdLow ?? 2;
+			const thresholdMid = goal.thresholdMid ?? 4;
+			const thresholdHigh = goal.thresholdHigh ?? 6;
+
+			let progressPercent = 0;
+			let monthsCoverage: number | null = null;
+			let healthStatus: GoalHealthStatus;
+
+			if (goalType === 'MONTHS_COVERAGE') {
+				monthsCoverage =
+					monthlyExpenseBaseline > 0
+						? balance / monthlyExpenseBaseline
+						: balance > 0 ? 999 : 0;
+
+				progressPercent = (monthsCoverage / thresholdHigh) * 100;
+
+				if (monthsCoverage < thresholdLow) {
+					healthStatus = 'critical';
+				} else if (monthsCoverage < thresholdMid) {
+					healthStatus = 'underfunded';
+				} else if (monthsCoverage < thresholdHigh) {
+					healthStatus = 'building';
+				} else {
+					healthStatus = 'funded';
+				}
+			} else {
+				progressPercent = target > 0 ? (balance / target) * 100 : 0;
+
+				if (progressPercent < 25) {
+					healthStatus = 'critical';
+				} else if (progressPercent < 50) {
+					healthStatus = 'underfunded';
+				} else if (progressPercent < 100) {
+					healthStatus = 'building';
+				} else {
+					healthStatus = 'funded';
+				}
+			}
+
+			return {
+				id: goal.id,
+				name: goal.name,
+				goalType,
+				isEmergencyFund: goal.isEmergencyFund,
+				balance,
+				targetAmount: target || null,
+				progressPercent: Math.min(progressPercent, 100),
+				monthsCoverage,
+				healthStatus,
+				thresholds: { low: thresholdLow, mid: thresholdMid, high: thresholdHigh },
+			};
+		});
+
+		// 4. Calculate totals
+		const totalGoalBalance = goalMetrics.reduce((sum, g) => sum + g.balance, 0);
+
+		// 5. Find Emergency Fund goal
+		const emergencyFund = goalMetrics.find((g) => g.isEmergencyFund);
+
+		return {
+			goals: goalMetrics,
+			totalGoalBalance,
+			hasEmergencyFund: !!emergencyFund,
+			emergencyFundMonths: emergencyFund?.monthsCoverage ?? null,
+			emergencyFundHealth: emergencyFund?.healthStatus ?? null,
+			emergencyFundExpenseSource: expenseSource,
+			monthlyExpenseBaseline,
+		};
+	},
+
+	/**
+	 * Get the user's emergency fund goal (for income auto-contribution)
+	 */
+	async getEmergencyFundGoal(userId: string) {
+		return prisma.goal.findFirst({
+			where: {
+				userId,
+				isEmergencyFund: true,
+				status: 'ACTIVE',
+				linkedAccountId: { not: null },
+			},
+			include: {
+				linkedAccount: { select: { id: true, name: true, balance: true } },
+			},
+		});
 	},
 };

@@ -18,19 +18,43 @@ async function getAuthenticatedUser() {
 export async function createGoalAction(formData: FormData) {
 	const userId = await getAuthenticatedUser();
 
+	const goalType = (formData.get('goalType') as string) || 'FIXED_AMOUNT';
+	const isEmergencyFund = formData.get('isEmergencyFund') === 'true';
+
 	const parsed = createGoalSchema.safeParse({
 		name: formData.get('name'),
-		targetAmount: Number(formData.get('targetAmount')),
+		targetAmount: Number(formData.get('targetAmount') || 0),
 		deadline: formData.get('deadline') || undefined,
 		icon: formData.get('icon') || undefined,
 		color: formData.get('color') || undefined,
 		linkedAccountId: formData.get('linkedAccountId') || undefined,
+		goalType,
+		isEmergencyFund,
+		thresholdLow: formData.get('thresholdLow')
+			? Number(formData.get('thresholdLow'))
+			: undefined,
+		thresholdMid: formData.get('thresholdMid')
+			? Number(formData.get('thresholdMid'))
+			: undefined,
+		thresholdHigh: formData.get('thresholdHigh')
+			? Number(formData.get('thresholdHigh'))
+			: undefined,
 	});
 
 	if (!parsed.success) {
 		return {
 			error: parsed.error.issues[0]?.message || 'Validation failed',
 		};
+	}
+
+	// Enforce single emergency fund per user
+	if (parsed.data.isEmergencyFund) {
+		const existing = await GoalService.getEmergencyFundGoal(userId);
+		if (existing) {
+			return {
+				error: 'You already have an Emergency Fund goal. Only one is allowed.',
+			};
+		}
 	}
 
 	try {
@@ -59,12 +83,35 @@ export async function updateGoalAction(formData: FormData) {
 		deadline: formData.get('deadline') || undefined,
 		icon: formData.get('icon') || undefined,
 		color: formData.get('color') || undefined,
+		goalType: formData.get('goalType') || undefined,
+		isEmergencyFund: formData.has('isEmergencyFund')
+			? formData.get('isEmergencyFund') === 'true'
+			: undefined,
+		thresholdLow: formData.get('thresholdLow')
+			? Number(formData.get('thresholdLow'))
+			: undefined,
+		thresholdMid: formData.get('thresholdMid')
+			? Number(formData.get('thresholdMid'))
+			: undefined,
+		thresholdHigh: formData.get('thresholdHigh')
+			? Number(formData.get('thresholdHigh'))
+			: undefined,
 	});
 
 	if (!parsed.success) {
 		return {
 			error: parsed.error.issues[0]?.message || 'Validation failed',
 		};
+	}
+
+	// Enforce single emergency fund per user when toggling on
+	if (parsed.data.isEmergencyFund) {
+		const existing = await GoalService.getEmergencyFundGoal(userId);
+		if (existing && existing.id !== parsed.data.id) {
+			return {
+				error: 'You already have an Emergency Fund goal. Only one is allowed.',
+			};
+		}
 	}
 
 	try {

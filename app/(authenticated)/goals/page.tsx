@@ -6,6 +6,7 @@ import { GoalForm } from '@/components/modules/goal/GoalForm';
 import { GoalList } from '@/components/modules/goal/GoalList';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { serialize } from '@/lib/serialization';
+import type { GoalCardData } from '@/components/modules/goal/GoalCard';
 
 export default async function GoalsPage() {
 	const session = await auth();
@@ -14,10 +15,25 @@ export default async function GoalsPage() {
 	// Sync linked account balances before displaying
 	await GoalService.syncLinkedAccounts(session.user.id);
 
-	const [goals, accounts] = await Promise.all([
+	const [goals, accounts, goalHealth] = await Promise.all([
 		GoalService.getAll(session.user.id),
 		AccountService.getAccounts(session.user.id),
+		GoalService.getGoalHealthMetrics(session.user.id),
 	]);
+
+	const hasEmergencyFund = goals.some(
+		(g) => g.isEmergencyFund && g.status === 'ACTIVE'
+	);
+
+	// Enrich goals with health metrics
+	const enrichedGoals = (serialize(goals) as GoalCardData[]).map((g) => {
+		const metric = goalHealth.goals.find((m) => m.id === g.id);
+		return {
+			...g,
+			monthsCoverage: metric?.monthsCoverage ?? undefined,
+			healthStatus: metric?.healthStatus ?? undefined,
+		};
+	});
 
 	return (
 		<div className='container mx-auto py-6 md:py-10 space-y-8'>
@@ -41,6 +57,7 @@ export default async function GoalsPage() {
 										name: a.name,
 									})
 								)}
+								hasEmergencyFund={hasEmergencyFund}
 							/>
 						</CardContent>
 					</Card>
@@ -51,7 +68,7 @@ export default async function GoalsPage() {
 							<CardTitle>Your Goals</CardTitle>
 						</CardHeader>
 						<CardContent>
-							<GoalList goals={serialize(goals)} />
+							<GoalList goals={enrichedGoals} />
 						</CardContent>
 					</Card>
 				</div>

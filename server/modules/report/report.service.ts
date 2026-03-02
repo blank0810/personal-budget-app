@@ -1,3 +1,4 @@
+import crypto from 'crypto';
 import prisma from '@/lib/prisma';
 import {
 	CategoryBreakdown,
@@ -24,6 +25,7 @@ import {
 	endOfDay,
 } from 'date-fns';
 import { DashboardService } from '@/server/modules/dashboard/dashboard.service';
+import { GoalService } from '@/server/modules/goal/goal.service';
 import { BudgetService } from '@/server/modules/budget/budget.service';
 import { renderMonthlyReportPDF } from './report.templates';
 import { put } from '@vercel/blob';
@@ -905,13 +907,13 @@ export const ReportService = {
 			categoryBreakdown,
 			budgetTrends,
 			healthMetrics,
-			fundHealth,
+			goalHealth,
 		] = await Promise.all([
 			this.getFinancialStatement(userId, monthStart, monthEnd),
 			this.getCategoryBreakdown(userId, monthStart, monthEnd),
 			BudgetService.getBudgetTrends(userId, monthStart, monthEnd),
 			DashboardService.getFinancialHealthMetrics(userId),
-			DashboardService.getFundHealthMetrics(userId),
+			GoalService.getGoalHealthMetrics(userId),
 		]);
 
 		// Build sections object
@@ -1001,16 +1003,19 @@ export const ReportService = {
 			};
 		}
 
-		// Funds — only if user has fund accounts
-		if (fundHealth.funds.length > 0) {
-			sections.funds = {
-				accounts: fundHealth.funds.map((f) => ({
-					name: f.name,
-					balance: f.balance,
-					target: f.targetAmount ?? undefined,
-					progress: f.progressPercent,
+		// Goals — only if user has active goals with health metrics
+		if (goalHealth.goals.length > 0) {
+			sections.goals = {
+				accounts: goalHealth.goals.map((g) => ({
+					name: g.name,
+					balance: g.balance,
+					target: g.targetAmount ?? undefined,
+					progress: g.progressPercent,
+					goalType: g.goalType,
+					healthStatus: g.healthStatus,
+					monthsCoverage: g.monthsCoverage ?? undefined,
 				})),
-				emergencyFundMonths: fundHealth.emergencyFundMonths ?? undefined,
+				emergencyFundMonths: goalHealth.emergencyFundMonths ?? undefined,
 			};
 		}
 
@@ -1064,7 +1069,7 @@ export const ReportService = {
 		});
 
 		// 5. Send email with PDF attachment
-		const { score, label } = digest.sections.healthScore;
+		const { score } = digest.sections.healthScore;
 		const monthLabel = digest.month;
 
 		const emailHtml = buildReportEmailHtml(digest);
@@ -1097,8 +1102,6 @@ function buildReportEmailHtml(digest: MonthlyDigest): string {
 	const { healthScore, incomeExpense, netWorth } = digest.sections;
 	const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
 
-	// Import inline to avoid circular deps
-	const crypto = require('crypto');
 	const secret = process.env.NEXTAUTH_SECRET!;
 	const unsubToken = crypto.createHmac('sha256', secret).update(digest.userId).digest('hex');
 	const unsubUrl = `${appUrl}/api/unsubscribe?userId=${encodeURIComponent(digest.userId)}&token=${unsubToken}`;

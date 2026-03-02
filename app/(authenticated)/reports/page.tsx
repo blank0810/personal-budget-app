@@ -69,7 +69,7 @@ export default async function ReportsPage({
 		budgetRecommendations,
 		cashFlowWaterfall,
 		transactionStatement,
-		allCategories,
+		, // allCategories — fetched but unused in this view
 		healthScore,
 		userPrefs,
 	] = await Promise.all([

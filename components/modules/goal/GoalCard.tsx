@@ -16,6 +16,7 @@ import {
 	GraduationCap,
 	Plane,
 	PiggyBank,
+	Shield,
 } from 'lucide-react';
 
 const ICON_MAP: Record<string, React.ElementType> = {
@@ -29,6 +30,7 @@ const ICON_MAP: Record<string, React.ElementType> = {
 	graduation: GraduationCap,
 	plane: Plane,
 	piggybank: PiggyBank,
+	shield: Shield,
 };
 
 const COLOR_MAP: Record<string, string> = {
@@ -42,6 +44,32 @@ const COLOR_MAP: Record<string, string> = {
 	pink: 'bg-pink-100 text-pink-600 dark:bg-pink-900 dark:text-pink-400',
 };
 
+const HEALTH_STATUS_MAP: Record<
+	string,
+	{ label: string; color: string; bg: string }
+> = {
+	critical: {
+		label: 'Critical',
+		color: 'text-red-700 dark:text-red-400',
+		bg: 'bg-red-100 dark:bg-red-900/50',
+	},
+	underfunded: {
+		label: 'Underfunded',
+		color: 'text-yellow-700 dark:text-yellow-400',
+		bg: 'bg-yellow-100 dark:bg-yellow-900/50',
+	},
+	building: {
+		label: 'Building',
+		color: 'text-blue-700 dark:text-blue-400',
+		bg: 'bg-blue-100 dark:bg-blue-900/50',
+	},
+	funded: {
+		label: 'Funded',
+		color: 'text-green-700 dark:text-green-400',
+		bg: 'bg-green-100 dark:bg-green-900/50',
+	},
+};
+
 export interface GoalCardData {
 	id: string;
 	name: string;
@@ -51,8 +79,16 @@ export interface GoalCardData {
 	icon: string | null;
 	color: string | null;
 	status: string;
+	goalType: string;
+	isEmergencyFund: boolean;
+	thresholdLow: number | null;
+	thresholdMid: number | null;
+	thresholdHigh: number | null;
 	linkedAccount: { id: string; name: string } | null;
 	_count: { contributions: number };
+	// Optional health metrics passed from parent
+	monthsCoverage?: number;
+	healthStatus?: string;
 }
 
 interface GoalCardProps {
@@ -66,11 +102,25 @@ export function GoalCard({ goal, onClick, compact }: GoalCardProps) {
 
 	const target = Number(goal.targetAmount);
 	const current = Number(goal.currentAmount);
-	const percentage = target > 0 ? Math.min((current / target) * 100, 100) : 0;
-	const remaining = Math.max(target - current, 0);
+	const isMonthsCoverage = goal.goalType === 'MONTHS_COVERAGE';
 
+	// For FIXED_AMOUNT: progress = current/target
+	// For MONTHS_COVERAGE: progress based on months vs threshold
+	let percentage: number;
+	if (isMonthsCoverage && goal.thresholdHigh) {
+		const months = goal.monthsCoverage ?? 0;
+		percentage = Math.min((months / goal.thresholdHigh) * 100, 100);
+	} else {
+		percentage =
+			target > 0 ? Math.min((current / target) * 100, 100) : 0;
+	}
+
+	const remaining = Math.max(target - current, 0);
 	const IconComponent = ICON_MAP[goal.icon || 'target'] || Target;
 	const colorClass = COLOR_MAP[goal.color || 'blue'] || COLOR_MAP.blue;
+	const healthInfo = goal.healthStatus
+		? HEALTH_STATUS_MAP[goal.healthStatus]
+		: null;
 
 	if (compact) {
 		return (
@@ -84,15 +134,25 @@ export function GoalCard({ goal, onClick, compact }: GoalCardProps) {
 					<IconComponent className='h-4 w-4' />
 				</div>
 				<div className='flex-1 min-w-0'>
-					<p className='text-sm font-medium truncate'>{goal.name}</p>
-					<Progress
-						value={percentage}
-						className='h-1.5 mt-1'
-					/>
+					<div className='flex items-center gap-1.5'>
+						<p className='text-sm font-medium truncate'>
+							{goal.name}
+						</p>
+						{goal.isEmergencyFund && (
+							<Shield className='h-3 w-3 text-blue-600 shrink-0' />
+						)}
+					</div>
+					<Progress value={percentage} className='h-1.5 mt-1' />
 				</div>
-				<span className='text-xs text-muted-foreground whitespace-nowrap'>
-					{percentage.toFixed(0)}%
-				</span>
+				{isMonthsCoverage && goal.monthsCoverage !== undefined ? (
+					<span className='text-xs text-muted-foreground whitespace-nowrap'>
+						{goal.monthsCoverage.toFixed(1)}mo
+					</span>
+				) : (
+					<span className='text-xs text-muted-foreground whitespace-nowrap'>
+						{percentage.toFixed(0)}%
+					</span>
+				)}
 			</div>
 		);
 	}
@@ -111,8 +171,11 @@ export function GoalCard({ goal, onClick, compact }: GoalCardProps) {
 							<IconComponent className='h-5 w-5' />
 						</div>
 						<div>
-							<h3 className='font-semibold text-sm'>
+							<h3 className='font-semibold text-sm flex items-center gap-1.5'>
 								{goal.name}
+								{goal.isEmergencyFund && (
+									<Shield className='h-3.5 w-3.5 text-blue-600' />
+								)}
 							</h3>
 							{goal.linkedAccount && (
 								<p className='text-xs text-muted-foreground'>
@@ -121,40 +184,77 @@ export function GoalCard({ goal, onClick, compact }: GoalCardProps) {
 							)}
 						</div>
 					</div>
-					{goal.status !== 'ACTIVE' && (
-						<Badge
-							variant={
-								goal.status === 'COMPLETED'
-									? 'default'
-									: 'secondary'
-							}
-							className='text-xs'
-						>
-							{goal.status}
-						</Badge>
-					)}
+					<div className='flex items-center gap-1.5'>
+						{healthInfo && (
+							<Badge
+								variant='outline'
+								className={`text-xs ${healthInfo.color} ${healthInfo.bg} border-0`}
+							>
+								{healthInfo.label}
+							</Badge>
+						)}
+						{goal.status !== 'ACTIVE' && (
+							<Badge
+								variant={
+									goal.status === 'COMPLETED'
+										? 'default'
+										: 'secondary'
+								}
+								className='text-xs'
+							>
+								{goal.status}
+							</Badge>
+						)}
+					</div>
 				</div>
 
 				<div className='space-y-1.5'>
 					<div className='flex justify-between text-sm'>
-						<span className='text-muted-foreground'>
-							{formatCurrency(current)} of{' '}
-							{formatCurrency(target)}
-						</span>
-						<span className='font-medium'>
-							{percentage.toFixed(0)}%
-						</span>
+						{isMonthsCoverage ? (
+							<>
+								<span className='text-muted-foreground'>
+									{goal.monthsCoverage !== undefined
+										? `${goal.monthsCoverage.toFixed(1)} months`
+										: formatCurrency(current)}
+								</span>
+								<span className='font-medium'>
+									{goal.thresholdHigh
+										? `of ${goal.thresholdHigh}mo target`
+										: `${percentage.toFixed(0)}%`}
+								</span>
+							</>
+						) : (
+							<>
+								<span className='text-muted-foreground'>
+									{formatCurrency(current)} of{' '}
+									{formatCurrency(target)}
+								</span>
+								<span className='font-medium'>
+									{percentage.toFixed(0)}%
+								</span>
+							</>
+						)}
 					</div>
 					<Progress value={percentage} className='h-2' />
 				</div>
 
 				<div className='flex justify-between text-xs text-muted-foreground'>
-					<span>
-						{formatCurrency(remaining)} remaining
-					</span>
+					{isMonthsCoverage ? (
+						<span>
+							{formatCurrency(current)} saved
+						</span>
+					) : (
+						<span>
+							{formatCurrency(remaining)} remaining
+						</span>
+					)}
 					{goal.deadline && (
 						<span>
-							Due {format(new Date(goal.deadline), 'MMM d, yyyy')}
+							Due{' '}
+							{format(
+								new Date(goal.deadline),
+								'MMM d, yyyy'
+							)}
 						</span>
 					)}
 				</div>

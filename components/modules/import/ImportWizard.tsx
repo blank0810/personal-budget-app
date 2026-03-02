@@ -31,12 +31,12 @@ export function ImportWizard({ accounts, categories }: ImportWizardProps) {
 	const [currentStep, setCurrentStep] = useState(0);
 	const [csvHeaders, setCsvHeaders] = useState<string[]>([]);
 	const [csvRows, setCsvRows] = useState<ParsedRow[]>([]);
-	const [mapping, setMapping] = useState<ColumnMapping | null>(null);
+	const [_mapping, setMapping] = useState<ColumnMapping | null>(null);
 	const [accountId, setAccountId] = useState('');
-	const [defaultType, setDefaultType] = useState<'INCOME' | 'EXPENSE'>(
+	const [_defaultType, setDefaultType] = useState<'INCOME' | 'EXPENSE'>(
 		'EXPENSE'
 	);
-	const [defaultCategoryId, setDefaultCategoryId] = useState('');
+	const [_defaultCategoryId, setDefaultCategoryId] = useState('');
 	const [transactions, setTransactions] = useState<MappedTransaction[]>([]);
 
 	const progress = ((currentStep + 1) / STEPS.length) * 100;

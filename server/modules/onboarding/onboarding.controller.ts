@@ -1,6 +1,6 @@
 'use server';
 
-import { auth } from '@/auth';
+import { auth, unstable_update } from '@/auth';
 import { OnboardingService } from './onboarding.service';
 import { clearCache } from '@/server/actions/cache';
 
@@ -11,6 +11,8 @@ export async function setUserCurrency(currency: string) {
 
 	try {
 		await OnboardingService.setCurrency(session.user.id, currency);
+		// Update the JWT so middleware picks up the new currency
+		await unstable_update({ user: { currency } });
 		return { success: true };
 	} catch (error) {
 		return {
@@ -29,6 +31,8 @@ export async function completeOnboarding() {
 		return { success: false, error: 'Not authenticated' };
 
 	await OnboardingService.completeOnboarding(session.user.id);
+	// Update the JWT so middleware knows the user is onboarded
+	await unstable_update({ user: { isOnboarded: true } });
 	await clearCache('/', 'layout');
 	return { success: true };
 }

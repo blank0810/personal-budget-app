@@ -1,16 +1,16 @@
 import prisma from '@/lib/prisma';
+import { GoalService } from '@/server/modules/goal/goal.service';
 
 export const DashboardService = {
 	/**
 	 * Calculate Net Worth (Assets - Liabilities)
-	 * Excludes Fund accounts (EMERGENCY_FUND, FUND, TITHE)
+	 * Excludes TITHE accounts
 	 */
 	async getNetWorth(userId: string) {
 		const accounts = await prisma.account.findMany({
 			where: {
 				userId,
-				// Exclude fund accounts from Net Worth calculation
-				type: { notIn: ['EMERGENCY_FUND', 'FUND', 'TITHE'] },
+				type: { notIn: ['TITHE'] },
 			},
 			select: {
 				balance: true,
@@ -279,162 +279,6 @@ export const DashboardService = {
 	},
 
 	/**
-	 * Get Fund accounts with calculated health metrics
-	 * Returns all fund accounts with progress and health status
-	 */
-	async getFundHealthMetrics(userId: string) {
-		// 1. Get all fund accounts
-		const fundAccounts = await prisma.account.findMany({
-			where: {
-				userId,
-				type: { in: ['EMERGENCY_FUND', 'FUND'] },
-				isArchived: false,
-			},
-		});
-
-		if (fundAccounts.length === 0) {
-			return {
-				funds: [],
-				totalFundBalance: 0,
-				hasEmergencyFund: false,
-				emergencyFundMonths: null,
-				emergencyFundHealth: null,
-				emergencyFundExpenseSource: null,
-				monthlyExpenseBaseline: 0,
-			};
-		}
-
-		// 2. Get total monthly budget for MONTHS_COVERAGE calculation
-		const now = new Date();
-		const currentMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-		const nextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
-
-		const budgets = await prisma.budget.findMany({
-			where: {
-				userId,
-				month: {
-					gte: currentMonth,
-					lt: nextMonth,
-				},
-			},
-		});
-
-		const totalMonthlyBudget = budgets.reduce(
-			(sum, b) => sum + Number(b.amount),
-			0
-		);
-
-		// 2b. Get 3-month average of ACTUAL expenses (hybrid approach)
-		const avgMonthlyExpense = await this.getAverageMonthlyExpense(userId, 3);
-
-		// 2c. Hybrid: Use actual expenses if available, otherwise fall back to budget
-		// This aligns with accounting best practices - actual spending is more accurate
-		// than planned spending for emergency fund calculations
-		const expenseSource: 'actual' | 'budget' | null =
-			avgMonthlyExpense > 0
-				? 'actual'
-				: totalMonthlyBudget > 0
-				? 'budget'
-				: null;
-
-		const monthlyExpenseBaseline =
-			avgMonthlyExpense > 0 ? avgMonthlyExpense : totalMonthlyBudget;
-
-		// 3. Calculate metrics for each fund
-		const funds = fundAccounts.map((fund) => {
-			const balance = Number(fund.balance);
-			const target = fund.targetAmount ? Number(fund.targetAmount) : null;
-			const mode =
-				fund.fundCalculationMode ||
-				(fund.type === 'EMERGENCY_FUND'
-					? 'MONTHS_COVERAGE'
-					: 'TARGET_PROGRESS');
-
-			// Get thresholds with defaults
-			const thresholdLow = fund.fundThresholdLow ?? 2;
-			const thresholdMid = fund.fundThresholdMid ?? 4;
-			const thresholdHigh = fund.fundThresholdHigh ?? 6;
-
-			let progressPercent = 0;
-			let monthsCoverage: number | null = null;
-			let healthStatus: 'critical' | 'underfunded' | 'building' | 'funded';
-
-			if (mode === 'MONTHS_COVERAGE') {
-				// Calculate months of coverage using hybrid expense baseline
-				// (actual expenses if available, otherwise budget)
-				monthsCoverage =
-					monthlyExpenseBaseline > 0
-						? balance / monthlyExpenseBaseline
-						: balance > 0
-						? 999
-						: 0;
-
-				progressPercent = (monthsCoverage / thresholdHigh) * 100;
-
-				// Determine health status
-				if (monthsCoverage < thresholdLow) {
-					healthStatus = 'critical';
-				} else if (monthsCoverage < thresholdMid) {
-					healthStatus = 'underfunded';
-				} else if (monthsCoverage < thresholdHigh) {
-					healthStatus = 'building';
-				} else {
-					healthStatus = 'funded';
-				}
-			} else {
-				// TARGET_PROGRESS mode
-				progressPercent =
-					target && target > 0 ? (balance / target) * 100 : 0;
-
-				// Use progress percentage for health status
-				if (progressPercent < 25) {
-					healthStatus = 'critical';
-				} else if (progressPercent < 50) {
-					healthStatus = 'underfunded';
-				} else if (progressPercent < 100) {
-					healthStatus = 'building';
-				} else {
-					healthStatus = 'funded';
-				}
-			}
-
-			return {
-				id: fund.id,
-				name: fund.name,
-				type: fund.type as 'EMERGENCY_FUND' | 'FUND',
-				balance,
-				targetAmount: target,
-				calculationMode: mode,
-				progressPercent: Math.min(progressPercent, 100),
-				monthsCoverage,
-				healthStatus,
-				thresholds: {
-					low: thresholdLow,
-					mid: thresholdMid,
-					high: thresholdHigh,
-				},
-			};
-		});
-
-		// 4. Calculate totals
-		const totalFundBalance = funds.reduce((sum, f) => sum + f.balance, 0);
-
-		// 5. Find Emergency Fund specifically for dashboard replacement
-		const emergencyFund = funds.find((f) => f.type === 'EMERGENCY_FUND');
-
-		return {
-			funds,
-			totalFundBalance,
-			hasEmergencyFund: !!emergencyFund,
-			emergencyFundMonths: emergencyFund?.monthsCoverage ?? null,
-			emergencyFundHealth: emergencyFund?.healthStatus ?? null,
-			// New fields for transparency on calculation source
-			emergencyFundExpenseSource: expenseSource,
-			monthlyExpenseBaseline,
-		};
-	},
-
-	/**
 	 * Financial Health Score (0-100) across 5 pillars:
 	 * Solvency (25%), Liquidity (20%), Savings (20%), Debt Mgmt (20%), Cash Flow (15%)
 	 */
@@ -443,9 +287,9 @@ export const DashboardService = {
 		const startCurrentMonth = new Date(now.getFullYear(), now.getMonth(), 1);
 		const endCurrentMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
 
-		const [healthMetrics, fundHealth, currentCashFlow] = await Promise.all([
+		const [healthMetrics, goalHealth, currentCashFlow] = await Promise.all([
 			this.getFinancialHealthMetrics(userId),
-			this.getFundHealthMetrics(userId),
+			GoalService.getGoalHealthMetrics(userId),
 			this.getCashFlow(userId, startCurrentMonth, endCurrentMonth),
 		]);
 
@@ -501,27 +345,27 @@ export const DashboardService = {
 
 		// --- Pillar 2: Liquidity (20%) ---
 		const runway = healthMetrics.runwayMonths;
-		const efHealth = fundHealth.emergencyFundHealth;
+		const efHealth = goalHealth.emergencyFundHealth;
 		let liquidityScore: number;
 		let liquidityDetails: string;
 		let liquidityRec: string;
 
 		if (runway >= 6 || efHealth === 'funded') {
 			liquidityScore = 100;
-			liquidityDetails = fundHealth.hasEmergencyFund
-				? `Emergency fund locked and loaded — ${fundHealth.emergencyFundMonths?.toFixed(1)} months of pure "fire me, I dare you" money. Beautiful.`
+			liquidityDetails = goalHealth.hasEmergencyFund
+				? `Emergency fund locked and loaded — ${goalHealth.emergencyFundMonths?.toFixed(1)} months of pure "fire me, I dare you" money. Beautiful.`
 				: `${runway.toFixed(1)} months of runway. You could walk out of your job tomorrow and not break a sweat. That\'s freedom.`;
 			liquidityRec = 'You\'ve bought yourself something money can\'t usually buy — peace of mind. Now let the surplus work for you.';
 		} else if (runway >= 3 || efHealth === 'building') {
 			liquidityScore = 80;
-			liquidityDetails = fundHealth.hasEmergencyFund
-				? `Emergency fund at ${fundHealth.emergencyFundMonths?.toFixed(1)} months — you\'re building a real cushion. Respect.`
+			liquidityDetails = goalHealth.hasEmergencyFund
+				? `Emergency fund at ${goalHealth.emergencyFundMonths?.toFixed(1)} months — you\'re building a real cushion. Respect.`
 				: `${runway.toFixed(1)} months of runway — you\'ve got a buffer, and that puts you ahead of most people.`;
 			liquidityRec = 'Good foundation. Push to 6 months and you\'ll sleep like someone who doesn\'t check their bank account at 2am.';
 		} else if (runway >= 1 || efHealth === 'underfunded') {
 			liquidityScore = 60;
-			liquidityDetails = fundHealth.hasEmergencyFund
-				? `Emergency fund at ${fundHealth.emergencyFundMonths?.toFixed(1)} months — that\'s not a safety net, that\'s a napkin. One emergency and it\'s gone.`
+			liquidityDetails = goalHealth.hasEmergencyFund
+				? `Emergency fund at ${goalHealth.emergencyFundMonths?.toFixed(1)} months — that\'s not a safety net, that\'s a napkin. One emergency and it\'s gone.`
 				: `${runway.toFixed(1)} months of runway — a single car repair or ER visit and you\'re in crisis mode.`;
 			liquidityRec = 'You\'re one flat tire away from a panic attack. This needs to be 3 months minimum before you can relax about anything.';
 		} else if (runway > 0) {

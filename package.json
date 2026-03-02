@@ -9,6 +9,7 @@
     "lint": "eslint",
     "postinstall": "prisma generate",
     "build:prod": "npm install && prisma migrate deploy && next build",
+    "deploy:fresh": "npm install && prisma migrate reset --force && prisma db seed && next build",
     "db:reset": "prisma migrate reset --force"
   },
   "dependencies": {

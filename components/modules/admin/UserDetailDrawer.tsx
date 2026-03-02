@@ -85,6 +85,7 @@ export function UserDetailDrawer({ userId, onClose }: UserDetailDrawerProps) {
 	const [loading, setLoading] = useState(false);
 	const [actionLoading, setActionLoading] = useState(false);
 
+	/* eslint-disable react-hooks/set-state-in-effect -- Data fetching effect: setState is needed for async load/reset */
 	useEffect(() => {
 		if (!userId) {
 			setUser(null);
@@ -110,6 +111,7 @@ export function UserDetailDrawer({ userId, onClose }: UserDetailDrawerProps) {
 
 		load();
 	}, [userId]);
+	/* eslint-enable react-hooks/set-state-in-effect */
 
 	async function handleToggleDisable() {
 		if (!user) return;

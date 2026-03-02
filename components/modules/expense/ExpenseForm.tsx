@@ -88,6 +88,7 @@ export function ExpenseForm({
 		},
 	});
 
+	// eslint-disable-next-line react-hooks/incompatible-library -- React Hook Form's watch() is not compiler-safe but works correctly
 	const isRecurring = form.watch('isRecurring');
 	const selectedAccountId = form.watch('accountId');
 	const selectedAccount = accounts.find((a) => a.id === selectedAccountId);

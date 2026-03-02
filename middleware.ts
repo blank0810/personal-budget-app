@@ -1,9 +1,13 @@
-import { auth } from '@/auth';
+import NextAuth from 'next-auth';
+import authConfig from '@/auth.config';
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
+import type { Session } from 'next-auth';
 
-export default async function middleware(req: NextRequest) {
-	const session = await auth();
+const { auth } = NextAuth(authConfig);
+
+export default auth(async function middleware(req: NextRequest & { auth: Session | null }) {
+	const session = req.auth;
 	const { pathname } = req.nextUrl;
 
 	const isAuthPage =
@@ -55,7 +59,7 @@ export default async function middleware(req: NextRequest) {
 	}
 
 	return NextResponse.next();
-}
+});
 
 export const config = {
 	matcher: ['/((?!api|_next/static|_next/image|favicon.ico).*)'],

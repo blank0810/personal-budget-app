@@ -51,6 +51,7 @@ export function AdjustBalanceDialog({ account }: AdjustBalanceDialogProps) {
 		},
 	});
 
+	// eslint-disable-next-line react-hooks/incompatible-library -- React Hook Form's watch() is not compiler-safe but works correctly
 	const newBalance = form.watch('newBalance');
 	const currentBalance = Number(account.balance);
 	const difference = newBalance - currentBalance;

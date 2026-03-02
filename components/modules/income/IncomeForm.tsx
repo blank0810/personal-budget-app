@@ -45,13 +45,13 @@ import { Account, Category } from '@prisma/client';
 interface IncomeFormProps {
 	accounts: Account[];
 	categories: Category[];
-	hasEmergencyFundAccount?: boolean;
+	hasEmergencyFundGoal?: boolean;
 }
 
 export function IncomeForm({
 	accounts,
 	categories,
-	hasEmergencyFundAccount,
+	hasEmergencyFundGoal,
 }: IncomeFormProps) {
 	const { formatCurrency } = useCurrency();
 	const [isPending, setIsPending] = useState(false);
@@ -80,6 +80,7 @@ export function IncomeForm({
 		},
 	});
 
+	// eslint-disable-next-line react-hooks/incompatible-library -- React Hook Form's watch() is not compiler-safe but works correctly
 	const isRecurring = form.watch('isRecurring');
 	const titheEnabled = form.watch('titheEnabled');
 	const categoryId = form.watch('categoryId');
@@ -458,7 +459,7 @@ export function IncomeForm({
 					/>
 				)}
 
-				{hasEmergencyFundAccount && (
+				{hasEmergencyFundGoal && (
 					<>
 						<FormField
 							control={form.control}
@@ -477,7 +478,7 @@ export function IncomeForm({
 										</FormLabel>
 										<p className='text-sm text-muted-foreground'>
 											Automatically transfer a percentage
-											to your Emergency Fund.
+											to your Emergency Fund Goal.
 										</p>
 									</div>
 								</FormItem>

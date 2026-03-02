@@ -22,8 +22,9 @@ async function main() {
 				create: [
 					{ name: 'Main Bank', type: 'BANK', balance: 5000 },
 					{ name: 'Cash Wallet', type: 'CASH', balance: 200 },
-					{ name: 'Savings', type: 'BANK', balance: 10000 },
-					{ name: 'Tithes', type: 'CASH', balance: 0 },
+					{ name: 'Savings', type: 'SAVINGS', balance: 10000 },
+					{ name: 'Emergency Savings', type: 'SAVINGS', balance: 3500 },
+					{ name: 'Tithes', type: 'TITHE', balance: 0 },
 				],
 			},
 			categories: {
@@ -172,23 +173,51 @@ async function main() {
 			console.log('Seeded recurring transaction');
 		}
 
-		// Seed sample goal
+		// Seed sample goals
+		const emergencySavings = seededUser.accounts.find((a) => a.name === 'Emergency Savings');
+
+		if (emergencySavings) {
+			await prisma.goal.upsert({
+				where: { id: 'seed_goal_emergency' },
+				update: {},
+				create: {
+					id: 'seed_goal_emergency',
+					name: 'Emergency Fund',
+					targetAmount: 0,
+					currentAmount: 3500,
+					goalType: 'MONTHS_COVERAGE',
+					isEmergencyFund: true,
+					thresholdLow: 2,
+					thresholdMid: 4,
+					thresholdHigh: 6,
+					icon: 'shield',
+					color: 'blue',
+					status: 'ACTIVE',
+					linkedAccountId: emergencySavings.id,
+					userId: seededUser.id,
+				},
+			});
+		}
+
 		await prisma.goal.upsert({
-			where: { id: 'seed_goal_emergency' },
+			where: { id: 'seed_goal_laptop' },
 			update: {},
 			create: {
-				id: 'seed_goal_emergency',
-				name: 'Emergency Fund',
-				targetAmount: 10000,
-				currentAmount: 3500,
-				icon: 'shield',
-				color: 'emerald',
+				id: 'seed_goal_laptop',
+				name: 'New Laptop',
+				targetAmount: 50000,
+				currentAmount: 12000,
+				goalType: 'FIXED_AMOUNT',
+				isEmergencyFund: false,
+				icon: 'target',
+				color: 'purple',
 				status: 'ACTIVE',
 				deadline: new Date('2026-12-31'),
 				userId: seededUser.id,
 			},
 		});
-		console.log('Seeded goal');
+
+		console.log('Seeded goals');
 	}
 }
 

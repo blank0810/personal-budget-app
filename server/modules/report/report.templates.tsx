@@ -483,32 +483,37 @@ function LiabilitiesSection({
 	);
 }
 
-function FundsSection({
+function GoalsSection({
 	data,
 	fmt,
 }: {
-	data: NonNullable<MonthlyDigest['sections']['funds']>;
+	data: NonNullable<MonthlyDigest['sections']['goals']>;
 	fmt: CurrencyFormatter;
 }) {
 	return (
 		<View style={styles.section}>
-			<Text style={styles.sectionTitle}>Your Funds</Text>
-			{data.accounts.map((fund) => (
-				<View key={fund.name} style={styles.progressBarContainer}>
-					<Text style={styles.progressLabel}>{fund.name}</Text>
+			<Text style={styles.sectionTitle}>Savings Goals</Text>
+			{data.accounts.map((goal) => (
+				<View key={goal.name} style={styles.progressBarContainer}>
+					<Text style={styles.progressLabel}>
+						{goal.name}
+						{goal.goalType === 'MONTHS_COVERAGE' && goal.monthsCoverage != null
+							? ` (${goal.monthsCoverage.toFixed(1)}mo)`
+							: ''}
+					</Text>
 					<View style={styles.progressBarTrack}>
 						<View
 							style={{
 								...styles.progressBarFill,
-								width: `${Math.min(100, fund.progress || 0)}%`,
+								width: `${Math.min(100, goal.progress || 0)}%`,
 								backgroundColor: GREEN,
 							}}
 						/>
 					</View>
 					<Text style={styles.progressAmount}>
-						{fmt(fund.balance)}
-						{fund.target
-							? ` / ${fmt(fund.target)}`
+						{fmt(goal.balance)}
+						{goal.target
+							? ` / ${fmt(goal.target)}`
 							: ''}
 					</Text>
 				</View>
@@ -613,7 +618,7 @@ function MonthlyReportDocument({ digest }: { digest: MonthlyDigest }) {
 				{sections.liabilities && (
 					<LiabilitiesSection data={sections.liabilities} fmt={fmt} />
 				)}
-				{sections.funds && <FundsSection data={sections.funds} fmt={fmt} />}
+				{sections.goals && <GoalsSection data={sections.goals} fmt={fmt} />}
 				<NetWorthSection data={sections.netWorth} fmt={fmt} />
 				<FooterSection digest={digest} />
 			</Page>

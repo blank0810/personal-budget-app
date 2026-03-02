@@ -33,9 +33,36 @@ import {
 	CheckCircle2,
 	Plus,
 	Trash2,
+	Shield,
 } from 'lucide-react';
 import { AddContributionDialog } from './AddContributionDialog';
 import type { GoalCardData } from './GoalCard';
+
+const HEALTH_STATUS_MAP: Record<
+	string,
+	{ label: string; color: string; bg: string }
+> = {
+	critical: {
+		label: 'Critical',
+		color: 'text-red-700 dark:text-red-400',
+		bg: 'bg-red-100 dark:bg-red-900/50',
+	},
+	underfunded: {
+		label: 'Underfunded',
+		color: 'text-yellow-700 dark:text-yellow-400',
+		bg: 'bg-yellow-100 dark:bg-yellow-900/50',
+	},
+	building: {
+		label: 'Building',
+		color: 'text-blue-700 dark:text-blue-400',
+		bg: 'bg-blue-100 dark:bg-blue-900/50',
+	},
+	funded: {
+		label: 'Funded',
+		color: 'text-green-700 dark:text-green-400',
+		bg: 'bg-green-100 dark:bg-green-900/50',
+	},
+};
 
 interface GoalDetailDialogProps {
 	goal: GoalCardData | null;
@@ -51,9 +78,20 @@ export function GoalDetailDialog({ goal, onClose }: GoalDetailDialogProps) {
 
 	const target = Number(goal.targetAmount);
 	const current = Number(goal.currentAmount);
-	const percentage = target > 0 ? Math.min((current / target) * 100, 100) : 0;
+	const isMonthsCoverage = goal.goalType === 'MONTHS_COVERAGE';
 
-	const milestones = [25, 50, 75, 100];
+	let percentage: number;
+	if (isMonthsCoverage && goal.thresholdHigh) {
+		const months = goal.monthsCoverage ?? 0;
+		percentage = Math.min((months / goal.thresholdHigh) * 100, 100);
+	} else {
+		percentage =
+			target > 0 ? Math.min((current / target) * 100, 100) : 0;
+	}
+
+	const healthInfo = goal.healthStatus
+		? HEALTH_STATUS_MAP[goal.healthStatus]
+		: null;
 
 	async function handleArchive() {
 		setLoading(true);
@@ -99,43 +137,138 @@ export function GoalDetailDialog({ goal, onClose }: GoalDetailDialogProps) {
 			>
 				<DialogContent className='max-w-md'>
 					<DialogHeader>
-						<DialogTitle>{goal.name}</DialogTitle>
+						<DialogTitle className='flex items-center gap-2'>
+							{goal.name}
+							{goal.isEmergencyFund && (
+								<Shield className='h-4 w-4 text-blue-600' />
+							)}
+							{healthInfo && (
+								<Badge
+									variant='outline'
+									className={`text-xs ${healthInfo.color} ${healthInfo.bg} border-0`}
+								>
+									{healthInfo.label}
+								</Badge>
+							)}
+						</DialogTitle>
 					</DialogHeader>
 
 					<div className='space-y-4'>
+						{/* Progress Section */}
 						<div className='space-y-2'>
 							<div className='flex justify-between text-sm'>
-								<span>
-									{formatCurrency(current)} of{' '}
-									{formatCurrency(target)}
-								</span>
-								<span className='font-medium'>
-									{percentage.toFixed(1)}%
-								</span>
+								{isMonthsCoverage ? (
+									<>
+										<span>
+											{goal.monthsCoverage !== undefined
+												? `${goal.monthsCoverage.toFixed(1)} months of coverage`
+												: formatCurrency(current)}
+										</span>
+										<span className='font-medium'>
+											{percentage.toFixed(1)}%
+										</span>
+									</>
+								) : (
+									<>
+										<span>
+											{formatCurrency(current)} of{' '}
+											{formatCurrency(target)}
+										</span>
+										<span className='font-medium'>
+											{percentage.toFixed(1)}%
+										</span>
+									</>
+								)}
 							</div>
 							<Progress value={percentage} className='h-3' />
 						</div>
 
 						{/* Milestones */}
-						<div className='flex justify-between'>
-							{milestones.map((m) => (
-								<div
-									key={m}
-									className='flex flex-col items-center'
-								>
+						{isMonthsCoverage &&
+						goal.thresholdLow &&
+						goal.thresholdMid &&
+						goal.thresholdHigh ? (
+							<div className='flex justify-between'>
+								{[
+									{
+										months: goal.thresholdLow,
+										label: 'Critical',
+										color: 'text-red-600',
+									},
+									{
+										months: goal.thresholdMid,
+										label: 'Underfunded',
+										color: 'text-yellow-600',
+									},
+									{
+										months: goal.thresholdHigh,
+										label: 'Funded',
+										color: 'text-green-600',
+									},
+								].map((m) => {
+									const months =
+										goal.monthsCoverage ?? 0;
+									const reached = months >= m.months;
+									return (
+										<div
+											key={m.label}
+											className='flex flex-col items-center'
+										>
+											<div
+												className={`h-2 w-2 rounded-full ${
+													reached
+														? 'bg-primary'
+														: 'bg-muted'
+												}`}
+											/>
+											<span
+												className={`text-xs mt-1 ${reached ? m.color : 'text-muted-foreground'}`}
+											>
+												{m.months}mo
+											</span>
+											<span className='text-[10px] text-muted-foreground'>
+												{m.label}
+											</span>
+										</div>
+									);
+								})}
+							</div>
+						) : (
+							<div className='flex justify-between'>
+								{[25, 50, 75, 100].map((m) => (
 									<div
-										className={`h-2 w-2 rounded-full ${
-											percentage >= m
-												? 'bg-primary'
-												: 'bg-muted'
-										}`}
-									/>
-									<span className='text-xs text-muted-foreground mt-1'>
-										{m}%
-									</span>
-								</div>
-							))}
-						</div>
+										key={m}
+										className='flex flex-col items-center'
+									>
+										<div
+											className={`h-2 w-2 rounded-full ${
+												percentage >= m
+													? 'bg-primary'
+													: 'bg-muted'
+											}`}
+										/>
+										<span className='text-xs text-muted-foreground mt-1'>
+											{m}%
+										</span>
+									</div>
+								))}
+							</div>
+						)}
+
+						{/* Info */}
+						{isMonthsCoverage && (
+							<div className='rounded-lg border bg-muted/30 p-3 text-sm text-muted-foreground space-y-1'>
+								<p>
+									Balance: {formatCurrency(current)}
+								</p>
+								{goal.isEmergencyFund && (
+									<p className='text-blue-600 dark:text-blue-400 flex items-center gap-1'>
+										<Shield className='h-3 w-3' />
+										Emergency Fund — receives auto-contributions from income
+									</p>
+								)}
+							</div>
+						)}
 
 						{goal.linkedAccount && (
 							<p className='text-sm text-muted-foreground'>

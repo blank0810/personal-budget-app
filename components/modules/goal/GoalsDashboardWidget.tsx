@@ -14,8 +14,14 @@ export function GoalsDashboardWidget({ goals }: GoalsDashboardWidgetProps) {
 
 	if (activeGoals.length === 0) return null;
 
-	// Show top 3 active goals
-	const topGoals = activeGoals.slice(0, 3);
+	// Emergency fund goals first, then by name
+	const sorted = [...activeGoals].sort((a, b) => {
+		if (a.isEmergencyFund && !b.isEmergencyFund) return -1;
+		if (!a.isEmergencyFund && b.isEmergencyFund) return 1;
+		return a.name.localeCompare(b.name);
+	});
+
+	const topGoals = sorted.slice(0, 3);
 
 	return (
 		<Card>
