@@ -149,6 +149,15 @@ export const WorkEntryService = {
 	},
 
 	/**
+	 * Count total work entries for a user
+	 */
+	async count(userId: string) {
+		return await prisma.workEntry.count({
+			where: { userId },
+		});
+	},
+
+	/**
 	 * Get UNBILLED entries for a specific client (for invoice generation)
 	 */
 	async getUnbilledByClient(userId: string, clientId: string) {

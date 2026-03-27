@@ -59,6 +59,8 @@ interface ClientOption {
 interface WorkEntryListProps {
 	entries: WorkEntryRow[];
 	clients: ClientOption[];
+	totalCount?: number;
+	pageLimit?: number;
 }
 
 // Deterministic color per client name for the small badge
@@ -189,7 +191,7 @@ function EditDialog({ entry, clients, open, onOpenChange }: EditDialogProps) {
 
 					<div className='grid grid-cols-2 gap-3'>
 						<div className='space-y-1.5'>
-							<Label htmlFor='edit-quantity'>Quantity</Label>
+							<Label htmlFor='edit-quantity'>Hours / Qty</Label>
 							<Input
 								id='edit-quantity'
 								type='number'
@@ -201,7 +203,7 @@ function EditDialog({ entry, clients, open, onOpenChange }: EditDialogProps) {
 							/>
 						</div>
 						<div className='space-y-1.5'>
-							<Label htmlFor='edit-unitPrice'>Unit Price</Label>
+							<Label htmlFor='edit-unitPrice'>Rate</Label>
 							<Input
 								id='edit-unitPrice'
 								type='number'
@@ -232,7 +234,7 @@ function EditDialog({ entry, clients, open, onOpenChange }: EditDialogProps) {
 	);
 }
 
-export function WorkEntryList({ entries, clients }: WorkEntryListProps) {
+export function WorkEntryList({ entries, clients, totalCount, pageLimit }: WorkEntryListProps) {
 	const router = useRouter();
 	const { formatCurrency } = useCurrency();
 	const [, startTransition] = useTransition();
@@ -486,6 +488,13 @@ export function WorkEntryList({ entries, clients }: WorkEntryListProps) {
 						);
 					})}
 				</div>
+			)}
+
+			{/* Truncation notice */}
+			{totalCount != null && pageLimit != null && totalCount > pageLimit && (
+				<p className='text-center text-sm text-muted-foreground pt-2'>
+					Showing latest {pageLimit} of {totalCount} entries
+				</p>
 			)}
 
 			{/* Edit dialog */}

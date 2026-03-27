@@ -7,6 +7,7 @@ import {
 	updateWorkEntrySchema,
 } from './work-entry.types';
 import { clearCache } from '@/server/actions/cache';
+import { serialize } from '@/lib/serialization';
 
 async function getAuthenticatedUser() {
 	const session = await auth();
@@ -28,7 +29,7 @@ export async function createWorkEntryAction(data: unknown) {
 		const entry = await WorkEntryService.create(userId, parsed.data);
 		await clearCache('/entries');
 		await clearCache('/clients');
-		return { success: true, entry };
+		return { success: true, entry: serialize(entry) };
 	} catch (error) {
 		return {
 			error:
@@ -53,7 +54,7 @@ export async function updateWorkEntryAction(data: unknown) {
 		const entry = await WorkEntryService.update(userId, parsed.data);
 		await clearCache('/entries');
 		await clearCache('/clients');
-		return { success: true, entry };
+		return { success: true, entry: serialize(entry) };
 	} catch (error) {
 		return {
 			error:

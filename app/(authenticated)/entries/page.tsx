@@ -7,13 +7,16 @@ import { WorkEntryList } from '@/components/modules/work-entry/WorkEntryList';
 import { serialize } from '@/lib/serialization';
 import type { WorkEntryRow } from '@/components/modules/work-entry/WorkEntryList';
 
+const ENTRIES_PAGE_LIMIT = 100;
+
 export default async function EntriesPage() {
 	const session = await auth();
 	if (!session?.user?.id) redirect('/login');
 
-	const [entries, clients] = await Promise.all([
-		WorkEntryService.getAll(session.user.id, { take: 100 }),
+	const [entries, clients, totalCount] = await Promise.all([
+		WorkEntryService.getAll(session.user.id, { take: ENTRIES_PAGE_LIMIT }),
 		ClientService.getAll(session.user.id),
+		WorkEntryService.count(session.user.id),
 	]);
 
 	const serializedClients = serialize(clients) as Array<{
@@ -31,6 +34,8 @@ export default async function EntriesPage() {
 			<WorkEntryList
 				entries={serialize(entries) as unknown as WorkEntryRow[]}
 				clients={serializedClients}
+				totalCount={totalCount}
+				pageLimit={ENTRIES_PAGE_LIMIT}
 			/>
 		</div>
 	);
