@@ -316,7 +316,8 @@ model Budget {
   // Relations
   category Category  @relation(fields: [categoryId], references: [id], onDelete: Restrict)
   user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  expenses Expense[] // Track expenses under this budget
+  expenses              Expense[]              // Track expenses under this budget
+  recurringTransactions RecurringTransaction[] // Recurring transactions linked to this budget
 
   @@unique([userId, name, month])  // Unique by name+month (allows multiple per category)
   @@index([userId, month])
@@ -404,17 +405,20 @@ model RecurringTransaction {
   lastRunDate   DateTime?
   isActive      Boolean            @default(true)
   categoryId    String
-  accountId     String?
+  accountId     String
+  budgetId      String?
   userId        String
   createdAt     DateTime           @default(now())
   updatedAt     DateTime           @updatedAt
 
   category Category @relation(fields: [categoryId], references: [id], onDelete: Restrict)
-  account  Account? @relation(fields: [accountId], references: [id], onDelete: SetNull)
+  account  Account  @relation(fields: [accountId], references: [id], onDelete: Restrict)
+  budget   Budget?  @relation(fields: [budgetId], references: [id], onDelete: SetNull)
   user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, isActive])
   @@index([nextRunDate, isActive])
+  @@index([budgetId])
   @@map("recurring_transactions")
 }
 
