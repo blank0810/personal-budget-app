@@ -239,22 +239,26 @@ const styles = StyleSheet.create({
 	// --- Status Stamps ---
 	stampContainer: {
 		position: 'absolute',
-		top: 55,
-		right: 44,
-		transform: 'rotate(-12deg)',
+		top: 0,
+		left: 0,
+		right: 0,
+		bottom: 0,
+		justifyContent: 'center',
+		alignItems: 'center',
 	},
 	stampBorder: {
-		paddingHorizontal: 16,
-		paddingVertical: 6,
-		borderWidth: 3,
-		borderRadius: 4,
-		opacity: 0.75,
+		paddingHorizontal: 32,
+		paddingVertical: 12,
+		borderWidth: 4,
+		borderRadius: 6,
+		opacity: 0.12,
+		transform: 'rotate(-12deg)',
 	},
 	stampText: {
 		fontFamily: 'DM Sans',
-		fontSize: 20,
+		fontSize: 64,
 		fontWeight: 700,
-		letterSpacing: 3,
+		letterSpacing: 8,
 	},
 	// Draft watermark
 	draftWatermark: {
@@ -379,7 +383,7 @@ function StatusStamp({ status }: { status: string }) {
 		return (
 			<View style={styles.stampContainer}>
 				<View style={{ ...styles.stampBorder, borderColor: RED }}>
-					<Text style={{ ...styles.stampText, color: RED }}>
+					<Text style={{ ...styles.stampText, fontSize: 56, letterSpacing: 6, color: RED }}>
 						OVERDUE
 					</Text>
 				</View>
@@ -396,8 +400,9 @@ function StatusStamp({ status }: { status: string }) {
 					<Text
 						style={{
 							...styles.stampText,
+							fontSize: 48,
+							letterSpacing: 5,
 							color: GRAY_STAMP,
-							textDecoration: 'line-through',
 						}}
 					>
 						CANCELLED
