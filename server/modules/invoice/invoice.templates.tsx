@@ -37,109 +37,84 @@ Font.register({
 	],
 });
 
-// Colors
-const PRIMARY = '#0d9488'; // dark teal
-const PRIMARY_DARK = '#1a1a2e'; // near-black
+// Colors — clean black and white palette
+const TEXT_PRIMARY = '#111111';
+const TEXT_MUTED = '#6b7280';
+const TEXT_SECONDARY = '#4b5563';
+const BORDER = '#e5e5e5';
+const TABLE_HEADER_BG = '#f5f5f5';
+const WHITE = '#ffffff';
 const GREEN = '#16a34a';
 const RED = '#dc2626';
-const GRAY_CANCEL = '#6b7280';
-const BG_ALT_ROW = '#f8fafc';
-const BG_NOTES = '#f1f5f9';
-const BG_BILL_TO = '#f8fafc';
-const BORDER_LIGHT = '#e2e8f0';
-const TEXT_MUTED = '#64748b';
-const TEXT_SECONDARY = '#475569';
-const WHITE = '#ffffff';
+const GRAY_STAMP = '#9ca3af';
 
 const styles = StyleSheet.create({
 	page: {
 		fontFamily: 'DM Sans',
 		fontSize: 10,
-		color: PRIMARY_DARK,
+		color: TEXT_PRIMARY,
 		paddingTop: 48,
-		paddingBottom: 80,
+		paddingBottom: 72,
 		paddingHorizontal: 48,
 		backgroundColor: WHITE,
 	},
-	// --- Top Section ---
-	topSection: {
+	// --- Header ---
+	header: {
 		flexDirection: 'row',
 		justifyContent: 'space-between',
 		alignItems: 'flex-start',
-		marginBottom: 24,
-	},
-	brandName: {
-		fontFamily: 'DM Sans',
-		fontSize: 11,
-		fontWeight: 700,
-		color: PRIMARY,
-		letterSpacing: 1,
-		textTransform: 'uppercase',
+		marginBottom: 32,
 	},
 	invoiceTitle: {
 		fontFamily: 'DM Serif Display',
-		fontSize: 24,
-		color: PRIMARY_DARK,
-		textAlign: 'right',
+		fontSize: 28,
+		color: TEXT_PRIMARY,
 	},
-	// --- Metadata Grid ---
-	metaGrid: {
-		flexDirection: 'row',
-		justifyContent: 'flex-end',
-		marginBottom: 20,
-	},
-	metaBlock: {
-		marginLeft: 24,
+	metaStack: {
 		alignItems: 'flex-end',
 	},
+	metaRow: {
+		flexDirection: 'row',
+		marginBottom: 3,
+	},
 	metaLabel: {
-		fontSize: 7,
-		fontWeight: 700,
+		fontSize: 8,
+		fontWeight: 500,
 		color: TEXT_MUTED,
-		textTransform: 'uppercase',
-		letterSpacing: 0.8,
-		marginBottom: 2,
+		width: 65,
+		textAlign: 'right',
+		marginRight: 8,
 	},
 	metaValue: {
 		fontSize: 9,
 		fontWeight: 500,
-		color: PRIMARY_DARK,
-	},
-	metaValueMono: {
-		fontSize: 10,
-		fontWeight: 700,
-		color: PRIMARY_DARK,
-		fontFamily: 'DM Sans',
-		letterSpacing: 0.5,
+		color: TEXT_PRIMARY,
+		width: 90,
+		textAlign: 'right',
 	},
 	// --- Separator ---
 	separator: {
 		borderBottomWidth: 1,
-		borderBottomColor: BORDER_LIGHT,
+		borderBottomColor: BORDER,
 		marginBottom: 24,
 	},
 	// --- Bill To ---
 	billToContainer: {
 		marginBottom: 28,
-		padding: 16,
-		backgroundColor: BG_BILL_TO,
-		borderRadius: 6,
-		borderWidth: 1,
-		borderColor: BORDER_LIGHT,
 	},
 	billToLabel: {
-		fontSize: 7,
+		fontSize: 8,
 		fontWeight: 700,
 		color: TEXT_MUTED,
 		textTransform: 'uppercase',
-		letterSpacing: 1,
-		marginBottom: 8,
+		letterSpacing: 0.8,
+		marginBottom: 6,
 	},
 	clientName: {
-		fontSize: 13,
+		fontSize: 12,
 		fontWeight: 700,
-		color: PRIMARY_DARK,
-		marginBottom: 3,
+		color: TEXT_PRIMARY,
+		marginBottom: 2,
 	},
 	clientDetail: {
 		fontSize: 9,
@@ -148,36 +123,32 @@ const styles = StyleSheet.create({
 	},
 	// --- Line Items Table ---
 	table: {
-		marginBottom: 24,
+		marginBottom: 28,
 	},
 	tableHeader: {
 		flexDirection: 'row',
-		backgroundColor: PRIMARY_DARK,
-		paddingVertical: 8,
-		paddingHorizontal: 12,
-		borderTopLeftRadius: 6,
-		borderTopRightRadius: 6,
+		backgroundColor: TABLE_HEADER_BG,
+		paddingVertical: 7,
+		paddingHorizontal: 10,
+		borderBottomWidth: 1,
+		borderBottomColor: BORDER,
 	},
 	tableHeaderText: {
-		fontSize: 7,
+		fontSize: 8,
 		fontWeight: 700,
-		color: WHITE,
+		color: TEXT_SECONDARY,
 		textTransform: 'uppercase',
-		letterSpacing: 0.5,
+		letterSpacing: 0.3,
 	},
 	tableRow: {
 		flexDirection: 'row',
-		paddingVertical: 9,
-		paddingHorizontal: 12,
+		paddingVertical: 8,
+		paddingHorizontal: 10,
 		borderBottomWidth: 1,
-		borderBottomColor: BORDER_LIGHT,
+		borderBottomColor: BORDER,
 	},
-	tableRowAlt: {
-		backgroundColor: BG_ALT_ROW,
-	},
-	colNum: { width: 28 },
 	colDesc: { flex: 1 },
-	colQty: { width: 55, textAlign: 'right' },
+	colQty: { width: 60, textAlign: 'right' },
 	colRate: { width: 80, textAlign: 'right' },
 	colAmount: { width: 85, textAlign: 'right' },
 	cellText: {
@@ -187,7 +158,7 @@ const styles = StyleSheet.create({
 	cellTextBold: {
 		fontSize: 9,
 		fontWeight: 700,
-		color: PRIMARY_DARK,
+		color: TEXT_PRIMARY,
 	},
 	// --- Totals ---
 	totalsContainer: {
@@ -195,12 +166,12 @@ const styles = StyleSheet.create({
 		marginBottom: 28,
 	},
 	totalsBox: {
-		width: 240,
+		width: 220,
 	},
 	totalRow: {
 		flexDirection: 'row',
 		justifyContent: 'space-between',
-		paddingVertical: 5,
+		paddingVertical: 4,
 	},
 	totalLabel: {
 		fontSize: 9,
@@ -209,46 +180,40 @@ const styles = StyleSheet.create({
 	totalValue: {
 		fontSize: 9,
 		fontWeight: 500,
-		color: PRIMARY_DARK,
+		color: TEXT_PRIMARY,
 	},
-	totalDivider: {
-		borderBottomWidth: 1,
-		borderBottomColor: BORDER_LIGHT,
-		marginVertical: 4,
+	grandTotalDivider: {
+		borderBottomWidth: 2,
+		borderBottomColor: TEXT_PRIMARY,
+		marginTop: 6,
+		marginBottom: 6,
 	},
 	grandTotalRow: {
 		flexDirection: 'row',
 		justifyContent: 'space-between',
-		paddingVertical: 10,
-		paddingHorizontal: 14,
-		backgroundColor: PRIMARY,
-		borderRadius: 6,
-		marginTop: 6,
+		paddingVertical: 4,
 	},
 	grandTotalLabel: {
-		fontFamily: 'DM Serif Display',
-		fontSize: 14,
-		color: WHITE,
+		fontSize: 13,
+		fontWeight: 700,
+		color: TEXT_PRIMARY,
 	},
 	grandTotalValue: {
-		fontFamily: 'DM Serif Display',
-		fontSize: 14,
-		color: WHITE,
+		fontSize: 13,
+		fontWeight: 700,
+		color: TEXT_PRIMARY,
 	},
 	// --- Notes ---
 	notesSection: {
-		padding: 14,
-		backgroundColor: BG_NOTES,
-		borderRadius: 6,
 		marginBottom: 16,
 	},
 	notesLabel: {
-		fontSize: 7,
+		fontSize: 8,
 		fontWeight: 700,
 		color: TEXT_MUTED,
 		textTransform: 'uppercase',
-		letterSpacing: 1,
-		marginBottom: 6,
+		letterSpacing: 0.8,
+		marginBottom: 4,
 	},
 	notesText: {
 		fontSize: 9,
@@ -262,18 +227,10 @@ const styles = StyleSheet.create({
 		left: 48,
 		right: 48,
 		borderTopWidth: 1,
-		borderTopColor: BORDER_LIGHT,
-		paddingTop: 10,
-	},
-	footerRow: {
+		borderTopColor: BORDER,
+		paddingTop: 8,
 		flexDirection: 'row',
-		justifyContent: 'space-between',
-		alignItems: 'center',
-	},
-	footerThankYou: {
-		fontSize: 8,
-		fontWeight: 500,
-		color: PRIMARY,
+		justifyContent: 'flex-end',
 	},
 	footerText: {
 		fontSize: 7,
@@ -282,21 +239,22 @@ const styles = StyleSheet.create({
 	// --- Status Stamps ---
 	stampContainer: {
 		position: 'absolute',
-		top: 50,
+		top: 55,
 		right: 44,
 		transform: 'rotate(-12deg)',
 	},
-	stampBadge: {
-		paddingHorizontal: 18,
-		paddingVertical: 8,
-		borderRadius: 6,
-		opacity: 0.85,
+	stampBorder: {
+		paddingHorizontal: 16,
+		paddingVertical: 6,
+		borderWidth: 3,
+		borderRadius: 4,
+		opacity: 0.75,
 	},
 	stampText: {
-		fontFamily: 'DM Serif Display',
-		fontSize: 22,
-		color: WHITE,
-		letterSpacing: 2,
+		fontFamily: 'DM Sans',
+		fontSize: 20,
+		fontWeight: 700,
+		letterSpacing: 3,
 	},
 	// Draft watermark
 	draftWatermark: {
@@ -304,29 +262,14 @@ const styles = StyleSheet.create({
 		top: 320,
 		left: 80,
 		transform: 'rotate(-35deg)',
-		opacity: 0.06,
+		opacity: 0.05,
 	},
 	draftWatermarkText: {
-		fontFamily: 'DM Serif Display',
+		fontFamily: 'DM Sans',
 		fontSize: 96,
-		color: PRIMARY_DARK,
+		fontWeight: 700,
+		color: TEXT_PRIMARY,
 		letterSpacing: 12,
-	},
-	// Cancelled stamp
-	cancelledStampBadge: {
-		paddingHorizontal: 18,
-		paddingVertical: 8,
-		borderRadius: 6,
-		borderWidth: 3,
-		borderColor: GRAY_CANCEL,
-		opacity: 0.7,
-	},
-	cancelledStampText: {
-		fontFamily: 'DM Serif Display',
-		fontSize: 22,
-		color: GRAY_CANCEL,
-		letterSpacing: 2,
-		textDecoration: 'line-through',
 	},
 });
 
@@ -381,56 +324,31 @@ function formatDate(date: Date): string {
 	});
 }
 
-function getStatusLabel(status: string): string {
-	switch (status) {
-		case 'PAID':
-			return 'Paid';
-		case 'SENT':
-			return 'Sent';
-		case 'OVERDUE':
-			return 'Overdue';
-		case 'DRAFT':
-			return 'Draft';
-		case 'CANCELLED':
-			return 'Cancelled';
-		default:
-			return status;
-	}
-}
-
 // --- Section Components ---
 
-function TopSection() {
+function HeaderSection({ invoice }: { invoice: InvoicePDFData }) {
 	return (
-		<View style={styles.topSection}>
-			<View>
-				<Text style={styles.brandName}>Budget Planner</Text>
-			</View>
-			<View>
-				<Text style={styles.invoiceTitle}>INVOICE</Text>
-			</View>
-		</View>
-	);
-}
-
-function MetadataGrid({ invoice }: { invoice: InvoicePDFData }) {
-	return (
-		<View style={styles.metaGrid}>
-			<View style={styles.metaBlock}>
-				<Text style={styles.metaLabel}>Invoice #</Text>
-				<Text style={styles.metaValueMono}>{invoice.invoiceNumber}</Text>
-			</View>
-			<View style={styles.metaBlock}>
-				<Text style={styles.metaLabel}>Issue Date</Text>
-				<Text style={styles.metaValue}>{formatDate(invoice.issueDate)}</Text>
-			</View>
-			<View style={styles.metaBlock}>
-				<Text style={styles.metaLabel}>Due Date</Text>
-				<Text style={styles.metaValue}>{formatDate(invoice.dueDate)}</Text>
-			</View>
-			<View style={styles.metaBlock}>
-				<Text style={styles.metaLabel}>Status</Text>
-				<Text style={styles.metaValue}>{getStatusLabel(invoice.status)}</Text>
+		<View style={styles.header}>
+			<Text style={styles.invoiceTitle}>INVOICE</Text>
+			<View style={styles.metaStack}>
+				<View style={styles.metaRow}>
+					<Text style={styles.metaLabel}>Invoice #</Text>
+					<Text style={{ ...styles.metaValue, fontWeight: 700 }}>
+						{invoice.invoiceNumber}
+					</Text>
+				</View>
+				<View style={styles.metaRow}>
+					<Text style={styles.metaLabel}>Issue Date</Text>
+					<Text style={styles.metaValue}>
+						{formatDate(invoice.issueDate)}
+					</Text>
+				</View>
+				<View style={styles.metaRow}>
+					<Text style={styles.metaLabel}>Due Date</Text>
+					<Text style={styles.metaValue}>
+						{formatDate(invoice.dueDate)}
+					</Text>
+				</View>
 			</View>
 		</View>
 	);
@@ -448,8 +366,10 @@ function StatusStamp({ status }: { status: string }) {
 	if (status === 'PAID') {
 		return (
 			<View style={styles.stampContainer}>
-				<View style={{ ...styles.stampBadge, backgroundColor: GREEN }}>
-					<Text style={styles.stampText}>PAID</Text>
+				<View style={{ ...styles.stampBorder, borderColor: GREEN }}>
+					<Text style={{ ...styles.stampText, color: GREEN }}>
+						PAID
+					</Text>
 				</View>
 			</View>
 		);
@@ -458,8 +378,10 @@ function StatusStamp({ status }: { status: string }) {
 	if (status === 'OVERDUE') {
 		return (
 			<View style={styles.stampContainer}>
-				<View style={{ ...styles.stampBadge, backgroundColor: RED }}>
-					<Text style={styles.stampText}>OVERDUE</Text>
+				<View style={{ ...styles.stampBorder, borderColor: RED }}>
+					<Text style={{ ...styles.stampText, color: RED }}>
+						OVERDUE
+					</Text>
 				</View>
 			</View>
 		);
@@ -468,14 +390,24 @@ function StatusStamp({ status }: { status: string }) {
 	if (status === 'CANCELLED') {
 		return (
 			<View style={styles.stampContainer}>
-				<View style={styles.cancelledStampBadge}>
-					<Text style={styles.cancelledStampText}>CANCELLED</Text>
+				<View
+					style={{ ...styles.stampBorder, borderColor: GRAY_STAMP }}
+				>
+					<Text
+						style={{
+							...styles.stampText,
+							color: GRAY_STAMP,
+							textDecoration: 'line-through',
+						}}
+					>
+						CANCELLED
+					</Text>
 				</View>
 			</View>
 		);
 	}
 
-	// SENT status: no watermark/stamp (clean)
+	// SENT status: no stamp
 	return null;
 }
 
@@ -510,18 +442,13 @@ function LineItemsTable({
 		<View style={styles.table}>
 			{/* Table Header */}
 			<View style={styles.tableHeader}>
-				<Text style={{ ...styles.tableHeaderText, ...styles.colNum }}>
-					#
-				</Text>
 				<Text style={{ ...styles.tableHeaderText, ...styles.colDesc }}>
 					Description
 				</Text>
 				<Text style={{ ...styles.tableHeaderText, ...styles.colQty }}>
 					Hrs/Qty
 				</Text>
-				<Text
-					style={{ ...styles.tableHeaderText, ...styles.colRate }}
-				>
+				<Text style={{ ...styles.tableHeaderText, ...styles.colRate }}>
 					Rate
 				</Text>
 				<Text
@@ -532,17 +459,8 @@ function LineItemsTable({
 			</View>
 
 			{/* Table Rows */}
-			{lineItems.map((item, index) => (
-				<View
-					key={item.id}
-					style={{
-						...styles.tableRow,
-						...(index % 2 === 1 ? styles.tableRowAlt : {}),
-					}}
-				>
-					<Text style={{ ...styles.cellText, ...styles.colNum }}>
-						{index + 1}
-					</Text>
+			{lineItems.map((item) => (
+				<View key={item.id} style={styles.tableRow}>
 					<Text style={{ ...styles.cellText, ...styles.colDesc }}>
 						{item.description}
 					</Text>
@@ -589,9 +507,9 @@ function TotalsSection({
 						</Text>
 					</View>
 				)}
-				<View style={styles.totalDivider} />
+				<View style={styles.grandTotalDivider} />
 				<View style={styles.grandTotalRow}>
-					<Text style={styles.grandTotalLabel}>TOTAL</Text>
+					<Text style={styles.grandTotalLabel}>Total</Text>
 					<Text style={styles.grandTotalValue}>
 						{fmt(invoice.totalAmount)}
 					</Text>
@@ -610,25 +528,15 @@ function NotesSection({ notes }: { notes: string }) {
 	);
 }
 
-function FooterSection({ invoice }: { invoice: InvoicePDFData }) {
+function FooterSection() {
 	return (
 		<View style={styles.footer} fixed>
-			<View style={styles.footerRow}>
-				<Text style={styles.footerThankYou}>
-					Thank you for your business
-				</Text>
-				<Text
-					style={styles.footerText}
-					render={({ pageNumber, totalPages }) =>
-						`Page ${pageNumber} of ${totalPages}`
-					}
-				/>
-			</View>
-			<View style={{ ...styles.footerRow, marginTop: 4 }}>
-				<Text style={styles.footerText}>
-					{invoice.invoiceNumber} | {invoice.clientName}
-				</Text>
-			</View>
+			<Text
+				style={styles.footerText}
+				render={({ pageNumber, totalPages }) =>
+					`Page ${pageNumber} of ${totalPages}`
+				}
+			/>
 		</View>
 	);
 }
@@ -645,20 +553,16 @@ function InvoiceDocument({
 	const fmt = createCurrencyFormatter(currency);
 
 	return (
-		<Document
-			title={`Invoice ${invoice.invoiceNumber}`}
-			author="Budget Planner"
-		>
+		<Document title={`Invoice ${invoice.invoiceNumber}`}>
 			<Page size="A4" style={styles.page}>
 				<StatusStamp status={invoice.status} />
-				<TopSection />
-				<MetadataGrid invoice={invoice} />
+				<HeaderSection invoice={invoice} />
 				<View style={styles.separator} />
 				<BillToSection invoice={invoice} />
 				<LineItemsTable lineItems={invoice.lineItems} fmt={fmt} />
 				<TotalsSection invoice={invoice} fmt={fmt} />
 				{invoice.notes && <NotesSection notes={invoice.notes} />}
-				<FooterSection invoice={invoice} />
+				<FooterSection />
 			</Page>
 		</Document>
 	);
