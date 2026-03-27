@@ -8,7 +8,6 @@ import {
 	PieChart,
 	BarChart3,
 	Sparkles,
-	MessageSquarePlus,
 	Wallet,
 	Shield,
 	Upload,
@@ -41,7 +40,6 @@ const navItems = [
 		title: 'Transactions',
 		url: '#',
 		icon: ArrowRightLeft,
-		isActive: true,
 		items: [
 			{ title: 'Income', url: '/income' },
 			{ title: 'Expenses', url: '/expense' },
@@ -56,34 +54,32 @@ const navItems = [
 		icon: PieChart,
 	},
 	{
-		title: 'Accounts',
-		url: '/accounts',
-		icon: CreditCard,
-	},
-	{
 		title: 'Goals',
 		url: '/goals',
 		icon: Target,
 	},
 	{
-		title: 'Import',
-		url: '/import',
-		icon: Upload,
+		title: 'Accounts',
+		url: '/accounts',
+		icon: CreditCard,
 	},
 	{
 		title: 'Reports',
 		url: '/reports',
 		icon: BarChart3,
 	},
+];
+
+const secondaryItems = [
 	{
-		title: 'Updates',
-		url: '/changelog',
-		icon: Sparkles,
+		title: 'Import',
+		url: '/import',
+		icon: Upload,
 	},
 	{
-		title: 'Feedback',
-		url: '/changelog#request',
-		icon: MessageSquarePlus,
+		title: 'Changelog',
+		url: '/changelog',
+		icon: Sparkles,
 	},
 ];
 
@@ -143,7 +139,7 @@ function AppSidebarInner({ user, signOutAction, hasNewChangelog, ...props }: App
 			<SidebarContent>
 				<NavMain
 					items={
-						(user.role === 'ADMIN'
+						user.role === 'ADMIN'
 							? [
 									...navItems,
 									{
@@ -153,12 +149,15 @@ function AppSidebarInner({ user, signOutAction, hasNewChangelog, ...props }: App
 									},
 								]
 							: navItems
-						).map((item) =>
-							item.title === 'Updates' && hasNewChangelog
-								? { ...item, badge: true }
-								: item
-						)
 					}
+				/>
+				<SidebarSeparator />
+				<NavMain
+					items={secondaryItems.map((item) =>
+						item.title === 'Changelog' && hasNewChangelog
+							? { ...item, badge: true }
+							: item
+					)}
 				/>
 			</SidebarContent>
 			<SidebarSeparator />
