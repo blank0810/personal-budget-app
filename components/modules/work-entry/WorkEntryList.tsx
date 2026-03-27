@@ -31,6 +31,7 @@ import {
 	getUnbilledByClientAction,
 } from '@/server/modules/work-entry/work-entry.controller';
 import { useCurrency } from '@/lib/contexts/currency-context';
+import { cn } from '@/lib/utils';
 
 // Serialized types (Decimals converted to numbers by serialize())
 export interface WorkEntryRow {
@@ -444,70 +445,95 @@ export function WorkEntryList({ entries, clients, totalCount, pageLimit }: WorkE
 									date={dateKey}
 									totalAmount={unbilledTotal}
 								/>
-								<div className='divide-y rounded-md border'>
-									{groupEntries.map((entry) => (
-										<div
-											key={entry.id}
-											className='flex items-center gap-3 px-3 py-3 hover:bg-muted/30'
-										>
-											{/* Client badge */}
-											<Badge
-												variant='secondary'
-												className={`shrink-0 text-xs px-1.5 py-0.5 ${clientColorClass(entry.clientId)}`}
-											>
-												{entry.client.name}
-											</Badge>
+								<div className='rounded-md border overflow-hidden'>
+									<table className='w-full'>
+										<thead className='sr-only'>
+											<tr>
+												<th>Client</th>
+												<th>Description</th>
+												<th>Hours / Qty</th>
+												<th>Amount</th>
+												<th>Status</th>
+												<th>Actions</th>
+											</tr>
+										</thead>
+										<tbody className='divide-y'>
+											{groupEntries.map((entry) => (
+												<tr
+													key={entry.id}
+													className={cn(
+														'text-sm',
+														entry.status === 'UNBILLED'
+															? 'hover:bg-muted/30'
+															: 'opacity-75 bg-muted/10'
+													)}
+												>
+													{/* Client badge */}
+													<td className='px-3 py-2.5 w-[120px]'>
+														<Badge
+															variant='secondary'
+															className={`text-xs px-1.5 py-0.5 ${clientColorClass(entry.clientId)}`}
+														>
+															{entry.client.name}
+														</Badge>
+													</td>
 
-											{/* Description */}
-											<span className='flex-1 min-w-0 truncate text-sm'>
-												{entry.description}
-											</span>
+													{/* Description */}
+													<td className='px-3 py-2.5 truncate max-w-0'>
+														{entry.description}
+													</td>
 
-											{/* Qty × price */}
-											<span className='hidden sm:inline text-xs text-muted-foreground tabular-nums shrink-0'>
-												{entry.quantity} &times;{' '}
-												{formatCurrency(entry.unitPrice)}
-											</span>
+													{/* Qty × price */}
+													<td className='px-3 py-2.5 text-right text-xs text-muted-foreground tabular-nums w-[100px] hidden sm:table-cell'>
+														{entry.quantity} &times;{' '}
+														{formatCurrency(entry.unitPrice)}
+													</td>
 
-											{/* Amount */}
-											<span className='text-sm font-medium tabular-nums shrink-0'>
-												{formatCurrency(entry.amount)}
-											</span>
+													{/* Amount */}
+													<td className='px-3 py-2.5 text-right font-medium tabular-nums w-[90px]'>
+														{formatCurrency(entry.amount)}
+													</td>
 
-											{/* Status */}
-											<div className='shrink-0'>
-												<WorkEntryStatusBadge
-													status={entry.status}
-													invoiceNumber={entry.lastInvoiceNumber ?? undefined}
-													invoiceId={entry.lastInvoiceId ?? undefined}
-												/>
-											</div>
+													{/* Status */}
+													<td className='px-3 py-2.5 w-[100px]'>
+														<WorkEntryStatusBadge
+															status={entry.status}
+															invoiceNumber={entry.lastInvoiceNumber ?? undefined}
+															invoiceId={entry.lastInvoiceId ?? undefined}
+														/>
+													</td>
 
-											{/* Actions (unbilled only) */}
-											{entry.status === 'UNBILLED' && (
-												<div className='flex items-center gap-1 shrink-0'>
-													<Button
-														variant='ghost'
-														size='icon'
-														className='h-7 w-7'
-														onClick={() => setEditingEntry(entry)}
-													>
-														<Pencil className='h-3.5 w-3.5' />
-														<span className='sr-only'>Edit</span>
-													</Button>
-													<Button
-														variant='ghost'
-														size='icon'
-														className='h-7 w-7 text-destructive hover:text-destructive'
-														onClick={() => handleDelete(entry.id)}
-													>
-														<Trash2 className='h-3.5 w-3.5' />
-														<span className='sr-only'>Delete</span>
-													</Button>
-												</div>
-											)}
-										</div>
-									))}
+													{/* Actions */}
+													<td className='px-3 py-2.5 w-[70px]'>
+														{entry.status === 'UNBILLED' ? (
+															<div className='flex items-center gap-1'>
+																<Button
+																	variant='ghost'
+																	size='icon'
+																	className='h-7 w-7'
+																	onClick={() => setEditingEntry(entry)}
+																>
+																	<Pencil className='h-3.5 w-3.5' />
+																	<span className='sr-only'>Edit</span>
+																</Button>
+																<Button
+																	variant='ghost'
+																	size='icon'
+																	className='h-7 w-7 text-destructive hover:text-destructive'
+																	onClick={() => handleDelete(entry.id)}
+																>
+																	<Trash2 className='h-3.5 w-3.5' />
+																	<span className='sr-only'>Delete</span>
+																</Button>
+															</div>
+														) : (
+															<div className='shrink-0 w-[60px]' />
+														)}
+													</td>
+												</tr>
+											))}
+										</tbody>
+									</table>
 								</div>
 							</div>
 						);

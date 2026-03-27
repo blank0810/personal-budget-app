@@ -161,13 +161,13 @@ function EntryFields({
 	}
 
 	return (
-		<form onSubmit={onSubmit} className='flex items-end gap-2'>
-			<div className='space-y-1.5 min-w-[160px]'>
+		<form onSubmit={onSubmit} className='grid grid-cols-[180px_140px_1fr_80px_100px_auto] items-end gap-3'>
+			<div className='space-y-1'>
 				<Label htmlFor='desktop-client' className='text-xs'>
 					Client
 				</Label>
 				<Select value={form.clientId} onValueChange={onClientChange}>
-					<SelectTrigger id='desktop-client' className='w-full'>
+					<SelectTrigger id='desktop-client' className='h-9 w-full'>
 						<SelectValue placeholder='Select client...' />
 					</SelectTrigger>
 					<SelectContent>
@@ -180,7 +180,7 @@ function EntryFields({
 				</Select>
 			</div>
 
-			<div className='space-y-1.5'>
+			<div className='space-y-1'>
 				<Label htmlFor='desktop-date' className='text-xs'>
 					Date
 				</Label>
@@ -189,12 +189,12 @@ function EntryFields({
 					type='date'
 					value={form.date}
 					onChange={(e) => onChange('date', e.target.value)}
-					className='w-[140px]'
+					className='h-9 w-full'
 					required
 				/>
 			</div>
 
-			<div className='space-y-1.5 flex-1 min-w-[160px]'>
+			<div className='space-y-1'>
 				<Label htmlFor='desktop-description' className='text-xs'>
 					Description
 				</Label>
@@ -203,11 +203,12 @@ function EntryFields({
 					placeholder='What did you work on?'
 					value={form.description}
 					onChange={(e) => onChange('description', e.target.value)}
+					className='h-9 w-full'
 					required
 				/>
 			</div>
 
-			<div className='space-y-1.5'>
+			<div className='space-y-1'>
 				<Label htmlFor='desktop-quantity' className='text-xs'>
 					Hours / Qty
 				</Label>
@@ -219,12 +220,12 @@ function EntryFields({
 					placeholder='1'
 					value={form.quantity}
 					onChange={(e) => onChange('quantity', e.target.value)}
-					className='w-[70px]'
+					className='h-9 w-full'
 					required
 				/>
 			</div>
 
-			<div className='space-y-1.5'>
+			<div className='space-y-1'>
 				<Label htmlFor='desktop-unitPrice' className='text-xs'>
 					Rate
 				</Label>
@@ -236,12 +237,12 @@ function EntryFields({
 					placeholder='0.00'
 					value={form.unitPrice}
 					onChange={(e) => onChange('unitPrice', e.target.value)}
-					className='w-[100px]'
+					className='h-9 w-full'
 					required
 				/>
 			</div>
 
-			<Button type='submit' disabled={isPending}>
+			<Button type='submit' className='h-9' disabled={isPending}>
 				{isPending ? (
 					<Loader2 className='h-4 w-4 animate-spin' />
 				) : (
