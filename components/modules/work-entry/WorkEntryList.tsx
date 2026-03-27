@@ -446,19 +446,20 @@ export function WorkEntryList({ entries, clients, totalCount, pageLimit }: WorkE
 			) : (
 				<div className='space-y-6'>
 					{groups.map(([dateKey, groupEntries]) => {
-						const unbilledTotal = groupEntries
-							.filter((e) => e.status === 'UNBILLED')
-							.reduce((sum, e) => sum + e.amount, 0);
-
-						// Determine currency for this group (use first entry's client currency)
-						const groupCurrency = groupEntries[0]?.client?.currency;
+						// Build currency → unbilled total map for this date group
+						const currencyTotals: Record<string, number> = {};
+						for (const e of groupEntries) {
+							if (e.status === 'UNBILLED') {
+								const cur = e.client?.currency || e.currency || 'USD';
+								currencyTotals[cur] = (currencyTotals[cur] || 0) + e.amount;
+							}
+						}
 
 						return (
 							<div key={dateKey} className='space-y-1'>
 								<DateGroupHeader
 									date={dateKey}
-									totalAmount={unbilledTotal}
-									currency={groupCurrency}
+									currencyTotals={currencyTotals}
 								/>
 								<div className='rounded-md border overflow-hidden'>
 									<table className='w-full'>
