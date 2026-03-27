@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { ChangelogView } from '@/components/modules/changelog/ChangelogView';
 import { ChangelogService } from '@/server/modules/changelog/changelog.service';
 import { FeatureRequestForm } from '@/components/modules/feature-request/FeatureRequestForm';
-import { FeatureRequestList } from '@/components/modules/feature-request/FeatureRequestList';
+import { FeatureRequestTabs } from '@/components/modules/feature-request/FeatureRequestTabs';
 import { FeatureRequestService } from '@/server/modules/feature-request/feature-request.service';
 import prisma from '@/lib/prisma';
 import Link from 'next/link';
@@ -98,7 +98,10 @@ export default async function PublicChangelogPage() {
 
 			{/* Changelog Timeline */}
 			<main className='mx-auto max-w-4xl px-4 sm:px-6 py-8 md:py-12'>
-				<ChangelogView versions={versions} />
+				<h2 className='text-2xl font-bold mb-6'>Release Notes</h2>
+				<div className='max-h-[70vh] overflow-y-auto pr-2 border rounded-lg p-4'>
+					<ChangelogView versions={versions} />
+				</div>
 			</main>
 
 			{/* Community Requests */}
@@ -113,10 +116,11 @@ export default async function PublicChangelogPage() {
 							Ideas and bug reports submitted by users.
 						</p>
 					</div>
-					<FeatureRequestList
+					<FeatureRequestTabs
 						requests={requests.map((r) => ({
 							...r,
 							createdAt: r.createdAt.toISOString(),
+							updatedAt: r.updatedAt.toISOString(),
 						}))}
 					/>
 				</div>
