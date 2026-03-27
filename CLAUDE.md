@@ -120,3 +120,28 @@ Services handle: business logic, Prisma transactions, balance updates.
 
 ### Path Alias
 `@/*` resolves to project root (e.g., `@/lib/prisma`, `@/server/modules/income`)
+
+## Terminology
+
+- **Council of Agents:** The collection of specialized agents defined at global and project scope. When referred to as "the council," it means dispatching work to the appropriate specialized agents for collaborative, parallel execution.
+
+### Global Agents (available across all projects)
+| Agent | Purpose |
+|-------|---------|
+| **lead-engineer** | Senior full-stack architect. System design, architecture decisions, data modeling, performance optimization, scalability planning, tech stack evaluation, API design, and technical debt assessment. |
+| **frontend-engineer** | Frontend and UX specialist. UI components, page layouts, forms, client-side state, accessibility, responsive design, animations, and user experience flows. |
+| **backend-engineer** | Backend implementation specialist. Server-side features, API endpoints, database queries, service layers, middleware, authentication logic, data validation, and background jobs. |
+| **devops-engineer** | Infrastructure and deployment specialist. Docker, CI/CD pipelines, server deployment, SSL/TLS, environment variables, cloud hosting, monitoring, logging, and security hardening. |
+| **qa-engineer** | Quality assurance and testing specialist. Writing tests, reviewing test coverage, validating edge cases, setting up testing infrastructure, and verifying implementations meet requirements. |
+| **code-simplifier** | Simplifies and refines code for clarity, consistency, and maintainability while preserving all functionality. |
+| **ai-engineer** | AI/ML implementation specialist. LLM integration, recommendation systems, prompt engineering, computer vision, and intelligent automation. |
+| **hiring-closer** | Hiring manager and deal-closing expert. Reviews CVs, portfolios, LinkedIn profiles, and developer credentials. Evaluates market relevance, trust signals, positioning, and gives hire/pass verdicts with actionable fixes. |
+
+### Project Agents (specific to this budget app)
+| Agent | Purpose |
+|-------|---------|
+| **budget-frontend** | Frontend specialist for this app. UI components, dashboards, data tables, charts, the CSV import wizard, and all client-side work in this project. |
+| **budget-backend** | Backend specialist for this app. Server actions, services, Prisma queries, balance updates, recurring transactions, cron jobs, BullMQ queue workers, and server-side business logic. |
+| **budget-devops** | DevOps specialist for this app. Docker configuration, deployment, CI/CD, server setup, database backups, Redis/BullMQ infrastructure, and production environment management. |
+| **accountant** | Financial domain expert. Validates financial calculations, reviews balance logic, designs budget features, audits transaction flows, reviews report accuracy, and advises on money-related behavior from an accounting perspective. |
+| **founder** | Product founder and visionary. Product decisions, feature prioritization, user experience from a business perspective, roadmap planning, competitor positioning, and deciding what to build next and why. |
