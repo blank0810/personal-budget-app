@@ -82,3 +82,19 @@ export async function deleteWorkEntryAction(entryId: string) {
 		};
 	}
 }
+
+export async function getUnbilledByClientAction(clientId: string) {
+	const userId = await getAuthenticatedUser();
+
+	try {
+		const entries = await WorkEntryService.getUnbilledByClient(userId, clientId);
+		return { success: true, entries: serialize(entries) };
+	} catch (error) {
+		return {
+			error:
+				error instanceof Error
+					? error.message
+					: 'Failed to fetch entries',
+		};
+	}
+}

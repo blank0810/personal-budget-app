@@ -4,6 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { format } from 'date-fns';
 import { Pencil, FileText, Mail, Phone, MapPin, DollarSign } from 'lucide-react';
+import { GenerateInvoiceDialog } from '@/components/modules/work-entry/GenerateInvoiceDialog';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -103,6 +104,9 @@ function StatCard({
 export function ClientDetail({ client, entries, invoices }: ClientDetailProps) {
 	const { formatCurrency } = useCurrency();
 	const [editOpen, setEditOpen] = useState(false);
+	const [showGenerateDialog, setShowGenerateDialog] = useState(false);
+
+	const unbilledEntries = entries.filter(e => e.status === 'UNBILLED');
 
 	return (
 		<div className='space-y-6'>
@@ -149,11 +153,13 @@ export function ClientDetail({ client, entries, invoices }: ClientDetailProps) {
 						<Pencil className='mr-2 h-4 w-4' />
 						Edit
 					</Button>
-					<Button asChild size='sm'>
-						<Link href='/invoices/new'>
-							<FileText className='mr-2 h-4 w-4' />
-							Generate Invoice
-						</Link>
+					<Button
+						size='sm'
+						onClick={() => setShowGenerateDialog(true)}
+						disabled={unbilledEntries.length === 0}
+					>
+						<FileText className='mr-2 h-4 w-4' />
+						Generate Invoice
 					</Button>
 				</div>
 			</div>
@@ -309,6 +315,16 @@ export function ClientDetail({ client, entries, invoices }: ClientDetailProps) {
 				open={editOpen}
 				onOpenChange={setEditOpen}
 			/>
+
+			{showGenerateDialog && (
+				<GenerateInvoiceDialog
+					clientId={client.id}
+					clientName={client.name}
+					entries={unbilledEntries}
+					open={showGenerateDialog}
+					onOpenChange={setShowGenerateDialog}
+				/>
+			)}
 		</div>
 	);
 }

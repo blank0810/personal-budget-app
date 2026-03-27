@@ -1,10 +1,10 @@
 'use client';
 
-import { useState, useTransition, useMemo } from 'react';
+import { useState, useTransition, useMemo, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { format, parseISO } from 'date-fns';
 import { toast } from 'sonner';
-import { Pencil, Trash2, FileText } from 'lucide-react';
+import { Pencil, Trash2, FileText, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
@@ -28,6 +28,7 @@ import { GenerateInvoiceDialog } from './GenerateInvoiceDialog';
 import {
 	updateWorkEntryAction,
 	deleteWorkEntryAction,
+	getUnbilledByClientAction,
 } from '@/server/modules/work-entry/work-entry.controller';
 import { useCurrency } from '@/lib/contexts/currency-context';
 
@@ -249,6 +250,8 @@ export function WorkEntryList({ entries, clients, totalCount, pageLimit }: WorkE
 
 	// Generate invoice dialog state
 	const [generateClientId, setGenerateClientId] = useState<string | null>(null);
+	const [generateEntries, setGenerateEntries] = useState<WorkEntryRow[]>([]);
+	const [loadingInvoiceClientId, setLoadingInvoiceClientId] = useState<string | null>(null);
 
 	// Filtered entries
 	const filtered = useMemo(() => {
@@ -304,12 +307,28 @@ export function WorkEntryList({ entries, clients, totalCount, pageLimit }: WorkE
 		});
 	}
 
+	const handleGenerateInvoice = useCallback(async (clientId: string) => {
+		setLoadingInvoiceClientId(clientId);
+		try {
+			const result = await getUnbilledByClientAction(clientId);
+			if (result?.error) {
+				toast.error(result.error);
+				return;
+			}
+			if (result.entries) {
+				setGenerateEntries(result.entries as unknown as WorkEntryRow[]);
+				setGenerateClientId(clientId);
+			}
+		} catch {
+			toast.error('Failed to load unbilled entries');
+		} finally {
+			setLoadingInvoiceClientId(null);
+		}
+	}, []);
+
 	const generateClient = generateClientId
 		? clients.find((c) => c.id === generateClientId) ?? null
 		: null;
-	const generateEntries = generateClientId
-		? (unbilledByClient.get(generateClientId) ?? [])
-		: [];
 
 	return (
 		<div className='space-y-4'>
@@ -378,14 +397,20 @@ export function WorkEntryList({ entries, clients, totalCount, pageLimit }: WorkE
 					<div className='ml-auto flex flex-wrap gap-2'>
 						{clientsWithUnbilled.map((c) => {
 							const count = unbilledByClient.get(c.id)?.length ?? 0;
+							const isLoading = loadingInvoiceClientId === c.id;
 							return (
 								<Button
 									key={c.id}
 									variant='outline'
 									size='sm'
-									onClick={() => setGenerateClientId(c.id)}
+									disabled={isLoading}
+									onClick={() => handleGenerateInvoice(c.id)}
 								>
-									<FileText className='mr-1.5 h-3.5 w-3.5' />
+									{isLoading ? (
+										<Loader2 className='mr-1.5 h-3.5 w-3.5 animate-spin' />
+									) : (
+										<FileText className='mr-1.5 h-3.5 w-3.5' />
+									)}
 									Invoice {c.name}
 									<span className='ml-1.5 text-xs text-muted-foreground'>
 										({count})
@@ -517,7 +542,10 @@ export function WorkEntryList({ entries, clients, totalCount, pageLimit }: WorkE
 					entries={generateEntries}
 					open={!!generateClientId}
 					onOpenChange={(open) => {
-						if (!open) setGenerateClientId(null);
+						if (!open) {
+							setGenerateClientId(null);
+							setGenerateEntries([]);
+						}
 					}}
 				/>
 			)}
