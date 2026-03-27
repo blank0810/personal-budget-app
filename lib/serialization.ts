@@ -31,6 +31,9 @@ function convertDecimals(value: unknown): any {
 	if (isDecimal(value)) {
 		return Number(value);
 	}
+	if (value instanceof Date) {
+		return value;
+	}
 	if (Array.isArray(value)) {
 		return value.map(convertDecimals);
 	}
