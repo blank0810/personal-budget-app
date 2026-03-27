@@ -19,7 +19,7 @@ import {
 import { InvoiceStatusBadge } from '@/components/modules/invoice/InvoiceStatusBadge';
 import { WorkEntryStatusBadge } from '@/components/modules/work-entry/WorkEntryStatusBadge';
 import { ClientForm } from './ClientForm';
-import { useCurrency } from '@/lib/contexts/currency-context';
+import { formatCurrency } from '@/lib/formatters';
 import { InvoiceStatus } from '@prisma/client';
 
 interface ClientStats {
@@ -103,11 +103,12 @@ function StatCard({
 }
 
 export function ClientDetail({ client, entries, invoices }: ClientDetailProps) {
-	const { formatCurrency } = useCurrency();
 	const [editOpen, setEditOpen] = useState(false);
 	const [showGenerateDialog, setShowGenerateDialog] = useState(false);
 
 	const unbilledEntries = entries.filter(e => e.status === 'UNBILLED');
+
+	const fmt = (amount: number) => formatCurrency(amount, { currency: client.currency });
 
 	return (
 		<div className='space-y-6'>
@@ -139,7 +140,7 @@ export function ClientDetail({ client, entries, invoices }: ClientDetailProps) {
 						{client.defaultRate != null && (
 							<span className='flex items-center gap-1'>
 								<DollarSign className='h-3.5 w-3.5' />
-								{formatCurrency(client.defaultRate)} default billing rate
+								{fmt(client.defaultRate)} default billing rate
 							</span>
 						)}
 						{client.currency && (
@@ -175,20 +176,20 @@ export function ClientDetail({ client, entries, invoices }: ClientDetailProps) {
 			<div className='grid grid-cols-2 lg:grid-cols-4 gap-4'>
 				<StatCard
 					label='Unbilled Total'
-					value={formatCurrency(client.unbilled.total)}
+					value={fmt(client.unbilled.total)}
 					highlight={client.unbilled.total > 0 ? 'orange' : undefined}
 				/>
 				<StatCard
 					label='Total Invoiced'
-					value={formatCurrency(client.totalInvoiced)}
+					value={fmt(client.totalInvoiced)}
 				/>
 				<StatCard
 					label='Total Paid'
-					value={formatCurrency(client.totalPaid)}
+					value={fmt(client.totalPaid)}
 				/>
 				<StatCard
 					label='Outstanding'
-					value={formatCurrency(client.outstanding)}
+					value={fmt(client.outstanding)}
 					highlight={client.outstanding > 0 ? 'red' : undefined}
 				/>
 			</div>
@@ -245,10 +246,10 @@ export function ClientDetail({ client, entries, invoices }: ClientDetailProps) {
 												{Number(entry.quantity)}
 											</TableCell>
 											<TableCell className='text-right text-sm'>
-												{formatCurrency(Number(entry.unitPrice))}
+												{fmt(Number(entry.unitPrice))}
 											</TableCell>
 											<TableCell className='text-right font-medium'>
-												{formatCurrency(Number(entry.amount))}
+												{fmt(Number(entry.amount))}
 											</TableCell>
 											<TableCell>
 												<WorkEntryStatusBadge
@@ -296,7 +297,7 @@ export function ClientDetail({ client, entries, invoices }: ClientDetailProps) {
 												</Link>
 											</TableCell>
 											<TableCell className='font-medium'>
-												{formatCurrency(invoice.totalAmount)}
+												{fmt(invoice.totalAmount)}
 											</TableCell>
 											<TableCell className='text-sm text-muted-foreground whitespace-nowrap'>
 												{format(new Date(invoice.issueDate), 'MMM d, yyyy')}

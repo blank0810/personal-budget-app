@@ -13,8 +13,9 @@ export const WorkEntryService = {
 	async create(userId: string, data: CreateWorkEntryInput) {
 		const amount = data.quantity * data.unitPrice;
 
-		const user = await prisma.user.findUniqueOrThrow({
-			where: { id: userId },
+		// Use the client's billing currency for the entry
+		const client = await prisma.client.findUniqueOrThrow({
+			where: { id: data.clientId, userId },
 			select: { currency: true },
 		});
 
@@ -25,13 +26,13 @@ export const WorkEntryService = {
 				quantity: data.quantity,
 				unitPrice: data.unitPrice,
 				amount,
-				currency: user.currency ?? 'USD',
+				currency: client.currency,
 				clientId: data.clientId,
 				userId,
 			},
 			include: {
 				client: {
-					select: { id: true, name: true },
+					select: { id: true, name: true, currency: true },
 				},
 			},
 		});
@@ -57,6 +58,16 @@ export const WorkEntryService = {
 			updateData.unitPrice ?? entry.unitPrice.toNumber();
 		const amount = quantity * unitPrice;
 
+		// If client is changing, update the currency to match the new client
+		let currency = entry.currency;
+		if (updateData.clientId && updateData.clientId !== entry.clientId) {
+			const newClient = await prisma.client.findUniqueOrThrow({
+				where: { id: updateData.clientId, userId },
+				select: { currency: true },
+			});
+			currency = newClient.currency;
+		}
+
 		return await prisma.workEntry.update({
 			where: { id, userId },
 			data: {
@@ -72,10 +83,11 @@ export const WorkEntryService = {
 				quantity,
 				unitPrice,
 				amount,
+				currency,
 			},
 			include: {
 				client: {
-					select: { id: true, name: true },
+					select: { id: true, name: true, currency: true },
 				},
 			},
 		});
@@ -116,7 +128,7 @@ export const WorkEntryService = {
 			},
 			include: {
 				client: {
-					select: { id: true, name: true },
+					select: { id: true, name: true, currency: true },
 				},
 			},
 			orderBy: [{ date: 'desc' }, { createdAt: 'desc' }],
@@ -141,7 +153,7 @@ export const WorkEntryService = {
 			},
 			include: {
 				client: {
-					select: { id: true, name: true },
+					select: { id: true, name: true, currency: true },
 				},
 			},
 			orderBy: [{ date: 'desc' }, { createdAt: 'desc' }],
@@ -169,7 +181,7 @@ export const WorkEntryService = {
 			},
 			include: {
 				client: {
-					select: { id: true, name: true },
+					select: { id: true, name: true, currency: true },
 				},
 			},
 			orderBy: [{ date: 'asc' }],

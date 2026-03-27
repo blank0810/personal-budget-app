@@ -21,7 +21,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Button } from '@/components/ui/button';
 import { InvoiceStatusBadge } from './InvoiceStatusBadge';
-import { useCurrency } from '@/lib/contexts/currency-context';
+import { formatCurrency } from '@/lib/formatters';
 import {
 	cancelInvoiceAction,
 	deleteInvoiceAction,
@@ -35,6 +35,7 @@ export interface InvoiceRow {
 	invoiceNumber: string;
 	clientName: string;
 	totalAmount: number;
+	currency: string;
 	issueDate: string | Date;
 	dueDate: string | Date;
 	status: InvoiceStatus;
@@ -54,7 +55,6 @@ const STATUS_TABS: { value: string; label: string }[] = [
 ];
 
 export function InvoiceList({ invoices }: InvoiceListProps) {
-	const { formatCurrency } = useCurrency();
 	const [activeTab, setActiveTab] = useState('ALL');
 	const [isPending, startTransition] = useTransition();
 	const [loadingId, setLoadingId] = useState<string | null>(null);
@@ -132,7 +132,9 @@ export function InvoiceList({ invoices }: InvoiceListProps) {
 										</Link>
 									</TableCell>
 									<TableCell>{invoice.clientName}</TableCell>
-									<TableCell>{formatCurrency(invoice.totalAmount)}</TableCell>
+									<TableCell>
+										{formatCurrency(invoice.totalAmount, { currency: invoice.currency })}
+									</TableCell>
 									<TableCell>
 										{format(new Date(invoice.issueDate), 'MMM d, yyyy')}
 									</TableCell>

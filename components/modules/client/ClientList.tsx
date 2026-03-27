@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ClientForm } from './ClientForm';
 import { archiveClientAction } from '@/server/modules/client/client.controller';
-import { useCurrency } from '@/lib/contexts/currency-context';
+import { formatCurrency } from '@/lib/formatters';
 
 interface ClientWithUnbilled {
 	id: string;
@@ -18,6 +18,7 @@ interface ClientWithUnbilled {
 	phone: string | null;
 	address: string | null;
 	defaultRate: number | null;
+	currency: string;
 	notes: string | null;
 	isArchived: boolean;
 	unbilled: {
@@ -31,7 +32,6 @@ export interface ClientListProps {
 }
 
 function ClientCard({ client }: { client: ClientWithUnbilled }) {
-	const { formatCurrency } = useCurrency();
 	const router = useRouter();
 	const [editOpen, setEditOpen] = useState(false);
 	const [isPending, startTransition] = useTransition();
@@ -98,7 +98,7 @@ function ClientCard({ client }: { client: ClientWithUnbilled }) {
 							<dt className='text-muted-foreground'>Default Billing Rate</dt>
 							<dd className='font-medium'>
 								{client.defaultRate != null
-									? formatCurrency(client.defaultRate)
+									? formatCurrency(client.defaultRate, { currency: client.currency })
 									: <span className='text-muted-foreground'>—</span>}
 							</dd>
 						</div>
@@ -107,7 +107,7 @@ function ClientCard({ client }: { client: ClientWithUnbilled }) {
 							<dd className='font-medium'>
 								{client.unbilled.count > 0 ? (
 									<span className='text-orange-600 dark:text-orange-400'>
-										{client.unbilled.count} ({formatCurrency(client.unbilled.total)})
+										{client.unbilled.count} ({formatCurrency(client.unbilled.total, { currency: client.currency })})
 									</span>
 								) : (
 									<span className='text-muted-foreground'>None</span>

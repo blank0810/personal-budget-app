@@ -30,7 +30,7 @@ import {
 	deleteWorkEntryAction,
 	getUnbilledByClientAction,
 } from '@/server/modules/work-entry/work-entry.controller';
-import { useCurrency } from '@/lib/contexts/currency-context';
+import { formatCurrency } from '@/lib/formatters';
 import { cn } from '@/lib/utils';
 
 // Serialized types (Decimals converted to numbers by serialize())
@@ -49,6 +49,7 @@ export interface WorkEntryRow {
 	client: {
 		id: string;
 		name: string;
+		currency?: string;
 	};
 }
 
@@ -238,7 +239,6 @@ function EditDialog({ entry, clients, open, onOpenChange }: EditDialogProps) {
 
 export function WorkEntryList({ entries, clients, totalCount, pageLimit }: WorkEntryListProps) {
 	const router = useRouter();
-	const { formatCurrency } = useCurrency();
 	const [, startTransition] = useTransition();
 
 	// Filter state — default to this week
@@ -334,6 +334,13 @@ export function WorkEntryList({ entries, clients, totalCount, pageLimit }: WorkE
 	const generateClient = generateClientId
 		? clients.find((c) => c.id === generateClientId) ?? null
 		: null;
+
+	// Resolve the client currency for invoice generation from the fetched entries
+	const generateClientCurrency = useMemo(() => {
+		if (!generateClientId || generateEntries.length === 0) return undefined;
+		const entry = generateEntries.find((e) => e.clientId === generateClientId);
+		return entry?.currency ?? entry?.client?.currency;
+	}, [generateClientId, generateEntries]);
 
 	return (
 		<div className='space-y-4'>
@@ -490,12 +497,12 @@ export function WorkEntryList({ entries, clients, totalCount, pageLimit }: WorkE
 													{/* Qty × price */}
 													<td className='px-3 py-2.5 text-right text-xs text-muted-foreground tabular-nums w-[100px] hidden sm:table-cell'>
 														{entry.quantity} &times;{' '}
-														{formatCurrency(entry.unitPrice)}
+														{formatCurrency(entry.unitPrice, { currency: entry.currency })}
 													</td>
 
 													{/* Amount */}
 													<td className='px-3 py-2.5 text-right font-medium tabular-nums w-[90px]'>
-														{formatCurrency(entry.amount)}
+														{formatCurrency(entry.amount, { currency: entry.currency })}
 													</td>
 
 													{/* Status */}
@@ -569,6 +576,7 @@ export function WorkEntryList({ entries, clients, totalCount, pageLimit }: WorkE
 				<GenerateInvoiceDialog
 					clientId={generateClient.id}
 					clientName={generateClient.name}
+					clientCurrency={generateClientCurrency}
 					entries={generateEntries}
 					open={!!generateClientId}
 					onOpenChange={(open) => {
