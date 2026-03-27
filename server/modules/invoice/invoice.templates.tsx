@@ -514,6 +514,34 @@ function TotalsSection({
 						{fmt(invoice.totalAmount)}
 					</Text>
 				</View>
+				{invoice.status === 'PAID' && (
+					<>
+						<View style={styles.totalRow}>
+							<Text style={{ ...styles.totalLabel, color: '#16a34a' }}>Paid</Text>
+							<Text style={{ ...styles.totalValue, color: '#16a34a' }}>
+								-{fmt(invoice.totalAmount)}
+							</Text>
+						</View>
+						<View style={{ borderBottomWidth: 1, borderBottomColor: '#e5e5e5', marginTop: 4, marginBottom: 4 }} />
+						<View style={styles.grandTotalRow}>
+							<Text style={{ ...styles.grandTotalLabel, fontSize: 11 }}>Balance Due</Text>
+							<Text style={{ ...styles.grandTotalValue, fontSize: 11, color: '#16a34a' }}>
+								{fmt(0)}
+							</Text>
+						</View>
+					</>
+				)}
+				{invoice.status !== 'PAID' && invoice.status !== 'CANCELLED' && (
+					<>
+						<View style={{ borderBottomWidth: 1, borderBottomColor: '#e5e5e5', marginTop: 6, marginBottom: 4 }} />
+						<View style={styles.grandTotalRow}>
+							<Text style={{ ...styles.grandTotalLabel, fontSize: 11 }}>Balance Due</Text>
+							<Text style={{ ...styles.grandTotalValue, fontSize: 11 }}>
+								{fmt(invoice.totalAmount)}
+							</Text>
+						</View>
+					</>
+				)}
 			</View>
 		</View>
 	);

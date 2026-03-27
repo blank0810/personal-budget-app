@@ -280,6 +280,38 @@ function InvoicePreview({
 										</span>
 									</div>
 								</div>
+								{invoice.status === 'PAID' && (
+									<>
+										<div className="flex justify-between py-1 mt-1">
+											<span className="text-sm text-[#16a34a]">Paid</span>
+											<span className="text-sm text-[#16a34a] tabular-nums">
+												-{formatCurrency(invoice.totalAmount)}
+											</span>
+										</div>
+										<div className="border-t border-[#e5e5e5] mt-1 pt-1">
+											<div className="flex justify-between">
+												<span className="text-sm font-semibold text-[#111111]">
+													Balance Due
+												</span>
+												<span className="text-sm font-semibold text-[#16a34a] tabular-nums">
+													{formatCurrency(0)}
+												</span>
+											</div>
+										</div>
+									</>
+								)}
+								{invoice.status !== 'PAID' && invoice.status !== 'CANCELLED' && (
+									<div className="border-t border-[#e5e5e5] mt-2 pt-1">
+										<div className="flex justify-between">
+											<span className="text-sm font-semibold text-[#111111]">
+												Balance Due
+											</span>
+											<span className="text-sm font-semibold text-[#111111] tabular-nums">
+												{formatCurrency(invoice.totalAmount)}
+											</span>
+										</div>
+									</div>
+								)}
 							</div>
 						</div>
 
