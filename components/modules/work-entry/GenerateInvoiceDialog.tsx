@@ -9,7 +9,6 @@ import {
 	startOfMonth,
 	subMonths,
 	endOfMonth,
-	isWithinInterval,
 	startOfWeek,
 } from 'date-fns';
 import { toast } from 'sonner';
@@ -73,8 +72,32 @@ function formatEntryDate(date: string | Date): string {
 	return format(d, 'MMM d');
 }
 
+/**
+ * Normalize an entry date to a local "yyyy-MM-dd" string.
+ *
+ * After serialize() runs JSON.stringify on a Prisma Date, dates become full
+ * UTC ISO strings like "2026-03-15T00:00:00.000Z". Parsing that with parseISO
+ * gives a UTC-anchored instant; in timezones behind UTC (e.g. UTC-5) the local
+ * representation falls on the *previous* day, breaking date-range comparisons
+ * against the "yyyy-MM-dd" strings used for fromDate/toDate filter state.
+ *
+ * We always extract only the date portion so that all comparisons stay in
+ * local-date space and timezone offsets cannot shift an entry out of range.
+ */
+function toEntryDateKey(date: string | Date): string {
+	if (typeof date === 'string') {
+		// If already a plain date string ("yyyy-MM-dd") return as-is.
+		if (/^\d{4}-\d{2}-\d{2}$/.test(date)) return date;
+		// Full ISO string: take only the date part before "T".
+		return date.slice(0, 10);
+	}
+	return format(date, 'yyyy-MM-dd');
+}
+
 function toEntryDate(date: string | Date): Date {
-	return typeof date === 'string' ? parseISO(date) : date;
+	// Parse via the normalized date key so the result is local midnight,
+	// consistent with how fromDate/toDate are parsed.
+	return parseISO(toEntryDateKey(date));
 }
 
 export function GenerateInvoiceDialog({
@@ -88,17 +111,28 @@ export function GenerateInvoiceDialog({
 	const { formatCurrency } = useCurrency();
 	const [isPending, startTransition] = useTransition();
 
-	const [selectedIds, setSelectedIds] = useState<Set<string>>(
-		() => new Set(entries.map((e) => e.id))
-	);
+	// Date range filter — default to "this month"
+	const [fromDate, setFromDate] = useState(getThisMonthStart);
+	const [toDate, setToDate] = useState(getTodayString);
+
+	// Pre-select only the entries that fall within the default "this month"
+	// filter so that the footer total matches what is visible on first open.
+	const [selectedIds, setSelectedIds] = useState<Set<string>>(() => {
+		const defaultFrom = getThisMonthStart();
+		const defaultTo = getTodayString();
+		return new Set(
+			entries
+				.filter((e) => {
+					const key = toEntryDateKey(e.date);
+					return key >= defaultFrom && key <= defaultTo;
+				})
+				.map((e) => e.id)
+		);
+	});
 	const [issueDate, setIssueDate] = useState(getTodayString);
 	const [dueDate, setDueDate] = useState(getDefaultDueDateString);
 	const [taxRate, setTaxRate] = useState('');
 	const [notes, setNotes] = useState('');
-
-	// Date range filter — default to "this month"
-	const [fromDate, setFromDate] = useState(getThisMonthStart);
-	const [toDate, setToDate] = useState(getTodayString);
 
 	function setQuickRange(range: 'thisMonth' | 'lastMonth' | 'all') {
 		if (range === 'thisMonth') {
@@ -113,18 +147,15 @@ export function GenerateInvoiceDialog({
 		}
 	}
 
-	// Filtered entries based on date range
+	// Filtered entries based on date range.
+	// Compare as "yyyy-MM-dd" strings — all values are already in that format
+	// after toEntryDateKey(), so no Date objects or timezone conversion needed.
 	const filteredEntries = useMemo(() => {
 		if (!fromDate && !toDate) return entries;
 		return entries.filter((entry) => {
-			const entryDate = toEntryDate(entry.date);
-			const from = fromDate ? parseISO(fromDate) : null;
-			const to = toDate ? parseISO(toDate) : null;
-			if (from && to) {
-				return isWithinInterval(entryDate, { start: from, end: to });
-			}
-			if (from) return entryDate >= from;
-			if (to) return entryDate <= to;
+			const key = toEntryDateKey(entry.date);
+			if (fromDate && key < fromDate) return false;
+			if (toDate && key > toDate) return false;
 			return true;
 		});
 	}, [entries, fromDate, toDate]);
