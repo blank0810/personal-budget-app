@@ -4,6 +4,7 @@ import { auth } from '@/auth';
 import { ClientService } from './client.service';
 import { createClientSchema, updateClientSchema } from './client.types';
 import { clearCache } from '@/server/actions/cache';
+import { serialize } from '@/lib/serialization';
 
 async function getAuthenticatedUser() {
 	const session = await auth();
@@ -24,7 +25,7 @@ export async function createClientAction(data: unknown) {
 	try {
 		const client = await ClientService.create(userId, parsed.data);
 		await clearCache('/clients');
-		return { success: true, client };
+		return { success: true, client: serialize(client) };
 	} catch (error) {
 		return {
 			error:
@@ -48,7 +49,7 @@ export async function updateClientAction(data: unknown) {
 	try {
 		const client = await ClientService.update(userId, parsed.data);
 		await clearCache('/clients');
-		return { success: true, client };
+		return { success: true, client: serialize(client) };
 	} catch (error) {
 		return {
 			error:
