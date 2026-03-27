@@ -234,11 +234,11 @@ export const DashboardService = {
 		const debtPaydown = debtPaydownResult._sum?.amount?.toNumber() || 0;
 
 		// 8. Runway (Liquid Assets / 3-month avg expense)
-		let runwayMonths = 0;
+		let runwayMonths: number | null = null;
 		if (avgMonthlyExpense > 0) {
 			runwayMonths = liquidAssets / avgMonthlyExpense;
-		} else if (avgMonthlyExpense === 0 && liquidAssets > 0) {
-			runwayMonths = 999; // Infinite runway
+		} else if (avgMonthlyExpense === 0 && liquidAssets === 0) {
+			runwayMonths = 0;
 		}
 
 		// 9. Calculate months to payoff at current rate
@@ -350,27 +350,31 @@ export const DashboardService = {
 		let liquidityDetails: string;
 		let liquidityRec: string;
 
-		if (runway >= 6 || efHealth === 'funded') {
+		if (efHealth === 'insufficient_data' || (runway === null && !goalHealth.hasEmergencyFund)) {
+			liquidityScore = 50;
+			liquidityDetails = 'Not enough expense data to evaluate your liquidity position. Add expense tracking to get a meaningful score.';
+			liquidityRec = 'Start tracking expenses so we can calculate your actual runway and emergency fund coverage.';
+		} else if ((runway ?? 0) >= 6 || efHealth === 'funded') {
 			liquidityScore = 100;
 			liquidityDetails = goalHealth.hasEmergencyFund
 				? `Emergency fund locked and loaded — ${goalHealth.emergencyFundMonths?.toFixed(1)} months of pure "fire me, I dare you" money. Beautiful.`
-				: `${runway.toFixed(1)} months of runway. You could walk out of your job tomorrow and not break a sweat. That\'s freedom.`;
+				: `${(runway ?? 0).toFixed(1)} months of runway. You could walk out of your job tomorrow and not break a sweat. That\'s freedom.`;
 			liquidityRec = 'You\'ve bought yourself something money can\'t usually buy — peace of mind. Now let the surplus work for you.';
-		} else if (runway >= 3 || efHealth === 'building') {
+		} else if ((runway ?? 0) >= 3 || efHealth === 'building') {
 			liquidityScore = 80;
 			liquidityDetails = goalHealth.hasEmergencyFund
 				? `Emergency fund at ${goalHealth.emergencyFundMonths?.toFixed(1)} months — you\'re building a real cushion. Respect.`
-				: `${runway.toFixed(1)} months of runway — you\'ve got a buffer, and that puts you ahead of most people.`;
+				: `${(runway ?? 0).toFixed(1)} months of runway — you\'ve got a buffer, and that puts you ahead of most people.`;
 			liquidityRec = 'Good foundation. Push to 6 months and you\'ll sleep like someone who doesn\'t check their bank account at 2am.';
-		} else if (runway >= 1 || efHealth === 'underfunded') {
+		} else if ((runway ?? 0) >= 1 || efHealth === 'underfunded') {
 			liquidityScore = 60;
 			liquidityDetails = goalHealth.hasEmergencyFund
 				? `Emergency fund at ${goalHealth.emergencyFundMonths?.toFixed(1)} months — that\'s not a safety net, that\'s a napkin. One emergency and it\'s gone.`
-				: `${runway.toFixed(1)} months of runway — a single car repair or ER visit and you\'re in crisis mode.`;
+				: `${(runway ?? 0).toFixed(1)} months of runway — a single car repair or ER visit and you\'re in crisis mode.`;
 			liquidityRec = 'You\'re one flat tire away from a panic attack. This needs to be 3 months minimum before you can relax about anything.';
-		} else if (runway > 0) {
+		} else if ((runway ?? 0) > 0) {
 			liquidityScore = 40;
-			liquidityDetails = `${runway.toFixed(1)} months of runway — that\'s not a safety net, that\'s a trampoline with a hole in it. You\'re one bad week from broke.`;
+			liquidityDetails = `${(runway ?? 0).toFixed(1)} months of runway — that\'s not a safety net, that\'s a trampoline with a hole in it. You\'re one bad week from broke.`;
 			liquidityRec = 'A surprise $500 expense would send you spiraling. Stop eating out, cancel what you don\'t need, and stockpile cash like your rent depends on it — because it does.';
 		} else {
 			liquidityScore = 20;
@@ -499,6 +503,141 @@ export const DashboardService = {
 			overallScore,
 			overallLabel,
 			pillars,
+		};
+	},
+
+	/**
+	 * Consolidated dashboard data — single optimized call replacing
+	 * getNetWorth + getAccountBalances + getFinancialHealthMetrics
+	 * Reduces ~20 queries to ~8 by sharing a single accounts query
+	 * and running all queries in parallel.
+	 */
+	async getDashboardData(userId: string) {
+		const now = new Date();
+		const startCurrentMonth = new Date(
+			now.getFullYear(),
+			now.getMonth(),
+			1
+		);
+		const endCurrentMonth = new Date(
+			now.getFullYear(),
+			now.getMonth() + 1,
+			0
+		);
+		const startOfYear = new Date(now.getFullYear(), 0, 1);
+		const threeMonthsAgo = new Date(
+			now.getFullYear(),
+			now.getMonth() - 3,
+			1
+		);
+
+		// All queries in parallel (was sequential in getFinancialHealthMetrics)
+		const [allAccounts, ytdCashFlow, monthCashFlow, expenseAvg, debtPaydown] =
+			await Promise.all([
+				prisma.account.findMany({
+					where: { userId },
+					orderBy: { balance: 'desc' },
+				}),
+				this.getCashFlow(userId, startOfYear, endCurrentMonth),
+				this.getCashFlow(userId, startCurrentMonth, endCurrentMonth),
+				prisma.expense.aggregate({
+					where: {
+						userId,
+						date: { gte: threeMonthsAgo, lte: endCurrentMonth },
+					},
+					_sum: { amount: true },
+				}),
+				prisma.transfer.aggregate({
+					where: {
+						userId,
+						date: { gte: startCurrentMonth, lte: endCurrentMonth },
+						toAccount: { isLiability: true },
+					},
+					_sum: { amount: true },
+				}),
+			]);
+
+		// Derive everything from single account list (was 3-4 separate queries)
+		let assets = 0,
+			liabilities = 0,
+			liquidAssets = 0;
+		let totalCreditUsed = 0,
+			totalCreditLimit = 0;
+
+		for (const account of allAccounts) {
+			if (account.type === 'TITHE') continue;
+			const balance = Number(account.balance);
+
+			if (!account.isLiability) {
+				assets += balance;
+				if (['BANK', 'CASH', 'SAVINGS'].includes(account.type)) {
+					liquidAssets += balance;
+				}
+			} else {
+				liabilities += balance;
+			}
+
+			if (account.type === 'CREDIT' && account.creditLimit) {
+				totalCreditUsed += balance;
+				totalCreditLimit += Number(account.creditLimit);
+			}
+		}
+
+		const avgMonthlyExpense =
+			(expenseAvg._sum.amount?.toNumber() || 0) / 3;
+		const netWorth = assets - liabilities;
+		const savingsRate =
+			ytdCashFlow.income > 0
+				? ((ytdCashFlow.income - ytdCashFlow.expense) /
+						ytdCashFlow.income) *
+					100
+				: 0;
+		const creditUtilization =
+			totalCreditLimit > 0
+				? (totalCreditUsed / totalCreditLimit) * 100
+				: 0;
+		const debtPaydownAmount =
+			debtPaydown._sum?.amount?.toNumber() || 0;
+
+		// Runway — uses null for indeterminate (matches Task 2 fix)
+		let runwayMonths: number | null = null;
+		if (avgMonthlyExpense > 0) {
+			runwayMonths = liquidAssets / avgMonthlyExpense;
+		} else if (liquidAssets === 0) {
+			runwayMonths = 0;
+		}
+
+		return {
+			accounts: allAccounts,
+			netWorth,
+			assets,
+			liabilities,
+			savingsRate,
+			runwayMonths,
+			creditUtilization,
+			totalCreditUsed,
+			totalCreditLimit,
+			availableCredit: totalCreditLimit - totalCreditUsed,
+			totalDebt: liabilities,
+			debtPaydown: debtPaydownAmount,
+			debtPaydownPercent:
+				liabilities > 0
+					? (debtPaydownAmount / liabilities) * 100
+					: 0,
+			monthsToPayoff:
+				debtPaydownAmount > 0 && liabilities > 0
+					? Math.ceil(liabilities / debtPaydownAmount)
+					: liabilities > 0
+						? -1
+						: 0,
+			debtToAssetRatio:
+				assets > 0 ? (liabilities / assets) * 100 : 0,
+			avgMonthlyExpense,
+			liquidAssets,
+			ytdIncome: ytdCashFlow.income,
+			ytdExpense: ytdCashFlow.expense,
+			income: monthCashFlow.income,
+			expense: monthCashFlow.expense,
 		};
 	},
 };

@@ -14,29 +14,17 @@ import {
 	DollarSign,
 	AlertTriangle,
 	BarChart3,
-	Umbrella,
-	Zap,
-	Flame,
-	Skull,
-	CircleDollarSign,
-	Trophy,
-	Rocket,
-	TrendingUp,
-	Meh,
-	Banknote,
 	CheckCircle,
-	ThumbsUp,
-	AlertOctagon,
-	PartyPopper,
+	Flame,
+	XCircle,
 	Shield,
+	TrendingUp,
 	PiggyBank,
 } from 'lucide-react';
 import { formatCurrency } from '@/lib/formatters';
 import { groupAccountsByClass, ACCOUNT_CLASS_META } from '@/lib/account-utils';
 import type { AccountClass } from '@/lib/account-utils';
 
-import { ClearCacheButton } from '@/components/common/clear-cache-button';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { GoalService } from '@/server/modules/goal/goal.service';
 import { GoalsDashboardWidget } from '@/components/modules/goal/GoalsDashboardWidget';
 import type { GoalCardData } from '@/components/modules/goal/GoalCard';
@@ -52,19 +40,15 @@ export default async function DashboardPage() {
 	const currentMonth = startOfMonth(new Date());
 
 	const [
-		netWorthData,
+		dashboardData,
 		recentTransactions,
-		accounts,
-		financialHealth,
 		budgetHealth,
 		goalHealth,
 		dbUser,
 		goals,
 	] = await Promise.all([
-		DashboardService.getNetWorth(userId),
+		DashboardService.getDashboardData(userId),
 		DashboardService.getRecentTransactions(userId, 5),
-		DashboardService.getAccountBalances(userId),
-		DashboardService.getFinancialHealthMetrics(userId),
 		BudgetService.getBudgetHealthSummary(userId, currentMonth),
 		GoalService.getGoalHealthMetrics(userId),
 		prisma.user.findUnique({
@@ -80,15 +64,14 @@ export default async function DashboardPage() {
 		<div className='container mx-auto py-6 md:py-10 space-y-8'>
 			<div className='flex justify-between items-center'>
 				<h1 className='text-2xl sm:text-3xl font-bold tracking-tight'>Dashboard</h1>
-				<ClearCacheButton />
 			</div>
 
-			{/* Financial Health Grid - Solvency First */}
+			{/* Row 1: 4-column grid — Net Worth | Savings Rate | Runway/EF | Debt Overview */}
 			<div className='grid gap-4 md:grid-cols-2 lg:grid-cols-4'>
-				{/* 1. Net Worth (Primary Solvency Metric) */}
+				{/* 1. Net Worth */}
 				<Card
 					className={`bg-gradient-to-br transition-all hover:shadow-md ${
-						netWorthData.netWorth >= 0
+						dashboardData.netWorth >= 0
 							? 'from-emerald-50 to-white dark:from-emerald-950 dark:to-background border-emerald-100 dark:border-emerald-900'
 							: 'from-red-50 to-white dark:from-red-950 dark:to-background border-red-100 dark:border-red-900'
 					}`}
@@ -96,7 +79,7 @@ export default async function DashboardPage() {
 					<CardHeader className='flex flex-row items-center justify-between space-y-0 pb-2'>
 						<CardTitle
 							className={`text-sm font-medium ${
-								netWorthData.netWorth >= 0
+								dashboardData.netWorth >= 0
 									? 'text-emerald-900 dark:text-emerald-100'
 									: 'text-red-900 dark:text-red-100'
 							}`}
@@ -105,14 +88,14 @@ export default async function DashboardPage() {
 						</CardTitle>
 						<div
 							className={`h-8 w-8 rounded-full flex items-center justify-center ${
-								netWorthData.netWorth >= 0
+								dashboardData.netWorth >= 0
 									? 'bg-emerald-100 dark:bg-emerald-900'
 									: 'bg-red-100 dark:bg-red-900'
 							}`}
 						>
 							<DollarSign
 								className={`h-4 w-4 ${
-									netWorthData.netWorth >= 0
+									dashboardData.netWorth >= 0
 										? 'text-emerald-600 dark:text-emerald-400'
 										: 'text-red-600 dark:text-red-400'
 								}`}
@@ -122,17 +105,17 @@ export default async function DashboardPage() {
 					<CardContent>
 						<div
 							className={`text-2xl font-bold ${
-								netWorthData.netWorth >= 0
+								dashboardData.netWorth >= 0
 									? 'text-emerald-700 dark:text-emerald-300'
 									: 'text-red-700 dark:text-red-300'
 							}`}
 						>
-							{formatCurrency(netWorthData.netWorth, { currency })}
+							{formatCurrency(dashboardData.netWorth, { currency })}
 						</div>
 						<p className='text-xs text-muted-foreground mt-1'>
-							Assets: {formatCurrency(netWorthData.assets, { currency })}
+							Assets: {formatCurrency(dashboardData.assets, { currency })}
 						</p>
-						{netWorthData.netWorth < 0 && (
+						{dashboardData.netWorth < 0 && (
 							<p className='text-xs text-red-600 dark:text-red-400 mt-1 flex items-center gap-1'>
 								<AlertTriangle className='h-3 w-3' />
 								Liabilities exceed assets
@@ -141,28 +124,79 @@ export default async function DashboardPage() {
 					</CardContent>
 				</Card>
 
-				{/* 2. Total Debt (Key Liability Metric) */}
+				{/* 2. Savings Rate */}
 				<Card className='transition-all hover:shadow-md'>
 					<CardHeader className='flex flex-row items-center justify-between space-y-0 pb-2'>
 						<CardTitle className='text-sm font-medium'>
-							Total Debt
+							Savings Rate
 						</CardTitle>
-						<div className='h-8 w-8 rounded-full bg-red-100 dark:bg-red-900 flex items-center justify-center'>
-							<CreditCard className='h-4 w-4 text-red-600 dark:text-red-400' />
+						<div className='h-8 w-8 rounded-full bg-emerald-100 dark:bg-emerald-900 flex items-center justify-center'>
+							<ArrowUpRight className='h-4 w-4 text-emerald-600 dark:text-emerald-400' />
 						</div>
 					</CardHeader>
 					<CardContent>
-						<div className='text-2xl font-bold text-red-600 dark:text-red-400'>
-							{formatCurrency(netWorthData.liabilities, { currency })}
-						</div>
-						<p className='text-xs text-muted-foreground mt-1'>
-							{financialHealth.debtToAssetRatio.toFixed(1)}%
-							Debt-to-Asset
-						</p>
+						{(() => {
+							const rate = dashboardData.savingsRate;
+							const noIncome = dashboardData.ytdIncome === 0;
+
+							let displayValue: string;
+							let statusText: string;
+							let StatusIcon: typeof BarChart3;
+							let colorClass: string;
+
+							if (noIncome) {
+								displayValue = '\u2014';
+								statusText = 'Add income to track';
+								StatusIcon = BarChart3;
+								colorClass = 'text-muted-foreground';
+							} else if (rate >= 20) {
+								displayValue = rate.toFixed(1) + '%';
+								statusText = 'Building wealth';
+								StatusIcon = CheckCircle;
+								colorClass = 'text-green-600 dark:text-green-400';
+							} else if (rate >= 10) {
+								displayValue = rate.toFixed(1) + '%';
+								statusText = 'Making progress';
+								StatusIcon = TrendingUp;
+								colorClass = 'text-yellow-600 dark:text-yellow-400';
+							} else if (rate > 0) {
+								displayValue = rate.toFixed(1) + '%';
+								statusText = 'Barely saving';
+								StatusIcon = AlertTriangle;
+								colorClass = 'text-yellow-600 dark:text-yellow-400';
+							} else if (rate === 0) {
+								displayValue = '0%';
+								statusText = 'Living paycheck to paycheck';
+								StatusIcon = Flame;
+								colorClass = 'text-orange-600 dark:text-orange-400';
+							} else if (rate >= -20) {
+								displayValue = rate.toFixed(1) + '%';
+								statusText = 'Spending more than earning';
+								StatusIcon = Flame;
+								colorClass = 'text-red-600 dark:text-red-400';
+							} else {
+								displayValue = rate.toFixed(1) + '%';
+								statusText = 'Bleeding money';
+								StatusIcon = XCircle;
+								colorClass = 'text-red-600 dark:text-red-400';
+							}
+
+							return (
+								<>
+									<div className={`text-2xl font-bold ${colorClass}`}>
+										{displayValue}
+									</div>
+									<p className='text-xs text-muted-foreground mt-1 flex items-center gap-1'>
+										<StatusIcon className='h-3 w-3' />
+										{statusText}
+									</p>
+								</>
+							);
+						})()}
 					</CardContent>
 				</Card>
 
-				{/* 3. Runway OR Emergency Fund (Liquidity) */}
+				{/* 3. Runway OR Emergency Fund */}
 				<Card className='transition-all hover:shadow-md'>
 					<CardHeader className='flex flex-row items-center justify-between space-y-0 pb-2'>
 						<CardTitle className='text-sm font-medium'>
@@ -182,14 +216,13 @@ export default async function DashboardPage() {
 						{goalHealth.hasEmergencyFund ? (
 							// Emergency Fund Display
 							(() => {
-								const months =
-									goalHealth.emergencyFundMonths ?? 0;
+								const months = goalHealth.emergencyFundMonths;
 								const health = goalHealth.emergencyFundHealth;
 
 								const statusConfig = {
 									critical: {
 										color: 'text-red-600 dark:text-red-400',
-										icon: Skull,
+										icon: XCircle,
 										text: 'Critical - build urgently',
 									},
 									underfunded: {
@@ -199,13 +232,18 @@ export default async function DashboardPage() {
 									},
 									building: {
 										color: 'text-blue-600 dark:text-blue-400',
-										icon: Zap,
+										icon: CheckCircle,
 										text: 'Building momentum',
 									},
 									funded: {
 										color: 'text-green-600 dark:text-green-400',
 										icon: Shield,
 										text: 'Fully funded!',
+									},
+									insufficient_data: {
+										color: 'text-muted-foreground',
+										icon: BarChart3,
+										text: 'Insufficient expense data',
 									},
 								};
 
@@ -224,10 +262,10 @@ export default async function DashboardPage() {
 										<div
 											className={`text-2xl font-bold ${config.color}`}
 										>
-											{months >= 12
+											{months === null ? '\u2014' : months >= 12
 												? '12+'
 												: months.toFixed(1)}{' '}
-											mo
+											{months !== null && 'mo'}
 										</div>
 										<p className='text-xs text-muted-foreground mt-1 flex items-center gap-1'>
 											<StatusIcon className='h-3 w-3' />
@@ -244,11 +282,10 @@ export default async function DashboardPage() {
 								);
 							})()
 						) : (
-							// Original Runway Display
+							// Runway Display
 							(() => {
-								const runway = financialHealth.runwayMonths;
-								const noExpenses =
-									financialHealth.avgMonthlyExpense === 0;
+								const runway = dashboardData.runwayMonths;
+								const noExpenses = runway === null;
 
 								let displayValue: string;
 								let statusText: string;
@@ -256,46 +293,40 @@ export default async function DashboardPage() {
 								let colorClass: string;
 
 								if (noExpenses) {
-									displayValue = '—';
+									displayValue = '\u2014';
 									statusText = 'Add expenses to track';
 									StatusIcon = BarChart3;
 									colorClass = 'text-muted-foreground';
 								} else if (runway >= 12) {
 									displayValue = '12+';
 									statusText = 'Living the dream';
-									StatusIcon = Umbrella;
-									colorClass =
-										'text-green-600 dark:text-green-400';
+									StatusIcon = CheckCircle;
+									colorClass = 'text-green-600 dark:text-green-400';
 								} else if (runway >= 6) {
 									displayValue = runway.toFixed(1);
 									statusText = 'Healthy cushion';
-									StatusIcon = Zap;
-									colorClass =
-										'text-green-600 dark:text-green-400';
+									StatusIcon = CheckCircle;
+									colorClass = 'text-green-600 dark:text-green-400';
 								} else if (runway >= 3) {
 									displayValue = runway.toFixed(1);
 									statusText = 'Getting thin...';
 									StatusIcon = AlertTriangle;
-									colorClass =
-										'text-yellow-600 dark:text-yellow-400';
+									colorClass = 'text-yellow-600 dark:text-yellow-400';
 								} else if (runway >= 1) {
 									displayValue = runway.toFixed(1);
 									statusText = 'Danger zone';
 									StatusIcon = Flame;
-									colorClass =
-										'text-orange-600 dark:text-orange-400';
+									colorClass = 'text-orange-600 dark:text-orange-400';
 								} else if (runway > 0) {
 									displayValue = runway.toFixed(1);
 									statusText = "You're cooked";
-									StatusIcon = Skull;
-									colorClass =
-										'text-red-600 dark:text-red-400';
+									StatusIcon = XCircle;
+									colorClass = 'text-red-600 dark:text-red-400';
 								} else {
 									displayValue = '0';
 									statusText = 'Financially deceased';
-									StatusIcon = Skull;
-									colorClass =
-										'text-red-600 dark:text-red-400';
+									StatusIcon = XCircle;
+									colorClass = 'text-red-600 dark:text-red-400';
 								}
 
 								return (
@@ -316,357 +347,64 @@ export default async function DashboardPage() {
 					</CardContent>
 				</Card>
 
-				{/* 4. Savings Rate (Velocity) - Brutally Honest */}
+				{/* 4. Debt Overview — merged */}
 				<Card className='transition-all hover:shadow-md'>
 					<CardHeader className='flex flex-row items-center justify-between space-y-0 pb-2'>
-						<CardTitle className='text-sm font-medium'>
-							Savings Rate
-						</CardTitle>
-						<div className='h-8 w-8 rounded-full bg-emerald-100 dark:bg-emerald-900 flex items-center justify-center'>
-							<ArrowUpRight className='h-4 w-4 text-emerald-600 dark:text-emerald-400' />
+						<CardTitle className='text-sm font-medium'>Debt Overview</CardTitle>
+						<div className='h-8 w-8 rounded-full bg-red-100 dark:bg-red-900 flex items-center justify-center'>
+							<CreditCard className='h-4 w-4 text-red-600 dark:text-red-400' />
 						</div>
 					</CardHeader>
-					<CardContent>
-						{(() => {
-							const rate = financialHealth.savingsRate;
-							const noIncome = financialHealth.ytdIncome === 0;
-
-							let displayValue: string;
-							let statusText: string;
-							let StatusIcon: typeof BarChart3;
-							let colorClass: string;
-
-							if (noIncome) {
-								displayValue = '—';
-								statusText = 'Add income to track';
-								StatusIcon = BarChart3;
-								colorClass = 'text-muted-foreground';
-							} else if (rate >= 50) {
-								displayValue = rate.toFixed(1) + '%';
-								statusText = 'Money hoarder (respect)';
-								StatusIcon = CircleDollarSign;
-								colorClass =
-									'text-green-600 dark:text-green-400';
-							} else if (rate >= 30) {
-								displayValue = rate.toFixed(1) + '%';
-								statusText = 'FIRE candidate';
-								StatusIcon = Trophy;
-								colorClass =
-									'text-green-600 dark:text-green-400';
-							} else if (rate >= 20) {
-								displayValue = rate.toFixed(1) + '%';
-								statusText = 'Building wealth';
-								StatusIcon = Rocket;
-								colorClass =
-									'text-green-600 dark:text-green-400';
-							} else if (rate >= 10) {
-								displayValue = rate.toFixed(1) + '%';
-								statusText = 'Making progress';
-								StatusIcon = TrendingUp;
-								colorClass =
-									'text-yellow-600 dark:text-yellow-400';
-							} else if (rate > 0) {
-								displayValue = rate.toFixed(1) + '%';
-								statusText = 'Barely saving';
-								StatusIcon = Meh;
-								colorClass =
-									'text-yellow-600 dark:text-yellow-400';
-							} else if (rate === 0) {
-								displayValue = '0%';
-								statusText = 'Living paycheck to paycheck';
-								StatusIcon = Banknote;
-								colorClass =
-									'text-orange-600 dark:text-orange-400';
-							} else if (rate >= -20) {
-								displayValue = rate.toFixed(1) + '%';
-								statusText = 'Spending more than earning';
-								StatusIcon = Flame;
-								colorClass = 'text-red-600 dark:text-red-400';
-							} else {
-								displayValue = rate.toFixed(1) + '%';
-								statusText = 'Bleeding money';
-								StatusIcon = Skull;
-								colorClass = 'text-red-600 dark:text-red-400';
-							}
-
-							return (
-								<>
-									<div
-										className={`text-2xl font-bold ${colorClass}`}
-									>
-										{displayValue}
-									</div>
-									<p className='text-xs text-muted-foreground mt-1 flex items-center gap-1'>
-										<StatusIcon className='h-3 w-3' />
-										{statusText}
-									</p>
-								</>
-							);
-						})()}
-					</CardContent>
-				</Card>
-			</div>
-
-			{/* Secondary Metrics Row (Utilization & Paydown) - Always Visible */}
-			<div className='grid gap-4 md:grid-cols-2 lg:grid-cols-4'>
-				{/* Credit Utilization - Always Show */}
-				<Card
-					className={`md:col-span-2 transition-all hover:shadow-md border-l-4 ${
-						financialHealth.creditUtilization >= 70
-							? 'border-l-red-500'
-							: financialHealth.creditUtilization >= 50
-							? 'border-l-orange-500'
-							: financialHealth.creditUtilization >= 30
-							? 'border-l-yellow-500'
-							: 'border-l-green-500'
-					}`}
-				>
-					<CardHeader className='flex flex-row items-center justify-between space-y-0 pb-2'>
-						<CardTitle className='text-sm font-medium'>
-							Credit Utilization
-						</CardTitle>
-						<CreditCard
-							className={`h-4 w-4 ${
-								financialHealth.creditUtilization >= 70
-									? 'text-red-500'
-									: financialHealth.creditUtilization >= 50
-									? 'text-orange-500'
-									: financialHealth.creditUtilization >= 30
-									? 'text-yellow-500'
-									: 'text-green-500'
-							}`}
-						/>
-					</CardHeader>
-					<CardContent>
-						{financialHealth.totalCreditLimit > 0 ? (
+					<CardContent className='space-y-3'>
+						{dashboardData.totalDebt > 0 ? (
 							<>
-								<div className='flex items-center gap-4'>
-									<div
-										className={`text-2xl font-bold ${
-											financialHealth.creditUtilization >=
-											70
-												? 'text-red-600 dark:text-red-400'
-												: financialHealth.creditUtilization >=
-												  50
-												? 'text-orange-600 dark:text-orange-400'
-												: financialHealth.creditUtilization >=
-												  30
-												? 'text-yellow-600 dark:text-yellow-400'
-												: 'text-green-600 dark:text-green-400'
-										}`}
-									>
-										{financialHealth.creditUtilization.toFixed(
-											1
-										)}
-										%
-									</div>
-									<div className='h-2 flex-1 bg-secondary rounded-full overflow-hidden'>
-										<div
-											className={`h-full ${
-												financialHealth.creditUtilization >=
-												90
-													? 'bg-red-600'
-													: financialHealth.creditUtilization >=
-													  70
-													? 'bg-red-500'
-													: financialHealth.creditUtilization >=
-													  50
-													? 'bg-orange-500'
-													: financialHealth.creditUtilization >=
-													  30
-													? 'bg-yellow-500'
-													: financialHealth.creditUtilization >=
-													  10
-													? 'bg-green-500'
-													: 'bg-green-400'
-											}`}
-											style={{
-												width: `${Math.min(
-													financialHealth.creditUtilization,
-													100
-												)}%`,
-											}}
-										/>
-									</div>
+								<div className='text-2xl font-bold text-red-600 dark:text-red-400'>
+									{formatCurrency(dashboardData.totalDebt, { currency })}
 								</div>
-								<div className='flex justify-between items-center mt-2'>
-									<p className='text-xs text-muted-foreground flex items-center gap-1'>
-										{financialHealth.creditUtilization === 0 ? (
-											<><Trophy className='h-3 w-3' /> Zero utilization - perfect!</>
-										) : financialHealth.creditUtilization < 10 ? (
-											<><CheckCircle className='h-3 w-3' /> Excellent - minimal credit use</>
-										) : financialHealth.creditUtilization < 30 ? (
-											<><ThumbsUp className='h-3 w-3' /> Healthy range</>
-										) : financialHealth.creditUtilization < 50 ? (
-											<><AlertTriangle className='h-3 w-3' /> Getting high - pay down soon</>
-										) : financialHealth.creditUtilization < 70 ? (
-											<><Flame className='h-3 w-3' /> High utilization - credit score suffering</>
-										) : financialHealth.creditUtilization < 90 ? (
-											<><AlertOctagon className='h-3 w-3' /> Critical - seriously hurting your credit</>
-										) : (
-											<><Skull className='h-3 w-3' /> Maxed out - immediate action needed</>
-										)}
-									</p>
-								</div>
-								<div className='flex justify-between text-xs text-muted-foreground mt-2 pt-2 border-t'>
+								<p className='text-xs text-muted-foreground'>
+									{dashboardData.debtToAssetRatio.toFixed(1)}% Debt-to-Asset
+								</p>
+								{dashboardData.totalCreditLimit > 0 && (
+									<div className='space-y-1'>
+										<div className='flex justify-between text-xs text-muted-foreground'>
+											<span>Credit: {dashboardData.creditUtilization.toFixed(0)}% used</span>
+											<span className='text-green-600 dark:text-green-400'>
+												Avail: {formatCurrency(dashboardData.availableCredit, { currency })}
+											</span>
+										</div>
+										<div className='h-1.5 bg-secondary rounded-full overflow-hidden'>
+											<div
+												className={`h-full rounded-full ${
+													dashboardData.creditUtilization >= 70 ? 'bg-red-500'
+													: dashboardData.creditUtilization >= 30 ? 'bg-yellow-500'
+													: 'bg-green-500'
+												}`}
+												style={{ width: `${Math.min(dashboardData.creditUtilization, 100)}%` }}
+											/>
+										</div>
+									</div>
+								)}
+								<div className='text-xs text-muted-foreground pt-2 border-t flex justify-between'>
+									<span>Paid this month: {formatCurrency(dashboardData.debtPaydown, { currency })}</span>
 									<span>
-										Used:{' '}
-										{formatCurrency(
-											financialHealth.totalCreditUsed,
-											{ currency }
-										)}
-									</span>
-									<span className='text-green-600 dark:text-green-400 font-medium'>
-										Available:{' '}
-										{formatCurrency(
-											financialHealth.availableCredit,
-											{ currency }
-										)}
+										{dashboardData.monthsToPayoff === -1
+											? 'No payments made'
+											: dashboardData.monthsToPayoff <= 12
+											? `~${dashboardData.monthsToPayoff} mo to payoff`
+											: `~${Math.round(dashboardData.monthsToPayoff / 12)} yr to payoff`}
 									</span>
 								</div>
 							</>
 						) : (
-							<>
-								<div className='text-2xl font-bold text-muted-foreground'>
-									—
-								</div>
-								<p className='text-xs text-muted-foreground mt-1 flex items-center gap-1'>
-									<CreditCard className='h-3 w-3' />
-									No credit cards added
-								</p>
-							</>
-						)}
-					</CardContent>
-				</Card>
-
-				{/* Debt Paydown - Always Show */}
-				<Card
-					className={`md:col-span-2 transition-all hover:shadow-md border-l-4 ${
-						financialHealth.totalDebt === 0
-							? 'border-l-green-500'
-							: financialHealth.debtPaydownPercent >= 5
-							? 'border-l-green-500'
-							: financialHealth.debtPaydownPercent >= 3
-							? 'border-l-yellow-500'
-							: financialHealth.debtPaydownPercent >= 1
-							? 'border-l-orange-500'
-							: 'border-l-red-500'
-					}`}
-				>
-					<CardHeader className='flex flex-row items-center justify-between space-y-0 pb-2'>
-						<CardTitle className='text-sm font-medium'>
-							Debt Paydown (This Month)
-						</CardTitle>
-						<ArrowDownLeft
-							className={`h-4 w-4 ${
-								financialHealth.totalDebt === 0
-									? 'text-green-500'
-									: financialHealth.debtPaydownPercent >= 5
-									? 'text-green-500'
-									: financialHealth.debtPaydownPercent >= 3
-									? 'text-yellow-500'
-									: financialHealth.debtPaydownPercent >= 1
-									? 'text-orange-500'
-									: 'text-red-500'
-							}`}
-						/>
-					</CardHeader>
-					<CardContent>
-						{financialHealth.totalDebt > 0 ? (
-							<>
-								<div className='flex items-baseline gap-2'>
-									<div
-										className={`text-2xl font-bold ${
-											financialHealth.debtPaydownPercent >=
-											5
-												? 'text-green-600 dark:text-green-400'
-												: financialHealth.debtPaydownPercent >=
-												  3
-												? 'text-yellow-600 dark:text-yellow-400'
-												: financialHealth.debtPaydownPercent >=
-												  1
-												? 'text-orange-600 dark:text-orange-400'
-												: 'text-red-600 dark:text-red-400'
-										}`}
-									>
-										{formatCurrency(
-											financialHealth.debtPaydown,
-											{ currency }
-										)}
-									</div>
-									<span className='text-sm text-muted-foreground'>
-										(
-										{financialHealth.debtPaydownPercent.toFixed(
-											1
-										)}
-										% of debt)
-									</span>
-								</div>
-								<p className='text-xs text-muted-foreground mt-1 flex items-center gap-1'>
-									{financialHealth.debtPaydown === 0 ? (
-										<><Skull className='h-3 w-3' /> Zero payments — debt growing</>
-									) : financialHealth.debtPaydownPercent < 1 ? (
-										<><Meh className='h-3 w-3' /> Token payment — barely a dent</>
-									) : financialHealth.debtPaydownPercent < 3 ? (
-										<><AlertTriangle className='h-3 w-3' /> Minimum effort — debt lingers</>
-									) : financialHealth.debtPaydownPercent < 5 ? (
-										<><TrendingUp className='h-3 w-3' /> Making progress — keep pushing</>
-									) : financialHealth.debtPaydownPercent < 10 ? (
-										<><Zap className='h-3 w-3' /> Strong paydown — you&apos;re serious</>
-									) : (
-										<><Flame className='h-3 w-3' /> Aggressive — debt-free soon!</>
-									)}
-								</p>
-								<div className='flex justify-between text-xs text-muted-foreground mt-2 pt-2 border-t'>
-									<span>
-										Total Debt:{' '}
-										{formatCurrency(
-											financialHealth.totalDebt,
-											{ currency }
-										)}
-									</span>
-									<span
-										className={`flex items-center gap-1 ${
-											financialHealth.monthsToPayoff ===
-											-1
-												? 'text-red-600 dark:text-red-400'
-												: financialHealth.monthsToPayoff <=
-												  12
-												? 'text-green-600 dark:text-green-400'
-												: financialHealth.monthsToPayoff <=
-												  36
-												? 'text-yellow-600 dark:text-yellow-400'
-												: 'text-orange-600 dark:text-orange-400'
-										}`}
-									>
-										{financialHealth.monthsToPayoff === -1 ? (
-											<><AlertTriangle className='h-3 w-3' /> Never at this rate</>
-										) : financialHealth.monthsToPayoff <= 12 ? (
-											`~${financialHealth.monthsToPayoff} mo to freedom`
-										) : financialHealth.monthsToPayoff <= 24 ? (
-											`~${Math.round(financialHealth.monthsToPayoff / 12)} yr to go`
-										) : (
-											`~${Math.round(financialHealth.monthsToPayoff / 12)}+ yrs remaining`
-										)}
-									</span>
-								</div>
-							</>
-						) : (
-							<>
-								<div className='text-2xl font-bold text-green-600 dark:text-green-400 flex items-center gap-2'>
-									Debt Free! <PartyPopper className='h-5 w-5' />
-								</div>
-								<p className='text-xs text-muted-foreground mt-1 flex items-center gap-1'>
-									<Trophy className='h-3 w-3' />
-									No liabilities — keep it up!
-								</p>
-							</>
+							<div className='text-2xl font-bold text-green-600 dark:text-green-400'>
+								Debt Free!
+							</div>
 						)}
 					</CardContent>
 				</Card>
 			</div>
 
-			{/* Budget Health Summary - Full Width */}
+			{/* Budget Health Summary - Full Width (most actionable) */}
 			<BudgetHealthSummary health={budgetHealth} month={currentMonth} />
 
 			{/* Goals Widget */}
@@ -675,14 +413,15 @@ export default async function DashboardPage() {
 					const metric = goalHealth.goals.find((m) => m.id === g.id);
 					return {
 						...g,
-						monthsCoverage: metric?.monthsCoverage ?? undefined,
+						monthsCoverage: metric ? metric.monthsCoverage : undefined,
 						healthStatus: metric?.healthStatus ?? undefined,
 					};
 				})}
 			/>
 
+			{/* Bottom Row: Recent Transactions + Accounts */}
 			<div className='grid gap-4 md:grid-cols-2 lg:grid-cols-7'>
-				{/* Recent Transactions - Top 5 with Summary */}
+				{/* Recent Transactions */}
 				<Card className='md:col-span-2 lg:col-span-4'>
 					<CardHeader className='flex flex-row items-center justify-between'>
 						<CardTitle>Recent Transactions</CardTitle>
@@ -749,57 +488,16 @@ export default async function DashboardPage() {
 								</p>
 							)}
 						</div>
-						{/* Summary Footer */}
-						{recentTransactions.length > 0 && (
-							<div className='mt-4 pt-4 border-t'>
-								<div className='flex items-center justify-between text-sm'>
-									<div className='flex gap-4'>
-										<span className='text-green-600'>
-											↓{' '}
-											{formatCurrency(
-												recentTransactions
-													.filter(
-														(t) =>
-															t.type === 'INCOME'
-													)
-													.reduce(
-														(sum, t) =>
-															sum +
-															(t.amount?.toNumber() ??
-																0),
-														0
-													),
-												{ currency }
-											)}
-										</span>
-										<span className='text-red-600'>
-											↑{' '}
-											{formatCurrency(
-												recentTransactions
-													.filter(
-														(t) =>
-															t.type === 'EXPENSE'
-													)
-													.reduce(
-														(sum, t) =>
-															sum +
-															(t.amount?.toNumber() ??
-																0),
-														0
-													),
-												{ currency }
-											)}
-										</span>
-									</div>
-									<a
-										href='/expense'
-										className='text-primary hover:underline text-xs'
-									>
-										View all transactions →
-									</a>
-								</div>
+						<div className='mt-4 pt-4 border-t'>
+							<div className='flex justify-end'>
+								<a
+									href='/expense'
+									className='text-primary hover:underline text-xs'
+								>
+									View all transactions {'\u2192'}
+								</a>
 							</div>
-						)}
+						</div>
 					</CardContent>
 				</Card>
 
@@ -809,10 +507,10 @@ export default async function DashboardPage() {
 						<CardTitle>Accounts</CardTitle>
 					</CardHeader>
 					<CardContent>
-						<ScrollArea className='h-[400px] pr-4'>
+						<div className='max-h-[400px] overflow-y-auto pr-4'>
 							<div className='space-y-6'>
 								{(() => {
-									const grouped = groupAccountsByClass(accounts);
+									const grouped = groupAccountsByClass(dashboardData.accounts);
 									const iconMap: Record<AccountClass, typeof Wallet> = {
 										liquid: Wallet,
 										savings: PiggyBank,
@@ -861,24 +559,6 @@ export default async function DashboardPage() {
 																	</p>
 																	<div className='flex gap-2 text-xs text-muted-foreground'>
 																		<span>{account.type}</span>
-																		{account.type === 'CREDIT' && account.creditLimit && (
-																			<>
-																				<span
-																					className={(() => {
-																						const utilization = Number(account.balance) / Number(account.creditLimit);
-																						if (utilization >= 0.7) return 'text-red-600 dark:text-red-400';
-																						if (utilization >= 0.5) return 'text-orange-600 dark:text-orange-400';
-																						if (utilization >= 0.3) return 'text-yellow-600 dark:text-yellow-400';
-																						return 'text-green-600 dark:text-green-400';
-																					})()}
-																				>
-																					{Math.round((Number(account.balance) / Number(account.creditLimit)) * 100)}% Util
-																				</span>
-																				<span className='text-green-600 dark:text-green-400'>
-																					Avail: {formatCurrency(Number(account.creditLimit) - Number(account.balance), { currency })}
-																				</span>
-																			</>
-																		)}
 																	</div>
 																</div>
 																<div className={`ml-auto font-medium ${isLiability ? 'text-red-600' : ''}`}>
@@ -893,7 +573,7 @@ export default async function DashboardPage() {
 									});
 								})()}
 							</div>
-						</ScrollArea>
+						</div>
 					</CardContent>
 				</Card>
 			</div>
