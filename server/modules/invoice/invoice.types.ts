@@ -38,6 +38,20 @@ export const getInvoicesSchema = z.object({
 		.enum(['DRAFT', 'SENT', 'PAID', 'OVERDUE', 'CANCELLED'])
 		.optional(),
 	clientName: z.string().optional(),
+	clientId: z.string().optional(),
 });
 
 export type GetInvoicesInput = z.infer<typeof getInvoicesSchema>;
+
+export const generateFromEntriesSchema = z.object({
+	clientId: z.string().min(1, 'Client is required'),
+	workEntryIds: z.array(z.string()).min(1, 'Select at least one entry'),
+	issueDate: z.coerce.date(),
+	dueDate: z.coerce.date(),
+	taxRate: z.number().min(0).max(100).optional(),
+	notes: z.string().optional(),
+});
+
+export type GenerateFromEntriesInput = z.infer<
+	typeof generateFromEntriesSchema
+>;

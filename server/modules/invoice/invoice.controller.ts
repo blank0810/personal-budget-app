@@ -6,6 +6,7 @@ import {
 	createInvoiceSchema,
 	updateInvoiceSchema,
 	markAsPaidSchema,
+	generateFromEntriesSchema,
 } from './invoice.types';
 import { clearCache } from '@/server/actions/cache';
 
@@ -134,6 +135,35 @@ export async function deleteInvoiceAction(invoiceId: string) {
 				error instanceof Error
 					? error.message
 					: 'Failed to delete invoice',
+		};
+	}
+}
+
+export async function generateInvoiceFromEntriesAction(data: unknown) {
+	const userId = await getAuthenticatedUser();
+
+	const parsed = generateFromEntriesSchema.safeParse(data);
+	if (!parsed.success) {
+		return {
+			error: parsed.error.issues[0]?.message || 'Validation failed',
+		};
+	}
+
+	try {
+		const invoice = await InvoiceService.createFromWorkEntries(
+			userId,
+			parsed.data
+		);
+		await clearCache('/invoices');
+		await clearCache('/entries');
+		await clearCache('/clients');
+		return { success: true, invoiceId: invoice.id };
+	} catch (error) {
+		return {
+			error:
+				error instanceof Error
+					? error.message
+					: 'Failed to generate invoice',
 		};
 	}
 }

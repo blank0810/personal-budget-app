@@ -5,8 +5,44 @@ import {
 	UpdateInvoiceInput,
 	MarkAsPaidInput,
 	GetInvoicesInput,
+	GenerateFromEntriesInput,
 } from './invoice.types';
 import { InvoiceStatus } from '@prisma/client';
+
+/**
+ * Compute subtotal, tax, and total from an array of line items and a tax rate.
+ */
+function computeInvoiceTotals(
+	lineItems: { amount: number }[],
+	taxRate: number
+) {
+	const subtotal = lineItems.reduce((sum, item) => sum + item.amount, 0);
+	const taxAmount = subtotal * (taxRate / 100);
+	const totalAmount = subtotal + taxAmount;
+	return { subtotal, taxAmount, totalAmount };
+}
+
+/**
+ * Revert linked work entries back to UNBILLED when an invoice is cancelled or deleted.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function revertLinkedEntries(tx: any, invoiceId: string) {
+	const linkedLineItems = await tx.invoiceLineItem.findMany({
+		where: { invoiceId, workEntryId: { not: null } },
+		select: { workEntryId: true },
+	});
+
+	const workEntryIds = linkedLineItems
+		.map((li: { workEntryId: string | null }) => li.workEntryId)
+		.filter(Boolean);
+
+	if (workEntryIds.length > 0) {
+		await tx.workEntry.updateMany({
+			where: { id: { in: workEntryIds } },
+			data: { status: 'UNBILLED' },
+		});
+	}
+}
 
 export const InvoiceService = {
 	/**
@@ -46,10 +82,10 @@ export const InvoiceService = {
 			sortOrder: index,
 		}));
 
-		const subtotal = lineItems.reduce((sum, item) => sum + item.amount, 0);
-		const taxRate = data.taxRate ?? 0;
-		const taxAmount = subtotal * (taxRate / 100);
-		const totalAmount = subtotal + taxAmount;
+		const { subtotal, taxAmount, totalAmount } = computeInvoiceTotals(
+			lineItems,
+			data.taxRate ?? 0
+		);
 
 		return await prisma.invoice.create({
 			data: {
@@ -76,6 +112,94 @@ export const InvoiceService = {
 				},
 			},
 		});
+	},
+
+	/**
+	 * Create an invoice from existing work entries.
+	 * Marks entries as BILLED and links them via line items.
+	 */
+	async createFromWorkEntries(userId: string, data: GenerateFromEntriesInput) {
+		// Generate invoice number before transaction — a gap in numbering is acceptable
+		const invoiceNumber = await this.getNextInvoiceNumber(userId);
+
+		return prisma.$transaction(
+			async (tx) => {
+				// 1. Fetch and validate client
+				const client = await tx.client.findUniqueOrThrow({
+					where: { id: data.clientId, userId },
+				});
+
+				// 2. Fetch and validate all work entries
+				const entries = await tx.workEntry.findMany({
+					where: {
+						id: { in: data.workEntryIds },
+						userId,
+						clientId: data.clientId,
+						status: 'UNBILLED',
+					},
+				});
+
+				if (entries.length !== data.workEntryIds.length) {
+					throw new Error(
+						'Some entries are not available for invoicing (already billed, wrong client, or not found)'
+					);
+				}
+
+				// 3. Build line items from entries
+				const lineItems = entries.map((entry, index) => ({
+					description: entry.description,
+					quantity: Number(entry.quantity),
+					unitPrice: Number(entry.unitPrice),
+					amount: Number(entry.amount),
+					sortOrder: index,
+				}));
+
+				const { subtotal, taxAmount, totalAmount } =
+					computeInvoiceTotals(lineItems, data.taxRate ?? 0);
+
+				// 4. Create invoice with line items, linking workEntryId on each
+				const invoice = await tx.invoice.create({
+					data: {
+						invoiceNumber,
+						userId,
+						clientId: data.clientId,
+						clientName: client.name,
+						clientEmail: client.email,
+						clientAddress: client.address,
+						clientPhone: client.phone,
+						issueDate: data.issueDate,
+						dueDate: data.dueDate,
+						taxRate: data.taxRate ?? null,
+						notes: data.notes || null,
+						subtotal,
+						taxAmount,
+						totalAmount,
+						lineItems: {
+							create: lineItems.map((item, idx) => ({
+								...item,
+								workEntryId: entries[idx].id,
+							})),
+						},
+					},
+					include: {
+						lineItems: { orderBy: { sortOrder: 'asc' } },
+					},
+				});
+
+				// 5. Flip entries to BILLED and set audit trail
+				await tx.workEntry.updateMany({
+					where: { id: { in: data.workEntryIds } },
+					data: {
+						status: 'BILLED',
+						lastInvoiceId: invoice.id,
+						lastInvoiceNumber: invoice.invoiceNumber,
+					},
+				});
+
+				return invoice;
+			},
+			{ timeout: 30000 }
+		);
 	},
 
 	/**
@@ -116,14 +240,12 @@ export const InvoiceService = {
 					sortOrder: index,
 				}));
 
-				subtotal = lineItemsData.reduce(
-					(sum, item) => sum + item.amount,
-					0
-				);
 				const taxRate =
 					updateData.taxRate ?? invoice.taxRate?.toNumber() ?? 0;
-				taxAmount = subtotal * (taxRate / 100);
-				totalAmount = subtotal + taxAmount;
+				const totals = computeInvoiceTotals(lineItemsData, taxRate);
+				subtotal = totals.subtotal;
+				taxAmount = totals.taxAmount;
+				totalAmount = totals.totalAmount;
 
 				// Delete old line items
 				await tx.invoiceLineItem.deleteMany({
@@ -242,7 +364,8 @@ export const InvoiceService = {
 	},
 
 	/**
-	 * Cancel an invoice (DRAFT or SENT only)
+	 * Cancel an invoice (DRAFT or SENT only).
+	 * Reverts any linked work entries back to UNBILLED.
 	 */
 	async cancel(userId: string, invoiceId: string) {
 		const invoice = await prisma.invoice.findUniqueOrThrow({
@@ -256,14 +379,19 @@ export const InvoiceService = {
 			throw new Error('Only DRAFT or SENT invoices can be cancelled');
 		}
 
-		return await prisma.invoice.update({
-			where: { id: invoiceId, userId },
-			data: { status: InvoiceStatus.CANCELLED },
+		return await prisma.$transaction(async (tx) => {
+			await revertLinkedEntries(tx, invoiceId);
+
+			return await tx.invoice.update({
+				where: { id: invoiceId, userId },
+				data: { status: InvoiceStatus.CANCELLED },
+			});
 		});
 	},
 
 	/**
-	 * Delete a DRAFT invoice
+	 * Delete a DRAFT invoice.
+	 * Reverts any linked work entries back to UNBILLED before deletion.
 	 */
 	async delete(userId: string, invoiceId: string) {
 		const invoice = await prisma.invoice.findUniqueOrThrow({
@@ -274,8 +402,12 @@ export const InvoiceService = {
 			throw new Error('Only DRAFT invoices can be deleted');
 		}
 
-		return await prisma.invoice.delete({
-			where: { id: invoiceId, userId },
+		return await prisma.$transaction(async (tx) => {
+			await revertLinkedEntries(tx, invoiceId);
+
+			return await tx.invoice.delete({
+				where: { id: invoiceId, userId },
+			});
 		});
 	},
 
@@ -293,6 +425,7 @@ export const InvoiceService = {
 						mode: 'insensitive' as const,
 					},
 				}),
+				...(filters?.clientId && { clientId: filters.clientId }),
 			},
 			include: {
 				_count: {
