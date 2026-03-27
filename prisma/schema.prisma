@@ -102,6 +102,8 @@ model User {
   lastLoginAt           DateTime?
   lastSeenChangelogAt   DateTime?
   adminSessionExpiresAt DateTime?
+  resetConfirmToken     String?
+  resetConfirmExpiresAt DateTime?
 
   // Relations
   accounts                Account[]
