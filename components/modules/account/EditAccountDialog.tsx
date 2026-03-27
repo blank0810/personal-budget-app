@@ -40,6 +40,16 @@ import {
 import { CurrencyInput } from '@/components/ui/currency-input';
 import { Settings2 } from 'lucide-react';
 import { useCurrency } from '@/lib/contexts/currency-context';
+import { cn } from '@/lib/utils';
+
+const COLORS = [
+	{ value: 'blue', label: 'Blue', swatch: 'bg-blue-500' },
+	{ value: 'green', label: 'Green', swatch: 'bg-green-500' },
+	{ value: 'purple', label: 'Purple', swatch: 'bg-purple-500' },
+	{ value: 'orange', label: 'Orange', swatch: 'bg-orange-500' },
+	{ value: 'red', label: 'Red', swatch: 'bg-red-500' },
+	{ value: 'emerald', label: 'Emerald', swatch: 'bg-emerald-500' },
+];
 
 interface EditAccountDialogProps {
 	account: Account;
@@ -49,6 +59,7 @@ export function EditAccountDialog({ account }: EditAccountDialogProps) {
 	const { formatCurrency } = useCurrency();
 	const [open, setOpen] = useState(false);
 	const [isPending, setIsPending] = useState(false);
+	const [selectedColor, setSelectedColor] = useState(account.color || 'blue');
 
 	const form = useForm<UpdateAccountInput>({
 		resolver: zodResolver(updateAccountSchema),
@@ -93,6 +104,8 @@ export function EditAccountDialog({ account }: EditAccountDialogProps) {
 		if (isCreditOrLoan || data.isLiability) {
 			formData.append('isLiability', 'on');
 		}
+
+		formData.set('color', selectedColor);
 
 		const result = await updateAccountAction(formData);
 		setIsPending(false);
@@ -226,6 +239,27 @@ export function EditAccountDialog({ account }: EditAccountDialogProps) {
 								</FormItem>
 							)}
 						/>
+
+						<div className='space-y-2'>
+							<FormLabel>Color</FormLabel>
+							<div className='flex gap-2'>
+								{COLORS.map((c) => (
+									<button
+										key={c.value}
+										type='button'
+										onClick={() => setSelectedColor(c.value)}
+										className={cn(
+											'h-8 w-8 rounded-full transition-all',
+											c.swatch,
+											selectedColor === c.value
+												? 'ring-2 ring-offset-2 ring-primary'
+												: 'opacity-60 hover:opacity-100'
+										)}
+										title={c.label}
+									/>
+								))}
+							</div>
+						</div>
 
 						<div className='flex flex-col space-y-2 rounded-md bg-muted p-3'>
 							<span className='text-sm font-medium text-muted-foreground'>
