@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 import { auth } from '@/auth';
 import { Rocket, Wallet, ArrowLeft, MessageSquarePlus, Lightbulb } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -28,7 +30,7 @@ export default async function PublicChangelogPage() {
 		// Not authenticated
 	}
 
-	const requests = await FeatureRequestService.getAll();
+	const requests = await FeatureRequestService.getAll() ?? [];
 	const latestVersion = versions[0];
 
 	return (
