@@ -161,88 +161,89 @@ function EntryFields({
 	}
 
 	return (
-		<form onSubmit={onSubmit} className='space-y-2'>
-			{/* Labels row */}
-			<div className='flex gap-3'>
-				<span className='w-[180px] shrink-0 text-xs text-muted-foreground'>Client</span>
-				<span className='w-[140px] shrink-0 text-xs text-muted-foreground'>Date</span>
-				<span className='flex-1 min-w-[160px] text-xs text-muted-foreground'>Description</span>
-				<span className='w-[80px] shrink-0 text-xs text-muted-foreground'>Hours / Qty</span>
-				<span className='w-[100px] shrink-0 text-xs text-muted-foreground'>Rate</span>
-				<span className='w-[72px] shrink-0' />
-			</div>
-			{/* Inputs row */}
-			<div className='flex gap-3'>
-				<div className='w-[180px] shrink-0'>
-					<Select value={form.clientId} onValueChange={onClientChange}>
-						<SelectTrigger id='desktop-client' className='w-full'>
-							<SelectValue placeholder='Select client...' />
-						</SelectTrigger>
-						<SelectContent>
-							{clients.map((c) => (
-								<SelectItem key={c.id} value={c.id}>
-									{c.name}
-								</SelectItem>
-							))}
-						</SelectContent>
-					</Select>
-				</div>
-
-				<div className='w-[140px] shrink-0'>
-					<Input
-						id='desktop-date'
-						type='date'
-						value={form.date}
-						onChange={(e) => onChange('date', e.target.value)}
-						required
-					/>
-				</div>
-
-				<div className='flex-1 min-w-[160px]'>
-					<Input
-						id='desktop-description'
-						placeholder='What did you work on?'
-						value={form.description}
-						onChange={(e) => onChange('description', e.target.value)}
-						required
-					/>
-				</div>
-
-				<div className='w-[80px] shrink-0'>
-					<Input
-						id='desktop-quantity'
-						type='number'
-						min='0.01'
-						step='any'
-						placeholder='1'
-						value={form.quantity}
-						onChange={(e) => onChange('quantity', e.target.value)}
-						required
-					/>
-				</div>
-
-				<div className='w-[100px] shrink-0'>
-					<Input
-						id='desktop-unitPrice'
-						type='number'
-						min='0'
-						step='any'
-						placeholder='0.00'
-						value={form.unitPrice}
-						onChange={(e) => onChange('unitPrice', e.target.value)}
-						required
-					/>
-				</div>
-
-				<Button type='submit' className='shrink-0' disabled={isPending}>
-					{isPending ? (
-						<Loader2 className='h-4 w-4 animate-spin' />
-					) : (
-						<Plus className='h-4 w-4' />
-					)}
-					<span className='ml-1'>Add</span>
-				</Button>
-			</div>
+		<form onSubmit={onSubmit}>
+			<table className='w-full border-separate border-spacing-x-2 border-spacing-y-0'>
+				<thead>
+					<tr>
+						<th className='text-left text-xs font-normal text-muted-foreground pb-1 w-[180px]'>Client</th>
+						<th className='text-left text-xs font-normal text-muted-foreground pb-1 w-[140px]'>Date</th>
+						<th className='text-left text-xs font-normal text-muted-foreground pb-1'>Description</th>
+						<th className='text-left text-xs font-normal text-muted-foreground pb-1 w-[80px]'>Hours / Qty</th>
+						<th className='text-left text-xs font-normal text-muted-foreground pb-1 w-[100px]'>Rate</th>
+						<th className='w-[72px]' />
+					</tr>
+				</thead>
+				<tbody>
+					<tr>
+						<td className='align-bottom'>
+							<Select value={form.clientId} onValueChange={onClientChange}>
+								<SelectTrigger id='desktop-client' className='w-full'>
+									<SelectValue placeholder='Select client...' />
+								</SelectTrigger>
+								<SelectContent>
+									{clients.map((c) => (
+										<SelectItem key={c.id} value={c.id}>
+											{c.name}
+										</SelectItem>
+									))}
+								</SelectContent>
+							</Select>
+						</td>
+						<td className='align-bottom'>
+							<Input
+								id='desktop-date'
+								type='date'
+								value={form.date}
+								onChange={(e) => onChange('date', e.target.value)}
+								required
+							/>
+						</td>
+						<td className='align-bottom'>
+							<Input
+								id='desktop-description'
+								placeholder='What did you work on?'
+								value={form.description}
+								onChange={(e) => onChange('description', e.target.value)}
+								required
+							/>
+						</td>
+						<td className='align-bottom'>
+							<Input
+								id='desktop-quantity'
+								type='number'
+								min='0.01'
+								step='any'
+								placeholder='1'
+								value={form.quantity}
+								onChange={(e) => onChange('quantity', e.target.value)}
+								required
+							/>
+						</td>
+						<td className='align-bottom'>
+							<Input
+								id='desktop-unitPrice'
+								type='number'
+								min='0'
+								step='any'
+								placeholder='0.00'
+								value={form.unitPrice}
+								onChange={(e) => onChange('unitPrice', e.target.value)}
+								required
+							/>
+						</td>
+						<td className='align-bottom'>
+							<Button type='submit' className='w-full' disabled={isPending}>
+								{isPending ? (
+									<Loader2 className='h-4 w-4 animate-spin' />
+								) : (
+									<Plus className='h-4 w-4' />
+								)}
+								<span className='ml-1'>Add</span>
+							</Button>
+						</td>
+					</tr>
+				</tbody>
+			</table>
 		</form>
 	);
 }
