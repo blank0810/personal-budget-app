@@ -80,7 +80,22 @@ export default async function RecurringPage() {
 							<CardTitle>All Recurring Transactions</CardTitle>
 						</CardHeader>
 						<CardContent>
-							<RecurringList items={serialize(recurring)} />
+							<RecurringList
+							items={serialize(recurring)}
+							categories={allCategories}
+							accounts={serialize(accounts).map(
+								(a: {
+									id: string;
+									name: string;
+									type: string;
+								}) => ({
+									id: a.id,
+									name: a.name,
+									type: a.type,
+								})
+							)}
+							budgets={serializedBudgets}
+						/>
 						</CardContent>
 					</Card>
 				</div>
