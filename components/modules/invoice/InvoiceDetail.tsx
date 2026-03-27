@@ -82,12 +82,12 @@ function InvoicePreviewStatusStamp({ status }: { status: InvoiceStatus }) {
 
 	if (status === 'PAID') {
 		return (
-			<div
-				className="absolute top-8 right-8"
-				style={{ transform: 'rotate(-12deg)' }}
-			>
-				<div className="rounded border-[3px] border-[#16a34a] px-4 py-1.5 opacity-75">
-					<span className="text-xl font-bold tracking-[3px] text-[#16a34a]">
+			<div className="pointer-events-none absolute inset-0 flex items-center justify-center overflow-hidden">
+				<div
+					className="rounded-md border-[4px] border-[#16a34a] px-8 py-3"
+					style={{ transform: 'rotate(-12deg)', opacity: 0.15 }}
+				>
+					<span className="text-[64px] font-bold tracking-[8px] text-[#16a34a]">
 						PAID
 					</span>
 				</div>
@@ -97,12 +97,12 @@ function InvoicePreviewStatusStamp({ status }: { status: InvoiceStatus }) {
 
 	if (status === 'OVERDUE') {
 		return (
-			<div
-				className="absolute top-8 right-8"
-				style={{ transform: 'rotate(-12deg)' }}
-			>
-				<div className="rounded border-[3px] border-[#dc2626] px-4 py-1.5 opacity-75">
-					<span className="text-xl font-bold tracking-[3px] text-[#dc2626]">
+			<div className="pointer-events-none absolute inset-0 flex items-center justify-center overflow-hidden">
+				<div
+					className="rounded-md border-[4px] border-[#dc2626] px-8 py-3"
+					style={{ transform: 'rotate(-12deg)', opacity: 0.15 }}
+				>
+					<span className="text-[56px] font-bold tracking-[6px] text-[#dc2626]">
 						OVERDUE
 					</span>
 				</div>
@@ -112,12 +112,12 @@ function InvoicePreviewStatusStamp({ status }: { status: InvoiceStatus }) {
 
 	if (status === 'CANCELLED') {
 		return (
-			<div
-				className="absolute top-8 right-8"
-				style={{ transform: 'rotate(-12deg)' }}
-			>
-				<div className="rounded border-[3px] border-[#9ca3af] px-4 py-1.5 opacity-75">
-					<span className="text-xl font-bold tracking-[3px] text-[#9ca3af] line-through">
+			<div className="pointer-events-none absolute inset-0 flex items-center justify-center overflow-hidden">
+				<div
+					className="rounded-md border-[4px] border-[#9ca3af] px-8 py-3"
+					style={{ transform: 'rotate(-12deg)', opacity: 0.12 }}
+				>
+					<span className="text-[48px] font-bold tracking-[5px] text-[#9ca3af]">
 						CANCELLED
 					</span>
 				</div>
