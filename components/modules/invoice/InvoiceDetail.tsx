@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import { useState, useTransition, useCallback } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { format } from 'date-fns';
@@ -17,7 +17,7 @@ import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { InvoiceStatusBadge } from './InvoiceStatusBadge';
 import { MarkAsPaidDialog } from './MarkAsPaidDialog';
-import { useCurrency } from '@/lib/contexts/currency-context';
+import { formatCurrency as formatCurrencyUtil } from '@/lib/formatters';
 import {
 	markAsSentAction,
 	cancelInvoiceAction,
@@ -47,6 +47,7 @@ export interface InvoiceWithDetails {
 	clientEmail: string | null;
 	clientAddress: string | null;
 	clientPhone: string | null;
+	currency?: string | null;
 	issueDate: string | Date;
 	dueDate: string | Date;
 	paidAt: string | Date | null;
@@ -71,9 +72,15 @@ interface InvoiceDetailProps {
 
 export function InvoiceDetail({ invoice, accounts }: InvoiceDetailProps) {
 	const router = useRouter();
-	const { formatCurrency } = useCurrency();
 	const [isPending, startTransition] = useTransition();
 	const [paidDialogOpen, setPaidDialogOpen] = useState(false);
+
+	// Use the invoice's own currency for formatting, falling back to USD
+	const formatCurrency = useCallback(
+		(value: number) =>
+			formatCurrencyUtil(value, { currency: invoice.currency ?? 'USD' }),
+		[invoice.currency]
+	);
 
 	function handleMarkAsSent() {
 		startTransition(async () => {
@@ -138,6 +145,9 @@ export function InvoiceDetail({ invoice, accounts }: InvoiceDetailProps) {
 										Paid:{' '}
 										{format(new Date(invoice.paidAt), 'MMM d, yyyy')}
 									</p>
+								)}
+								{invoice.currency && (
+									<p>Currency: {invoice.currency}</p>
 								)}
 							</div>
 						</div>

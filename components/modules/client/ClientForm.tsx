@@ -25,6 +25,13 @@ import {
 	FormMessage,
 } from '@/components/ui/form';
 import {
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+	SelectValue,
+} from '@/components/ui/select';
+import {
 	createClientSchema,
 	updateClientSchema,
 	type CreateClientInput,
@@ -34,6 +41,8 @@ import {
 	createClientAction,
 	updateClientAction,
 } from '@/server/modules/client/client.controller';
+import { SUPPORTED_CURRENCIES } from '@/lib/currency';
+import { useCurrency } from '@/lib/contexts/currency-context';
 
 export interface ClientData {
 	id: string;
@@ -42,6 +51,7 @@ export interface ClientData {
 	phone?: string | null;
 	address?: string | null;
 	defaultRate?: number | null;
+	currency?: string | null;
 	notes?: string | null;
 }
 
@@ -58,6 +68,7 @@ function CreateClientForm({
 	onOpenChange: (open: boolean) => void;
 }) {
 	const router = useRouter();
+	const { currency: userCurrency } = useCurrency();
 	const [isPending, startTransition] = useTransition();
 
 	const form = useForm<CreateClientInput>({
@@ -68,6 +79,7 @@ function CreateClientForm({
 			phone: '',
 			address: '',
 			defaultRate: undefined,
+			currency: userCurrency || 'USD',
 			notes: '',
 		},
 	});
@@ -188,6 +200,36 @@ function CreateClientForm({
 				/>
 				<FormField
 					control={form.control}
+					name='currency'
+					render={({ field }) => (
+						<FormItem>
+							<FormLabel>Billing Currency</FormLabel>
+							<Select
+								onValueChange={field.onChange}
+								value={field.value ?? userCurrency ?? 'USD'}
+							>
+								<FormControl>
+									<SelectTrigger>
+										<SelectValue placeholder='Select currency' />
+									</SelectTrigger>
+								</FormControl>
+								<SelectContent>
+									{SUPPORTED_CURRENCIES.map((c) => (
+										<SelectItem key={c.code} value={c.code}>
+											{c.code} - {c.name} ({c.symbol})
+										</SelectItem>
+									))}
+								</SelectContent>
+							</Select>
+							<FormDescription>
+								Currency used for invoices and entries for this client.
+							</FormDescription>
+							<FormMessage />
+						</FormItem>
+					)}
+				/>
+				<FormField
+					control={form.control}
 					name='notes'
 					render={({ field }) => (
 						<FormItem>
@@ -236,6 +278,7 @@ function EditClientForm({
 	onOpenChange: (open: boolean) => void;
 }) {
 	const router = useRouter();
+	const { currency: userCurrency } = useCurrency();
 	const [isPending, startTransition] = useTransition();
 
 	const form = useForm<UpdateClientInput>({
@@ -247,6 +290,7 @@ function EditClientForm({
 			phone: client.phone ?? '',
 			address: client.address ?? '',
 			defaultRate: client.defaultRate ?? undefined,
+			currency: client.currency ?? userCurrency ?? 'USD',
 			notes: client.notes ?? '',
 		},
 	});
@@ -359,6 +403,36 @@ function EditClientForm({
 							</FormControl>
 							<FormDescription>
 								Auto-fills the Rate when logging entries for this client. Leave blank to enter manually.
+							</FormDescription>
+							<FormMessage />
+						</FormItem>
+					)}
+				/>
+				<FormField
+					control={form.control}
+					name='currency'
+					render={({ field }) => (
+						<FormItem>
+							<FormLabel>Billing Currency</FormLabel>
+							<Select
+								onValueChange={field.onChange}
+								value={field.value ?? client.currency ?? userCurrency ?? 'USD'}
+							>
+								<FormControl>
+									<SelectTrigger>
+										<SelectValue placeholder='Select currency' />
+									</SelectTrigger>
+								</FormControl>
+								<SelectContent>
+									{SUPPORTED_CURRENCIES.map((c) => (
+										<SelectItem key={c.code} value={c.code}>
+											{c.code} - {c.name} ({c.symbol})
+										</SelectItem>
+									))}
+								</SelectContent>
+							</Select>
+							<FormDescription>
+								Currency used for invoices and entries for this client.
 							</FormDescription>
 							<FormMessage />
 						</FormItem>

@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { format } from 'date-fns';
-import { Pencil, FileText, Mail, Phone, MapPin, DollarSign } from 'lucide-react';
+import { Pencil, FileText, Mail, Phone, MapPin, DollarSign, Banknote } from 'lucide-react';
 import { GenerateInvoiceDialog } from '@/components/modules/work-entry/GenerateInvoiceDialog';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -29,6 +29,7 @@ interface ClientStats {
 	phone: string | null;
 	address: string | null;
 	defaultRate: number | null;
+	currency: string;
 	notes: string | null;
 	isArchived: boolean;
 	unbilled: {
@@ -139,6 +140,12 @@ export function ClientDetail({ client, entries, invoices }: ClientDetailProps) {
 							<span className='flex items-center gap-1'>
 								<DollarSign className='h-3.5 w-3.5' />
 								{formatCurrency(client.defaultRate)} default billing rate
+							</span>
+						)}
+						{client.currency && (
+							<span className='flex items-center gap-1'>
+								<Banknote className='h-3.5 w-3.5' />
+								{client.currency}
 							</span>
 						)}
 					</div>
@@ -320,6 +327,7 @@ export function ClientDetail({ client, entries, invoices }: ClientDetailProps) {
 				<GenerateInvoiceDialog
 					clientId={client.id}
 					clientName={client.name}
+					clientCurrency={client.currency}
 					entries={unbilledEntries}
 					open={showGenerateDialog}
 					onOpenChange={setShowGenerateDialog}

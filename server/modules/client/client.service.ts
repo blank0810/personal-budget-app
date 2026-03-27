@@ -7,6 +7,16 @@ export const ClientService = {
 	 * Create a new client for a user
 	 */
 	async create(userId: string, data: CreateClientInput) {
+		// If no currency provided, default to user's currency
+		let currency = data.currency;
+		if (!currency) {
+			const user = await prisma.user.findUniqueOrThrow({
+				where: { id: userId },
+				select: { currency: true },
+			});
+			currency = user.currency;
+		}
+
 		return await prisma.client.create({
 			data: {
 				name: data.name,
@@ -14,6 +24,7 @@ export const ClientService = {
 				phone: data.phone || null,
 				address: data.address || null,
 				defaultRate: data.defaultRate ?? null,
+				currency,
 				notes: data.notes || null,
 				userId,
 			},
@@ -41,6 +52,9 @@ export const ClientService = {
 				}),
 				...(updateData.defaultRate !== undefined && {
 					defaultRate: updateData.defaultRate ?? null,
+				}),
+				...(updateData.currency !== undefined && {
+					currency: updateData.currency,
 				}),
 				...(updateData.notes !== undefined && {
 					notes: updateData.notes || null,

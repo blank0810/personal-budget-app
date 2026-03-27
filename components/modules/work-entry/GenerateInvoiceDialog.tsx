@@ -27,7 +27,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
-import { useCurrency } from '@/lib/contexts/currency-context';
+import { Badge } from '@/components/ui/badge';
+import { formatCurrency as formatCurrencyUtil } from '@/lib/formatters';
 import { generateInvoiceFromEntriesAction } from '@/server/modules/invoice/invoice.controller';
 
 interface EntryForInvoice {
@@ -42,6 +43,7 @@ interface EntryForInvoice {
 interface GenerateInvoiceDialogProps {
 	clientId: string;
 	clientName: string;
+	clientCurrency?: string;
 	entries: EntryForInvoice[];
 	open: boolean;
 	onOpenChange: (open: boolean) => void;
@@ -103,13 +105,19 @@ function toEntryDate(date: string | Date): Date {
 export function GenerateInvoiceDialog({
 	clientId,
 	clientName,
+	clientCurrency,
 	entries,
 	open,
 	onOpenChange,
 }: GenerateInvoiceDialogProps) {
 	const router = useRouter();
-	const { formatCurrency } = useCurrency();
 	const [isPending, startTransition] = useTransition();
+
+	// Format amounts using the client's billing currency
+	const formatCurrency = useMemo(() => {
+		const currency = clientCurrency || 'USD';
+		return (value: number) => formatCurrencyUtil(value, { currency });
+	}, [clientCurrency]);
 
 	// Date range filter — default to "this month"
 	const [fromDate, setFromDate] = useState(getThisMonthStart);
@@ -284,7 +292,14 @@ export function GenerateInvoiceDialog({
 		<Dialog open={open} onOpenChange={onOpenChange}>
 			<DialogContent className='max-w-lg flex flex-col max-h-[90vh]'>
 				<DialogHeader>
-					<DialogTitle>Generate Invoice for {clientName}</DialogTitle>
+					<div className='flex items-center gap-2'>
+						<DialogTitle>Generate Invoice for {clientName}</DialogTitle>
+						{clientCurrency && (
+							<Badge variant='secondary' className='text-xs font-mono'>
+								{clientCurrency}
+							</Badge>
+						)}
+					</div>
 				</DialogHeader>
 
 				<form onSubmit={handleSubmit} className='flex flex-col flex-1 min-h-0 gap-4'>
@@ -536,6 +551,9 @@ export function GenerateInvoiceDialog({
 									{' '}
 									(incl. {taxRate}% tax)
 								</span>
+							)}
+							{clientCurrency && (
+								<span className='text-xs'> {clientCurrency}</span>
 							)}
 						</div>
 						<Button

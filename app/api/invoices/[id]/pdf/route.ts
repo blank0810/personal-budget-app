@@ -25,10 +25,15 @@ export async function GET(
 			);
 		}
 
-		const user = await prisma.user.findUniqueOrThrow({
-			where: { id: session.user.id },
-			select: { currency: true },
-		});
+		// Use the invoice's own currency, falling back to user's currency
+		let currency = invoice.currency;
+		if (!currency) {
+			const user = await prisma.user.findUniqueOrThrow({
+				where: { id: session.user.id },
+				select: { currency: true },
+			});
+			currency = user.currency;
+		}
 
 		// Convert Decimals to numbers for the template
 		const pdfData = {
@@ -45,7 +50,7 @@ export async function GET(
 			})),
 		};
 
-		const pdfBuffer = await renderInvoicePDF(pdfData, user.currency);
+		const pdfBuffer = await renderInvoicePDF(pdfData, currency);
 
 		return new NextResponse(new Uint8Array(pdfBuffer), {
 			headers: {

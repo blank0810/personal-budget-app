@@ -6,6 +6,11 @@ export const createClientSchema = z.object({
 	phone: z.string().optional(),
 	address: z.string().optional(),
 	defaultRate: z.number().min(0).optional(),
+	currency: z
+		.string()
+		.length(3, 'Currency must be a 3-letter code')
+		.toUpperCase()
+		.optional(),
 	notes: z.string().optional(),
 });
 

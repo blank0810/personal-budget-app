@@ -68,10 +68,21 @@ export const InvoiceService = {
 	},
 
 	/**
-	 * Create a new invoice with line items
+	 * Create a new invoice with line items.
+	 * Accepts an optional currency; defaults to the user's currency.
 	 */
-	async create(userId: string, data: CreateInvoiceInput) {
+	async create(userId: string, data: CreateInvoiceInput & { currency?: string }) {
 		const invoiceNumber = await this.getNextInvoiceNumber(userId);
+
+		// Resolve currency: explicit param > user default
+		let currency = data.currency;
+		if (!currency) {
+			const user = await prisma.user.findUniqueOrThrow({
+				where: { id: userId },
+				select: { currency: true },
+			});
+			currency = user.currency;
+		}
 
 		// Compute line item amounts and totals
 		const lineItems = data.lineItems.map((item, index) => ({
@@ -94,6 +105,7 @@ export const InvoiceService = {
 				clientEmail: data.clientEmail || null,
 				clientAddress: data.clientAddress,
 				clientPhone: data.clientPhone,
+				currency,
 				issueDate: data.issueDate,
 				dueDate: data.dueDate,
 				subtotal,
@@ -117,6 +129,7 @@ export const InvoiceService = {
 	/**
 	 * Create an invoice from existing work entries.
 	 * Marks entries as BILLED and links them via line items.
+	 * Uses the client's billing currency for the invoice.
 	 */
 	async createFromWorkEntries(userId: string, data: GenerateFromEntriesInput) {
 		// Generate invoice number before transaction — a gap in numbering is acceptable
@@ -158,6 +171,7 @@ export const InvoiceService = {
 					computeInvoiceTotals(lineItems, data.taxRate ?? 0);
 
 				// 4. Create invoice with line items, linking workEntryId on each
+				//    Use the client's billing currency
 				const invoice = await tx.invoice.create({
 					data: {
 						invoiceNumber,
@@ -167,6 +181,7 @@ export const InvoiceService = {
 						clientEmail: client.email,
 						clientAddress: client.address,
 						clientPhone: client.phone,
+						currency: client.currency,
 						issueDate: data.issueDate,
 						dueDate: data.dueDate,
 						taxRate: data.taxRate ?? null,
