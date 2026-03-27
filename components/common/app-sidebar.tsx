@@ -61,8 +61,13 @@ const navItems = [
 	},
 	{
 		title: 'Invoices',
-		url: '/invoices',
+		url: '#',
 		icon: FileText,
+		items: [
+			{ title: 'All Invoices', url: '/invoices' },
+			{ title: 'Clients', url: '/clients' },
+			{ title: 'Billable Entries', url: '/entries' },
+		],
 	},
 	{
 		title: 'Accounts',
