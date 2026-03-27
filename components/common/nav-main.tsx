@@ -1,5 +1,6 @@
 'use client';
 
+import { usePathname } from 'next/navigation';
 import { ChevronRight, type LucideIcon } from 'lucide-react';
 
 import {
@@ -32,15 +33,22 @@ export function NavMain({
 		}[];
 	}[];
 }) {
+	const pathname = usePathname();
+
 	return (
 		<SidebarGroup className='px-3 py-4'>
 			<SidebarMenu className='gap-1.5'>
-				{items.map((item) =>
-					item.items ? (
+				{items.map((item) => {
+					// Auto-open collapsible groups when on a sub-page
+					const isGroupActive = item.items
+						? item.items.some((sub) => pathname.startsWith(sub.url))
+						: false;
+
+					return item.items ? (
 						<Collapsible
 							key={item.title}
 							asChild
-							defaultOpen={item.isActive}
+							defaultOpen={item.isActive || isGroupActive}
 							className='group/collapsible'
 						>
 							<SidebarMenuItem>
@@ -88,8 +96,8 @@ export function NavMain({
 								</a>
 							</SidebarMenuButton>
 						</SidebarMenuItem>
-					)
-				)}
+					);
+				})}
 			</SidebarMenu>
 		</SidebarGroup>
 	);

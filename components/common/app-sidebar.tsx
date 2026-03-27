@@ -12,7 +12,6 @@ import {
 	Shield,
 	Upload,
 	Target,
-	Coffee,
 	FileText,
 } from 'lucide-react';
 
@@ -46,7 +45,6 @@ const navItems = [
 			{ title: 'Expenses', url: '/expense' },
 			{ title: 'Transfers', url: '/transfers' },
 			{ title: 'Payments', url: '/payments' },
-			{ title: 'Recurring', url: '/recurring' },
 		],
 	},
 	{
@@ -64,9 +62,9 @@ const navItems = [
 		url: '#',
 		icon: FileText,
 		items: [
-			{ title: 'All Invoices', url: '/invoices' },
 			{ title: 'Clients', url: '/clients' },
-			{ title: 'Billable Entries', url: '/entries' },
+			{ title: 'Entries', url: '/entries' },
+			{ title: 'All Invoices', url: '/invoices' },
 		],
 	},
 	{
@@ -78,19 +76,6 @@ const navItems = [
 		title: 'Reports',
 		url: '/reports',
 		icon: BarChart3,
-	},
-];
-
-const secondaryItems = [
-	{
-		title: 'Import',
-		url: '/import',
-		icon: Upload,
-	},
-	{
-		title: 'Changelog',
-		url: '/changelog',
-		icon: Sparkles,
 	},
 ];
 
@@ -162,31 +147,39 @@ function AppSidebarInner({ user, signOutAction, hasNewChangelog, ...props }: App
 							: navItems
 					}
 				/>
-				<SidebarSeparator />
-				<NavMain
-					items={secondaryItems.map((item) =>
-						item.title === 'Changelog' && hasNewChangelog
-							? { ...item, badge: true }
-							: item
-					)}
-				/>
 			</SidebarContent>
 			<SidebarSeparator />
 			<SidebarFooter className='p-3'>
 				<SidebarMenu>
 					<SidebarMenuItem>
 						<SidebarMenuButton asChild size='sm'>
-							<a
-								href='https://ko-fi.com/blanklob'
-								target='_blank'
-								rel='noopener noreferrer'
-							>
-								<Coffee className='h-4 w-4' />
-								<span>Buy me a coffee</span>
+							<a href='/recurring'>
+								<ArrowRightLeft className='h-4 w-4' />
+								<span>Recurring</span>
+							</a>
+						</SidebarMenuButton>
+					</SidebarMenuItem>
+					<SidebarMenuItem>
+						<SidebarMenuButton asChild size='sm'>
+							<a href='/import'>
+								<Upload className='h-4 w-4' />
+								<span>Import</span>
+							</a>
+						</SidebarMenuButton>
+					</SidebarMenuItem>
+					<SidebarMenuItem>
+						<SidebarMenuButton asChild size='sm'>
+							<a href='/changelog'>
+								<Sparkles className='h-4 w-4' />
+								<span>Changelog</span>
+								{hasNewChangelog && (
+									<span className='ml-auto h-2 w-2 rounded-full bg-primary' />
+								)}
 							</a>
 						</SidebarMenuButton>
 					</SidebarMenuItem>
 				</SidebarMenu>
+				<SidebarSeparator />
 				<NavUser user={user} signOutAction={signOutAction} />
 			</SidebarFooter>
 			<SidebarRail />
