@@ -497,12 +497,12 @@ export function WorkEntryList({ entries, clients, totalCount, pageLimit }: WorkE
 													{/* Qty × price */}
 													<td className='px-3 py-2.5 text-right text-xs text-muted-foreground tabular-nums w-[100px] hidden sm:table-cell'>
 														{entry.quantity} &times;{' '}
-														{formatCurrency(entry.unitPrice, { currency: entry.currency })}
+														{formatCurrency(entry.unitPrice, { currency: entry.client.currency || entry.currency })}
 													</td>
 
 													{/* Amount */}
 													<td className='px-3 py-2.5 text-right font-medium tabular-nums w-[90px]'>
-														{formatCurrency(entry.amount, { currency: entry.currency })}
+														{formatCurrency(entry.amount, { currency: entry.client.currency || entry.currency })}
 													</td>
 
 													{/* Status */}
