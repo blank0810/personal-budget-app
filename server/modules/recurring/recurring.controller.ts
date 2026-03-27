@@ -61,6 +61,7 @@ export async function updateRecurringAction(formData: FormData) {
 		endDate: formData.get('endDate') || undefined,
 		categoryId: formData.get('categoryId') || undefined,
 		accountId: formData.get('accountId') || undefined,
+		budgetId: formData.get('budgetId') || undefined,
 		isActive:
 			formData.get('isActive') != null
 				? formData.get('isActive') === 'true'
