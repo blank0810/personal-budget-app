@@ -25,6 +25,7 @@ export function DateGroupHeader({ date, totalAmount }: DateGroupHeaderProps) {
 				{formatGroupDate(date)}
 			</span>
 			<span className='text-xs text-muted-foreground tabular-nums'>
+				<span className='mr-1'>Unbilled:</span>
 				{formatCurrency(totalAmount)}
 			</span>
 		</div>

@@ -95,7 +95,7 @@ function ClientCard({ client }: { client: ClientWithUnbilled }) {
 				<CardContent className='pt-0 mt-auto'>
 					<dl className='grid grid-cols-2 gap-x-4 gap-y-2 text-sm'>
 						<div>
-							<dt className='text-muted-foreground'>Default Rate</dt>
+							<dt className='text-muted-foreground'>Default Billing Rate</dt>
 							<dd className='font-medium'>
 								{client.defaultRate != null
 									? formatCurrency(client.defaultRate)

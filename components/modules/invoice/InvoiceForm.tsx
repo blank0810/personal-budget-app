@@ -246,10 +246,10 @@ export function InvoiceForm({ mode, invoice }: InvoiceFormProps) {
 					</CardContent>
 				</Card>
 
-				{/* Dates */}
+				{/* Invoice Dates */}
 				<Card>
 					<CardHeader>
-						<CardTitle className='text-base'>Dates</CardTitle>
+						<CardTitle className='text-base'>Invoice Dates</CardTitle>
 					</CardHeader>
 					<CardContent className='grid grid-cols-1 gap-4 sm:grid-cols-2'>
 						<FormField
@@ -293,7 +293,7 @@ export function InvoiceForm({ mode, invoice }: InvoiceFormProps) {
 									<TableRow>
 										<TableHead>Description</TableHead>
 										<TableHead className='w-[100px]'>Qty</TableHead>
-										<TableHead className='w-[130px]'>Unit Price</TableHead>
+										<TableHead className='w-[130px]'>Rate</TableHead>
 										<TableHead className='w-[120px]'>Amount</TableHead>
 										<TableHead className='w-[50px]'></TableHead>
 									</TableRow>
@@ -421,7 +421,7 @@ export function InvoiceForm({ mode, invoice }: InvoiceFormProps) {
 								</div>
 								<div className='flex items-center justify-between gap-4 text-sm'>
 									<div className='flex items-center gap-2'>
-										<span className='text-muted-foreground'>Tax</span>
+										<span className='text-muted-foreground'>Tax Rate</span>
 										<FormField
 											control={form.control}
 											name='taxRate'
@@ -474,6 +474,7 @@ export function InvoiceForm({ mode, invoice }: InvoiceFormProps) {
 							name='notes'
 							render={({ field }) => (
 								<FormItem>
+									<FormLabel>Notes (optional)</FormLabel>
 									<FormControl>
 										<Textarea
 											placeholder='Payment terms, bank details, or any other notes...'

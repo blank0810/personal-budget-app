@@ -113,7 +113,7 @@ export function InvoiceList({ invoices }: InvoiceListProps) {
 							<TableRow>
 								<TableHead>Invoice #</TableHead>
 								<TableHead>Client</TableHead>
-								<TableHead>Amount</TableHead>
+								<TableHead>Total</TableHead>
 								<TableHead>Issue Date</TableHead>
 								<TableHead>Due Date</TableHead>
 								<TableHead>Status</TableHead>
@@ -206,7 +206,7 @@ export function InvoiceList({ invoices }: InvoiceListProps) {
 																}
 															>
 																<XCircle className='mr-2 h-4 w-4' />
-																Cancel
+																Cancel Invoice
 															</DropdownMenuItem>
 														)}
 													</>

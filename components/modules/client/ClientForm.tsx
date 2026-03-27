@@ -18,6 +18,7 @@ import {
 import {
 	Form,
 	FormControl,
+	FormDescription,
 	FormField,
 	FormItem,
 	FormLabel,
@@ -161,7 +162,7 @@ function CreateClientForm({
 					name='defaultRate'
 					render={({ field }) => (
 						<FormItem>
-							<FormLabel>Default Rate</FormLabel>
+							<FormLabel>Default Billing Rate</FormLabel>
 							<FormControl>
 								<Input
 									type='number'
@@ -178,6 +179,9 @@ function CreateClientForm({
 									}
 								/>
 							</FormControl>
+							<FormDescription>
+								Auto-fills the Rate when logging entries for this client. Leave blank to enter manually.
+							</FormDescription>
 							<FormMessage />
 						</FormItem>
 					)}
@@ -336,7 +340,7 @@ function EditClientForm({
 					name='defaultRate'
 					render={({ field }) => (
 						<FormItem>
-							<FormLabel>Default Rate</FormLabel>
+							<FormLabel>Default Billing Rate</FormLabel>
 							<FormControl>
 								<Input
 									type='number'
@@ -353,6 +357,9 @@ function EditClientForm({
 									}
 								/>
 							</FormControl>
+							<FormDescription>
+								Auto-fills the Rate when logging entries for this client. Leave blank to enter manually.
+							</FormDescription>
 							<FormMessage />
 						</FormItem>
 					)}

@@ -125,7 +125,7 @@ function EntryFields({
 
 				<div className='grid grid-cols-2 gap-3'>
 					<div className='space-y-1.5'>
-						<Label htmlFor='mobile-quantity'>Quantity</Label>
+						<Label htmlFor='mobile-quantity'>Hours / Qty</Label>
 						<Input
 							id='mobile-quantity'
 							type='number'
@@ -138,7 +138,7 @@ function EntryFields({
 						/>
 					</div>
 					<div className='space-y-1.5'>
-						<Label htmlFor='mobile-unitPrice'>Unit Price</Label>
+						<Label htmlFor='mobile-unitPrice'>Rate</Label>
 						<Input
 							id='mobile-unitPrice'
 							type='number'
@@ -209,7 +209,7 @@ function EntryFields({
 
 			<div className='space-y-1.5'>
 				<Label htmlFor='desktop-quantity' className='text-xs'>
-					Qty
+					Hours / Qty
 				</Label>
 				<Input
 					id='desktop-quantity'
@@ -226,7 +226,7 @@ function EntryFields({
 
 			<div className='space-y-1.5'>
 				<Label htmlFor='desktop-unitPrice' className='text-xs'>
-					Unit Price
+					Rate
 				</Label>
 				<Input
 					id='desktop-unitPrice'
@@ -247,7 +247,7 @@ function EntryFields({
 				) : (
 					<Plus className='h-4 w-4' />
 				)}
-				<span className='sr-only'>Add Entry</span>
+				<span className='ml-1'>Add</span>
 			</Button>
 		</form>
 	);

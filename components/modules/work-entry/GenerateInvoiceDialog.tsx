@@ -215,6 +215,9 @@ export function GenerateInvoiceDialog({
 								onChange={(e) => setDueDate(e.target.value)}
 								required
 							/>
+							<p className='text-xs text-muted-foreground'>
+								Defaults to 30 days from issue date
+							</p>
 						</div>
 					</div>
 

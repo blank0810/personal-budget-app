@@ -22,7 +22,7 @@ export function WorkEntryStatusBadge({
 						variant='outline'
 						className='text-green-700 border-green-300 bg-green-50 hover:bg-green-100 cursor-pointer dark:text-green-400 dark:border-green-700 dark:bg-green-950/30'
 					>
-						Billed · {invoiceNumber}
+						Invoiced · {invoiceNumber}
 					</Badge>
 				</Link>
 			);
@@ -32,7 +32,7 @@ export function WorkEntryStatusBadge({
 				variant='outline'
 				className='text-green-700 border-green-300 bg-green-50 dark:text-green-400 dark:border-green-700 dark:bg-green-950/30'
 			>
-				Billed
+				Invoiced
 			</Badge>
 		);
 	}

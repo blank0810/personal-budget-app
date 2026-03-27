@@ -126,7 +126,7 @@ export function InvoiceDetail({ invoice, accounts }: InvoiceDetailProps) {
 							</div>
 							<div className='text-sm text-muted-foreground space-y-0.5'>
 								<p>
-									Issued:{' '}
+									Issue Date:{' '}
 									{format(new Date(invoice.issueDate), 'MMM d, yyyy')}
 								</p>
 								<p>
@@ -155,7 +155,7 @@ export function InvoiceDetail({ invoice, accounts }: InvoiceDetailProps) {
 										) : (
 											<Send className='mr-2 h-4 w-4' />
 										)}
-										Mark as Sent
+										Record as Sent
 									</Button>
 									<Button variant='outline' asChild>
 										<Link href={`/invoices/${invoice.id}/edit`}>
@@ -173,7 +173,7 @@ export function InvoiceDetail({ invoice, accounts }: InvoiceDetailProps) {
 											rel='noopener noreferrer'
 										>
 											<Download className='mr-2 h-4 w-4' />
-											PDF
+											Download PDF
 										</a>
 									</Button>
 									<Button
@@ -203,7 +203,7 @@ export function InvoiceDetail({ invoice, accounts }: InvoiceDetailProps) {
 											rel='noopener noreferrer'
 										>
 											<Download className='mr-2 h-4 w-4' />
-											PDF
+											Download PDF
 										</a>
 									</Button>
 									<Button
@@ -212,7 +212,7 @@ export function InvoiceDetail({ invoice, accounts }: InvoiceDetailProps) {
 										disabled={isPending}
 									>
 										<XCircle className='mr-2 h-4 w-4' />
-										Cancel
+										Cancel Invoice
 									</Button>
 								</>
 							)}
@@ -273,7 +273,7 @@ export function InvoiceDetail({ invoice, accounts }: InvoiceDetailProps) {
 												Qty
 											</TableHead>
 											<TableHead className='w-[120px] text-right'>
-												Unit Price
+												Rate
 											</TableHead>
 											<TableHead className='w-[120px] text-right'>
 												Amount
@@ -371,7 +371,7 @@ export function InvoiceDetail({ invoice, accounts }: InvoiceDetailProps) {
 									</div>
 								)}
 								<div className='flex justify-between'>
-									<span className='text-muted-foreground'>Reference</span>
+									<span className='text-muted-foreground'>Linked Transaction</span>
 									<span className='truncate max-w-[140px]'>
 										{invoice.linkedIncome.description}
 									</span>

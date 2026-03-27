@@ -134,7 +134,7 @@ export function ClientDetail({ client, entries, invoices }: ClientDetailProps) {
 						{client.defaultRate != null && (
 							<span className='flex items-center gap-1'>
 								<DollarSign className='h-3.5 w-3.5' />
-								{formatCurrency(client.defaultRate)} default rate
+								{formatCurrency(client.defaultRate)} default billing rate
 							</span>
 						)}
 					</div>
@@ -215,8 +215,8 @@ export function ClientDetail({ client, entries, invoices }: ClientDetailProps) {
 									<TableRow>
 										<TableHead>Date</TableHead>
 										<TableHead>Description</TableHead>
-										<TableHead className='text-right'>Qty</TableHead>
-										<TableHead className='text-right'>Unit Price</TableHead>
+										<TableHead className='text-right'>Hours / Qty</TableHead>
+										<TableHead className='text-right'>Rate</TableHead>
 										<TableHead className='text-right'>Amount</TableHead>
 										<TableHead>Status</TableHead>
 									</TableRow>
