@@ -1,7 +1,6 @@
 import { auth } from '@/auth';
 import { redirect, notFound } from 'next/navigation';
 import { InvoiceService } from '@/server/modules/invoice/invoice.service';
-import { AccountService } from '@/server/modules/account/account.service';
 import { InvoiceDetail } from '@/components/modules/invoice/InvoiceDetail';
 import type { InvoiceWithDetails } from '@/components/modules/invoice/InvoiceDetail';
 import { serialize } from '@/lib/serialization';
@@ -18,10 +17,7 @@ export default async function InvoiceDetailPage({
 
 	const { id } = await params;
 
-	const [invoice, accounts] = await Promise.all([
-		InvoiceService.getById(session.user.id, id),
-		AccountService.getAccounts(session.user.id),
-	]);
+	const invoice = await InvoiceService.getById(session.user.id, id);
 
 	if (!invoice) notFound();
 
@@ -29,12 +25,6 @@ export default async function InvoiceDetailPage({
 		<div className='container mx-auto py-6 md:py-10'>
 			<InvoiceDetail
 				invoice={serialize(invoice) as unknown as InvoiceWithDetails}
-				accounts={serialize(accounts).map(
-					(a: { id: string; name: string }) => ({
-						id: a.id,
-						name: a.name,
-					})
-				)}
 			/>
 		</div>
 	);

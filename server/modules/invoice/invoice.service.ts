@@ -1,5 +1,5 @@
 import prisma from '@/lib/prisma';
-import { IncomeService } from '../income/income.service';
+
 import {
 	CreateInvoiceInput,
 	UpdateInvoiceInput,
@@ -338,12 +338,13 @@ export const InvoiceService = {
 	},
 
 	/**
-	 * Mark invoice as PAID — creates a linked Income record
+	 * Mark invoice as PAID — just updates status and paidAt.
+	 * Does NOT create an income record (currency conversion between
+	 * invoice currency and account currency is not yet supported).
 	 */
 	async markAsPaid(userId: string, data: MarkAsPaidInput) {
 		const invoice = await prisma.invoice.findUniqueOrThrow({
 			where: { id: data.invoiceId, userId },
-			include: { lineItems: true },
 		});
 
 		if (
@@ -353,27 +354,11 @@ export const InvoiceService = {
 			throw new Error('Only SENT or OVERDUE invoices can be marked as paid');
 		}
 
-		// Create linked income via IncomeService
-		const income = await IncomeService.createIncome(userId, {
-			amount: invoice.totalAmount.toNumber(),
-			description: `Invoice ${invoice.invoiceNumber} — ${invoice.clientName}`,
-			date: data.date ?? new Date(),
-			categoryId: data.categoryId,
-			accountId: data.accountId,
-			isRecurring: false,
-			titheEnabled: false,
-			tithePercentage: 10,
-			emergencyFundEnabled: false,
-			emergencyFundPercentage: 10,
-		});
-
-		// Update invoice status and link to income
 		return await prisma.invoice.update({
 			where: { id: data.invoiceId, userId },
 			data: {
 				status: InvoiceStatus.PAID,
 				paidAt: data.date ?? new Date(),
-				linkedIncomeId: income.id,
 			},
 		});
 	},

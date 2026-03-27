@@ -35,11 +35,6 @@ interface LineItem {
 	amount: number;
 }
 
-interface Account {
-	id: string;
-	name: string;
-}
-
 export interface InvoiceWithDetails {
 	id: string;
 	invoiceNumber: string;
@@ -67,7 +62,6 @@ export interface InvoiceWithDetails {
 
 interface InvoiceDetailProps {
 	invoice: InvoiceWithDetails;
-	accounts: Account[];
 }
 
 // --- Invoice Preview Status Stamp ---
@@ -316,7 +310,7 @@ function InvoicePreview({
 
 // --- Main Component ---
 
-export function InvoiceDetail({ invoice, accounts }: InvoiceDetailProps) {
+export function InvoiceDetail({ invoice }: InvoiceDetailProps) {
 	const router = useRouter();
 	const [isPending, startTransition] = useTransition();
 	const [paidDialogOpen, setPaidDialogOpen] = useState(false);
@@ -487,7 +481,6 @@ export function InvoiceDetail({ invoice, accounts }: InvoiceDetailProps) {
 
 			<MarkAsPaidDialog
 				invoiceId={invoice.id}
-				accounts={accounts}
 				open={paidDialogOpen}
 				onSuccess={() => router.refresh()}
 				onClose={() => setPaidDialogOpen(false)}

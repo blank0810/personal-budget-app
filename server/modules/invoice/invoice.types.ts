@@ -24,8 +24,6 @@ export const updateInvoiceSchema = createInvoiceSchema.partial().extend({
 
 export const markAsPaidSchema = z.object({
 	invoiceId: z.string(),
-	accountId: z.string().min(1, 'Account is required'),
-	categoryId: z.string().optional(),
 	date: z.coerce.date().optional(),
 });
 
