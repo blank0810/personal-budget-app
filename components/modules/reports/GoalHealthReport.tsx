@@ -28,12 +28,14 @@ export function GoalHealthReport({ goalHealth }: GoalHealthReportProps) {
 	const underfundedCount = goals.filter((g) => g.healthStatus === 'underfunded').length;
 	const buildingCount = goals.filter((g) => g.healthStatus === 'building').length;
 	const fundedCount = goals.filter((g) => g.healthStatus === 'funded').length;
+	const insufficientDataCount = goals.filter((g) => g.healthStatus === 'insufficient_data').length;
 
 	const getOverallHealth = () => {
 		if (criticalCount > 0) return { status: 'critical', label: 'Needs Attention', color: 'text-red-600' };
 		if (underfundedCount > 0) return { status: 'warning', label: 'Building Progress', color: 'text-yellow-600' };
 		if (buildingCount > 0) return { status: 'building', label: 'On Track', color: 'text-blue-600' };
 		if (fundedCount > 0) return { status: 'funded', label: 'Fully Funded', color: 'text-green-600' };
+		if (insufficientDataCount > 0) return { status: 'insufficient_data', label: 'Insufficient Data', color: 'text-muted-foreground' };
 		return { status: 'none', label: 'No Goals', color: 'text-muted-foreground' };
 	};
 
@@ -75,6 +77,7 @@ export function GoalHealthReport({ goalHealth }: GoalHealthReportProps) {
 						{overallHealth.status === 'warning' && <AlertTriangle className='h-4 w-4 text-yellow-600' />}
 						{overallHealth.status === 'building' && <Target className='h-4 w-4 text-blue-600' />}
 						{overallHealth.status === 'funded' && <CheckCircle className='h-4 w-4 text-green-600' />}
+						{overallHealth.status === 'insufficient_data' && <Info className='h-4 w-4 text-muted-foreground' />}
 					</CardHeader>
 					<CardContent>
 						<div className={`text-2xl font-bold ${overallHealth.color}`}>{overallHealth.label}</div>
@@ -91,7 +94,9 @@ export function GoalHealthReport({ goalHealth }: GoalHealthReportProps) {
 						{hasEmergencyFund ? (
 							<>
 								<div className='text-2xl font-bold'>
-									{goalHealth.emergencyFundMonths?.toFixed(1)} months
+									{goalHealth.emergencyFundMonths === null
+									? 'Insufficient data'
+									: `${goalHealth.emergencyFundMonths?.toFixed(1)} months`}
 								</div>
 								<Badge
 									variant='outline'
@@ -102,6 +107,8 @@ export function GoalHealthReport({ goalHealth }: GoalHealthReportProps) {
 											? 'text-yellow-600 border-yellow-200'
 											: emergencyFundHealth === 'building'
 											? 'text-blue-600 border-blue-200'
+											: emergencyFundHealth === 'insufficient_data'
+											? 'text-muted-foreground border-border'
 											: 'text-green-600 border-green-200'
 									}
 								>
@@ -109,6 +116,7 @@ export function GoalHealthReport({ goalHealth }: GoalHealthReportProps) {
 									{emergencyFundHealth === 'underfunded' && 'Underfunded'}
 									{emergencyFundHealth === 'building' && 'Building'}
 									{emergencyFundHealth === 'funded' && 'Funded'}
+									{emergencyFundHealth === 'insufficient_data' && 'No Data'}
 								</Badge>
 							</>
 						) : (
@@ -144,6 +152,11 @@ export function GoalHealthReport({ goalHealth }: GoalHealthReportProps) {
 							{fundedCount > 0 && (
 								<Badge variant='outline' className='text-green-600 border-green-200'>
 									{fundedCount} Funded
+								</Badge>
+							)}
+							{insufficientDataCount > 0 && (
+								<Badge variant='outline' className='text-muted-foreground border-border'>
+									{insufficientDataCount} No Data
 								</Badge>
 							)}
 						</div>
@@ -186,6 +199,7 @@ function GoalMetricCard({ goal }: { goal: GoalHealthMetric }) {
 		underfunded: 'border-yellow-200 dark:border-yellow-800',
 		building: 'border-blue-200 dark:border-blue-800',
 		funded: 'border-green-200 dark:border-green-800',
+		insufficient_data: 'border-border',
 	};
 
 	const statusBadge: Record<string, { label: string; className: string }> = {
@@ -193,6 +207,7 @@ function GoalMetricCard({ goal }: { goal: GoalHealthMetric }) {
 		underfunded: { label: 'Underfunded', className: 'text-yellow-600 bg-yellow-50 dark:bg-yellow-950/30' },
 		building: { label: 'Building', className: 'text-blue-600 bg-blue-50 dark:bg-blue-950/30' },
 		funded: { label: 'Funded', className: 'text-green-600 bg-green-50 dark:bg-green-950/30' },
+		insufficient_data: { label: 'No Data', className: 'text-muted-foreground bg-muted' },
 	};
 
 	const badge = statusBadge[goal.healthStatus];
@@ -218,6 +233,11 @@ function GoalMetricCard({ goal }: { goal: GoalHealthMetric }) {
 					{isMonthsCoverage && goal.monthsCoverage != null ? (
 						<>
 							<span>{goal.monthsCoverage.toFixed(1)} months coverage</span>
+							<span>{formatCurrency(goal.balance)}</span>
+						</>
+					) : isMonthsCoverage && goal.monthsCoverage === null ? (
+						<>
+							<span>Insufficient expense data</span>
 							<span>{formatCurrency(goal.balance)}</span>
 						</>
 					) : (

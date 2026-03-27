@@ -80,6 +80,19 @@ enum TransactionSource {
   RECURRING
 }
 
+enum InvoiceStatus {
+  DRAFT
+  SENT
+  PAID
+  OVERDUE
+  CANCELLED
+}
+
+enum WorkEntryStatus {
+  UNBILLED
+  BILLED
+}
+
 // ── Models ─────────────────────────────────────────────
 
 // User model
@@ -102,6 +115,8 @@ model User {
   lastLoginAt           DateTime?
   lastSeenChangelogAt   DateTime?
   adminSessionExpiresAt DateTime?
+  resetConfirmToken     String?
+  resetConfirmExpiresAt DateTime?
 
   // Relations
   accounts                Account[]
@@ -116,6 +131,9 @@ model User {
   featureRequests         FeatureRequest[]
   recurringTransactions   RecurringTransaction[]
   goals                   Goal[]
+  invoices                Invoice[]
+  clients                 Client[]
+  workEntries             WorkEntry[]
 
   @@map("users")
 }
@@ -243,9 +261,10 @@ model Income {
   updatedAt       DateTime          @updatedAt
 
   // Relations
-  category Category @relation(fields: [categoryId], references: [id], onDelete: Restrict)
-  account  Account? @relation(fields: [accountId], references: [id], onDelete: SetNull)
-  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  category       Category @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  account        Account? @relation(fields: [accountId], references: [id], onDelete: SetNull)
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  linkedInvoice  Invoice?
 
   @@index([userId, date])
   @@index([importBatchId])
@@ -297,7 +316,8 @@ model Budget {
   // Relations
   category Category  @relation(fields: [categoryId], references: [id], onDelete: Restrict)
   user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  expenses Expense[] // Track expenses under this budget
+  expenses              Expense[]              // Track expenses under this budget
+  recurringTransactions RecurringTransaction[] // Recurring transactions linked to this budget
 
   @@unique([userId, name, month])  // Unique by name+month (allows multiple per category)
   @@index([userId, month])
@@ -362,6 +382,7 @@ model FeatureRequest {
   userId      String?
   ip          String?
   createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
 
   user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
 
@@ -384,17 +405,20 @@ model RecurringTransaction {
   lastRunDate   DateTime?
   isActive      Boolean            @default(true)
   categoryId    String
-  accountId     String?
+  accountId     String
+  budgetId      String?
   userId        String
   createdAt     DateTime           @default(now())
   updatedAt     DateTime           @updatedAt
 
   category Category @relation(fields: [categoryId], references: [id], onDelete: Restrict)
-  account  Account? @relation(fields: [accountId], references: [id], onDelete: SetNull)
+  account  Account  @relation(fields: [accountId], references: [id], onDelete: Restrict)
+  budget   Budget?  @relation(fields: [budgetId], references: [id], onDelete: SetNull)
   user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, isActive])
   @@index([nextRunDate, isActive])
+  @@index([budgetId])
   @@map("recurring_transactions")
 }
 
@@ -468,4 +492,110 @@ model CronRunLog {
 
   @@index([key, runAt])
   @@map("cron_run_logs")
+}
+
+// ── Invoice Models ───────────────────────────────────────
+
+model Invoice {
+  id              String        @id @default(cuid())
+  invoiceNumber   String
+  status          InvoiceStatus @default(DRAFT)
+  clientName      String
+  clientEmail     String?
+  clientAddress   String?       @db.Text
+  clientPhone     String?
+  currency        String        @default("USD")
+  issueDate       DateTime
+  dueDate         DateTime
+  subtotal        Decimal       @db.Decimal(12, 2) @default(0)
+  taxRate         Decimal?      @db.Decimal(5, 2)
+  taxAmount       Decimal       @db.Decimal(12, 2) @default(0)
+  totalAmount     Decimal       @db.Decimal(12, 2) @default(0)
+  notes           String?       @db.Text
+  paidAt          DateTime?
+  linkedIncomeId  String?       @unique
+  clientId        String?
+  userId          String
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  user            User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  linkedIncome    Income?       @relation(fields: [linkedIncomeId], references: [id], onDelete: SetNull)
+  client          Client?       @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  lineItems       InvoiceLineItem[]
+
+  @@unique([userId, invoiceNumber])
+  @@index([userId, status])
+  @@index([userId, dueDate])
+  @@map("invoices")
+}
+
+model InvoiceLineItem {
+  id          String   @id @default(cuid())
+  description String
+  quantity    Decimal  @db.Decimal(10, 2) @default(1)
+  unitPrice   Decimal  @db.Decimal(10, 2)
+  amount      Decimal  @db.Decimal(12, 2)
+  sortOrder    Int      @default(0)
+  workEntryId  String?  @unique
+  invoiceId    String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  workEntry WorkEntry? @relation(fields: [workEntryId], references: [id], onDelete: SetNull)
+  invoice   Invoice    @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  @@index([invoiceId])
+  @@index([workEntryId])
+  @@map("invoice_line_items")
+}
+
+// ── Client & Work Entry Models ──────────────────────────
+
+model Client {
+  id           String   @id @default(cuid())
+  name         String
+  email        String?
+  phone        String?
+  address      String?  @db.Text
+  defaultRate  Decimal? @db.Decimal(10, 2)
+  currency     String   @default("USD")
+  notes        String?  @db.Text
+  isArchived   Boolean  @default(false)
+  userId       String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  user         User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  workEntries  WorkEntry[]
+  invoices     Invoice[]
+
+  @@unique([userId, name])
+  @@index([userId])
+  @@map("clients")
+}
+
+model WorkEntry {
+  id                String          @id @default(cuid())
+  description       String
+  date              DateTime
+  quantity          Decimal         @db.Decimal(10, 2) @default(1)
+  unitPrice         Decimal         @db.Decimal(10, 2)
+  amount            Decimal         @db.Decimal(12, 2)
+  status            WorkEntryStatus @default(UNBILLED)
+  currency          String          @default("USD")
+  lastInvoiceId     String?
+  lastInvoiceNumber String?
+  clientId          String
+  userId            String
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+
+  client            Client          @relation(fields: [clientId], references: [id], onDelete: Restrict)
+  user              User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  linkedLineItem    InvoiceLineItem?
+
+  @@index([userId, clientId, status])
+  @@index([userId, date])
+  @@map("work_entries")
 }

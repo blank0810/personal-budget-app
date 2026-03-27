@@ -9,8 +9,8 @@ export const createRecurringSchema = z.object({
 	startDate: z.coerce.date(),
 	endDate: z.coerce.date().optional(),
 	categoryId: z.string().min(1, 'Category is required'),
-	accountId: z.string().optional(),
-	budgetId: z.string().optional(),
+	accountId: z.string().min(1, 'Account is required'),
+	budgetId: z.string().optional().nullable(),
 });
 
 export const updateRecurringSchema = createRecurringSchema.partial().extend({

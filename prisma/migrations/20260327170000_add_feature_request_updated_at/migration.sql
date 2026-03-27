@@ -1,0 +1,2 @@
+-- AlterTable
+ALTER TABLE "feature_requests" ADD COLUMN "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP;

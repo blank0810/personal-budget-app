@@ -29,7 +29,7 @@ export type CreateGoalInput = z.infer<typeof createGoalSchema>;
 export type UpdateGoalInput = z.infer<typeof updateGoalSchema>;
 export type AddContributionInput = z.infer<typeof addContributionSchema>;
 
-export type GoalHealthStatus = 'critical' | 'underfunded' | 'building' | 'funded';
+export type GoalHealthStatus = 'critical' | 'underfunded' | 'building' | 'funded' | 'insufficient_data';
 
 export interface GoalHealthMetric {
 	id: string;

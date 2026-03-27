@@ -3,16 +3,32 @@
 import { auth, unstable_update } from '@/auth';
 import { OnboardingService } from './onboarding.service';
 import { clearCache } from '@/server/actions/cache';
+import { setCurrencySchema } from './onboarding.types';
 
 export async function setUserCurrency(currency: string) {
 	const session = await auth();
 	if (!session?.user?.id)
 		return { success: false, error: 'Not authenticated' };
 
+	const validatedFields = setCurrencySchema.safeParse({ currency });
+
+	if (!validatedFields.success) {
+		return {
+			success: false,
+			error: 'Invalid fields',
+			issues: validatedFields.error.issues,
+		};
+	}
+
 	try {
-		await OnboardingService.setCurrency(session.user.id, currency);
+		await OnboardingService.setCurrency(
+			session.user.id,
+			validatedFields.data.currency
+		);
 		// Update the JWT so middleware picks up the new currency
-		await unstable_update({ user: { currency } });
+		await unstable_update({
+			user: { currency: validatedFields.data.currency },
+		});
 		return { success: true };
 	} catch (error) {
 		return {

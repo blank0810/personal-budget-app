@@ -279,18 +279,23 @@ export const GoalService = {
 				monthsCoverage =
 					monthlyExpenseBaseline > 0
 						? balance / monthlyExpenseBaseline
-						: balance > 0 ? 999 : 0;
+						: null;
 
-				progressPercent = (monthsCoverage / thresholdHigh) * 100;
-
-				if (monthsCoverage < thresholdLow) {
-					healthStatus = 'critical';
-				} else if (monthsCoverage < thresholdMid) {
-					healthStatus = 'underfunded';
-				} else if (monthsCoverage < thresholdHigh) {
-					healthStatus = 'building';
+				if (monthsCoverage === null) {
+					progressPercent = 0;
+					healthStatus = 'insufficient_data';
 				} else {
-					healthStatus = 'funded';
+					progressPercent = (monthsCoverage / thresholdHigh) * 100;
+
+					if (monthsCoverage < thresholdLow) {
+						healthStatus = 'critical';
+					} else if (monthsCoverage < thresholdMid) {
+						healthStatus = 'underfunded';
+					} else if (monthsCoverage < thresholdHigh) {
+						healthStatus = 'building';
+					} else {
+						healthStatus = 'funded';
+					}
 				}
 			} else {
 				progressPercent = target > 0 ? (balance / target) * 100 : 0;

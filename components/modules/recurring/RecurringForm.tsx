@@ -16,9 +16,17 @@ import { createRecurringAction } from '@/server/modules/recurring/recurring.cont
 import { toast } from 'sonner';
 import { Loader2 } from 'lucide-react';
 
+interface Budget {
+	id: string;
+	name: string;
+	categoryId: string;
+	amount: number;
+}
+
 interface RecurringFormProps {
 	categories: Array<{ id: string; name: string; type: string }>;
 	accounts: Array<{ id: string; name: string }>;
+	budgets: Budget[];
 }
 
 const FREQUENCIES = [
@@ -29,14 +37,28 @@ const FREQUENCIES = [
 	{ value: 'YEARLY', label: 'Yearly' },
 ];
 
-export function RecurringForm({ categories, accounts }: RecurringFormProps) {
+export function RecurringForm({ categories, accounts, budgets }: RecurringFormProps) {
 	const [loading, setLoading] = useState(false);
 	const [type, setType] = useState<'INCOME' | 'EXPENSE'>('EXPENSE');
 	const [amount, setAmount] = useState<number | undefined>(undefined);
+	const [categoryId, setCategoryId] = useState('');
+	const [budgetId, setBudgetId] = useState('');
 
-	const filteredCategories = categories.filter(
-		(c) => c.type === type
-	);
+	const filteredCategories = categories.filter((c) => c.type === type);
+
+	// Budgets filtered to the selected category (only relevant for EXPENSE)
+	const filteredBudgets = budgets.filter((b) => b.categoryId === categoryId);
+
+	function handleTypeChange(v: string) {
+		setType(v as 'INCOME' | 'EXPENSE');
+		setCategoryId('');
+		setBudgetId('');
+	}
+
+	function handleCategoryChange(v: string) {
+		setCategoryId(v);
+		setBudgetId('');
+	}
 
 	async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
 		e.preventDefault();
@@ -46,6 +68,10 @@ export function RecurringForm({ categories, accounts }: RecurringFormProps) {
 		const formData = new FormData(form);
 		formData.set('type', type);
 		formData.set('amount', String(amount ?? 0));
+		formData.set('categoryId', categoryId);
+		if (budgetId) {
+			formData.set('budgetId', budgetId);
+		}
 
 		const result = await createRecurringAction(formData);
 		setLoading(false);
@@ -56,6 +82,8 @@ export function RecurringForm({ categories, accounts }: RecurringFormProps) {
 			toast.success('Recurring transaction created');
 			form.reset();
 			setAmount(undefined);
+			setCategoryId('');
+			setBudgetId('');
 		}
 	}
 
@@ -75,7 +103,7 @@ export function RecurringForm({ categories, accounts }: RecurringFormProps) {
 				<Label>Type</Label>
 				<Select
 					value={type}
-					onValueChange={(v) => setType(v as 'INCOME' | 'EXPENSE')}
+					onValueChange={handleTypeChange}
 				>
 					<SelectTrigger>
 						<SelectValue />
@@ -98,7 +126,11 @@ export function RecurringForm({ categories, accounts }: RecurringFormProps) {
 
 			<div className='space-y-2'>
 				<Label>Category</Label>
-				<Select name='categoryId' required>
+				<Select
+					value={categoryId}
+					onValueChange={handleCategoryChange}
+					required
+				>
 					<SelectTrigger>
 						<SelectValue placeholder='Select category' />
 					</SelectTrigger>
@@ -112,11 +144,40 @@ export function RecurringForm({ categories, accounts }: RecurringFormProps) {
 				</Select>
 			</div>
 
+			{type === 'EXPENSE' && (
+				<div className='space-y-2'>
+					<Label>Budget (optional)</Label>
+					<Select
+						value={budgetId}
+						onValueChange={setBudgetId}
+					>
+						<SelectTrigger>
+							<SelectValue placeholder='No budget linked' />
+						</SelectTrigger>
+						<SelectContent>
+							{filteredBudgets.length === 0 ? (
+								<SelectItem value='__none' disabled>
+									{categoryId
+										? 'No budgets for this category'
+										: 'Select a category first'}
+								</SelectItem>
+							) : (
+								filteredBudgets.map((b) => (
+									<SelectItem key={b.id} value={b.id}>
+										{b.name}
+									</SelectItem>
+								))
+							)}
+						</SelectContent>
+					</Select>
+				</div>
+			)}
+
 			<div className='space-y-2'>
-				<Label>Account (optional)</Label>
-				<Select name='accountId'>
+				<Label>Account</Label>
+				<Select name='accountId' required>
 					<SelectTrigger>
-						<SelectValue placeholder='No account linked' />
+						<SelectValue placeholder='Select account' />
 					</SelectTrigger>
 					<SelectContent>
 						{accounts.map((a) => (

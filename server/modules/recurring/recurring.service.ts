@@ -1,5 +1,7 @@
 import prisma from '@/lib/prisma';
 import { CreateRecurringInput, UpdateRecurringInput } from './recurring.types';
+import { IncomeService } from '../income/income.service';
+import { ExpenseService } from '../expense/expense.service';
 import {
 	addDays,
 	addWeeks,
@@ -22,9 +24,10 @@ export const RecurringService = {
 				nextRunDate: data.startDate,
 				categoryId: data.categoryId,
 				accountId: data.accountId,
+				budgetId: data.budgetId || null,
 				userId,
 			},
-			include: { category: true, account: true },
+			include: { category: true, account: true, budget: true },
 		});
 	},
 
@@ -33,7 +36,7 @@ export const RecurringService = {
 		return prisma.recurringTransaction.update({
 			where: { id, userId },
 			data: updateData,
-			include: { category: true, account: true },
+			include: { category: true, account: true, budget: true },
 		});
 	},
 
@@ -46,7 +49,7 @@ export const RecurringService = {
 	async getAll(userId: string) {
 		return prisma.recurringTransaction.findMany({
 			where: { userId },
-			include: { category: true, account: true },
+			include: { category: true, account: true, budget: true },
 			orderBy: { nextRunDate: 'asc' },
 		});
 	},
@@ -54,7 +57,7 @@ export const RecurringService = {
 	async getById(userId: string, id: string) {
 		return prisma.recurringTransaction.findUnique({
 			where: { id, userId },
-			include: { category: true, account: true },
+			include: { category: true, account: true, budget: true },
 		});
 	},
 
@@ -73,7 +76,7 @@ export const RecurringService = {
 
 	/**
 	 * Process all due recurring transactions.
-	 * Each execution is wrapped in its own $transaction for atomicity.
+	 * Delegates to IncomeService/ExpenseService for transaction creation + balance updates.
 	 */
 	async processDue(): Promise<{
 		processed: number;
@@ -88,7 +91,6 @@ export const RecurringService = {
 				nextRunDate: { lte: today },
 				OR: [{ endDate: null }, { endDate: { gte: today } }],
 			},
-			include: { account: true },
 		});
 
 		let processed = 0;
@@ -97,97 +99,67 @@ export const RecurringService = {
 
 		for (const recurring of dueTransactions) {
 			try {
-				await prisma.$transaction(async (tx) => {
-					// Create the actual transaction record
-					if (recurring.type === 'INCOME') {
-						await tx.income.create({
-							data: {
-								amount: recurring.amount,
-								description: `[Auto] ${recurring.name}`,
-								date: today,
-								categoryId: recurring.categoryId,
-								accountId: recurring.accountId,
-								userId: recurring.userId,
-								source: 'RECURRING',
-							},
-						});
+				// Map frequency to recurringPeriod (only MONTHLY, WEEKLY, YEARLY are valid)
+				const recurringPeriod = (['MONTHLY', 'WEEKLY', 'YEARLY'] as const).includes(
+					recurring.frequency as 'MONTHLY' | 'WEEKLY' | 'YEARLY'
+				)
+					? (recurring.frequency as 'MONTHLY' | 'WEEKLY' | 'YEARLY')
+					: undefined;
 
-						// Update account balance if linked
-						if (recurring.accountId && recurring.account) {
-							await tx.account.update({
-								where: { id: recurring.accountId },
-								data: {
-									balance: recurring.account.isLiability
-										? { decrement: recurring.amount }
-										: { increment: recurring.amount },
-								},
-							});
-						}
-					} else {
-						await tx.expense.create({
-							data: {
-								amount: recurring.amount,
-								description: `[Auto] ${recurring.name}`,
-								date: today,
-								categoryId: recurring.categoryId,
-								accountId: recurring.accountId,
-								userId: recurring.userId,
-								source: 'RECURRING',
-							},
-						});
-
-						// Update account balance if linked
-						if (recurring.accountId && recurring.account) {
-							await tx.account.update({
-								where: { id: recurring.accountId },
-								data: {
-									balance: recurring.account.isLiability
-										? { increment: recurring.amount }
-										: { decrement: recurring.amount },
-								},
-							});
-						}
-					}
-
-					// Advance nextRunDate
-					const nextDate = calculateNextRunDate(
-						recurring.nextRunDate,
-						recurring.frequency
-					);
-
-					// If endDate is set and next date exceeds it, deactivate
-					const shouldDeactivate =
-						recurring.endDate && nextDate > recurring.endDate;
-
-					await tx.recurringTransaction.update({
-						where: { id: recurring.id },
-						data: {
-							nextRunDate: nextDate,
-							lastRunDate: today,
-							isActive: !shouldDeactivate,
-						},
+				// Create the actual transaction via the appropriate service
+				if (recurring.type === 'INCOME') {
+					await IncomeService.createIncome(recurring.userId, {
+						amount: Number(recurring.amount),
+						description: `[Auto] ${recurring.name}`,
+						date: today,
+						categoryId: recurring.categoryId,
+						accountId: recurring.accountId,
+						isRecurring: true,
+						recurringPeriod,
+						// Disable tithe and EF for auto-generated — user can configure separately
+						titheEnabled: false,
+						tithePercentage: 10,
+						emergencyFundEnabled: false,
+						emergencyFundPercentage: 10,
 					});
+				} else {
+					await ExpenseService.createExpense(recurring.userId, {
+						amount: Number(recurring.amount),
+						description: `[Auto] ${recurring.name}`,
+						date: today,
+						categoryId: recurring.categoryId,
+						accountId: recurring.accountId,
+						budgetId: recurring.budgetId || undefined,
+						isRecurring: true,
+						recurringPeriod,
+					});
+				}
+
+				// Advance nextRunDate (separate update, no outer transaction needed)
+				const nextDate = calculateNextRunDate(
+					recurring.nextRunDate,
+					recurring.frequency
+				);
+				const shouldDeactivate =
+					recurring.endDate && nextDate > recurring.endDate;
+
+				await prisma.recurringTransaction.update({
+					where: { id: recurring.id },
+					data: {
+						nextRunDate: nextDate,
+						lastRunDate: today,
+						...(shouldDeactivate && { isActive: false }),
+					},
 				});
 
 				processed++;
 			} catch (error) {
 				failed++;
 				errors.push(
-					`Failed to process "${recurring.name}" (${recurring.id}): ${error instanceof Error ? error.message : 'Unknown error'}`
+					`${recurring.name}: ${error instanceof Error ? error.message : 'Unknown error'}`
 				);
 			}
 		}
-
-		// Log the cron run
-		await prisma.cronRunLog.create({
-			data: {
-				key: 'process-recurring',
-				status: failed === 0 ? 'success' : 'failed',
-				processedCount: processed,
-				errorMessage:
-					errors.length > 0 ? errors.join('; ') : undefined,
-			},
-		});
 
 		return { processed, failed, errors };
 	},

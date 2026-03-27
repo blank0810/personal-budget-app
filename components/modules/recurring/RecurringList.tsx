@@ -29,14 +29,21 @@ import {
 import { useCurrency } from '@/lib/contexts/currency-context';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
-import { Pause, Play, Trash2 } from 'lucide-react';
+import { Pause, Pencil, Play, Trash2 } from 'lucide-react';
+import { EditRecurringDialog } from './EditRecurringDialog';
 
 interface RecurringItem {
 	id: string;
 	name: string;
 	type: string;
 	amount: number | { toNumber(): number };
+	description?: string | null;
 	frequency: string;
+	startDate: string | Date;
+	endDate?: string | Date | null;
+	categoryId: string;
+	accountId: string;
+	budgetId?: string | null;
 	nextRunDate: string | Date;
 	lastRunDate: string | Date | null;
 	isActive: boolean;
@@ -46,6 +53,9 @@ interface RecurringItem {
 
 interface RecurringListProps {
 	items: RecurringItem[];
+	categories: { id: string; name: string; type: string }[];
+	accounts: { id: string; name: string; type: string }[];
+	budgets: { id: string; name: string; categoryId: string; amount: number }[];
 }
 
 const FREQUENCY_LABELS: Record<string, string> = {
@@ -56,9 +66,15 @@ const FREQUENCY_LABELS: Record<string, string> = {
 	YEARLY: 'Yearly',
 };
 
-export function RecurringList({ items }: RecurringListProps) {
+export function RecurringList({
+	items,
+	categories,
+	accounts,
+	budgets,
+}: RecurringListProps) {
 	const { formatCurrency } = useCurrency();
 	const [loadingId, setLoadingId] = useState<string | null>(null);
+	const [editingItem, setEditingItem] = useState<RecurringItem | null>(null);
 
 	async function handleToggle(id: string) {
 		setLoadingId(id);
@@ -93,136 +109,177 @@ export function RecurringList({ items }: RecurringListProps) {
 	}
 
 	return (
-		<div className='overflow-x-auto'>
-			<Table>
-				<TableHeader>
-					<TableRow>
-						<TableHead>Name</TableHead>
-						<TableHead>Type</TableHead>
-						<TableHead>Amount</TableHead>
-						<TableHead className='hidden md:table-cell'>
-							Category
-						</TableHead>
-						<TableHead className='hidden md:table-cell'>
-							Frequency
-						</TableHead>
-						<TableHead className='hidden lg:table-cell'>
-							Next Run
-						</TableHead>
-						<TableHead>Status</TableHead>
-						<TableHead className='text-right'>Actions</TableHead>
-					</TableRow>
-				</TableHeader>
-				<TableBody>
-					{items.map((item) => (
-						<TableRow
-							key={item.id}
-							className={!item.isActive ? 'opacity-50' : ''}
-						>
-							<TableCell className='font-medium'>
-								{item.name}
-							</TableCell>
-							<TableCell>
-								<Badge
-									variant={
-										item.type === 'INCOME'
-											? 'default'
-											: 'destructive'
-									}
-								>
-									{item.type}
-								</Badge>
-							</TableCell>
-							<TableCell>
-								{formatCurrency(Number(item.amount))}
-							</TableCell>
-							<TableCell className='hidden md:table-cell'>
-								{item.category.name}
-							</TableCell>
-							<TableCell className='hidden md:table-cell'>
-								{FREQUENCY_LABELS[item.frequency] ||
-									item.frequency}
-							</TableCell>
-							<TableCell className='hidden lg:table-cell'>
-								{format(
-									new Date(item.nextRunDate),
-									'MMM d, yyyy'
-								)}
-							</TableCell>
-							<TableCell>
-								<Badge
-									variant={
-										item.isActive ? 'outline' : 'secondary'
-									}
-								>
-									{item.isActive ? 'Active' : 'Paused'}
-								</Badge>
-							</TableCell>
-							<TableCell className='text-right'>
-								<div className='flex justify-end gap-1'>
-									<Button
-										variant='ghost'
-										size='icon'
-										onClick={() => handleToggle(item.id)}
-										disabled={loadingId === item.id}
-										title={
-											item.isActive
-												? 'Pause'
-												: 'Resume'
+		<>
+			<div className='overflow-x-auto'>
+				<Table>
+					<TableHeader>
+						<TableRow>
+							<TableHead>Name</TableHead>
+							<TableHead>Type</TableHead>
+							<TableHead>Amount</TableHead>
+							<TableHead className='hidden md:table-cell'>
+								Category
+							</TableHead>
+							<TableHead className='hidden md:table-cell'>
+								Frequency
+							</TableHead>
+							<TableHead className='hidden lg:table-cell'>
+								Next Run
+							</TableHead>
+							<TableHead>Status</TableHead>
+							<TableHead className='text-right'>Actions</TableHead>
+						</TableRow>
+					</TableHeader>
+					<TableBody>
+						{items.map((item) => (
+							<TableRow
+								key={item.id}
+								className={!item.isActive ? 'opacity-50' : ''}
+							>
+								<TableCell className='font-medium'>
+									{item.name}
+								</TableCell>
+								<TableCell>
+									<Badge
+										variant={
+											item.type === 'INCOME'
+												? 'default'
+												: 'destructive'
 										}
 									>
-										{item.isActive ? (
-											<Pause className='h-4 w-4' />
-										) : (
-											<Play className='h-4 w-4' />
-										)}
-									</Button>
-									<AlertDialog>
-										<AlertDialogTrigger asChild>
-											<Button
-												variant='ghost'
-												size='icon'
-												disabled={
-													loadingId === item.id
-												}
-											>
-												<Trash2 className='h-4 w-4 text-destructive' />
-											</Button>
-										</AlertDialogTrigger>
-										<AlertDialogContent>
-											<AlertDialogHeader>
-												<AlertDialogTitle>
-													Delete &quot;{item.name}
-													&quot;?
-												</AlertDialogTitle>
-												<AlertDialogDescription>
-													This will permanently
-													delete this recurring
-													transaction. Existing
-													transactions created by
-													it will not be affected.
-												</AlertDialogDescription>
-											</AlertDialogHeader>
-											<AlertDialogFooter>
-												<AlertDialogCancel>
-													Cancel
-												</AlertDialogCancel>
-												<AlertDialogAction
-													onClick={() =>
-														handleDelete(item.id)
+										{item.type}
+									</Badge>
+								</TableCell>
+								<TableCell>
+									{formatCurrency(Number(item.amount))}
+								</TableCell>
+								<TableCell className='hidden md:table-cell'>
+									{item.category.name}
+								</TableCell>
+								<TableCell className='hidden md:table-cell'>
+									{FREQUENCY_LABELS[item.frequency] ||
+										item.frequency}
+								</TableCell>
+								<TableCell className='hidden lg:table-cell'>
+									{format(
+										new Date(item.nextRunDate),
+										'MMM d, yyyy'
+									)}
+								</TableCell>
+								<TableCell>
+									<Badge
+										variant={
+											item.isActive
+												? 'outline'
+												: 'secondary'
+										}
+									>
+										{item.isActive ? 'Active' : 'Paused'}
+									</Badge>
+								</TableCell>
+								<TableCell className='text-right'>
+									<div className='flex justify-end gap-1'>
+										<Button
+											variant='ghost'
+											size='icon'
+											onClick={() =>
+												handleToggle(item.id)
+											}
+											disabled={loadingId === item.id}
+											title={
+												item.isActive
+													? 'Pause'
+													: 'Resume'
+											}
+										>
+											{item.isActive ? (
+												<Pause className='h-4 w-4' />
+											) : (
+												<Play className='h-4 w-4' />
+											)}
+										</Button>
+										<Button
+											variant='ghost'
+											size='icon'
+											onClick={() =>
+												setEditingItem(item)
+											}
+											disabled={loadingId === item.id}
+											title='Edit'
+										>
+											<Pencil className='h-4 w-4' />
+										</Button>
+										<AlertDialog>
+											<AlertDialogTrigger asChild>
+												<Button
+													variant='ghost'
+													size='icon'
+													disabled={
+														loadingId === item.id
 													}
 												>
-													Delete
-												</AlertDialogAction>
-											</AlertDialogFooter>
-										</AlertDialogContent>
-									</AlertDialog>
-								</div>
-							</TableCell>
-						</TableRow>
-					))}
-				</TableBody>
-			</Table>
-		</div>
+													<Trash2 className='h-4 w-4 text-destructive' />
+												</Button>
+											</AlertDialogTrigger>
+											<AlertDialogContent>
+												<AlertDialogHeader>
+													<AlertDialogTitle>
+														Delete &quot;{item.name}
+														&quot;?
+													</AlertDialogTitle>
+													<AlertDialogDescription>
+														This will permanently
+														delete this recurring
+														transaction. Existing
+														transactions created by
+														it will not be affected.
+													</AlertDialogDescription>
+												</AlertDialogHeader>
+												<AlertDialogFooter>
+													<AlertDialogCancel>
+														Cancel
+													</AlertDialogCancel>
+													<AlertDialogAction
+														onClick={() =>
+															handleDelete(item.id)
+														}
+													>
+														Delete
+													</AlertDialogAction>
+												</AlertDialogFooter>
+											</AlertDialogContent>
+										</AlertDialog>
+									</div>
+								</TableCell>
+							</TableRow>
+						))}
+					</TableBody>
+				</Table>
+			</div>
+
+			{editingItem && (
+				<EditRecurringDialog
+					open={editingItem !== null}
+					onOpenChange={(open) => {
+						if (!open) setEditingItem(null);
+					}}
+					recurring={{
+						...editingItem,
+						amount: Number(editingItem.amount),
+						startDate:
+							editingItem.startDate instanceof Date
+								? editingItem.startDate.toISOString()
+								: String(editingItem.startDate),
+						endDate:
+							editingItem.endDate instanceof Date
+								? editingItem.endDate.toISOString()
+								: (editingItem.endDate ?? null),
+					}}
+					categories={categories}
+					accounts={accounts}
+					budgets={budgets}
+				/>
+			)}
+		</>
 	);
 }

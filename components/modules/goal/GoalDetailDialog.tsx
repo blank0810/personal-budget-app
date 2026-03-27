@@ -62,6 +62,11 @@ const HEALTH_STATUS_MAP: Record<
 		color: 'text-green-700 dark:text-green-400',
 		bg: 'bg-green-100 dark:bg-green-900/50',
 	},
+	insufficient_data: {
+		label: 'No Data',
+		color: 'text-muted-foreground',
+		bg: 'bg-muted',
+	},
 };
 
 interface GoalDetailDialogProps {
@@ -160,7 +165,9 @@ export function GoalDetailDialog({ goal, onClose }: GoalDetailDialogProps) {
 								{isMonthsCoverage ? (
 									<>
 										<span>
-											{goal.monthsCoverage !== undefined
+											{goal.monthsCoverage === null
+												? 'Insufficient expense data'
+												: goal.monthsCoverage !== undefined
 												? `${goal.monthsCoverage.toFixed(1)} months of coverage`
 												: formatCurrency(current)}
 										</span>

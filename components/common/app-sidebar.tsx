@@ -8,12 +8,11 @@ import {
 	PieChart,
 	BarChart3,
 	Sparkles,
-	MessageSquarePlus,
 	Wallet,
 	Shield,
 	Upload,
 	Target,
-	Coffee,
+	FileText,
 } from 'lucide-react';
 
 import { NavMain } from '@/components/common/nav-main';
@@ -41,13 +40,11 @@ const navItems = [
 		title: 'Transactions',
 		url: '#',
 		icon: ArrowRightLeft,
-		isActive: true,
 		items: [
 			{ title: 'Income', url: '/income' },
 			{ title: 'Expenses', url: '/expense' },
 			{ title: 'Transfers', url: '/transfers' },
 			{ title: 'Payments', url: '/payments' },
-			{ title: 'Recurring', url: '/recurring' },
 		],
 	},
 	{
@@ -56,34 +53,29 @@ const navItems = [
 		icon: PieChart,
 	},
 	{
-		title: 'Accounts',
-		url: '/accounts',
-		icon: CreditCard,
-	},
-	{
 		title: 'Goals',
 		url: '/goals',
 		icon: Target,
 	},
 	{
-		title: 'Import',
-		url: '/import',
-		icon: Upload,
+		title: 'Invoices',
+		url: '#',
+		icon: FileText,
+		items: [
+			{ title: 'Clients', url: '/clients' },
+			{ title: 'Entries', url: '/entries' },
+			{ title: 'All Invoices', url: '/invoices' },
+		],
+	},
+	{
+		title: 'Accounts',
+		url: '/accounts',
+		icon: CreditCard,
 	},
 	{
 		title: 'Reports',
 		url: '/reports',
 		icon: BarChart3,
-	},
-	{
-		title: 'Updates',
-		url: '/changelog',
-		icon: Sparkles,
-	},
-	{
-		title: 'Feedback',
-		url: '/changelog#request',
-		icon: MessageSquarePlus,
 	},
 ];
 
@@ -143,7 +135,7 @@ function AppSidebarInner({ user, signOutAction, hasNewChangelog, ...props }: App
 			<SidebarContent>
 				<NavMain
 					items={
-						(user.role === 'ADMIN'
+						user.role === 'ADMIN'
 							? [
 									...navItems,
 									{
@@ -153,11 +145,6 @@ function AppSidebarInner({ user, signOutAction, hasNewChangelog, ...props }: App
 									},
 								]
 							: navItems
-						).map((item) =>
-							item.title === 'Updates' && hasNewChangelog
-								? { ...item, badge: true }
-								: item
-						)
 					}
 				/>
 			</SidebarContent>
@@ -166,17 +153,33 @@ function AppSidebarInner({ user, signOutAction, hasNewChangelog, ...props }: App
 				<SidebarMenu>
 					<SidebarMenuItem>
 						<SidebarMenuButton asChild size='sm'>
-							<a
-								href='https://ko-fi.com/blanklob'
-								target='_blank'
-								rel='noopener noreferrer'
-							>
-								<Coffee className='h-4 w-4' />
-								<span>Buy me a coffee</span>
+							<a href='/recurring'>
+								<ArrowRightLeft className='h-4 w-4' />
+								<span>Recurring</span>
+							</a>
+						</SidebarMenuButton>
+					</SidebarMenuItem>
+					<SidebarMenuItem>
+						<SidebarMenuButton asChild size='sm'>
+							<a href='/import'>
+								<Upload className='h-4 w-4' />
+								<span>Import</span>
+							</a>
+						</SidebarMenuButton>
+					</SidebarMenuItem>
+					<SidebarMenuItem>
+						<SidebarMenuButton asChild size='sm'>
+							<a href='/changelog'>
+								<Sparkles className='h-4 w-4' />
+								<span>Changelog</span>
+								{hasNewChangelog && (
+									<span className='ml-auto h-2 w-2 rounded-full bg-primary' />
+								)}
 							</a>
 						</SidebarMenuButton>
 					</SidebarMenuItem>
 				</SidebarMenu>
+				<SidebarSeparator />
 				<NavUser user={user} signOutAction={signOutAction} />
 			</SidebarFooter>
 			<SidebarRail />

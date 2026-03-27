@@ -12,17 +12,41 @@ const RATE_LIMIT_WINDOW = 3600; // 1 hour in seconds
 export const FeatureRequestService = {
 	/**
 	 * Get all feature requests (public fields only, newest first)
+	 * Excludes DECLINED requests from public view
 	 */
 	async getAll() {
 		return prisma.featureRequest.findMany({
+			where: { status: { not: 'DECLINED' } },
 			select: {
 				id: true,
 				title: true,
 				description: true,
 				category: true,
+				status: true,
+				updatedAt: true,
 				createdAt: true,
 			},
 			orderBy: { createdAt: 'desc' },
+		});
+	},
+
+	/**
+	 * Get completed feature requests (for changelog/completed section)
+	 */
+	async getCompleted() {
+		return prisma.featureRequest.findMany({
+			where: { status: 'COMPLETED' },
+			select: {
+				id: true,
+				title: true,
+				description: true,
+				category: true,
+				status: true,
+				adminNotes: true,
+				updatedAt: true,
+				createdAt: true,
+			},
+			orderBy: { updatedAt: 'desc' },
 		});
 	},
 

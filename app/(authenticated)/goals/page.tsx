@@ -30,7 +30,7 @@ export default async function GoalsPage() {
 		const metric = goalHealth.goals.find((m) => m.id === g.id);
 		return {
 			...g,
-			monthsCoverage: metric?.monthsCoverage ?? undefined,
+			monthsCoverage: metric ? metric.monthsCoverage : undefined,
 			healthStatus: metric?.healthStatus ?? undefined,
 		};
 	});

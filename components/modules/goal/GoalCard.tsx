@@ -68,6 +68,11 @@ const HEALTH_STATUS_MAP: Record<
 		color: 'text-green-700 dark:text-green-400',
 		bg: 'bg-green-100 dark:bg-green-900/50',
 	},
+	insufficient_data: {
+		label: 'No Data',
+		color: 'text-muted-foreground',
+		bg: 'bg-muted',
+	},
 };
 
 export interface GoalCardData {
@@ -87,7 +92,7 @@ export interface GoalCardData {
 	linkedAccount: { id: string; name: string } | null;
 	_count: { contributions: number };
 	// Optional health metrics passed from parent
-	monthsCoverage?: number;
+	monthsCoverage?: number | null;
 	healthStatus?: string;
 }
 
@@ -146,7 +151,7 @@ export function GoalCard({ goal, onClick, compact }: GoalCardProps) {
 				</div>
 				{isMonthsCoverage && goal.monthsCoverage !== undefined ? (
 					<span className='text-xs text-muted-foreground whitespace-nowrap'>
-						{goal.monthsCoverage.toFixed(1)}mo
+						{goal.monthsCoverage === null ? '\u2014' : `${goal.monthsCoverage.toFixed(1)}mo`}
 					</span>
 				) : (
 					<span className='text-xs text-muted-foreground whitespace-nowrap'>
@@ -213,7 +218,9 @@ export function GoalCard({ goal, onClick, compact }: GoalCardProps) {
 						{isMonthsCoverage ? (
 							<>
 								<span className='text-muted-foreground'>
-									{goal.monthsCoverage !== undefined
+									{goal.monthsCoverage === null
+										? 'Insufficient data'
+										: goal.monthsCoverage !== undefined
 										? `${goal.monthsCoverage.toFixed(1)} months`
 										: formatCurrency(current)}
 								</span>

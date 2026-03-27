@@ -10,6 +10,8 @@ interface FeatureRequestItem {
 	title: string;
 	description: string;
 	category: RequestCategory;
+	status: string;
+	updatedAt: string;
 	createdAt: string;
 }
 

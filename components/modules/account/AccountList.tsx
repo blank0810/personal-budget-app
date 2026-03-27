@@ -41,6 +41,15 @@ const ACCOUNT_TYPE_ICON: Record<string, React.ElementType> = {
 	TITHE: Church,
 };
 
+const ACCOUNT_COLOR_MAP: Record<string, string> = {
+	blue: 'bg-blue-100 text-blue-600 dark:bg-blue-900 dark:text-blue-400',
+	green: 'bg-green-100 text-green-600 dark:bg-green-900 dark:text-green-400',
+	purple: 'bg-purple-100 text-purple-600 dark:bg-purple-900 dark:text-purple-400',
+	orange: 'bg-orange-100 text-orange-600 dark:bg-orange-900 dark:text-orange-400',
+	red: 'bg-red-100 text-red-600 dark:bg-red-900 dark:text-red-400',
+	emerald: 'bg-emerald-100 text-emerald-600 dark:bg-emerald-900 dark:text-emerald-400',
+};
+
 interface AccountListProps {
 	accounts: Account[];
 }
@@ -183,7 +192,14 @@ function AccountRow({
 		<TableRow>
 			<TableCell className='font-medium'>
 				<span className='flex items-center gap-2'>
-					<TypeIcon className='h-4 w-4 text-muted-foreground shrink-0' />
+					<span className={cn(
+						'flex h-6 w-6 items-center justify-center rounded-full shrink-0',
+						account.color && ACCOUNT_COLOR_MAP[account.color]
+							? ACCOUNT_COLOR_MAP[account.color]
+							: 'text-muted-foreground'
+					)}>
+						<TypeIcon className='h-3.5 w-3.5' />
+					</span>
 					{account.name}
 				</span>
 			</TableCell>
