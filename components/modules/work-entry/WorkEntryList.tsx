@@ -2,7 +2,7 @@
 
 import { useState, useTransition, useMemo, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { format, parseISO } from 'date-fns';
+import { format, parseISO, startOfWeek, endOfWeek } from 'date-fns';
 import { toast } from 'sonner';
 import { Pencil, Trash2, FileText, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -241,10 +241,14 @@ export function WorkEntryList({ entries, clients, totalCount, pageLimit }: WorkE
 	const { formatCurrency } = useCurrency();
 	const [, startTransition] = useTransition();
 
-	// Filter state
+	// Filter state — default to this week
 	const [clientFilter, setClientFilter] = useState('ALL');
-	const [startDate, setStartDate] = useState('');
-	const [endDate, setEndDate] = useState('');
+	const [startDate, setStartDate] = useState(() =>
+		format(startOfWeek(new Date(), { weekStartsOn: 1 }), 'yyyy-MM-dd')
+	);
+	const [endDate, setEndDate] = useState(() =>
+		format(endOfWeek(new Date(), { weekStartsOn: 1 }), 'yyyy-MM-dd')
+	);
 
 	// Edit dialog state
 	const [editingEntry, setEditingEntry] = useState<WorkEntryRow | null>(null);
