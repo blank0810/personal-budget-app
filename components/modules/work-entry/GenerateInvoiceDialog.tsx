@@ -2,7 +2,16 @@
 
 import { useState, useTransition, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import { format, parseISO, addDays } from 'date-fns';
+import {
+	format,
+	parseISO,
+	addDays,
+	startOfMonth,
+	subMonths,
+	endOfMonth,
+	isWithinInterval,
+	startOfWeek,
+} from 'date-fns';
 import { toast } from 'sonner';
 import { Loader2 } from 'lucide-react';
 import {
@@ -47,9 +56,25 @@ function getDefaultDueDateString(): string {
 	return addDays(new Date(), 30).toISOString().slice(0, 10);
 }
 
+function getThisMonthStart(): string {
+	return startOfMonth(new Date()).toISOString().slice(0, 10);
+}
+
+function getLastMonthStart(): string {
+	return startOfMonth(subMonths(new Date(), 1)).toISOString().slice(0, 10);
+}
+
+function getLastMonthEnd(): string {
+	return endOfMonth(subMonths(new Date(), 1)).toISOString().slice(0, 10);
+}
+
 function formatEntryDate(date: string | Date): string {
 	const d = typeof date === 'string' ? parseISO(date) : date;
 	return format(d, 'MMM d');
+}
+
+function toEntryDate(date: string | Date): Date {
+	return typeof date === 'string' ? parseISO(date) : date;
 }
 
 export function GenerateInvoiceDialog({
@@ -71,8 +96,65 @@ export function GenerateInvoiceDialog({
 	const [taxRate, setTaxRate] = useState('');
 	const [notes, setNotes] = useState('');
 
-	const allSelected = selectedIds.size === entries.length;
+	// Date range filter — default to "this month"
+	const [fromDate, setFromDate] = useState(getThisMonthStart);
+	const [toDate, setToDate] = useState(getTodayString);
+
+	function setQuickRange(range: 'thisMonth' | 'lastMonth' | 'all') {
+		if (range === 'thisMonth') {
+			setFromDate(getThisMonthStart());
+			setToDate(getTodayString());
+		} else if (range === 'lastMonth') {
+			setFromDate(getLastMonthStart());
+			setToDate(getLastMonthEnd());
+		} else {
+			setFromDate('');
+			setToDate('');
+		}
+	}
+
+	// Filtered entries based on date range
+	const filteredEntries = useMemo(() => {
+		if (!fromDate && !toDate) return entries;
+		return entries.filter((entry) => {
+			const entryDate = toEntryDate(entry.date);
+			const from = fromDate ? parseISO(fromDate) : null;
+			const to = toDate ? parseISO(toDate) : null;
+			if (from && to) {
+				return isWithinInterval(entryDate, { start: from, end: to });
+			}
+			if (from) return entryDate >= from;
+			if (to) return entryDate <= to;
+			return true;
+		});
+	}, [entries, fromDate, toDate]);
+
+	// Group filtered entries by week (Mon-based, newest first)
+	const groupedByWeek = useMemo(() => {
+		const groups: Map<string, typeof filteredEntries> = new Map();
+		for (const entry of filteredEntries) {
+			const weekStart = startOfWeek(toEntryDate(entry.date), {
+				weekStartsOn: 1,
+			});
+			const key = weekStart.toISOString();
+			if (!groups.has(key)) groups.set(key, []);
+			groups.get(key)!.push(entry);
+		}
+		return Array.from(groups.entries()).sort((a, b) =>
+			b[0].localeCompare(a[0])
+		);
+	}, [filteredEntries]);
+
 	const noneSelected = selectedIds.size === 0;
+
+	// "Select all" for filtered entries only
+	const filteredIds = useMemo(
+		() => new Set(filteredEntries.map((e) => e.id)),
+		[filteredEntries]
+	);
+	const allFilteredSelected =
+		filteredEntries.length > 0 &&
+		filteredEntries.every((e) => selectedIds.has(e.id));
 
 	const selectedTotal = useMemo(() => {
 		return entries
@@ -96,16 +178,56 @@ export function GenerateInvoiceDialog({
 	}
 
 	function toggleAll() {
-		if (allSelected) {
-			setSelectedIds(new Set());
+		if (allFilteredSelected) {
+			setSelectedIds((prev) => {
+				const next = new Set(prev);
+				for (const id of filteredIds) next.delete(id);
+				return next;
+			});
 		} else {
-			setSelectedIds(new Set(entries.map((e) => e.id)));
+			setSelectedIds((prev) => {
+				const next = new Set(prev);
+				for (const id of filteredIds) next.add(id);
+				return next;
+			});
 		}
+	}
+
+	function toggleWeek(weekEntryIds: string[]) {
+		const weekSet = new Set(weekEntryIds);
+		const allWeekSelected = weekEntryIds.every((id) => selectedIds.has(id));
+		setSelectedIds((prev) => {
+			const next = new Set(prev);
+			if (allWeekSelected) {
+				for (const id of weekSet) next.delete(id);
+			} else {
+				for (const id of weekSet) next.add(id);
+			}
+			return next;
+		});
 	}
 
 	function handleSubmit(e: React.FormEvent) {
 		e.preventDefault();
 		if (noneSelected) return;
+
+		// Build billing period note
+		const effectiveFrom =
+			fromDate ||
+			(filteredEntries.length > 0
+				? format(
+						toEntryDate(
+							filteredEntries[filteredEntries.length - 1].date
+						),
+						'yyyy-MM-dd'
+					)
+				: issueDate);
+		const effectiveTo = toDate || issueDate;
+
+		const billingPeriod = `Services rendered: ${format(parseISO(effectiveFrom), 'MMM d')} \u2013 ${format(parseISO(effectiveTo), 'MMM d, yyyy')}`;
+		const notesWithPeriod = notes
+			? `${notes}\n\n${billingPeriod}`
+			: billingPeriod;
 
 		startTransition(async () => {
 			const result = await generateInvoiceFromEntriesAction({
@@ -114,7 +236,7 @@ export function GenerateInvoiceDialog({
 				issueDate: new Date(issueDate),
 				dueDate: new Date(dueDate),
 				taxRate: taxRate ? parseFloat(taxRate) : undefined,
-				notes: notes || undefined,
+				notes: notesWithPeriod,
 			});
 
 			if (result?.error) {
@@ -135,11 +257,68 @@ export function GenerateInvoiceDialog({
 				</DialogHeader>
 
 				<form onSubmit={handleSubmit} className='flex flex-col flex-1 min-h-0 gap-4'>
+					{/* Date range filter */}
+					<div className='flex flex-wrap items-center gap-2'>
+						<div className='flex items-center gap-1.5'>
+							<label className='text-xs text-muted-foreground whitespace-nowrap'>
+								From
+							</label>
+							<Input
+								type='date'
+								value={fromDate}
+								onChange={(e) => setFromDate(e.target.value)}
+								className='h-7 text-xs w-36 px-2'
+							/>
+						</div>
+						<div className='flex items-center gap-1.5'>
+							<label className='text-xs text-muted-foreground whitespace-nowrap'>
+								To
+							</label>
+							<Input
+								type='date'
+								value={toDate}
+								onChange={(e) => setToDate(e.target.value)}
+								className='h-7 text-xs w-36 px-2'
+							/>
+						</div>
+						<div className='flex gap-1'>
+							<Button
+								type='button'
+								variant='outline'
+								size='sm'
+								className='h-7 text-xs px-2'
+								onClick={() => setQuickRange('thisMonth')}
+							>
+								This month
+							</Button>
+							<Button
+								type='button'
+								variant='outline'
+								size='sm'
+								className='h-7 text-xs px-2'
+								onClick={() => setQuickRange('lastMonth')}
+							>
+								Last month
+							</Button>
+							<Button
+								type='button'
+								variant='outline'
+								size='sm'
+								className='h-7 text-xs px-2'
+								onClick={() => setQuickRange('all')}
+							>
+								All
+							</Button>
+						</div>
+					</div>
+
 					{/* Entry selection */}
 					<div className='flex flex-col min-h-0'>
 						<div className='flex items-center justify-between pb-2'>
 							<span className='text-sm font-medium'>
-								Entries ({entries.length})
+								{filteredEntries.length < entries.length
+									? `${filteredEntries.length} of ${entries.length} unbilled entries`
+									: `Entries (${entries.length})`}
 							</span>
 							<Button
 								type='button'
@@ -147,46 +326,100 @@ export function GenerateInvoiceDialog({
 								size='sm'
 								onClick={toggleAll}
 								className='h-7 text-xs'
+								disabled={filteredEntries.length === 0}
 							>
-								{allSelected ? 'Deselect all' : 'Select all'}
+								{allFilteredSelected ? 'Deselect all' : 'Select all'}
 							</Button>
 						</div>
 
 						<ScrollArea className='max-h-52 rounded-md border'>
-							<div className='divide-y'>
-								{entries.map((entry) => {
-									const checked = selectedIds.has(entry.id);
-									return (
-										<label
-											key={entry.id}
-											htmlFor={`entry-${entry.id}`}
-											className='flex items-start gap-3 px-3 py-2.5 cursor-pointer hover:bg-muted/50'
-										>
-											<Checkbox
-												id={`entry-${entry.id}`}
-												checked={checked}
-												onCheckedChange={() => toggleEntry(entry.id)}
-												className='mt-0.5'
-											/>
-											<div className='flex flex-1 items-start justify-between gap-2 min-w-0'>
-												<div className='min-w-0'>
-													<p className='text-sm truncate'>
-														{entry.description}
-													</p>
-													<p className='text-xs text-muted-foreground'>
-														{formatEntryDate(entry.date)} &middot;{' '}
-														{entry.quantity} &times;{' '}
-														{formatCurrency(entry.unitPrice)}
-													</p>
+							{filteredEntries.length === 0 ? (
+								<p className='text-sm text-muted-foreground text-center py-6'>
+									No entries in this date range.
+								</p>
+							) : (
+								<div>
+									{groupedByWeek.map(([weekKey, weekEntries]) => {
+										const weekStart = new Date(weekKey);
+										const weekLabel = format(weekStart, 'MMM d');
+										const weekIds = weekEntries.map((e) => e.id);
+										const allWeekSelected = weekIds.every((id) =>
+											selectedIds.has(id)
+										);
+										const someWeekSelected =
+											!allWeekSelected &&
+											weekIds.some((id) => selectedIds.has(id));
+										const weekTotal = weekEntries
+											.filter((e) => selectedIds.has(e.id))
+											.reduce((sum, e) => sum + e.amount, 0);
+
+										return (
+											<div key={weekKey}>
+												{/* Week header */}
+												<div className='flex items-center gap-2 px-3 py-2 bg-muted/40 border-b sticky top-0'>
+													<Checkbox
+														id={`week-${weekKey}`}
+														checked={
+															someWeekSelected
+																? 'indeterminate'
+																: allWeekSelected
+														}
+														onCheckedChange={() => toggleWeek(weekIds)}
+													/>
+													<label
+														htmlFor={`week-${weekKey}`}
+														className='flex flex-1 items-center justify-between cursor-pointer'
+													>
+														<span className='text-xs font-semibold'>
+															Week of {weekLabel}
+														</span>
+														<span className='text-xs text-muted-foreground tabular-nums'>
+															{formatCurrency(weekTotal)}
+														</span>
+													</label>
 												</div>
-												<span className='text-sm font-medium tabular-nums shrink-0'>
-													{formatCurrency(entry.amount)}
-												</span>
+												{/* Week entries */}
+												<div className='divide-y'>
+													{weekEntries.map((entry) => {
+														const checked = selectedIds.has(entry.id);
+														return (
+															<label
+																key={entry.id}
+																htmlFor={`entry-${entry.id}`}
+																className='flex items-start gap-3 px-3 py-2.5 cursor-pointer hover:bg-muted/50'
+															>
+																<Checkbox
+																	id={`entry-${entry.id}`}
+																	checked={checked}
+																	onCheckedChange={() =>
+																		toggleEntry(entry.id)
+																	}
+																	className='mt-0.5'
+																/>
+																<div className='flex flex-1 items-start justify-between gap-2 min-w-0'>
+																	<div className='min-w-0'>
+																		<p className='text-sm truncate'>
+																			{entry.description}
+																		</p>
+																		<p className='text-xs text-muted-foreground'>
+																			{formatEntryDate(entry.date)} &middot;{' '}
+																			{entry.quantity} &times;{' '}
+																			{formatCurrency(entry.unitPrice)}
+																		</p>
+																	</div>
+																	<span className='text-sm font-medium tabular-nums shrink-0'>
+																		{formatCurrency(entry.amount)}
+																	</span>
+																</div>
+															</label>
+														);
+													})}
+												</div>
 											</div>
-										</label>
-									);
-								})}
-							</div>
+										);
+									})}
+								</div>
+							)}
 						</ScrollArea>
 					</div>
 
