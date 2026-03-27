@@ -135,11 +135,11 @@ function RequestCard({
 	);
 }
 
-export function FeatureRequestTabs({ requests }: FeatureRequestTabsProps) {
-	const openRequests = requests.filter((r) =>
+export function FeatureRequestTabs({ requests = [] }: FeatureRequestTabsProps) {
+	const openRequests = (requests ?? []).filter((r) =>
 		['NEW', 'REVIEWING', 'PLANNED'].includes(r.status)
 	);
-	const completedRequests = requests.filter((r) => r.status === 'COMPLETED');
+	const completedRequests = (requests ?? []).filter((r) => r.status === 'COMPLETED');
 
 	return (
 		<Tabs defaultValue='open'>

@@ -30,7 +30,12 @@ export default async function PublicChangelogPage() {
 		// Not authenticated
 	}
 
-	const requests = await FeatureRequestService.getAll() ?? [];
+	let requests: Awaited<ReturnType<typeof FeatureRequestService.getAll>> = [];
+	try {
+		requests = await FeatureRequestService.getAll() ?? [];
+	} catch {
+		// DB query may fail if migration not applied yet
+	}
 	const latestVersion = versions[0];
 
 	return (
