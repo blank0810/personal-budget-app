@@ -13,6 +13,7 @@ import {
 	Upload,
 	Target,
 	Coffee,
+	FileText,
 } from 'lucide-react';
 
 import { NavMain } from '@/components/common/nav-main';
@@ -57,6 +58,11 @@ const navItems = [
 		title: 'Goals',
 		url: '/goals',
 		icon: Target,
+	},
+	{
+		title: 'Invoices',
+		url: '/invoices',
+		icon: FileText,
 	},
 	{
 		title: 'Accounts',
