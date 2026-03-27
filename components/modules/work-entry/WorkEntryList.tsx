@@ -450,11 +450,15 @@ export function WorkEntryList({ entries, clients, totalCount, pageLimit }: WorkE
 							.filter((e) => e.status === 'UNBILLED')
 							.reduce((sum, e) => sum + e.amount, 0);
 
+						// Determine currency for this group (use first entry's client currency)
+						const groupCurrency = groupEntries[0]?.client?.currency;
+
 						return (
 							<div key={dateKey} className='space-y-1'>
 								<DateGroupHeader
 									date={dateKey}
 									totalAmount={unbilledTotal}
+									currency={groupCurrency}
 								/>
 								<div className='rounded-md border overflow-hidden'>
 									<table className='w-full'>

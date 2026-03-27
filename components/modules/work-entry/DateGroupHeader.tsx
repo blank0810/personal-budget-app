@@ -1,11 +1,13 @@
 'use client';
 
 import { isToday, isYesterday, format, parseISO } from 'date-fns';
+import { formatCurrency as fmtCurrency } from '@/lib/formatters';
 import { useCurrency } from '@/lib/contexts/currency-context';
 
 interface DateGroupHeaderProps {
 	date: string; // ISO date string (YYYY-MM-DD)
 	totalAmount: number;
+	currency?: string; // Use client/entry currency when available
 }
 
 function formatGroupDate(dateStr: string): string {
@@ -16,8 +18,12 @@ function formatGroupDate(dateStr: string): string {
 	return format(date, 'MMM d, yyyy');
 }
 
-export function DateGroupHeader({ date, totalAmount }: DateGroupHeaderProps) {
+export function DateGroupHeader({ date, totalAmount, currency }: DateGroupHeaderProps) {
 	const { formatCurrency } = useCurrency();
+
+	const displayAmount = currency
+		? fmtCurrency(totalAmount, { currency })
+		: formatCurrency(totalAmount);
 
 	return (
 		<div className='flex items-center justify-between py-2 border-b'>
@@ -26,7 +32,7 @@ export function DateGroupHeader({ date, totalAmount }: DateGroupHeaderProps) {
 			</span>
 			<span className='text-xs text-muted-foreground tabular-nums'>
 				<span className='mr-1'>Unbilled:</span>
-				{formatCurrency(totalAmount)}
+				{displayAmount}
 			</span>
 		</div>
 	);
