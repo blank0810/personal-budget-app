@@ -3,21 +3,26 @@ import { redirect } from 'next/navigation';
 import { RecurringService } from '@/server/modules/recurring/recurring.service';
 import { AccountService } from '@/server/modules/account/account.service';
 import { CategoryService } from '@/server/modules/category/category.service';
+import { BudgetService } from '@/server/modules/budget/budget.service';
 import { RecurringForm } from '@/components/modules/recurring/RecurringForm';
 import { RecurringList } from '@/components/modules/recurring/RecurringList';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { serialize } from '@/lib/serialization';
+import { startOfMonth } from 'date-fns';
 
 export default async function RecurringPage() {
 	const session = await auth();
 	if (!session?.user?.id) redirect('/login');
 
-	const [recurring, accounts, incomeCategories, expenseCategories] =
+	const [recurring, accounts, incomeCategories, expenseCategories, budgets] =
 		await Promise.all([
 			RecurringService.getAll(session.user.id),
 			AccountService.getAccounts(session.user.id),
 			CategoryService.getCategories(session.user.id, 'INCOME'),
 			CategoryService.getCategories(session.user.id, 'EXPENSE'),
+			BudgetService.getBudgets(session.user.id, {
+				month: startOfMonth(new Date()),
+			}),
 		]);
 
 	const allCategories = [
@@ -32,6 +37,14 @@ export default async function RecurringPage() {
 			type: 'EXPENSE',
 		})),
 	];
+
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	const serializedBudgets = serialize(budgets).map((b: any) => ({
+		id: b.id as string,
+		name: b.name as string,
+		categoryId: b.categoryId as string,
+		amount: b.amount as number,
+	}));
 
 	return (
 		<div className='container mx-auto py-6 md:py-10 space-y-8'>
@@ -56,6 +69,7 @@ export default async function RecurringPage() {
 										name: a.name,
 									})
 								)}
+								budgets={serializedBudgets}
 							/>
 						</CardContent>
 					</Card>
