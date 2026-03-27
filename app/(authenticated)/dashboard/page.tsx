@@ -29,6 +29,8 @@ import { GoalService } from '@/server/modules/goal/goal.service';
 import { GoalsDashboardWidget } from '@/components/modules/goal/GoalsDashboardWidget';
 import type { GoalCardData } from '@/components/modules/goal/GoalCard';
 import { serialize } from '@/lib/serialization';
+import { InvoiceService } from '@/server/modules/invoice/invoice.service';
+import { InvoiceDashboardWidget } from '@/components/modules/invoice/InvoiceDashboardWidget';
 
 export default async function DashboardPage() {
 	const session = await auth();
@@ -46,6 +48,7 @@ export default async function DashboardPage() {
 		goalHealth,
 		dbUser,
 		goals,
+		invoiceSummary,
 	] = await Promise.all([
 		DashboardService.getDashboardData(userId),
 		DashboardService.getRecentTransactions(userId, 5),
@@ -56,9 +59,16 @@ export default async function DashboardPage() {
 			select: { currency: true },
 		}),
 		GoalService.getAll(userId),
+		InvoiceService.getSummary(userId),
 	]);
 
 	const currency = dbUser?.currency ?? 'USD';
+
+	const invoiceOutstanding =
+		(invoiceSummary['SENT']?.totalAmount ?? 0) +
+		(invoiceSummary['OVERDUE']?.totalAmount ?? 0);
+	const invoiceOverdueCount = invoiceSummary['OVERDUE']?.count ?? 0;
+	const invoiceDraftCount = invoiceSummary['DRAFT']?.count ?? 0;
 
 	return (
 		<div className='container mx-auto py-6 md:py-10 space-y-8'>
@@ -417,6 +427,14 @@ export default async function DashboardPage() {
 						healthStatus: metric?.healthStatus ?? undefined,
 					};
 				})}
+			/>
+
+			{/* Invoice Widget */}
+			<InvoiceDashboardWidget
+				outstanding={invoiceOutstanding}
+				overdueCount={invoiceOverdueCount}
+				draftCount={invoiceDraftCount}
+				currency={currency}
 			/>
 
 			{/* Bottom Row: Recent Transactions + Accounts */}
