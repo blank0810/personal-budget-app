@@ -5,6 +5,7 @@ import { WorkEntryService } from './work-entry.service';
 import {
 	createWorkEntrySchema,
 	updateWorkEntrySchema,
+	getWorkEntriesSchema,
 } from './work-entry.types';
 import { clearCache } from '@/server/actions/cache';
 import { serialize } from '@/lib/serialization';
@@ -95,6 +96,46 @@ export async function getUnbilledByClientAction(clientId: string) {
 				error instanceof Error
 					? error.message
 					: 'Failed to fetch entries',
+		};
+	}
+}
+
+export async function getWorkEntriesAction(filters: unknown) {
+	const userId = await getAuthenticatedUser();
+
+	const parsed = getWorkEntriesSchema.safeParse(filters);
+	if (!parsed.success) {
+		return { error: parsed.error.issues[0]?.message || 'Invalid filters' };
+	}
+
+	try {
+		const result = await WorkEntryService.getAll(userId, parsed.data);
+		return {
+			success: true,
+			data: serialize(result.data),
+			total: result.total,
+		};
+	} catch (error) {
+		return {
+			error:
+				error instanceof Error
+					? error.message
+					: 'Failed to fetch entries',
+		};
+	}
+}
+
+export async function getUnbilledCountsAction() {
+	const userId = await getAuthenticatedUser();
+	try {
+		const counts = await WorkEntryService.getUnbilledCountsByClient(userId);
+		return { success: true, counts };
+	} catch (error) {
+		return {
+			error:
+				error instanceof Error
+					? error.message
+					: 'Failed to fetch counts',
 		};
 	}
 }

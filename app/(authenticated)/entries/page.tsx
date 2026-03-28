@@ -7,16 +7,19 @@ import { WorkEntryList } from '@/components/modules/work-entry/WorkEntryList';
 import { serialize } from '@/lib/serialization';
 import type { WorkEntryRow } from '@/components/modules/work-entry/WorkEntryList';
 
-const ENTRIES_PAGE_LIMIT = 100;
-
 export default async function EntriesPage() {
 	const session = await auth();
 	if (!session?.user?.id) redirect('/login');
 
-	const [entries, clients, totalCount] = await Promise.all([
-		WorkEntryService.getAll(session.user.id, { take: ENTRIES_PAGE_LIMIT }),
+	const [initialResult, clients, unbilledCounts] = await Promise.all([
+		WorkEntryService.getAll(session.user.id, {
+			page: 1,
+			pageSize: 20,
+			sortBy: 'date',
+			sortOrder: 'desc',
+		}),
 		ClientService.getAll(session.user.id),
-		WorkEntryService.count(session.user.id),
+		WorkEntryService.getUnbilledCountsByClient(session.user.id),
 	]);
 
 	const serializedClients = serialize(clients) as Array<{
@@ -37,10 +40,12 @@ export default async function EntriesPage() {
 			</div>
 			<WorkEntryForm clients={serializedClients} />
 			<WorkEntryList
-				entries={serialize(entries) as unknown as WorkEntryRow[]}
+				initialEntries={
+					serialize(initialResult.data) as unknown as WorkEntryRow[]
+				}
+				initialTotal={initialResult.total}
+				unbilledCounts={unbilledCounts}
 				clients={serializedClients}
-				totalCount={totalCount}
-				pageLimit={ENTRIES_PAGE_LIMIT}
 			/>
 		</div>
 	);

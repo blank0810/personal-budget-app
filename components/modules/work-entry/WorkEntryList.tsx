@@ -1,10 +1,10 @@
 'use client';
 
-import { useState, useTransition, useMemo, useCallback } from 'react';
+import { useState, useTransition, useMemo, useCallback, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { format, parseISO, startOfWeek, endOfWeek } from 'date-fns';
 import { toast } from 'sonner';
-import { Pencil, Trash2, FileText, Loader2 } from 'lucide-react';
+import { Pencil, Trash2, FileText, Loader2, ArrowUpDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
@@ -23,8 +23,15 @@ import {
 	DialogHeader,
 	DialogTitle,
 } from '@/components/ui/dialog';
+import {
+	Table,
+	TableBody,
+	TableCell,
+	TableHead,
+	TableHeader,
+	TableRow,
+} from '@/components/ui/table';
 import { WorkEntryStatusBadge } from './WorkEntryStatusBadge';
-import { DateGroupHeader } from './DateGroupHeader';
 import { GenerateInvoiceDialog } from './GenerateInvoiceDialog';
 import {
 	updateWorkEntryAction,
@@ -60,11 +67,18 @@ interface ClientOption {
 	defaultRate: number | null;
 }
 
+export interface UnbilledCount {
+	clientId: string;
+	clientName: string;
+	count: number;
+	total: number;
+}
+
 interface WorkEntryListProps {
-	entries: WorkEntryRow[];
+	initialEntries: WorkEntryRow[];
+	initialTotal: number;
+	unbilledCounts: UnbilledCount[];
 	clients: ClientOption[];
-	totalCount?: number;
-	pageLimit?: number;
 }
 
 // Deterministic color per client name for the small badge
@@ -86,8 +100,53 @@ function clientColorClass(clientId: string): string {
 }
 
 function toDateKey(date: string | Date): string {
-	const d = typeof date === 'string' ? parseISO(date) : date;
-	return format(d, 'yyyy-MM-dd');
+	if (typeof date === 'string') {
+		if (/^\d{4}-\d{2}-\d{2}$/.test(date)) return date;
+		return date.slice(0, 10);
+	}
+	return format(date, 'yyyy-MM-dd');
+}
+
+function formatDate(date: string | Date): string {
+	return format(parseISO(toDateKey(date)), 'MMM d, yyyy');
+}
+
+function formatGroupDate(dateKey: string): string {
+	return format(parseISO(dateKey), 'EEEE, MMM d, yyyy');
+}
+
+const PAGE_SIZE = 20;
+
+type SortField = 'date' | 'client' | 'amount';
+
+interface SortableHeaderProps {
+	field: SortField;
+	label: string;
+	sortField: SortField;
+	onSort: (field: SortField) => void;
+	className?: string;
+}
+
+function SortableHeader({ field, label, sortField, onSort, className }: SortableHeaderProps) {
+	const isActive = sortField === field;
+	return (
+		<TableHead className={className}>
+			<Button
+				variant='ghost'
+				size='sm'
+				className='-ml-3 h-8'
+				onClick={() => onSort(field)}
+			>
+				{label}
+				<ArrowUpDown
+					className={cn(
+						'ml-1 h-3 w-3',
+						isActive ? 'opacity-100' : 'opacity-40',
+					)}
+				/>
+			</Button>
+		</TableHead>
+	);
 }
 
 interface EditDialogProps {
@@ -245,7 +304,15 @@ function EditDialog({ entry, clients, open, onOpenChange }: EditDialogProps) {
 	);
 }
 
-export function WorkEntryList({ entries, clients, totalCount, pageLimit }: WorkEntryListProps) {
+type DividerRow = { type: 'divider'; date: string; total: Record<string, number> };
+type DisplayRow = WorkEntryRow | DividerRow;
+
+function isDivider(row: DisplayRow): row is DividerRow {
+	return 'type' in row && (row as DividerRow).type === 'divider';
+}
+
+export function WorkEntryList({ initialEntries, unbilledCounts, clients }: WorkEntryListProps) {
+	const entries = initialEntries;
 	const router = useRouter();
 	const [, startTransition] = useTransition();
 
@@ -258,6 +325,13 @@ export function WorkEntryList({ entries, clients, totalCount, pageLimit }: WorkE
 		format(endOfWeek(new Date(), { weekStartsOn: 1 }), 'yyyy-MM-dd')
 	);
 
+	// Sort state — default to date descending
+	const [sortField, setSortField] = useState<SortField>('date');
+	const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
+
+	// Pagination
+	const [page, setPage] = useState(0);
+
 	// Edit dialog state
 	const [editingEntry, setEditingEntry] = useState<WorkEntryRow | null>(null);
 
@@ -265,6 +339,11 @@ export function WorkEntryList({ entries, clients, totalCount, pageLimit }: WorkE
 	const [generateClientId, setGenerateClientId] = useState<string | null>(null);
 	const [generateEntries, setGenerateEntries] = useState<WorkEntryRow[]>([]);
 	const [loadingInvoiceClientId, setLoadingInvoiceClientId] = useState<string | null>(null);
+
+	// Reset page when filters or sort changes
+	useEffect(() => {
+		setPage(0);
+	}, [clientFilter, startDate, endDate, sortField, sortDir]);
 
 	// Filtered entries
 	const filtered = useMemo(() => {
@@ -277,36 +356,73 @@ export function WorkEntryList({ entries, clients, totalCount, pageLimit }: WorkE
 		});
 	}, [entries, clientFilter, startDate, endDate]);
 
-	// Group by date
-	const groups = useMemo(() => {
-		const map = new Map<string, WorkEntryRow[]>();
-		for (const entry of filtered) {
-			const key = toDateKey(entry.date);
-			const group = map.get(key) ?? [];
-			group.push(entry);
-			map.set(key, group);
-		}
-		// Return sorted descending by date
-		return Array.from(map.entries()).sort(([a], [b]) => b.localeCompare(a));
-	}, [filtered]);
+	// Sorted entries
+	const sorted = useMemo(() => {
+		return [...filtered].sort((a, b) => {
+			let cmp = 0;
+			switch (sortField) {
+				case 'date':
+					cmp = toDateKey(a.date).localeCompare(toDateKey(b.date));
+					break;
+				case 'client':
+					cmp = a.client.name.localeCompare(b.client.name);
+					break;
+				case 'amount':
+					cmp = a.amount - b.amount;
+					break;
+			}
+			return sortDir === 'asc' ? cmp : -cmp;
+		});
+	}, [filtered, sortField, sortDir]);
 
-	// Unbilled entries per client for invoice generation
-	const unbilledByClient = useMemo(() => {
-		const map = new Map<string, WorkEntryRow[]>();
-		for (const entry of entries) {
-			if (entry.status === 'UNBILLED') {
-				const arr = map.get(entry.clientId) ?? [];
-				arr.push(entry);
-				map.set(entry.clientId, arr);
+	// Pagination
+	const totalPages = Math.ceil(sorted.length / PAGE_SIZE);
+	const paged = sorted.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
+
+	// Build display rows with optional date dividers
+	const displayRows = useMemo<DisplayRow[]>(() => {
+		// Only inject dividers when sorting by date
+		if (sortField !== 'date') {
+			return paged;
+		}
+
+		const rows: DisplayRow[] = [];
+		let lastDate = '';
+
+		for (const entry of paged) {
+			const dateKey = toDateKey(entry.date);
+			if (dateKey !== lastDate) {
+				// Compute unbilled total for this date across ALL sorted entries (not just paged)
+				const dayEntries = sorted.filter(
+					(e) => toDateKey(e.date) === dateKey && e.status === 'UNBILLED'
+				);
+				const dayTotals: Record<string, number> = {};
+				for (const e of dayEntries) {
+					const cur = e.client?.currency || e.currency || 'USD';
+					dayTotals[cur] = (dayTotals[cur] || 0) + e.amount;
+				}
+				rows.push({ type: 'divider', date: dateKey, total: dayTotals });
+				lastDate = dateKey;
+			}
+			rows.push(entry);
+		}
+		return rows;
+	}, [paged, sorted, sortField]);
+
+	// Unbilled totals across ALL entries (not filtered/paged) for the summary bar
+	const currencyTotals = useMemo(() => {
+		const totals: Record<string, number> = {};
+		for (const e of entries) {
+			if (e.status === 'UNBILLED') {
+				const cur = e.client?.currency || e.currency || 'USD';
+				totals[cur] = (totals[cur] || 0) + e.amount;
 			}
 		}
-		return map;
+		return totals;
 	}, [entries]);
 
-	// Clients that have unbilled entries (for generate invoice button)
-	const clientsWithUnbilled = useMemo(() => {
-		return clients.filter((c) => (unbilledByClient.get(c.id)?.length ?? 0) > 0);
-	}, [clients, unbilledByClient]);
+	// Use unbilledCounts prop for the "Invoice [Client]" buttons
+	const clientsWithUnbilled = unbilledCounts;
 
 	function handleDelete(entryId: string) {
 		startTransition(async () => {
@@ -339,19 +455,41 @@ export function WorkEntryList({ entries, clients, totalCount, pageLimit }: WorkE
 		}
 	}, []);
 
+	function handleSort(field: SortField) {
+		if (sortField === field) {
+			setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
+		} else {
+			setSortField(field);
+			setSortDir('desc');
+		}
+	}
+
 	const generateClient = generateClientId
 		? clients.find((c) => c.id === generateClientId) ?? null
 		: null;
 
-	// Resolve the client currency for invoice generation from the fetched entries
 	const generateClientCurrency = useMemo(() => {
 		if (!generateClientId || generateEntries.length === 0) return undefined;
 		const entry = generateEntries.find((e) => e.clientId === generateClientId);
 		return entry?.currency ?? entry?.client?.currency;
 	}, [generateClientId, generateEntries]);
 
+	const hasCurrencyTotals = Object.keys(currencyTotals).length > 0;
+
 	return (
 		<div className='space-y-4'>
+			{/* Unbilled summary bar */}
+			{hasCurrencyTotals && (
+				<div className='flex items-center gap-4 text-sm text-muted-foreground border rounded-md px-4 py-2'>
+					<span className='font-medium text-foreground'>Unbilled:</span>
+					{Object.entries(currencyTotals).map(([currency, total]) => (
+						<span key={currency} className='tabular-nums'>
+							{formatCurrency(total, { currency })}
+						</span>
+					))}
+				</div>
+			)}
+
 			{/* Filters */}
 			<div className='flex flex-wrap items-end gap-3'>
 				<div className='space-y-1.5'>
@@ -416,24 +554,23 @@ export function WorkEntryList({ entries, clients, totalCount, pageLimit }: WorkE
 				{clientsWithUnbilled.length > 0 && (
 					<div className='ml-auto flex flex-wrap gap-2'>
 						{clientsWithUnbilled.map((c) => {
-							const count = unbilledByClient.get(c.id)?.length ?? 0;
-							const isLoading = loadingInvoiceClientId === c.id;
+							const isLoading = loadingInvoiceClientId === c.clientId;
 							return (
 								<Button
-									key={c.id}
+									key={c.clientId}
 									variant='outline'
 									size='sm'
 									disabled={isLoading}
-									onClick={() => handleGenerateInvoice(c.id)}
+									onClick={() => handleGenerateInvoice(c.clientId)}
 								>
 									{isLoading ? (
 										<Loader2 className='mr-1.5 h-3.5 w-3.5 animate-spin' />
 									) : (
 										<FileText className='mr-1.5 h-3.5 w-3.5' />
 									)}
-									Invoice {c.name}
+									Invoice {c.clientName}
 									<span className='ml-1.5 text-xs text-muted-foreground'>
-										({count})
+										({c.count})
 									</span>
 								</Button>
 							);
@@ -442,7 +579,7 @@ export function WorkEntryList({ entries, clients, totalCount, pageLimit }: WorkE
 				)}
 			</div>
 
-			{/* Entry list */}
+			{/* Table */}
 			{filtered.length === 0 ? (
 				<div className='rounded-lg border border-dashed p-10 text-center'>
 					<p className='text-muted-foreground text-sm'>
@@ -452,124 +589,231 @@ export function WorkEntryList({ entries, clients, totalCount, pageLimit }: WorkE
 					</p>
 				</div>
 			) : (
-				<div className='space-y-6'>
-					{groups.map(([dateKey, groupEntries]) => {
-						// Build currency → unbilled total map for this date group
-						const currencyTotals: Record<string, number> = {};
-						for (const e of groupEntries) {
-							if (e.status === 'UNBILLED') {
-								const cur = e.client?.currency || e.currency || 'USD';
-								currencyTotals[cur] = (currencyTotals[cur] || 0) + e.amount;
-							}
-						}
+				<div className='rounded-md border'>
+					<Table>
+						<TableHeader>
+							<TableRow>
+								{/* Mobile: single merged header */}
+								<TableHead className='sm:hidden p-3'>Entry</TableHead>
 
-						return (
-							<div key={dateKey} className='space-y-1'>
-								<DateGroupHeader
-									date={dateKey}
-									currencyTotals={currencyTotals}
+								{/* Desktop columns */}
+								<SortableHeader
+									field='date'
+									label='Date'
+									sortField={sortField}
+									onSort={handleSort}
+									className='hidden sm:table-cell'
 								/>
-								<div className='rounded-md border overflow-hidden'>
-									<table className='w-full'>
-										<thead className='sr-only'>
-											<tr>
-												<th>Client</th>
-												<th>Description</th>
-												<th>Hours / Qty</th>
-												<th>Amount</th>
-												<th>Status</th>
-												<th>Actions</th>
-											</tr>
-										</thead>
-										<tbody className='divide-y'>
-											{groupEntries.map((entry) => (
-												<tr
-													key={entry.id}
-													className={cn(
-														'text-sm',
-														entry.status === 'UNBILLED'
-															? 'hover:bg-muted/30'
-															: 'opacity-75 bg-muted/10'
-													)}
-												>
-													{/* Client badge */}
-													<td className='px-3 py-2.5 w-[120px]'>
+								<SortableHeader
+									field='client'
+									label='Client'
+									sortField={sortField}
+									onSort={handleSort}
+									className='hidden sm:table-cell'
+								/>
+								<TableHead className='hidden sm:table-cell'>Description</TableHead>
+								<SortableHeader
+									field='amount'
+									label='Amount'
+									sortField={sortField}
+									onSort={handleSort}
+									className='hidden sm:table-cell text-right'
+								/>
+								<TableHead className='hidden sm:table-cell'>Status</TableHead>
+								<TableHead className='hidden sm:table-cell w-[80px]'>Actions</TableHead>
+							</TableRow>
+						</TableHeader>
+						<TableBody>
+							{displayRows.map((row, idx) => {
+								if (isDivider(row)) {
+									return (
+										<TableRow
+											key={`divider-${row.date}-${idx}`}
+											className='hover:bg-transparent'
+										>
+											<TableCell colSpan={6} className='bg-muted/30 py-1.5 px-3'>
+												<div className='flex items-center justify-between'>
+													<span className='text-xs font-semibold'>
+														{formatGroupDate(row.date)}
+													</span>
+													<span className='text-xs text-muted-foreground tabular-nums'>
+														{Object.entries(row.total).map(([cur, total], i) => (
+															<span key={cur}>
+																{i > 0 && ' | '}
+																{formatCurrency(total, { currency: cur })}
+															</span>
+														))}
+													</span>
+												</div>
+											</TableCell>
+										</TableRow>
+									);
+								}
+
+								const entry = row as WorkEntryRow;
+								return (
+									<TableRow
+										key={entry.id}
+										className={cn(
+											entry.status !== 'UNBILLED' && 'opacity-75 bg-muted/10',
+										)}
+									>
+										{/* Mobile stacked layout */}
+										<TableCell className='sm:hidden p-3' colSpan={6}>
+											<div className='flex items-start justify-between gap-2'>
+												<div className='min-w-0 flex-1'>
+													<div className='flex items-center gap-2 mb-1'>
 														<Badge
 															variant='secondary'
 															className={`text-xs px-1.5 py-0.5 ${clientColorClass(entry.clientId)}`}
 														>
 															{entry.client.name}
 														</Badge>
-													</td>
+														<span className='text-xs text-muted-foreground'>
+															{formatDate(entry.date)}
+														</span>
+													</div>
+													<p className='text-sm line-clamp-2'>{entry.description}</p>
+												</div>
+												<div className='text-right shrink-0'>
+													<p className='text-sm font-medium tabular-nums'>
+														{formatCurrency(entry.amount, {
+															currency: entry.client.currency || entry.currency,
+														})}
+													</p>
+													<WorkEntryStatusBadge
+														status={entry.status}
+														invoiceNumber={entry.lastInvoiceNumber ?? undefined}
+														invoiceId={entry.lastInvoiceId ?? undefined}
+													/>
+												</div>
+											</div>
+											{entry.status === 'UNBILLED' && (
+												<div className='flex justify-end gap-1 mt-2'>
+													<Button
+														variant='ghost'
+														size='icon'
+														className='h-7 w-7'
+														onClick={() => setEditingEntry(entry)}
+													>
+														<Pencil className='h-3.5 w-3.5' />
+														<span className='sr-only'>Edit</span>
+													</Button>
+													<Button
+														variant='ghost'
+														size='icon'
+														className='h-7 w-7 text-destructive hover:text-destructive'
+														onClick={() => handleDelete(entry.id)}
+													>
+														<Trash2 className='h-3.5 w-3.5' />
+														<span className='sr-only'>Delete</span>
+													</Button>
+												</div>
+											)}
+										</TableCell>
 
-													{/* Description */}
-													<td className='px-3 py-2.5 whitespace-pre-line max-w-0 min-w-0'>
-														{entry.description}
-													</td>
+										{/* Desktop: Date */}
+										<TableCell className='hidden sm:table-cell px-3 py-2.5 text-sm'>
+											{formatDate(entry.date)}
+										</TableCell>
 
-													{/* Qty × price */}
-													<td className='px-3 py-2.5 text-right text-xs text-muted-foreground tabular-nums w-[100px] hidden sm:table-cell'>
-														{entry.quantity} &times;{' '}
-														{formatCurrency(entry.unitPrice, { currency: entry.client.currency || entry.currency })}
-													</td>
+										{/* Desktop: Client */}
+										<TableCell className='hidden sm:table-cell px-3 py-2.5'>
+											<Badge
+												variant='secondary'
+												className={`text-xs px-1.5 py-0.5 ${clientColorClass(entry.clientId)}`}
+											>
+												{entry.client.name}
+											</Badge>
+										</TableCell>
 
-													{/* Amount */}
-													<td className='px-3 py-2.5 text-right font-medium tabular-nums w-[90px]'>
-														{formatCurrency(entry.amount, { currency: entry.client.currency || entry.currency })}
-													</td>
+										{/* Desktop: Description */}
+										<TableCell
+											className='hidden sm:table-cell px-3 py-2.5 max-w-[280px]'
+											title={entry.description}
+										>
+											<p className='line-clamp-2 text-sm'>{entry.description}</p>
+										</TableCell>
 
-													{/* Status */}
-													<td className='px-3 py-2.5 w-[100px]'>
-														<WorkEntryStatusBadge
-															status={entry.status}
-															invoiceNumber={entry.lastInvoiceNumber ?? undefined}
-															invoiceId={entry.lastInvoiceId ?? undefined}
-														/>
-													</td>
+										{/* Desktop: Amount */}
+										<TableCell className='hidden sm:table-cell px-3 py-2.5 text-right font-medium tabular-nums'>
+											{formatCurrency(entry.amount, {
+												currency: entry.client.currency || entry.currency,
+											})}
+										</TableCell>
 
-													{/* Actions */}
-													<td className='px-3 py-2.5 w-[70px]'>
-														{entry.status === 'UNBILLED' ? (
-															<div className='flex items-center gap-1'>
-																<Button
-																	variant='ghost'
-																	size='icon'
-																	className='h-7 w-7'
-																	onClick={() => setEditingEntry(entry)}
-																>
-																	<Pencil className='h-3.5 w-3.5' />
-																	<span className='sr-only'>Edit</span>
-																</Button>
-																<Button
-																	variant='ghost'
-																	size='icon'
-																	className='h-7 w-7 text-destructive hover:text-destructive'
-																	onClick={() => handleDelete(entry.id)}
-																>
-																	<Trash2 className='h-3.5 w-3.5' />
-																	<span className='sr-only'>Delete</span>
-																</Button>
-															</div>
-														) : (
-															<div className='shrink-0 w-[60px]' />
-														)}
-													</td>
-												</tr>
-											))}
-										</tbody>
-									</table>
-								</div>
+										{/* Desktop: Status */}
+										<TableCell className='hidden sm:table-cell px-3 py-2.5'>
+											<WorkEntryStatusBadge
+												status={entry.status}
+												invoiceNumber={entry.lastInvoiceNumber ?? undefined}
+												invoiceId={entry.lastInvoiceId ?? undefined}
+											/>
+										</TableCell>
+
+										{/* Desktop: Actions */}
+										<TableCell className='hidden sm:table-cell px-3 py-2.5'>
+											{entry.status === 'UNBILLED' ? (
+												<div className='flex items-center gap-1'>
+													<Button
+														variant='ghost'
+														size='icon'
+														className='h-7 w-7'
+														onClick={() => setEditingEntry(entry)}
+													>
+														<Pencil className='h-3.5 w-3.5' />
+														<span className='sr-only'>Edit</span>
+													</Button>
+													<Button
+														variant='ghost'
+														size='icon'
+														className='h-7 w-7 text-destructive hover:text-destructive'
+														onClick={() => handleDelete(entry.id)}
+													>
+														<Trash2 className='h-3.5 w-3.5' />
+														<span className='sr-only'>Delete</span>
+													</Button>
+												</div>
+											) : (
+												<div className='w-[60px]' />
+											)}
+										</TableCell>
+									</TableRow>
+								);
+							})}
+						</TableBody>
+					</Table>
+
+					{/* Pagination bar */}
+					<div className='flex items-center justify-between px-2 py-3'>
+						<p className='text-sm text-muted-foreground'>
+							{sorted.length} {sorted.length === 1 ? 'entry' : 'entries'}
+						</p>
+						{totalPages > 1 && (
+							<div className='flex items-center gap-2'>
+								<span className='text-sm text-muted-foreground'>
+									Page {page + 1} of {totalPages}
+								</span>
+								<Button
+									variant='outline'
+									size='sm'
+									disabled={page === 0}
+									onClick={() => setPage((p) => p - 1)}
+								>
+									Previous
+								</Button>
+								<Button
+									variant='outline'
+									size='sm'
+									disabled={page >= totalPages - 1}
+									onClick={() => setPage((p) => p + 1)}
+								>
+									Next
+								</Button>
 							</div>
-						);
-					})}
+						)}
+					</div>
 				</div>
-			)}
-
-			{/* Truncation notice */}
-			{totalCount != null && pageLimit != null && totalCount > pageLimit && (
-				<p className='text-center text-sm text-muted-foreground pt-2'>
-					Showing latest {pageLimit} of {totalCount} entries
-				</p>
 			)}
 
 			{/* Edit dialog */}
