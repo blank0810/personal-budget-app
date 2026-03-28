@@ -25,7 +25,6 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
 import { formatCurrency as formatCurrencyUtil } from '@/lib/formatters';
@@ -290,7 +289,7 @@ export function GenerateInvoiceDialog({
 
 	return (
 		<Dialog open={open} onOpenChange={onOpenChange}>
-			<DialogContent className='max-w-lg flex flex-col max-h-[90vh]'>
+			<DialogContent className='max-w-lg max-h-[90vh] flex flex-col'>
 				<DialogHeader>
 					<div className='flex items-center gap-2'>
 						<DialogTitle>Generate Invoice for {clientName}</DialogTitle>
@@ -302,149 +301,152 @@ export function GenerateInvoiceDialog({
 					</div>
 				</DialogHeader>
 
-				<form onSubmit={handleSubmit} className='flex flex-col flex-1 min-h-0 gap-4'>
-					{/* Date range filter */}
-					<div className='flex flex-wrap items-center gap-2'>
-						<div className='flex items-center gap-1.5'>
-							<label className='text-xs text-muted-foreground whitespace-nowrap'>
-								From
-							</label>
-							<Input
-								type='date'
-								value={fromDate}
-								onChange={(e) => setFromDate(e.target.value)}
-								className='h-7 text-xs w-36 px-2'
-							/>
-						</div>
-						<div className='flex items-center gap-1.5'>
-							<label className='text-xs text-muted-foreground whitespace-nowrap'>
-								To
-							</label>
-							<Input
-								type='date'
-								value={toDate}
-								onChange={(e) => setToDate(e.target.value)}
-								className='h-7 text-xs w-36 px-2'
-							/>
-						</div>
-						<div className='flex gap-1'>
-							<Button
-								type='button'
-								variant='outline'
-								size='sm'
-								className='h-7 text-xs px-2'
-								onClick={() => setQuickRange('thisMonth')}
-							>
-								This month
-							</Button>
-							<Button
-								type='button'
-								variant='outline'
-								size='sm'
-								className='h-7 text-xs px-2'
-								onClick={() => setQuickRange('lastMonth')}
-							>
-								Last month
-							</Button>
-							<Button
-								type='button'
-								variant='outline'
-								size='sm'
-								className='h-7 text-xs px-2'
-								onClick={() => setQuickRange('all')}
-							>
-								All
-							</Button>
-						</div>
-					</div>
-
-					{/* Entry selection */}
-					<div className='flex flex-col min-h-0'>
-						<div className='flex items-center justify-between pb-2'>
-							<span className='text-sm font-medium'>
-								{filteredEntries.length < entries.length
-									? `${filteredEntries.length} of ${entries.length} unbilled entries`
-									: `Entries (${entries.length})`}
-							</span>
-							<Button
-								type='button'
-								variant='ghost'
-								size='sm'
-								onClick={toggleAll}
-								className='h-7 text-xs'
-								disabled={filteredEntries.length === 0}
-							>
-								{allFilteredSelected ? 'Deselect all' : 'Select all'}
-							</Button>
+				<form onSubmit={handleSubmit} className='flex flex-col flex-1 min-h-0'>
+					{/* Scrollable body */}
+					<div className='flex-1 overflow-y-auto space-y-4 pr-1'>
+						{/* Date range filter */}
+						<div className='flex flex-wrap items-center gap-2'>
+							<div className='flex items-center gap-1.5'>
+								<label className='text-xs text-muted-foreground whitespace-nowrap'>
+									From
+								</label>
+								<Input
+									type='date'
+									value={fromDate}
+									onChange={(e) => setFromDate(e.target.value)}
+									className='h-7 text-xs w-36 px-2'
+								/>
+							</div>
+							<div className='flex items-center gap-1.5'>
+								<label className='text-xs text-muted-foreground whitespace-nowrap'>
+									To
+								</label>
+								<Input
+									type='date'
+									value={toDate}
+									onChange={(e) => setToDate(e.target.value)}
+									className='h-7 text-xs w-36 px-2'
+								/>
+							</div>
+							<div className='flex gap-1'>
+								<Button
+									type='button'
+									variant='outline'
+									size='sm'
+									className='h-7 text-xs px-2'
+									onClick={() => setQuickRange('thisMonth')}
+								>
+									This month
+								</Button>
+								<Button
+									type='button'
+									variant='outline'
+									size='sm'
+									className='h-7 text-xs px-2'
+									onClick={() => setQuickRange('lastMonth')}
+								>
+									Last month
+								</Button>
+								<Button
+									type='button'
+									variant='outline'
+									size='sm'
+									className='h-7 text-xs px-2'
+									onClick={() => setQuickRange('all')}
+								>
+									All
+								</Button>
+							</div>
 						</div>
 
-						<ScrollArea className='max-h-52 rounded-md border'>
-							{filteredEntries.length === 0 ? (
-								<p className='text-sm text-muted-foreground text-center py-6'>
-									No entries in this date range.
-								</p>
-							) : (
-								<div>
-									{groupedByWeek.map(([weekKey, weekEntries]) => {
-										const weekStart = new Date(weekKey);
-										const weekLabel = format(weekStart, 'MMM d');
-										const weekIds = weekEntries.map((e) => e.id);
-										const allWeekSelected = weekIds.every((id) =>
-											selectedIds.has(id)
-										);
-										const someWeekSelected =
-											!allWeekSelected &&
-											weekIds.some((id) => selectedIds.has(id));
-										const weekTotal = weekEntries
-											.filter((e) => selectedIds.has(e.id))
-											.reduce((sum, e) => sum + e.amount, 0);
+						<Separator />
 
-										return (
-											<div key={weekKey}>
-												{/* Week header */}
-												<div className='flex items-center gap-2 px-3 py-2 bg-muted/40 border-b sticky top-0'>
-													<Checkbox
-														id={`week-${weekKey}`}
-														checked={
-															someWeekSelected
-																? 'indeterminate'
-																: allWeekSelected
-														}
-														onCheckedChange={() => toggleWeek(weekIds)}
-													/>
-													<label
-														htmlFor={`week-${weekKey}`}
-														className='flex flex-1 items-center justify-between cursor-pointer'
-													>
-														<span className='text-xs font-semibold'>
-															Week of {weekLabel}
-														</span>
-														<span className='text-xs text-muted-foreground tabular-nums'>
-															{formatCurrency(weekTotal)}
-														</span>
-													</label>
-												</div>
-												{/* Week entries */}
-												<div className='divide-y'>
-													{weekEntries.map((entry) => {
-														const checked = selectedIds.has(entry.id);
-														return (
-															<label
-																key={entry.id}
-																htmlFor={`entry-${entry.id}`}
-																className='flex items-start gap-3 px-3 py-2.5 cursor-pointer hover:bg-muted/50'
-															>
-																<Checkbox
-																	id={`entry-${entry.id}`}
-																	checked={checked}
-																	onCheckedChange={() =>
-																		toggleEntry(entry.id)
-																	}
-																	className='mt-0.5'
-																/>
-																<div className='flex flex-1 items-start justify-between gap-2 min-w-0'>
-																	<div className='min-w-0'>
-																		<p className='text-sm truncate'>
+						{/* Entry selection */}
+						<div className='flex flex-col gap-2'>
+							<div className='flex items-center justify-between'>
+								<span className='text-sm font-medium'>
+									{filteredEntries.length < entries.length
+										? `${filteredEntries.length} of ${entries.length} unbilled entries`
+										: `Entries (${entries.length})`}
+								</span>
+								<Button
+									type='button'
+									variant='ghost'
+									size='sm'
+									onClick={toggleAll}
+									className='h-7 text-xs'
+									disabled={filteredEntries.length === 0}
+								>
+									{allFilteredSelected ? 'Deselect all' : 'Select all'}
+								</Button>
+							</div>
+
+							<div className='max-h-[300px] overflow-y-auto border rounded-md'>
+								{filteredEntries.length === 0 ? (
+									<p className='text-sm text-muted-foreground text-center py-6'>
+										No entries in this date range.
+									</p>
+								) : (
+									<div>
+										{groupedByWeek.map(([weekKey, weekEntries]) => {
+											const weekStart = new Date(weekKey);
+											const weekLabel = format(weekStart, 'MMM d');
+											const weekIds = weekEntries.map((e) => e.id);
+											const allWeekSelected = weekIds.every((id) =>
+												selectedIds.has(id)
+											);
+											const someWeekSelected =
+												!allWeekSelected &&
+												weekIds.some((id) => selectedIds.has(id));
+											const weekTotal = weekEntries
+												.filter((e) => selectedIds.has(e.id))
+												.reduce((sum, e) => sum + e.amount, 0);
+
+											return (
+												<div key={weekKey}>
+													{/* Week header */}
+													<div className='flex items-center gap-2 bg-muted/50 rounded px-3 py-2 sticky top-0 z-10'>
+														<Checkbox
+															id={`week-${weekKey}`}
+															checked={
+																someWeekSelected
+																	? 'indeterminate'
+																	: allWeekSelected
+															}
+															onCheckedChange={() => toggleWeek(weekIds)}
+														/>
+														<label
+															htmlFor={`week-${weekKey}`}
+															className='flex flex-1 items-center justify-between cursor-pointer'
+														>
+															<span className='text-sm font-semibold'>
+																Week of {weekLabel}
+															</span>
+															<span className='ml-auto text-xs text-muted-foreground tabular-nums'>
+																{formatCurrency(weekTotal)}
+															</span>
+														</label>
+													</div>
+													{/* Week entries */}
+													<div className='divide-y'>
+														{weekEntries.map((entry) => {
+															const checked = selectedIds.has(entry.id);
+															return (
+																<label
+																	key={entry.id}
+																	htmlFor={`entry-${entry.id}`}
+																	className='flex items-start gap-2 px-3 py-2 pl-8 hover:bg-muted/30 cursor-pointer rounded'
+																>
+																	<Checkbox
+																		id={`entry-${entry.id}`}
+																		checked={checked}
+																		onCheckedChange={() =>
+																			toggleEntry(entry.id)
+																		}
+																		className='mt-0.5'
+																	/>
+																	<div className='flex-1 min-w-0'>
+																		<p className='text-sm whitespace-pre-line break-words'>
 																			{entry.description}
 																		</p>
 																		<p className='text-xs text-muted-foreground'>
@@ -456,86 +458,88 @@ export function GenerateInvoiceDialog({
 																	<span className='text-sm font-medium tabular-nums shrink-0'>
 																		{formatCurrency(entry.amount)}
 																	</span>
-																</div>
-															</label>
-														);
-													})}
+																</label>
+															);
+														})}
+													</div>
 												</div>
-											</div>
-										);
-									})}
-								</div>
-							)}
-						</ScrollArea>
-					</div>
+											);
+										})}
+									</div>
+								)}
+							</div>
+						</div>
 
-					{/* Dates */}
-					<div className='grid grid-cols-2 gap-3'>
+						<Separator />
+
+						{/* Dates */}
+						<div className='grid grid-cols-2 gap-3'>
+							<div className='space-y-1.5'>
+								<Label htmlFor='gen-issue-date' className='text-xs'>
+									Issue Date
+								</Label>
+								<Input
+									id='gen-issue-date'
+									type='date'
+									value={issueDate}
+									onChange={(e) => setIssueDate(e.target.value)}
+									required
+								/>
+							</div>
+							<div className='space-y-1.5'>
+								<Label htmlFor='gen-due-date' className='text-xs'>
+									Due Date
+								</Label>
+								<Input
+									id='gen-due-date'
+									type='date'
+									value={dueDate}
+									onChange={(e) => setDueDate(e.target.value)}
+									required
+								/>
+								<p className='text-xs text-muted-foreground'>
+									Defaults to 30 days from issue date
+								</p>
+							</div>
+						</div>
+
+						{/* Tax rate */}
 						<div className='space-y-1.5'>
-							<Label htmlFor='gen-issue-date' className='text-xs'>
-								Issue Date
+							<Label htmlFor='gen-tax-rate' className='text-xs'>
+								Tax Rate (optional)
 							</Label>
-							<Input
-								id='gen-issue-date'
-								type='date'
-								value={issueDate}
-								onChange={(e) => setIssueDate(e.target.value)}
-								required
-							/>
+							<div className='flex items-center gap-2'>
+								<Input
+									id='gen-tax-rate'
+									type='number'
+									min='0'
+									max='100'
+									step='any'
+									placeholder='0'
+									value={taxRate}
+									onChange={(e) => setTaxRate(e.target.value)}
+									className='w-24'
+								/>
+								<span className='text-sm text-muted-foreground'>%</span>
+							</div>
 						</div>
+
+						{/* Notes */}
 						<div className='space-y-1.5'>
-							<Label htmlFor='gen-due-date' className='text-xs'>
-								Due Date
+							<Label htmlFor='gen-notes' className='text-xs'>
+								Notes (optional)
 							</Label>
-							<Input
-								id='gen-due-date'
-								type='date'
-								value={dueDate}
-								onChange={(e) => setDueDate(e.target.value)}
-								required
+							<Textarea
+								id='gen-notes'
+								placeholder='Payment terms, bank details...'
+								rows={2}
+								value={notes}
+								onChange={(e) => setNotes(e.target.value)}
 							/>
-							<p className='text-xs text-muted-foreground'>
-								Defaults to 30 days from issue date
-							</p>
 						</div>
 					</div>
 
-					{/* Tax rate */}
-					<div className='space-y-1.5'>
-						<Label htmlFor='gen-tax-rate' className='text-xs'>
-							Tax Rate (optional)
-						</Label>
-						<div className='flex items-center gap-2'>
-							<Input
-								id='gen-tax-rate'
-								type='number'
-								min='0'
-								max='100'
-								step='any'
-								placeholder='0'
-								value={taxRate}
-								onChange={(e) => setTaxRate(e.target.value)}
-								className='w-24'
-							/>
-							<span className='text-sm text-muted-foreground'>%</span>
-						</div>
-					</div>
-
-					{/* Notes */}
-					<div className='space-y-1.5'>
-						<Label htmlFor='gen-notes' className='text-xs'>
-							Notes (optional)
-						</Label>
-						<Textarea
-							id='gen-notes'
-							placeholder='Payment terms, bank details...'
-							rows={2}
-							value={notes}
-							onChange={(e) => setNotes(e.target.value)}
-						/>
-					</div>
-
-					<Separator />
+					<Separator className='my-4' />
 
 					<DialogFooter className='flex-col sm:flex-row items-stretch sm:items-center gap-3'>
 						<div className='flex-1 text-sm text-muted-foreground'>
