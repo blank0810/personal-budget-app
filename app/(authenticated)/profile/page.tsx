@@ -1,7 +1,7 @@
 import { auth } from '@/auth';
 import { redirect } from 'next/navigation';
-import prisma from '@/lib/prisma';
 import { NotificationService } from '@/server/modules/notification/notification.service';
+import { UserService } from '@/server/modules/user/user.service';
 import { ProfilePage } from '@/components/modules/profile/ProfilePage';
 
 export default async function ProfileRoute() {
@@ -13,23 +13,7 @@ export default async function ProfileRoute() {
 	const userId = session.user.id;
 
 	const [user, preferences] = await Promise.all([
-		prisma.user.findUniqueOrThrow({
-			where: { id: userId },
-			select: {
-				id: true,
-				name: true,
-				email: true,
-				password: true,
-				phoneNumber: true,
-				createdAt: true,
-				authAccounts: {
-					select: {
-						provider: true,
-						providerAccountId: true,
-					},
-				},
-			},
-		}),
+		UserService.getProfile(userId),
 		NotificationService.getPreferencesForUser(userId),
 	]);
 

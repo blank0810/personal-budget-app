@@ -282,10 +282,10 @@ export function GenerateInvoiceDialog({
 
 			if (result?.error) {
 				toast.error(result.error);
-			} else if (result?.invoiceId) {
+			} else if (result?.data) {
 				toast.success('Invoice generated');
 				onOpenChange(false);
-				router.push(`/invoices/${result.invoiceId}`);
+				router.push(`/invoices/${(result.data as { invoiceId: string }).invoiceId}`);
 			}
 		});
 	}

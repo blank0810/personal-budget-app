@@ -1,7 +1,7 @@
 import { auth } from '@/auth';
 import { redirect } from 'next/navigation';
-import prisma from '@/lib/prisma';
 import { ReportService } from '@/server/modules/report/report.service';
+import { UserService } from '@/server/modules/user/user.service';
 import { DashboardService } from '@/server/modules/dashboard/dashboard.service';
 import { BudgetService } from '@/server/modules/budget/budget.service';
 import { CategoryService } from '@/server/modules/category/category.service';
@@ -86,10 +86,7 @@ export default async function ReportsPage({
 		ReportService.getTransactionStatement(userId, from, to),
 		CategoryService.getCategories(userId),
 		DashboardService.getFinancialHealthScore(userId),
-		prisma.user.findUniqueOrThrow({
-			where: { id: userId },
-			select: { email: true, createdAt: true },
-		}),
+		UserService.getEmailAndCreatedAt(userId),
 	]);
 
 	const formatCurrency = (val: number) => {

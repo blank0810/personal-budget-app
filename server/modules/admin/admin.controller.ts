@@ -4,7 +4,9 @@ import { auth } from '@/auth';
 import { AdminService } from './admin.service';
 import { AdminUsersService } from './admin-users.service';
 import { AdminContentService } from './admin-content.service';
-import { clearCache } from '@/server/actions/cache';
+import { invalidateTags } from '@/server/actions/cache';
+import { CACHE_TAGS } from '@/server/lib/cache-tags';
+import { serialize } from '@/lib/serialization';
 
 async function requireAdminSession() {
 	const session = await auth();
@@ -18,34 +20,34 @@ async function requireAdminSession() {
 export async function adminReauth(password: string) {
 	const session = await auth();
 	if (!session?.user?.id)
-		return { success: false, error: 'Not authenticated' };
+		return { error: 'Not authenticated' };
 
 	const result = await AdminService.verifyAndElevate(
 		session.user.id,
 		password
 	);
-	if (result.success) await clearCache('/admin', 'layout');
+	if ('success' in result) invalidateTags(CACHE_TAGS.ADMIN);
 	return result;
 }
 
 export async function adminReauthOAuth() {
 	const session = await auth();
 	if (!session?.user?.id)
-		return { success: false, error: 'Not authenticated' };
+		return { error: 'Not authenticated' };
 
 	const result = await AdminService.elevateViaOAuth(session.user.id);
-	if (result.success) await clearCache('/admin', 'layout');
+	if ('success' in result) invalidateTags(CACHE_TAGS.ADMIN);
 	return result;
 }
 
 export async function exitAdminMode() {
 	const session = await auth();
 	if (!session?.user?.id)
-		return { success: false, error: 'Not authenticated' };
+		return { error: 'Not authenticated' };
 
 	await AdminService.deactivateAdminSession(session.user.id);
-	await clearCache('/admin', 'layout');
-	return { success: true };
+	invalidateTags(CACHE_TAGS.ADMIN);
+	return { success: true as const };
 }
 
 export async function checkAdminSession() {
@@ -63,14 +65,13 @@ export async function adminGetUsersAction(
 	filters?: { role?: string; status?: string }
 ) {
 	const { error } = await requireAdminSession();
-	if (error) return { success: false, error };
+	if (error) return { error };
 
 	try {
 		const result = await AdminUsersService.getUsers(page, search, filters);
-		return { success: true, ...result };
+		return { success: true as const, data: result };
 	} catch (err) {
 		return {
-			success: false,
 			error: err instanceof Error ? err.message : 'Failed to fetch users',
 		};
 	}
@@ -78,14 +79,13 @@ export async function adminGetUsersAction(
 
 export async function adminGetUserDetailAction(userId: string) {
 	const { error } = await requireAdminSession();
-	if (error) return { success: false, error };
+	if (error) return { error };
 
 	try {
 		const user = await AdminUsersService.getUserDetail(userId);
-		return { success: true, user };
+		return { success: true as const, data: { user: serialize(user) } };
 	} catch (err) {
 		return {
-			success: false,
 			error:
 				err instanceof Error ? err.message : 'Failed to fetch user detail',
 		};
@@ -97,14 +97,13 @@ export async function adminGetUserActivityAction(
 	limit: number = 20
 ) {
 	const { error } = await requireAdminSession();
-	if (error) return { success: false, error };
+	if (error) return { error };
 
 	try {
 		const timeline = await AdminUsersService.getUserActivity(userId, limit);
-		return { success: true, timeline };
+		return { success: true as const, data: { timeline: serialize(timeline) } };
 	} catch (err) {
 		return {
-			success: false,
 			error:
 				err instanceof Error ? err.message : 'Failed to fetch activity',
 		};
@@ -113,15 +112,14 @@ export async function adminGetUserActivityAction(
 
 export async function adminDisableUserAction(userId: string) {
 	const { error } = await requireAdminSession();
-	if (error) return { success: false, error };
+	if (error) return { error };
 
 	try {
 		await AdminUsersService.disableUser(userId);
-		await clearCache('/admin');
-		return { success: true };
+		invalidateTags(CACHE_TAGS.ADMIN);
+		return { success: true as const };
 	} catch (err) {
 		return {
-			success: false,
 			error:
 				err instanceof Error ? err.message : 'Failed to disable user',
 		};
@@ -130,15 +128,14 @@ export async function adminDisableUserAction(userId: string) {
 
 export async function adminEnableUserAction(userId: string) {
 	const { error } = await requireAdminSession();
-	if (error) return { success: false, error };
+	if (error) return { error };
 
 	try {
 		await AdminUsersService.enableUser(userId);
-		await clearCache('/admin');
-		return { success: true };
+		invalidateTags(CACHE_TAGS.ADMIN);
+		return { success: true as const };
 	} catch (err) {
 		return {
-			success: false,
 			error:
 				err instanceof Error ? err.message : 'Failed to enable user',
 		};
@@ -147,14 +144,13 @@ export async function adminEnableUserAction(userId: string) {
 
 export async function adminExportUserDataAction(userId: string) {
 	const { error } = await requireAdminSession();
-	if (error) return { success: false, error };
+	if (error) return { error };
 
 	try {
 		const data = await AdminUsersService.exportUserData(userId);
-		return { success: true, data };
+		return { success: true as const, data };
 	} catch (err) {
 		return {
-			success: false,
 			error:
 				err instanceof Error
 					? err.message
@@ -171,7 +167,7 @@ export async function adminGetFeatureRequestsAction(
 	category?: string
 ) {
 	const { error } = await requireAdminSession();
-	if (error) return { success: false, error };
+	if (error) return { error };
 
 	try {
 		const result = await AdminContentService.getFeatureRequests(
@@ -179,10 +175,9 @@ export async function adminGetFeatureRequestsAction(
 			status,
 			category
 		);
-		return { success: true, ...result };
+		return { success: true as const, data: result };
 	} catch (err) {
 		return {
-			success: false,
 			error:
 				err instanceof Error
 					? err.message
@@ -197,7 +192,7 @@ export async function adminUpdateFeatureRequestAction(
 	adminNotes?: string
 ) {
 	const { error } = await requireAdminSession();
-	if (error) return { success: false, error };
+	if (error) return { error };
 
 	try {
 		await AdminContentService.updateFeatureRequestStatus(
@@ -205,10 +200,9 @@ export async function adminUpdateFeatureRequestAction(
 			status,
 			adminNotes
 		);
-		return { success: true };
+		return { success: true as const };
 	} catch (err) {
 		return {
-			success: false,
 			error:
 				err instanceof Error
 					? err.message
@@ -219,14 +213,13 @@ export async function adminUpdateFeatureRequestAction(
 
 export async function adminGetFeatureFlagsAction() {
 	const { error } = await requireAdminSession();
-	if (error) return { success: false, error };
+	if (error) return { error };
 
 	try {
 		const flags = await AdminContentService.getFeatureFlags();
-		return { success: true, flags };
+		return { success: true as const, data: { flags } };
 	} catch (err) {
 		return {
-			success: false,
 			error:
 				err instanceof Error
 					? err.message
@@ -240,14 +233,13 @@ export async function adminToggleFeatureFlagAction(
 	enabled: boolean
 ) {
 	const { error } = await requireAdminSession();
-	if (error) return { success: false, error };
+	if (error) return { error };
 
 	try {
 		await AdminContentService.toggleFeatureFlag(key, enabled);
-		return { success: true };
+		return { success: true as const };
 	} catch (err) {
 		return {
-			success: false,
 			error:
 				err instanceof Error
 					? err.message

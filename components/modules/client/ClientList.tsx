@@ -1,15 +1,15 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { toast } from 'sonner';
 import { Pencil, Archive, Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ClientForm } from './ClientForm';
 import { archiveClientAction } from '@/server/modules/client/client.controller';
 import { formatCurrency } from '@/lib/formatters';
+import { useServerAction } from '@/hooks/use-server-action';
 
 interface ClientWithUnbilled {
 	id: string;
@@ -34,19 +34,10 @@ export interface ClientListProps {
 function ClientCard({ client }: { client: ClientWithUnbilled }) {
 	const router = useRouter();
 	const [editOpen, setEditOpen] = useState(false);
-	const [isPending, startTransition] = useTransition();
-
-	function handleArchive() {
-		startTransition(async () => {
-			const result = await archiveClientAction(client.id);
-			if (result?.error) {
-				toast.error(result.error);
-			} else {
-				toast.success('Client archived');
-				router.refresh();
-			}
-		});
-	}
+	const { execute: archiveClient, isPending } = useServerAction(archiveClientAction, {
+		successMessage: 'Client archived',
+		onSuccess: () => router.refresh(),
+	});
 
 	return (
 		<>
@@ -76,7 +67,7 @@ function ClientCard({ client }: { client: ClientWithUnbilled }) {
 								variant='ghost'
 								size='icon'
 								className='h-8 w-8 text-muted-foreground hover:text-destructive'
-								onClick={handleArchive}
+								onClick={() => archiveClient(client.id)}
 								disabled={isPending}
 								title='Archive client'
 							>

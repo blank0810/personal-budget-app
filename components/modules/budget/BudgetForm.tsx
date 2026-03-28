@@ -27,7 +27,7 @@ import {
 	CreateBudgetInput,
 } from '@/server/modules/budget/budget.types';
 import { createBudgetAction } from '@/server/modules/budget/budget.controller';
-import { useState } from 'react';
+import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { Category } from '@prisma/client';
 
@@ -37,7 +37,7 @@ interface BudgetFormProps {
 
 export function BudgetForm({ categories }: BudgetFormProps) {
 	const router = useRouter();
-	const [isPending, setIsPending] = useState(false);
+	const [isPending, startTransition] = useTransition();
 	const [showCustomCategoryInput, setShowCustomCategoryInput] =
 		useState(false);
 	const [showCustomYearInput, setShowCustomYearInput] = useState(false);
@@ -59,32 +59,19 @@ export function BudgetForm({ categories }: BudgetFormProps) {
 		name: 'categoryId',
 	});
 
-	async function onSubmit(data: CreateBudgetInput) {
-		setIsPending(true);
-		const formData = new FormData();
-		formData.append('name', data.name);
-		formData.append('amount', data.amount.toString());
+	function onSubmit(data: CreateBudgetInput) {
+		startTransition(async () => {
+			const result = await createBudgetAction(data);
 
-		// Handle category: pass either categoryId or categoryName
-		if (data.categoryId && data.categoryId.length > 0) {
-			formData.append('categoryId', data.categoryId);
-		} else if (data.categoryName && data.categoryName.length > 0) {
-			formData.append('categoryName', data.categoryName);
-		}
-
-		formData.append('month', data.month.toISOString());
-
-		const result = await createBudgetAction(formData);
-		setIsPending(false);
-
-		if (result?.error) {
-			console.error(result.error);
-		} else {
-			form.reset();
-			setShowCustomCategoryInput(false);
-			setShowCustomYearInput(false);
-			router.refresh();
-		}
+			if (result?.error) {
+				console.error(result.error);
+			} else {
+				form.reset();
+				setShowCustomCategoryInput(false);
+				setShowCustomYearInput(false);
+				router.refresh();
+			}
+		});
 	}
 
 	return (

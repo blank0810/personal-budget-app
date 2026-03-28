@@ -35,7 +35,7 @@ import {
 	CreateTransferInput,
 } from '@/server/modules/transfer/transfer.types';
 import { createTransferAction } from '@/server/modules/transfer/transfer.controller';
-import { useState } from 'react';
+import { useState, useTransition } from 'react';
 import { Account } from '@prisma/client';
 
 interface TransferFormProps {
@@ -44,7 +44,7 @@ interface TransferFormProps {
 
 export function TransferForm({ accounts }: TransferFormProps) {
 	const { formatCurrency } = useCurrency();
-	const [isPending, setIsPending] = useState(false);
+	const [isPending, startTransition] = useTransition();
 	const [showReview, setShowReview] = useState(false);
 	const [formData, setFormData] = useState<CreateTransferInput | null>(null);
 
@@ -79,37 +79,28 @@ export function TransferForm({ accounts }: TransferFormProps) {
 	}
 
 	// Step 2: Confirm and Execute
-	async function onConfirm() {
+	function onConfirm() {
 		if (!formData) return;
-		setIsPending(true);
+		startTransition(async () => {
+			const result = await createTransferAction(formData);
+			setShowReview(false);
 
-		const payload = new FormData();
-		payload.append('amount', formData.amount.toString());
-		payload.append('fee', (formData.fee || 0).toString()); // Handle fee
-		payload.append('description', formData.description || '');
-		payload.append('date', formData.date.toISOString());
-		payload.append('fromAccountId', formData.fromAccountId);
-		payload.append('toAccountId', formData.toAccountId);
-
-		const result = await createTransferAction(payload);
-		setIsPending(false);
-		setShowReview(false);
-
-		if (result?.error) {
-			console.error(result.error);
-			// Ideally show toast error
-		} else {
-			form.reset({
-				amount: undefined,
-				fee: undefined,
-				description: '',
-				date: new Date(),
-				fromAccountId: '',
-				toAccountId: '',
-			});
-			setFormData(null);
-			// Ideally show toast success
-		}
+			if (result?.error) {
+				console.error(result.error);
+				// Ideally show toast error
+			} else {
+				form.reset({
+					amount: undefined,
+					fee: undefined,
+					description: '',
+					date: new Date(),
+					fromAccountId: '',
+					toAccountId: '',
+				});
+				setFormData(null);
+				// Ideally show toast success
+			}
+		});
 	}
 
 	const fromAccountName = accounts.find(

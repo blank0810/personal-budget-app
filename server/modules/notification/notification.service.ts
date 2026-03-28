@@ -1,6 +1,7 @@
 import prisma from '@/lib/prisma';
 import { NotificationChannel } from '@prisma/client';
 import { EmailService } from '@/server/modules/email/email.service';
+import { UserService } from '@/server/modules/user/user.service';
 import { formatCurrency } from '@/lib/formatters';
 import { addSmsJob } from './sms.queue';
 import {
@@ -115,10 +116,7 @@ export const NotificationService = {
 		newPercentage: number
 	): Promise<void> {
 		// Fetch user's currency preference
-		const { currency } = await prisma.user.findUniqueOrThrow({
-			where: { id: userId },
-			select: { currency: true },
-		});
+		const currency = await UserService.getCurrency(userId);
 
 		// Determine which threshold was crossed
 		let subject: string;
@@ -146,10 +144,7 @@ export const NotificationService = {
 		// --- Email path ---
 		const emailEnabled = await this.isEnabled(userId, 'budget_alerts', 'EMAIL');
 		if (emailEnabled) {
-			const user = await prisma.user.findUniqueOrThrow({
-				where: { id: userId },
-				select: { email: true, name: true },
-			});
+			const user = await UserService.getEmailAndName(userId);
 
 			const html = `
 				<div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto; background: #ffffff;">
@@ -200,19 +195,16 @@ export const NotificationService = {
 		// --- SMS path ---
 		const smsEnabled = await this.isEnabled(userId, 'budget_alerts', 'SMS');
 		if (smsEnabled) {
-			const user = await prisma.user.findUniqueOrThrow({
-				where: { id: userId },
-				select: { phoneNumber: true },
-			});
+			const phoneNumber = await UserService.getPhoneNumber(userId);
 
-			if (user.phoneNumber) {
+			if (phoneNumber) {
 				const smsMessage = getBudgetRoastSms(
 					budget.name,
 					newPercentage,
 					spent,
 					budget.amount
 				);
-				await addSmsJob(user.phoneNumber, smsMessage);
+				await addSmsJob(phoneNumber, smsMessage);
 			}
 		}
 	},
@@ -226,18 +218,12 @@ export const NotificationService = {
 		account: { name: string; newBalance: number } | null
 	): Promise<void> {
 		// Fetch user's currency preference
-		const { currency } = await prisma.user.findUniqueOrThrow({
-			where: { id: userId },
-			select: { currency: true },
-		});
+		const currency = await UserService.getCurrency(userId);
 
 		// --- Email path ---
 		const emailEnabled = await this.isEnabled(userId, 'income_notifications', 'EMAIL');
 		if (emailEnabled) {
-			const user = await prisma.user.findUniqueOrThrow({
-				where: { id: userId },
-				select: { email: true, name: true },
-			});
+			const user = await UserService.getEmailAndName(userId);
 
 			const subject = `Income Received: ${formatCurrency(income.amount, { currency })}`;
 
@@ -292,19 +278,16 @@ export const NotificationService = {
 		// --- SMS path ---
 		const smsEnabled = await this.isEnabled(userId, 'income_notifications', 'SMS');
 		if (smsEnabled) {
-			const user = await prisma.user.findUniqueOrThrow({
-				where: { id: userId },
-				select: { phoneNumber: true },
-			});
+			const phoneNumber = await UserService.getPhoneNumber(userId);
 
-			if (user.phoneNumber) {
+			if (phoneNumber) {
 				const smsMessage = getIncomeRoastSms(
 					income.amount,
 					income.categoryName,
 					account?.name ?? null,
 					account?.newBalance ?? null
 				);
-				await addSmsJob(user.phoneNumber, smsMessage);
+				await addSmsJob(phoneNumber, smsMessage);
 			}
 		}
 	},
@@ -321,14 +304,11 @@ export const NotificationService = {
 		const smsEnabled = await this.isEnabled(userId, 'monthly_report', 'SMS');
 		if (!smsEnabled) return;
 
-		const user = await prisma.user.findUniqueOrThrow({
-			where: { id: userId },
-			select: { phoneNumber: true },
-		});
+		const phoneNumber = await UserService.getPhoneNumber(userId);
 
-		if (!user.phoneNumber) return;
+		if (!phoneNumber) return;
 
 		const smsMessage = getReportRoastSms(month, healthScore, netAmount);
-		await addSmsJob(user.phoneNumber, smsMessage);
+		await addSmsJob(phoneNumber, smsMessage);
 	},
 };

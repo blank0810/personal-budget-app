@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useTransition } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { adjustBalanceSchema } from '@/server/modules/account/account.types';
@@ -39,7 +39,7 @@ interface AdjustBalanceDialogProps {
 export function AdjustBalanceDialog({ account }: AdjustBalanceDialogProps) {
 	const { formatCurrency } = useCurrency();
 	const [open, setOpen] = useState(false);
-	const [isPending, setIsPending] = useState(false);
+	const [isPending, startTransition] = useTransition();
 
 	const isLiability = account.isLiability;
 
@@ -70,20 +70,16 @@ export function AdjustBalanceDialog({ account }: AdjustBalanceDialogProps) {
 		}
 	};
 
-	async function onSubmit(data: z.infer<typeof adjustBalanceSchema>) {
-		setIsPending(true);
-		const formData = new FormData();
-		formData.append('accountId', data.accountId);
-		formData.append('newBalance', data.newBalance.toString());
+	function onSubmit(data: z.infer<typeof adjustBalanceSchema>) {
+		startTransition(async () => {
+			const result = await adjustAccountBalanceAction(data);
 
-		const result = await adjustAccountBalanceAction(formData);
-		setIsPending(false);
-
-		if (result?.error) {
-			console.error(result.error);
-		} else {
-			setOpen(false);
-		}
+			if (result?.error) {
+				console.error(result.error);
+			} else {
+				setOpen(false);
+			}
+		});
 	}
 
 	return (

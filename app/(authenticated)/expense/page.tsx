@@ -8,6 +8,7 @@ import { auth } from '@/auth';
 import { redirect } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { serialize } from '@/lib/serialization';
+import { startOfMonth, endOfMonth } from 'date-fns';
 
 export default async function ExpensePage() {
 	const session = await auth();
@@ -15,15 +16,25 @@ export default async function ExpensePage() {
 		redirect('/api/auth/signin');
 	}
 
-	// ... (existing imports)
+	const now = new Date();
+	const monthStart = startOfMonth(now);
+	const monthEnd = endOfMonth(now);
 
-	const expenses = await ExpenseService.getExpenses(session.user.id);
-	const accounts = await AccountService.getAccounts(session.user.id);
-	const categories = await CategoryService.getCategories(
-		session.user.id,
-		'EXPENSE'
-	);
-	const budgets = await BudgetService.getBudgets(session.user.id);
+	const [initialResult, accounts, categories, budgets, monthlyTotals] =
+		await Promise.all([
+			ExpenseService.getPaginatedExpenses(session.user.id, {
+				page: 1,
+				pageSize: 20,
+				sortBy: 'date',
+				sortOrder: 'desc',
+				startDate: monthStart,
+				endDate: monthEnd,
+			}),
+			AccountService.getAccounts(session.user.id),
+			CategoryService.getCategories(session.user.id, 'EXPENSE'),
+			BudgetService.getBudgets(session.user.id),
+			ExpenseService.getMonthlyTotals(session.user.id, now.getFullYear()),
+		]);
 
 	return (
 		<div className='container mx-auto py-6 md:py-10 space-y-8'>
@@ -48,7 +59,13 @@ export default async function ExpensePage() {
 				</div>
 
 				<div className='min-w-0 space-y-6'>
-					<ExpenseViews expenses={serialize(expenses)} />
+					<ExpenseViews
+						initialExpenses={serialize(initialResult.data)}
+						initialTotal={initialResult.total}
+						initialMonthlyTotals={monthlyTotals}
+						initialYear={now.getFullYear()}
+						initialMonth={now.getMonth()}
+					/>
 				</div>
 			</div>
 		</div>

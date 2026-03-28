@@ -31,6 +31,7 @@ import { renderMonthlyReportPDF } from './report.templates';
 import { put } from '@vercel/blob';
 import { EmailService } from '@/server/modules/email/email.service';
 import { NotificationService } from '@/server/modules/notification/notification.service';
+import { UserService } from '@/server/modules/user/user.service';
 
 export const ReportService = {
 	/**
@@ -881,10 +882,7 @@ export const ReportService = {
 		userId: string,
 		period: Date
 	): Promise<MonthlyDigest> {
-		const user = await prisma.user.findUniqueOrThrow({
-			where: { id: userId },
-			select: { name: true, email: true, currency: true },
-		});
+		const user = await UserService.getNameEmailCurrency(userId);
 
 		const monthStart = startOfMonth(period);
 		const monthEnd = endOfMonth(period);

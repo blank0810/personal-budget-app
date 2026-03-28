@@ -1,49 +1,27 @@
 'use server';
 
-import { auth } from '@/auth';
+import { getAuthenticatedUser } from '@/server/lib/auth-guard';
 import { PaymentService } from './payment.service';
 import { createPaymentSchema } from './payment.types';
-import { revalidatePath } from 'next/cache';
-
-/**
- * Helper to authenticate user
- */
-async function getAuthenticatedUser() {
-	const session = await auth();
-	if (!session?.user?.id) {
-		throw new Error('Unauthorized');
-	}
-	return session.user.id;
-}
+import { invalidateTags } from '@/server/actions/cache';
+import { CACHE_TAGS } from '@/server/lib/cache-tags';
+import { coerceDateFields } from '@/server/lib/action-utils';
 
 /**
  * Server Action: Create Payment
  */
-export async function createPaymentAction(formData: FormData) {
+export async function createPaymentAction(data: unknown) {
 	const userId = await getAuthenticatedUser();
 
-	const rawData = {
-		amount: Number(formData.get('amount')),
-		date: new Date(formData.get('date') as string),
-		description: formData.get('description') as string,
-		fee: formData.get('fee') ? Number(formData.get('fee')) : 0,
-		fromAccountId: formData.get('fromAccountId') as string,
-		toLiabilityId: formData.get('toLiabilityId') as string,
-	};
-
-	const validatedFields = createPaymentSchema.safeParse(rawData);
-
-	if (!validatedFields.success) {
-		return {
-			error: 'Invalid fields',
-			issues: validatedFields.error.issues,
-		};
+	const parsed = createPaymentSchema.safeParse(coerceDateFields(data));
+	if (!parsed.success) {
+		return { error: parsed.error.issues[0]?.message || 'Validation failed' };
 	}
 
 	try {
-		await PaymentService.createPayment(userId, validatedFields.data);
-		revalidatePath('/', 'layout');
-		return { success: true };
+		await PaymentService.createPayment(userId, parsed.data);
+		invalidateTags(CACHE_TAGS.PAYMENTS, CACHE_TAGS.ACCOUNTS, CACHE_TAGS.DASHBOARD);
+		return { success: true as const };
 	} catch (error) {
 		console.error('Failed to create payment:', error);
 		const message = error instanceof Error ? error.message : 'Failed to create payment';
@@ -59,8 +37,8 @@ export async function deletePaymentAction(paymentId: string) {
 
 	try {
 		await PaymentService.deletePayment(userId, paymentId);
-		revalidatePath('/', 'layout');
-		return { success: true };
+		invalidateTags(CACHE_TAGS.PAYMENTS, CACHE_TAGS.ACCOUNTS, CACHE_TAGS.DASHBOARD);
+		return { success: true as const };
 	} catch (error) {
 		console.error('Failed to delete payment:', error);
 		const message = error instanceof Error ? error.message : 'Failed to delete payment';

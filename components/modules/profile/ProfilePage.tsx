@@ -916,10 +916,10 @@ function DangerZoneCard({ hasPassword }: { hasPassword: boolean }) {
 		setError('');
 		startTransition(async () => {
 			const result = await verifyForResetAction(password);
-			if (result.error) {
+			if ('error' in result && result.error) {
 				setError(result.error);
-			} else if (result.token) {
-				setResetToken(result.token);
+			} else if ('data' in result && result.data?.token) {
+				setResetToken(result.data.token);
 				setStep(3);
 			}
 		});
@@ -933,7 +933,7 @@ function DangerZoneCard({ hasPassword }: { hasPassword: boolean }) {
 				confirmPhrase,
 				tier
 			);
-			if (result.error) {
+			if ('error' in result && result.error) {
 				setError(result.error);
 			} else {
 				setStep(4);
@@ -944,7 +944,7 @@ function DangerZoneCard({ hasPassword }: { hasPassword: boolean }) {
 	function handleExportData() {
 		startExportTransition(async () => {
 			const result = await exportMyDataAction();
-			if (result.error) {
+			if ('error' in result) {
 				toast.error(result.error);
 				return;
 			}

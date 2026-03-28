@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/auth';
 import { InvoiceService } from '@/server/modules/invoice/invoice.service';
 import { renderInvoicePDF } from '@/server/modules/invoice/invoice.templates';
-import prisma from '@/lib/prisma';
+import { UserService } from '@/server/modules/user/user.service';
 
 export async function GET(
 	req: NextRequest,
@@ -28,11 +28,7 @@ export async function GET(
 		// Use the invoice's own currency, falling back to user's currency
 		let currency = invoice.currency;
 		if (!currency) {
-			const user = await prisma.user.findUniqueOrThrow({
-				where: { id: session.user.id },
-				select: { currency: true },
-			});
-			currency = user.currency;
+			currency = await UserService.getCurrency(session.user.id);
 		}
 
 		// Convert Decimals to numbers for the template

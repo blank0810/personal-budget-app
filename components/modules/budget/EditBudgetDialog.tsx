@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useTransition } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import {
@@ -53,7 +53,7 @@ interface EditBudgetDialogProps {
 
 export function EditBudgetDialog({ budget, categories }: EditBudgetDialogProps) {
 	const [open, setOpen] = useState(false);
-	const [isPending, setIsPending] = useState(false);
+	const [isPending, startTransition] = useTransition();
 	const [showCustomYearInput, setShowCustomYearInput] = useState(false);
 
 	const budgetDate = new Date(budget.month);
@@ -86,23 +86,16 @@ export function EditBudgetDialog({ budget, categories }: EditBudgetDialogProps) 
 		'December',
 	];
 
-	async function onSubmit(data: UpdateBudgetInput) {
-		setIsPending(true);
-		const formData = new FormData();
-		formData.append('id', data.id);
-		if (data.name) formData.append('name', data.name);
-		if (data.amount) formData.append('amount', data.amount.toString());
-		if (data.categoryId) formData.append('categoryId', data.categoryId);
-		if (data.month) formData.append('month', data.month.toISOString());
+	function onSubmit(data: UpdateBudgetInput) {
+		startTransition(async () => {
+			const result = await updateBudgetAction(data);
 
-		const result = await updateBudgetAction(formData);
-		setIsPending(false);
-
-		if (result?.error) {
-			console.error(result.error);
-		} else {
-			setOpen(false);
-		}
+			if (result?.error) {
+				console.error(result.error);
+			} else {
+				setOpen(false);
+			}
+		});
 	}
 
 	return (

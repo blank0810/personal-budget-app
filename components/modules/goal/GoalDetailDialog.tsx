@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import {
 	Dialog,
 	DialogContent,
@@ -27,7 +27,7 @@ import {
 	deleteGoalAction,
 } from '@/server/modules/goal/goal.controller';
 import { useCurrency } from '@/lib/contexts/currency-context';
-import { toast } from 'sonner';
+import { useServerAction } from '@/hooks/use-server-action';
 import {
 	Archive,
 	CheckCircle2,
@@ -77,7 +77,33 @@ interface GoalDetailDialogProps {
 export function GoalDetailDialog({ goal, onClose }: GoalDetailDialogProps) {
 	const { formatCurrency } = useCurrency();
 	const [showContribution, setShowContribution] = useState(false);
-	const [loading, setLoading] = useState(false);
+
+	const { execute: archiveGoal, isPending: isArchiving } = useServerAction(archiveGoalAction, {
+		successMessage: 'Goal archived',
+		onSuccess: onClose,
+	});
+	const { execute: completeGoal, isPending: isCompleting } = useServerAction(completeGoalAction, {
+		successMessage: 'Goal completed!',
+		onSuccess: onClose,
+	});
+	const { execute: deleteGoal, isPending: isDeleting } = useServerAction(deleteGoalAction, {
+		successMessage: 'Goal deleted',
+		onSuccess: onClose,
+	});
+
+	const loading = isArchiving || isCompleting || isDeleting;
+
+	const handleArchive = useCallback(() => {
+		if (goal) archiveGoal(goal.id);
+	}, [archiveGoal, goal]);
+
+	const handleComplete = useCallback(() => {
+		if (goal) completeGoal(goal.id);
+	}, [completeGoal, goal]);
+
+	const handleDelete = useCallback(() => {
+		if (goal) deleteGoal(goal.id);
+	}, [deleteGoal, goal]);
 
 	if (!goal) return null;
 
@@ -97,42 +123,6 @@ export function GoalDetailDialog({ goal, onClose }: GoalDetailDialogProps) {
 	const healthInfo = goal.healthStatus
 		? HEALTH_STATUS_MAP[goal.healthStatus]
 		: null;
-
-	async function handleArchive() {
-		setLoading(true);
-		const result = await archiveGoalAction(goal!.id);
-		setLoading(false);
-		if (result?.error) {
-			toast.error(result.error);
-		} else {
-			toast.success('Goal archived');
-			onClose();
-		}
-	}
-
-	async function handleComplete() {
-		setLoading(true);
-		const result = await completeGoalAction(goal!.id);
-		setLoading(false);
-		if (result?.error) {
-			toast.error(result.error);
-		} else {
-			toast.success('Goal completed!');
-			onClose();
-		}
-	}
-
-	async function handleDelete() {
-		setLoading(true);
-		const result = await deleteGoalAction(goal!.id);
-		setLoading(false);
-		if (result?.error) {
-			toast.error(result.error);
-		} else {
-			toast.success('Goal deleted');
-			onClose();
-		}
-	}
 
 	return (
 		<>

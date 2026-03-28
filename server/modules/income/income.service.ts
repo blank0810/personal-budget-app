@@ -2,10 +2,12 @@ import prisma from '@/lib/prisma';
 import {
 	CreateIncomeInput,
 	GetIncomesInput,
+	GetPaginatedIncomesInput,
 	UpdateIncomeInput,
 } from './income.types';
 import { CategoryService } from '../category/category.service';
-import { AccountType } from '@prisma/client';
+import { NotificationService } from '@/server/modules/notification/notification.service';
+import { AccountType, Prisma } from '@prisma/client';
 import { subMonths, format } from 'date-fns';
 
 export const IncomeService = {
@@ -14,7 +16,7 @@ export const IncomeService = {
 	 */
 	async createIncome(userId: string, data: CreateIncomeInput) {
 		// Transaction to ensure account balance is updated if accountId is provided
-		return await prisma.$transaction(async (tx) => {
+		const income = await prisma.$transaction(async (tx) => {
 			// Handle category: get existing or create new
 			let categoryId = data.categoryId;
 
@@ -32,7 +34,7 @@ export const IncomeService = {
 				throw new Error('Category is required');
 			}
 
-			const income = await tx.income.create({
+			const created = await tx.income.create({
 				data: {
 					amount: data.amount,
 					description: data.description,
@@ -174,8 +176,51 @@ export const IncomeService = {
 				}
 			}
 
-			return income;
+			return created;
 		});
+
+		// Fire-and-forget income notification (after transaction commits)
+		try {
+			const categoryId = data.categoryId;
+			const accountId = data.accountId;
+
+			let categoryName = 'Uncategorized';
+			if (categoryId) {
+				const cat = await prisma.category.findUnique({
+					where: { id: categoryId },
+					select: { name: true },
+				});
+				if (cat) categoryName = cat.name;
+			}
+
+			let accountInfo: { name: string; newBalance: number } | null = null;
+			if (accountId) {
+				const acc = await prisma.account.findUnique({
+					where: { id: accountId },
+					select: { name: true, balance: true },
+				});
+				if (acc) {
+					accountInfo = {
+						name: acc.name,
+						newBalance: acc.balance.toNumber(),
+					};
+				}
+			}
+
+			NotificationService.sendIncomeNotification(
+				userId,
+				{
+					amount: data.amount,
+					description: data.description || null,
+					categoryName,
+				},
+				accountInfo
+			).catch(() => {});
+		} catch {
+			// Notification failure must never fail the main operation
+		}
+
+		return income;
 	},
 
 	/**
@@ -200,6 +245,91 @@ export const IncomeService = {
 				date: 'desc',
 			},
 		});
+	},
+
+	/**
+	 * Get monthly totals for a given year (for the month overview grid)
+	 */
+	async getMonthlyTotals(userId: string, year: number) {
+		const startDate = new Date(year, 0, 1);
+		const endDate = new Date(year, 11, 31, 23, 59, 59, 999);
+
+		const incomes = await prisma.income.findMany({
+			where: {
+				userId,
+				date: { gte: startDate, lte: endDate },
+			},
+			select: { amount: true, date: true },
+		});
+
+		// Aggregate by month
+		const monthlyTotals: { month: number; total: number; count: number }[] = [];
+		for (let m = 0; m < 12; m++) {
+			monthlyTotals.push({ month: m, total: 0, count: 0 });
+		}
+
+		for (const income of incomes) {
+			const month = income.date.getMonth();
+			monthlyTotals[month].total += income.amount.toNumber();
+			monthlyTotals[month].count += 1;
+		}
+
+		return monthlyTotals;
+	},
+
+	/**
+	 * Get paginated incomes with optional filters, search, and sorting
+	 */
+	async getPaginatedIncomes(userId: string, filters?: GetPaginatedIncomesInput) {
+		const page = filters?.page ?? 1;
+		const pageSize = filters?.pageSize ?? 20;
+		const skip = (page - 1) * pageSize;
+		const sortBy = filters?.sortBy ?? 'date';
+		const sortOrder = filters?.sortOrder ?? 'desc';
+
+		const where: Prisma.IncomeWhereInput = {
+			userId,
+			...(filters?.categoryId && { categoryId: filters.categoryId }),
+			...(filters?.accountId && { accountId: filters.accountId }),
+			...(filters?.startDate || filters?.endDate
+				? {
+						date: {
+							...(filters?.startDate && { gte: filters.startDate }),
+							...(filters?.endDate && { lte: filters.endDate }),
+						},
+					}
+				: {}),
+			...(filters?.search && {
+				OR: [
+					{ description: { contains: filters.search, mode: 'insensitive' as const } },
+					{ category: { name: { contains: filters.search, mode: 'insensitive' as const } } },
+					{ account: { name: { contains: filters.search, mode: 'insensitive' as const } } },
+				],
+			}),
+		};
+
+		const orderBy =
+			sortBy === 'categoryName'
+				? { category: { name: sortOrder } }
+				: sortBy === 'accountName'
+					? { account: { name: sortOrder } }
+					: { [sortBy]: sortOrder };
+
+		const [data, total] = await prisma.$transaction([
+			prisma.income.findMany({
+				where,
+				include: {
+					category: true,
+					account: true,
+				},
+				orderBy: [orderBy, { createdAt: 'desc' }],
+				skip,
+				take: pageSize,
+			}),
+			prisma.income.count({ where }),
+		]);
+
+		return { data, total };
 	},
 
 	/**

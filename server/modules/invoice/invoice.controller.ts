@@ -1,6 +1,6 @@
 'use server';
 
-import { auth } from '@/auth';
+import { getAuthenticatedUser } from '@/server/lib/auth-guard';
 import { InvoiceService } from './invoice.service';
 import {
 	createInvoiceSchema,
@@ -8,13 +8,8 @@ import {
 	markAsPaidSchema,
 	generateFromEntriesSchema,
 } from './invoice.types';
-import { clearCache } from '@/server/actions/cache';
-
-async function getAuthenticatedUser() {
-	const session = await auth();
-	if (!session?.user?.id) throw new Error('Not authenticated');
-	return session.user.id;
-}
+import { invalidateTags } from '@/server/actions/cache';
+import { CACHE_TAGS } from '@/server/lib/cache-tags';
 
 export async function createInvoiceAction(data: unknown) {
 	const userId = await getAuthenticatedUser();
@@ -28,8 +23,8 @@ export async function createInvoiceAction(data: unknown) {
 
 	try {
 		const invoice = await InvoiceService.create(userId, parsed.data);
-		await clearCache('/invoices');
-		return { success: true, invoice };
+		invalidateTags(CACHE_TAGS.INVOICES, CACHE_TAGS.WORK_ENTRIES);
+		return { success: true as const, data: invoice };
 	} catch (error) {
 		return {
 			error:
@@ -52,8 +47,8 @@ export async function updateInvoiceAction(data: unknown) {
 
 	try {
 		const invoice = await InvoiceService.update(userId, parsed.data);
-		await clearCache('/invoices');
-		return { success: true, invoice };
+		invalidateTags(CACHE_TAGS.INVOICES, CACHE_TAGS.WORK_ENTRIES);
+		return { success: true as const, data: invoice };
 	} catch (error) {
 		return {
 			error:
@@ -69,8 +64,8 @@ export async function markAsSentAction(invoiceId: string) {
 
 	try {
 		await InvoiceService.markAsSent(userId, invoiceId);
-		await clearCache('/invoices');
-		return { success: true };
+		invalidateTags(CACHE_TAGS.INVOICES);
+		return { success: true as const };
 	} catch (error) {
 		return {
 			error:
@@ -93,8 +88,14 @@ export async function markAsPaidAction(data: unknown) {
 
 	try {
 		await InvoiceService.markAsPaid(userId, parsed.data);
-		await clearCache('/invoices');
-		return { success: true };
+		// markAsPaid creates an Income record, so also invalidate income/account/dashboard
+		invalidateTags(
+			CACHE_TAGS.INVOICES,
+			CACHE_TAGS.INCOMES,
+			CACHE_TAGS.ACCOUNTS,
+			CACHE_TAGS.DASHBOARD
+		);
+		return { success: true as const };
 	} catch (error) {
 		return {
 			error:
@@ -110,8 +111,9 @@ export async function cancelInvoiceAction(invoiceId: string) {
 
 	try {
 		await InvoiceService.cancel(userId, invoiceId);
-		await clearCache('/invoices');
-		return { success: true };
+		// Cancelling reverts work entries to UNBILLED
+		invalidateTags(CACHE_TAGS.INVOICES, CACHE_TAGS.WORK_ENTRIES);
+		return { success: true as const };
 	} catch (error) {
 		return {
 			error:
@@ -127,8 +129,9 @@ export async function deleteInvoiceAction(invoiceId: string) {
 
 	try {
 		await InvoiceService.delete(userId, invoiceId);
-		await clearCache('/invoices');
-		return { success: true };
+		// Deleting reverts work entries to UNBILLED
+		invalidateTags(CACHE_TAGS.INVOICES, CACHE_TAGS.WORK_ENTRIES);
+		return { success: true as const };
 	} catch (error) {
 		return {
 			error:
@@ -154,10 +157,8 @@ export async function generateInvoiceFromEntriesAction(data: unknown) {
 			userId,
 			parsed.data
 		);
-		await clearCache('/invoices');
-		await clearCache('/entries');
-		await clearCache('/clients');
-		return { success: true, invoiceId: invoice.id };
+		invalidateTags(CACHE_TAGS.INVOICES, CACHE_TAGS.WORK_ENTRIES, CACHE_TAGS.CLIENTS);
+		return { success: true as const, data: { invoiceId: invoice.id } };
 	} catch (error) {
 		return {
 			error:

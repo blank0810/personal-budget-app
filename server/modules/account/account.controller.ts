@@ -1,67 +1,37 @@
 'use server';
 
-import { auth } from '@/auth';
+import { getAuthenticatedUser } from '@/server/lib/auth-guard';
 import { AccountService } from './account.service';
 import {
 	createAccountSchema,
 	updateAccountSchema,
 	adjustBalanceSchema,
 } from './account.types';
-import { revalidatePath } from 'next/cache';
-import { AccountType } from '@prisma/client';
+import { invalidateTags } from '@/server/actions/cache';
+import { CACHE_TAGS } from '@/server/lib/cache-tags';
 import { IncomeService } from '../income/income.service';
 import { ExpenseService } from '../expense/expense.service';
 
 /**
- * Helper to authenticate user
- */
-async function getAuthenticatedUser() {
-	const session = await auth();
-	if (!session?.user?.id) {
-		throw new Error('Unauthorized');
-	}
-	return session.user.id;
-}
-
-/**
  * Server Action: Create Account
  */
-export async function createAccountAction(formData: FormData) {
+export async function createAccountAction(data: unknown) {
 	const userId = await getAuthenticatedUser();
 
-	const type = formData.get('type') as AccountType;
-	const isLiabilityInput = formData.get('isLiability') === 'on';
+	const parsed = createAccountSchema.safeParse(data);
+	if (!parsed.success) {
+		return { error: parsed.error.issues[0]?.message || 'Validation failed' };
+	}
 
-	// Enforce Liability for Credit/Loan types
-	const isLiability = ['CREDIT', 'LOAN'].includes(type)
-		? true
-		: isLiabilityInput;
-
-	const rawData = {
-		name: formData.get('name') as string,
-		type,
-		balance: Number(formData.get('balance')),
-		isLiability,
-		creditLimit: formData.get('creditLimit')
-			? Number(formData.get('creditLimit'))
-			: null,
-		icon: formData.get('icon') as string | null,
-		color: formData.get('color') as string | null,
-	};
-
-	const validatedFields = createAccountSchema.safeParse(rawData);
-
-	if (!validatedFields.success) {
-		return {
-			error: 'Invalid fields',
-			issues: validatedFields.error.issues,
-		};
+	// Enforce Liability for Credit/Loan types (server-side guard)
+	if (['CREDIT', 'LOAN'].includes(parsed.data.type)) {
+		parsed.data.isLiability = true;
 	}
 
 	try {
-		await AccountService.createAccount(userId, validatedFields.data);
-		revalidatePath('/', 'layout');
-		return { success: true };
+		await AccountService.createAccount(userId, parsed.data);
+		invalidateTags(CACHE_TAGS.ACCOUNTS, CACHE_TAGS.DASHBOARD);
+		return { success: true as const };
 	} catch (error) {
 		console.error('Failed to create account:', error);
 		return { error: 'Failed to create account' };
@@ -71,45 +41,23 @@ export async function createAccountAction(formData: FormData) {
 /**
  * Server Action: Update Account
  */
-export async function updateAccountAction(formData: FormData) {
+export async function updateAccountAction(data: unknown) {
 	const userId = await getAuthenticatedUser();
 
-	const type = formData.get('type') as AccountType;
-	const isLiabilityInput = formData.get('isLiability') === 'on';
+	const parsed = updateAccountSchema.safeParse(data);
+	if (!parsed.success) {
+		return { error: parsed.error.issues[0]?.message || 'Validation failed' };
+	}
 
-	// Enforce Liability for Credit/Loan types
-	const isLiability = ['CREDIT', 'LOAN'].includes(type)
-		? true
-		: isLiabilityInput;
-
-	const rawData = {
-		id: formData.get('id') as string,
-		name: formData.get('name') as string,
-		type,
-		balance: formData.get('balance')
-			? Number(formData.get('balance'))
-			: undefined,
-		isLiability,
-		creditLimit: formData.get('creditLimit')
-			? Number(formData.get('creditLimit'))
-			: null,
-		icon: formData.get('icon') as string | null,
-		color: formData.get('color') as string | null,
-	};
-
-	const validatedFields = updateAccountSchema.safeParse(rawData);
-
-	if (!validatedFields.success) {
-		return {
-			error: 'Invalid fields',
-			issues: validatedFields.error.issues,
-		};
+	// Enforce Liability for Credit/Loan types (server-side guard)
+	if (parsed.data.type && ['CREDIT', 'LOAN'].includes(parsed.data.type)) {
+		parsed.data.isLiability = true;
 	}
 
 	try {
-		await AccountService.updateAccount(userId, validatedFields.data);
-		revalidatePath('/', 'layout');
-		return { success: true };
+		await AccountService.updateAccount(userId, parsed.data);
+		invalidateTags(CACHE_TAGS.ACCOUNTS, CACHE_TAGS.DASHBOARD);
+		return { success: true as const };
 	} catch (error) {
 		console.error('Failed to update account:', error);
 		return { error: 'Failed to update account' };
@@ -124,8 +72,8 @@ export async function deleteAccountAction(accountId: string) {
 
 	try {
 		await AccountService.deleteAccount(userId, accountId);
-		revalidatePath('/', 'layout');
-		return { success: true };
+		invalidateTags(CACHE_TAGS.ACCOUNTS, CACHE_TAGS.DASHBOARD);
+		return { success: true as const };
 	} catch (error) {
 		console.error('Failed to delete account:', error);
 		return {
@@ -137,24 +85,15 @@ export async function deleteAccountAction(accountId: string) {
 /**
  * Server Action: Adjust Account Balance
  */
-export async function adjustAccountBalanceAction(formData: FormData) {
+export async function adjustAccountBalanceAction(data: unknown) {
 	const userId = await getAuthenticatedUser();
 
-	const rawData = {
-		accountId: formData.get('accountId') as string,
-		newBalance: Number(formData.get('newBalance')),
-	};
-
-	const validatedFields = adjustBalanceSchema.safeParse(rawData);
-
-	if (!validatedFields.success) {
-		return {
-			error: 'Invalid fields',
-			issues: validatedFields.error.issues,
-		};
+	const parsed = adjustBalanceSchema.safeParse(data);
+	if (!parsed.success) {
+		return { error: parsed.error.issues[0]?.message || 'Validation failed' };
 	}
 
-	const { accountId, newBalance } = validatedFields.data;
+	const { accountId, newBalance } = parsed.data;
 
 	try {
 		const account = await AccountService.getAccountWithTransactions(
@@ -171,7 +110,7 @@ export async function adjustAccountBalanceAction(formData: FormData) {
 		const isLiability = account.isLiability;
 
 		if (Math.abs(diff) < 0.01) {
-			return { success: true }; // No change
+			return { success: true as const }; // No change
 		}
 
 		const needsIncome = isLiability ? diff < 0 : diff > 0;
@@ -200,8 +139,13 @@ export async function adjustAccountBalanceAction(formData: FormData) {
 			});
 		}
 
-		revalidatePath('/', 'layout');
-		return { success: true };
+		invalidateTags(
+			CACHE_TAGS.ACCOUNTS,
+			CACHE_TAGS.INCOMES,
+			CACHE_TAGS.EXPENSES,
+			CACHE_TAGS.DASHBOARD
+		);
+		return { success: true as const };
 	} catch (error) {
 		console.error('Failed to adjust balance:', error);
 		return { error: 'Failed to adjust balance' };

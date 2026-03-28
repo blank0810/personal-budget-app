@@ -27,7 +27,7 @@ import {
 	toggleRecurringAction,
 } from '@/server/modules/recurring/recurring.controller';
 import { useCurrency } from '@/lib/contexts/currency-context';
-import { toast } from 'sonner';
+import { useServerAction } from '@/hooks/use-server-action';
 import { format } from 'date-fns';
 import { Pause, Pencil, Play, Trash2 } from 'lucide-react';
 import { EditRecurringDialog } from './EditRecurringDialog';
@@ -73,32 +73,18 @@ export function RecurringList({
 	budgets,
 }: RecurringListProps) {
 	const { formatCurrency } = useCurrency();
-	const [loadingId, setLoadingId] = useState<string | null>(null);
 	const [editingItem, setEditingItem] = useState<RecurringItem | null>(null);
 
-	async function handleToggle(id: string) {
-		setLoadingId(id);
-		const result = await toggleRecurringAction(id);
-		setLoadingId(null);
+	const { execute: toggleRecurring, isPending: isToggling } = useServerAction(
+		toggleRecurringAction,
+		{ successMessage: 'Updated' },
+	);
+	const { execute: deleteRecurring, isPending: isDeleting } = useServerAction(
+		deleteRecurringAction,
+		{ successMessage: 'Deleted' },
+	);
 
-		if (result?.error) {
-			toast.error(result.error);
-		} else {
-			toast.success('Updated');
-		}
-	}
-
-	async function handleDelete(id: string) {
-		setLoadingId(id);
-		const result = await deleteRecurringAction(id);
-		setLoadingId(null);
-
-		if (result?.error) {
-			toast.error(result.error);
-		} else {
-			toast.success('Deleted');
-		}
-	}
+	const loadingId = isToggling || isDeleting;
 
 	if (items.length === 0) {
 		return (
@@ -183,9 +169,9 @@ export function RecurringList({
 											variant='ghost'
 											size='icon'
 											onClick={() =>
-												handleToggle(item.id)
+												toggleRecurring(item.id)
 											}
-											disabled={loadingId === item.id}
+											disabled={loadingId}
 											title={
 												item.isActive
 													? 'Pause'
@@ -204,7 +190,7 @@ export function RecurringList({
 											onClick={() =>
 												setEditingItem(item)
 											}
-											disabled={loadingId === item.id}
+											disabled={loadingId}
 											title='Edit'
 										>
 											<Pencil className='h-4 w-4' />
@@ -214,9 +200,7 @@ export function RecurringList({
 												<Button
 													variant='ghost'
 													size='icon'
-													disabled={
-														loadingId === item.id
-													}
+													disabled={loadingId}
 												>
 													<Trash2 className='h-4 w-4 text-destructive' />
 												</Button>
@@ -241,7 +225,7 @@ export function RecurringList({
 													</AlertDialogCancel>
 													<AlertDialogAction
 														onClick={() =>
-															handleDelete(item.id)
+															deleteRecurring(item.id)
 														}
 													>
 														Delete

@@ -1,26 +1,16 @@
 'use server';
 
-import { auth } from '@/auth';
+import { getAuthenticatedUser } from '@/server/lib/auth-guard';
 import { BudgetService } from './budget.service';
 import {
 	createBudgetSchema,
 	updateBudgetSchema,
 	replicateBudgetsSchema,
-	BudgetReplicationItem,
 	ReplicateBudgetsInput,
 } from './budget.types';
-import { revalidatePath } from 'next/cache';
-
-/**
- * Helper to authenticate user
- */
-async function getAuthenticatedUser() {
-	const session = await auth();
-	if (!session?.user?.id) {
-		throw new Error('Unauthorized');
-	}
-	return session.user.id;
-}
+import { invalidateTags } from '@/server/actions/cache';
+import { CACHE_TAGS } from '@/server/lib/cache-tags';
+import { coerceDateFields } from '@/server/lib/action-utils';
 
 /**
  * Normalize a date to UTC midnight on the 1st of the month
@@ -33,33 +23,21 @@ function normalizeMonthToUTC(date: Date): Date {
 /**
  * Server Action: Create Budget
  */
-export async function createBudgetAction(formData: FormData) {
+export async function createBudgetAction(data: unknown) {
 	const userId = await getAuthenticatedUser();
 
-	const categoryIdRaw = formData.get('categoryId');
-	const categoryNameRaw = formData.get('categoryName');
-
-	const rawData = {
-		name: formData.get('name') as string,
-		amount: Number(formData.get('amount')),
-		categoryId: categoryIdRaw ? (categoryIdRaw as string) : undefined,
-		categoryName: categoryNameRaw ? (categoryNameRaw as string) : undefined,
-		month: normalizeMonthToUTC(new Date(formData.get('month') as string)),
-	};
-
-	const validatedFields = createBudgetSchema.safeParse(rawData);
-
-	if (!validatedFields.success) {
-		return {
-			error: 'Invalid fields',
-			issues: validatedFields.error.issues,
-		};
+	const parsed = createBudgetSchema.safeParse(coerceDateFields(data));
+	if (!parsed.success) {
+		return { error: parsed.error.issues[0]?.message || 'Validation failed' };
 	}
 
+	// Normalize month to UTC midnight on the 1st
+	parsed.data.month = normalizeMonthToUTC(parsed.data.month);
+
 	try {
-		await BudgetService.createBudget(userId, validatedFields.data);
-		revalidatePath('/', 'layout');
-		return { success: true };
+		await BudgetService.createBudget(userId, parsed.data);
+		invalidateTags(CACHE_TAGS.BUDGETS, CACHE_TAGS.DASHBOARD);
+		return { success: true as const };
 	} catch (error) {
 		console.error('Failed to create budget:', error);
 		return { error: 'Failed to create budget' };
@@ -69,32 +47,23 @@ export async function createBudgetAction(formData: FormData) {
 /**
  * Server Action: Update Budget
  */
-export async function updateBudgetAction(formData: FormData) {
+export async function updateBudgetAction(data: unknown) {
 	const userId = await getAuthenticatedUser();
 
-	const rawData = {
-		id: formData.get('id') as string,
-		name: formData.get('name') as string,
-		amount: Number(formData.get('amount')),
-		categoryId: formData.get('categoryId') as string,
-		month: formData.get('month')
-			? normalizeMonthToUTC(new Date(formData.get('month') as string))
-			: undefined,
-	};
+	const parsed = updateBudgetSchema.safeParse(coerceDateFields(data));
+	if (!parsed.success) {
+		return { error: parsed.error.issues[0]?.message || 'Validation failed' };
+	}
 
-	const validatedFields = updateBudgetSchema.safeParse(rawData);
-
-	if (!validatedFields.success) {
-		return {
-			error: 'Invalid fields',
-			issues: validatedFields.error.issues,
-		};
+	// Normalize month to UTC midnight on the 1st if provided
+	if (parsed.data.month) {
+		parsed.data.month = normalizeMonthToUTC(parsed.data.month);
 	}
 
 	try {
-		await BudgetService.updateBudget(userId, validatedFields.data);
-		revalidatePath('/', 'layout');
-		return { success: true };
+		await BudgetService.updateBudget(userId, parsed.data);
+		invalidateTags(CACHE_TAGS.BUDGETS, CACHE_TAGS.DASHBOARD);
+		return { success: true as const };
 	} catch (error) {
 		console.error('Failed to update budget:', error);
 		return { error: 'Failed to update budget' };
@@ -109,8 +78,8 @@ export async function deleteBudgetAction(budgetId: string) {
 
 	try {
 		await BudgetService.deleteBudget(userId, budgetId);
-		revalidatePath('/', 'layout');
-		return { success: true };
+		invalidateTags(CACHE_TAGS.BUDGETS, CACHE_TAGS.DASHBOARD);
+		return { success: true as const };
 	} catch (error) {
 		console.error('Failed to delete budget:', error);
 		return { error: 'Failed to delete budget' };
@@ -123,14 +92,14 @@ export async function deleteBudgetAction(budgetId: string) {
  */
 export async function getBudgetsForReplicationAction(
 	sourceMonth: Date
-): Promise<BudgetReplicationItem[] | { error: string }> {
+) {
 	try {
 		const userId = await getAuthenticatedUser();
 		const budgets = await BudgetService.getBudgetsForReplication(
 			userId,
 			sourceMonth
 		);
-		return budgets;
+		return { success: true as const, data: budgets };
 	} catch (error) {
 		console.error('Failed to get budgets for replication:', error);
 		return { error: 'Failed to load budgets' };
@@ -142,7 +111,7 @@ export async function getBudgetsForReplicationAction(
  */
 export async function replicateBudgetsAction(
 	data: ReplicateBudgetsInput
-): Promise<{ success: boolean; created: number; skipped: string[] } | { error: string }> {
+) {
 	try {
 		const userId = await getAuthenticatedUser();
 
@@ -157,8 +126,8 @@ export async function replicateBudgetsAction(
 			validatedFields.data
 		);
 
-		revalidatePath('/', 'layout');
-		return result;
+		invalidateTags(CACHE_TAGS.BUDGETS, CACHE_TAGS.DASHBOARD);
+		return { success: true as const, data: { created: result.created, skipped: result.skipped } };
 	} catch (error) {
 		console.error('Failed to replicate budgets:', error);
 		return { error: 'Failed to replicate budgets' };
@@ -168,10 +137,11 @@ export async function replicateBudgetsAction(
 /**
  * Server Action: Get months that have budgets
  */
-export async function getMonthsWithBudgetsAction(): Promise<Date[] | { error: string }> {
+export async function getMonthsWithBudgetsAction() {
 	try {
 		const userId = await getAuthenticatedUser();
-		return await BudgetService.getMonthsWithBudgets(userId);
+		const months = await BudgetService.getMonthsWithBudgets(userId);
+		return { success: true as const, data: months };
 	} catch (error) {
 		console.error('Failed to get months with budgets:', error);
 		return { error: 'Failed to load months' };

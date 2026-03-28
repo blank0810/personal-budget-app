@@ -50,12 +50,13 @@ export function AccountStep({ onNext, onBack }: AccountStepProps) {
 		}
 
 		setLoading(true);
-		const formData = new FormData();
-		formData.set('name', name.trim());
-		formData.set('type', type);
-		formData.set('balance', String(balance ?? 0));
-
-		const result = await createAccountAction(formData);
+		const isLiability = ['CREDIT', 'LOAN'].includes(type);
+		const result = await createAccountAction({
+			name: name.trim(),
+			type,
+			balance: balance ?? 0,
+			isLiability,
+		});
 		setLoading(false);
 
 		if (result?.error) {

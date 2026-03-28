@@ -50,3 +50,18 @@ export const getIncomesSchema = z.object({
 });
 
 export type GetIncomesInput = z.infer<typeof getIncomesSchema>;
+
+// Paginated query input (follows work-entry pattern)
+export const getPaginatedIncomesSchema = z.object({
+	categoryId: z.string().optional(),
+	accountId: z.string().optional(),
+	startDate: z.coerce.date().optional(),
+	endDate: z.coerce.date().optional(),
+	search: z.string().optional(),
+	page: z.number().int().min(1).default(1),
+	pageSize: z.number().int().min(1).max(100).default(20),
+	sortBy: z.enum(['date', 'amount', 'description', 'categoryName', 'accountName']).default('date'),
+	sortOrder: z.enum(['asc', 'desc']).default('desc'),
+});
+
+export type GetPaginatedIncomesInput = z.infer<typeof getPaginatedIncomesSchema>;

@@ -6,7 +6,9 @@ import {
 	MarkAsPaidInput,
 	GetInvoicesInput,
 	GenerateFromEntriesInput,
+	InvoiceSummary,
 } from './invoice.types';
+import { UserService } from '@/server/modules/user/user.service';
 import { InvoiceStatus } from '@prisma/client';
 
 /**
@@ -77,11 +79,7 @@ export const InvoiceService = {
 		// Resolve currency: explicit param > user default
 		let currency = data.currency;
 		if (!currency) {
-			const user = await prisma.user.findUniqueOrThrow({
-				where: { id: userId },
-				select: { currency: true },
-			});
-			currency = user.currency;
+			currency = await UserService.getCurrency(userId);
 		}
 
 		// Compute line item amounts and totals
@@ -476,28 +474,43 @@ export const InvoiceService = {
 	},
 
 	/**
-	 * Get summary counts and amounts by status for dashboard cards
+	 * Get summary counts and amounts by status for dashboard cards.
+	 * Groups by status AND currency so totals are never mixed across currencies.
 	 */
-	async getSummary(userId: string) {
-		const invoices = await prisma.invoice.groupBy({
-			by: ['status'],
+	async getSummary(userId: string): Promise<InvoiceSummary> {
+		const rows = await prisma.invoice.groupBy({
+			by: ['status', 'currency'],
 			where: { userId },
 			_count: { id: true },
 			_sum: { totalAmount: true },
 		});
 
-		const summary: Record<
-			string,
-			{ count: number; totalAmount: number }
-		> = {};
+		const outstanding: Record<string, number> = {};
+		const paid: Record<string, number> = {};
+		let draftCount = 0;
+		let overdueCount = 0;
 
-		for (const row of invoices) {
-			summary[row.status] = {
-				count: row._count.id,
-				totalAmount: row._sum.totalAmount?.toNumber() ?? 0,
-			};
+		for (const row of rows) {
+			const amount = row._sum.totalAmount?.toNumber() ?? 0;
+			const currency = row.currency;
+
+			switch (row.status) {
+				case 'SENT':
+					outstanding[currency] = (outstanding[currency] ?? 0) + amount;
+					break;
+				case 'OVERDUE':
+					outstanding[currency] = (outstanding[currency] ?? 0) + amount;
+					overdueCount += row._count.id;
+					break;
+				case 'PAID':
+					paid[currency] = (paid[currency] ?? 0) + amount;
+					break;
+				case 'DRAFT':
+					draftCount += row._count.id;
+					break;
+			}
 		}
 
-		return summary;
+		return { outstanding, paid, draftCount, overdueCount };
 	},
 };

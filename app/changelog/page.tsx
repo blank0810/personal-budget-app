@@ -8,7 +8,7 @@ import { ChangelogService } from '@/server/modules/changelog/changelog.service';
 import { FeatureRequestForm } from '@/components/modules/feature-request/FeatureRequestForm';
 import { FeatureRequestTabs } from '@/components/modules/feature-request/FeatureRequestTabs';
 import { FeatureRequestService } from '@/server/modules/feature-request/feature-request.service';
-import prisma from '@/lib/prisma';
+import { UserService } from '@/server/modules/user/user.service';
 import Link from 'next/link';
 
 export default async function PublicChangelogPage() {
@@ -21,10 +21,7 @@ export default async function PublicChangelogPage() {
 
 		// Mark changelog as seen for authenticated users
 		if (session?.user?.id) {
-			await prisma.user.update({
-				where: { id: session.user.id },
-				data: { lastSeenChangelogAt: new Date() },
-			});
+			await UserService.markChangelogSeen(session.user.id, new Date());
 		}
 	} catch {
 		// Not authenticated

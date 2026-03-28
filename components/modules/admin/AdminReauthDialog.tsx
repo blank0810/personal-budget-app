@@ -34,11 +34,11 @@ export function AdminReauthDialog({ hasPassword }: AdminReauthDialogProps) {
 		const result = await adminReauth(password);
 		setLoading(false);
 
-		if (result.success) {
+		if ('error' in result) {
+			toast.error(result.error || 'Authentication failed');
+		} else {
 			toast.success('Admin mode activated');
 			router.refresh();
-		} else {
-			toast.error(result.error || 'Authentication failed');
 		}
 	}
 
@@ -47,11 +47,11 @@ export function AdminReauthDialog({ hasPassword }: AdminReauthDialogProps) {
 		const result = await adminReauthOAuth();
 		setLoading(false);
 
-		if (result.success) {
+		if ('error' in result) {
+			toast.error(result.error || 'Authentication failed');
+		} else {
 			toast.success('Admin mode activated');
 			router.refresh();
-		} else {
-			toast.error(result.error || 'Authentication failed');
 		}
 	}
 

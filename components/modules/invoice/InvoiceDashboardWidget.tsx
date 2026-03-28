@@ -5,19 +5,57 @@ import Link from 'next/link';
 import { formatCurrency } from '@/lib/formatters';
 
 interface InvoiceDashboardWidgetProps {
-	outstanding: number;
+	/** Outstanding amounts keyed by currency code */
+	outstanding: Record<string, number>;
 	overdueCount: number;
 	draftCount: number;
-	currency: string;
+	/** User's default currency, used as fallback when no outstanding amounts exist */
+	userCurrency: string;
+}
+
+/**
+ * Format outstanding amounts for the dashboard widget.
+ * Single currency: just the formatted number.
+ * Multiple currencies: each on its own line.
+ * No amounts: show 0 in the user's default currency.
+ */
+function OutstandingDisplay({
+	amounts,
+	userCurrency,
+}: {
+	amounts: Record<string, number>;
+	userCurrency: string;
+}) {
+	const entries = Object.entries(amounts).filter(([, v]) => v > 0);
+
+	if (entries.length === 0) {
+		return <>{formatCurrency(0, { currency: userCurrency })}</>;
+	}
+
+	if (entries.length === 1) {
+		const [currency, value] = entries[0];
+		return <>{formatCurrency(value, { currency })}</>;
+	}
+
+	return (
+		<span className='flex flex-col gap-0.5'>
+			{entries.map(([currency, value]) => (
+				<span key={currency}>
+					{formatCurrency(value, { currency })}
+				</span>
+			))}
+		</span>
+	);
 }
 
 export function InvoiceDashboardWidget({
 	outstanding,
 	overdueCount,
 	draftCount,
-	currency,
+	userCurrency,
 }: InvoiceDashboardWidgetProps) {
-	const fmt = (value: number) => formatCurrency(value, { currency });
+	const entries = Object.entries(outstanding).filter(([, v]) => v > 0);
+	const isMultiCurrency = entries.length > 1;
 
 	return (
 		<Card>
@@ -35,9 +73,9 @@ export function InvoiceDashboardWidget({
 				<div className='grid grid-cols-3 gap-3'>
 					<div className='space-y-0.5'>
 						<p className='text-xs text-muted-foreground'>Outstanding</p>
-						<p className='text-lg font-bold tabular-nums'>
-							{fmt(outstanding)}
-						</p>
+						<div className={`${isMultiCurrency ? 'text-base' : 'text-lg'} font-bold tabular-nums`}>
+							<OutstandingDisplay amounts={outstanding} userCurrency={userCurrency} />
+						</div>
 					</div>
 					<div className='space-y-0.5'>
 						<p className='text-xs text-muted-foreground'>Overdue</p>

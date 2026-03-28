@@ -53,3 +53,15 @@ export const generateFromEntriesSchema = z.object({
 export type GenerateFromEntriesInput = z.infer<
 	typeof generateFromEntriesSchema
 >;
+
+/** Summary data returned by InvoiceService.getSummary() */
+export interface InvoiceSummary {
+	/** Outstanding amounts (SENT + OVERDUE) keyed by currency code */
+	outstanding: Record<string, number>;
+	/** Paid amounts keyed by currency code */
+	paid: Record<string, number>;
+	/** Number of DRAFT invoices */
+	draftCount: number;
+	/** Number of OVERDUE invoices */
+	overdueCount: number;
+}

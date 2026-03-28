@@ -1,16 +1,12 @@
 import { Decimal } from '@prisma/client/runtime/library';
 
 /**
- * Serializes data for client components by converting:
+ * Serializes data for client components in a single pass by converting:
  * - Prisma Decimal -> number
- * - null/undefined -> null (preserved)
- *
- * IMPORTANT: We must walk the object tree before JSON.stringify because
- * Decimal.prototype.toJSON() returns a string. When JSON.stringify encounters
- * a Decimal, it calls toJSON() first — before the replacer — so the replacer
- * only ever sees a string like "8.00", never the Decimal instance. By pre-walking
- * the tree and replacing Decimals with plain numbers ourselves, we ensure the
- * values come out of JSON.parse as numbers rather than strings.
+ * - Date -> ISO string (matches JSON.stringify behavior)
+ * - undefined values in objects -> omitted (matches JSON.stringify behavior)
+ * - null -> null (preserved)
+ * - Primitives (string, number, boolean) -> passed through
  */
 
 function isDecimal(value: unknown): value is Decimal {
@@ -27,20 +23,27 @@ function isDecimal(value: unknown): value is Decimal {
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-function convertDecimals(value: unknown): any {
+function toSerializable(value: unknown): any {
+	if (value === null || value === undefined) {
+		return null;
+	}
 	if (isDecimal(value)) {
 		return Number(value);
 	}
 	if (value instanceof Date) {
-		return value;
+		return value.toISOString();
 	}
 	if (Array.isArray(value)) {
-		return value.map(convertDecimals);
+		return value.map(toSerializable);
 	}
-	if (typeof value === 'object' && value !== null) {
+	if (typeof value === 'object') {
 		const result: Record<string, unknown> = {};
 		for (const key of Object.keys(value)) {
-			result[key] = convertDecimals((value as Record<string, unknown>)[key]);
+			const v = (value as Record<string, unknown>)[key];
+			// Omit undefined values to match JSON.stringify behavior
+			if (v !== undefined) {
+				result[key] = toSerializable(v);
+			}
 		}
 		return result;
 	}
@@ -48,5 +51,5 @@ function convertDecimals(value: unknown): any {
 }
 
 export function serialize<T>(data: T): T {
-	return JSON.parse(JSON.stringify(convertDecimals(data)));
+	return toSerializable(data);
 }

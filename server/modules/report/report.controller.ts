@@ -1,23 +1,12 @@
 'use server';
 
-import { auth } from '@/auth';
+import { getAuthenticatedUser } from '@/server/lib/auth-guard';
 import { ReportService } from './report.service';
 import { NotificationService } from '@/server/modules/notification/notification.service';
 
 /**
- * Helper to authenticate user
- */
-async function getAuthenticatedUser() {
-	const session = await auth();
-	if (!session?.user?.id) {
-		throw new Error('Unauthorized');
-	}
-	return session.user.id;
-}
-
-/**
  * Server Action: Generate and send a report for a specific month/year.
- * Calls ReportService directly — no queue needed for single-user manual triggers.
+ * Calls ReportService directly -- no queue needed for single-user manual triggers.
  * The queue (BullMQ) is reserved for batch cron jobs processing all users.
  */
 export async function sendManualReportAction(month: number, year: number) {
@@ -28,7 +17,7 @@ export async function sendManualReportAction(month: number, year: number) {
 
 	try {
 		await ReportService.generateAndSend(userId, period);
-		return { success: true, message: 'Report sent — check your email!' };
+		return { success: true as const, data: { message: 'Report sent -- check your email!' } };
 	} catch (error) {
 		console.error('Failed to generate manual report:', error);
 		return { error: 'Failed to generate report. Please try again.' };
@@ -44,7 +33,7 @@ export async function toggleMonthlyReportAction(enabled: boolean) {
 
 	await NotificationService.updatePreference(userId, 'monthly_report', enabled);
 
-	return { success: true, enabled };
+	return { success: true as const, data: { enabled } };
 }
 
 /**
@@ -56,5 +45,5 @@ export async function getMonthlyReportPreference() {
 
 	const enabled = await NotificationService.isEnabled(userId, 'monthly_report');
 
-	return { enabled };
+	return { success: true as const, data: { enabled } };
 }

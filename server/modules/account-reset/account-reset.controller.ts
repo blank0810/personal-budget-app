@@ -1,19 +1,9 @@
 'use server';
 
-import { auth } from '@/auth';
+import { getAuthenticatedUser } from '@/server/lib/auth-guard';
 import { AccountResetService } from './account-reset.service';
-import { revalidatePath } from 'next/cache';
-
-/**
- * Helper to authenticate user
- */
-async function getAuthenticatedUser() {
-	const session = await auth();
-	if (!session?.user?.id) {
-		throw new Error('Unauthorized');
-	}
-	return session.user.id;
-}
+import { invalidateTags } from '@/server/actions/cache';
+import { CACHE_TAGS } from '@/server/lib/cache-tags';
 
 /**
  * Server Action: Export all user financial data as JSON
@@ -22,7 +12,7 @@ export async function exportMyDataAction() {
 	try {
 		const userId = await getAuthenticatedUser();
 		const data = await AccountResetService.exportUserData(userId);
-		return { data };
+		return { success: true as const, data };
 	} catch (error) {
 		return {
 			error:
@@ -40,7 +30,7 @@ export async function verifyForResetAction(password: string) {
 	try {
 		const userId = await getAuthenticatedUser();
 		const token = await AccountResetService.verifyForReset(userId, password);
-		return { token };
+		return { success: true as const, data: { token } };
 	} catch (error) {
 		return {
 			error:
@@ -67,8 +57,24 @@ export async function executeResetAction(
 			confirmationPhrase,
 			tier
 		);
-		revalidatePath('/', 'layout');
-		return { success: true };
+		// Account reset wipes financial data -- invalidate everything
+		invalidateTags(
+			CACHE_TAGS.INCOMES,
+			CACHE_TAGS.EXPENSES,
+			CACHE_TAGS.ACCOUNTS,
+			CACHE_TAGS.BUDGETS,
+			CACHE_TAGS.TRANSFERS,
+			CACHE_TAGS.PAYMENTS,
+			CACHE_TAGS.GOALS,
+			CACHE_TAGS.DASHBOARD,
+			CACHE_TAGS.RECURRING,
+			CACHE_TAGS.CATEGORIES,
+			CACHE_TAGS.REPORTS,
+			CACHE_TAGS.CLIENTS,
+			CACHE_TAGS.WORK_ENTRIES,
+			CACHE_TAGS.INVOICES
+		);
+		return { success: true as const };
 	} catch (error) {
 		return {
 			error:

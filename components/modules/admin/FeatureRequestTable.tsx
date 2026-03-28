@@ -93,8 +93,8 @@ export function FeatureRequestTable({
 		);
 		setLoading(false);
 
-		if (result.success && 'requests' in result) {
-			const r = result as {
+		if ('success' in result && result.data) {
+			const r = result.data as {
 				requests: FeatureRequest[];
 				total: number;
 				pages: number;

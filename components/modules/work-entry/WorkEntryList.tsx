@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { format, parseISO, startOfWeek, endOfWeek } from 'date-fns';
 import { toast } from 'sonner';
+import { useServerAction } from '@/hooks/use-server-action';
 import { Pencil, Trash2, FileText, Loader2, ArrowUpDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -315,7 +316,6 @@ function isDivider(row: DisplayRow): row is DividerRow {
 export function WorkEntryList({ initialEntries, unbilledCounts, clients }: WorkEntryListProps) {
 	const entries = initialEntries;
 	const router = useRouter();
-	const [, startTransition] = useTransition();
 
 	// Filter state — default to this week
 	const [clientFilter, setClientFilter] = useState('ALL');
@@ -425,28 +425,21 @@ export function WorkEntryList({ initialEntries, unbilledCounts, clients }: WorkE
 	// Use unbilledCounts prop for the "Invoice [Client]" buttons
 	const clientsWithUnbilled = unbilledCounts;
 
-	function handleDelete(entryId: string) {
-		startTransition(async () => {
-			const result = await deleteWorkEntryAction(entryId);
-			if (result?.error) {
-				toast.error(result.error);
-			} else {
-				toast.success('Entry deleted');
-				router.refresh();
-			}
-		});
-	}
+	const { execute: handleDelete } = useServerAction(deleteWorkEntryAction, {
+		successMessage: 'Entry deleted',
+		onSuccess: () => router.refresh(),
+	});
 
 	const handleGenerateInvoice = useCallback(async (clientId: string) => {
 		setLoadingInvoiceClientId(clientId);
 		try {
 			const result = await getUnbilledByClientAction(clientId);
-			if (result?.error) {
+			if ('error' in result) {
 				toast.error(result.error);
 				return;
 			}
-			if (result.entries) {
-				setGenerateEntries(result.entries as unknown as WorkEntryRow[]);
+			if (result.data) {
+				setGenerateEntries(result.data as unknown as WorkEntryRow[]);
 				setGenerateClientId(clientId);
 			}
 		} catch {

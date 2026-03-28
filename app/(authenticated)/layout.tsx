@@ -3,9 +3,9 @@ import { AppSidebar } from '@/components/common/app-sidebar';
 import { Separator } from '@/components/ui/separator';
 import { SidebarInset, SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
 import { auth, signOut } from '@/auth';
-import prisma from '@/lib/prisma';
 import { CurrencyProvider } from '@/lib/contexts/currency-context';
 import { ChangelogService } from '@/server/modules/changelog/changelog.service';
+import { UserService } from '@/server/modules/user/user.service';
 
 export default async function DashboardLayout({
 	children,
@@ -14,10 +14,7 @@ export default async function DashboardLayout({
 }) {
 	const session = await auth();
 
-	const dbUser = await prisma.user.findUnique({
-		where: { id: session!.user!.id },
-		select: { name: true, email: true, currency: true, role: true, lastSeenChangelogAt: true },
-	});
+	const dbUser = await UserService.getForLayout(session!.user!.id);
 
 	const user = {
 		name: dbUser?.name || 'User',

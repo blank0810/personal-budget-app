@@ -3,7 +3,8 @@
 import { auth } from '@/auth';
 import { ImportService } from './import.service';
 import { ImportTransaction } from './import.types';
-import { clearCache } from '@/server/actions/cache';
+import { invalidateTags } from '@/server/actions/cache';
+import { CACHE_TAGS } from '@/server/lib/cache-tags';
 
 export async function batchImportAction(
 	accountId: string,
@@ -11,16 +12,13 @@ export async function batchImportAction(
 ) {
 	const session = await auth();
 	if (!session?.user?.id)
-		return { success: false, error: 'Not authenticated' };
+		return { error: 'Not authenticated' };
 
 	if (transactions.length === 0)
-		return { success: false, error: 'No transactions to import' };
+		return { error: 'No transactions to import' };
 
 	if (transactions.length > 5000)
-		return {
-			success: false,
-			error: 'Maximum 5000 transactions per import',
-		};
+		return { error: 'Maximum 5000 transactions per import' };
 
 	try {
 		const result = await ImportService.batchImport(
@@ -28,11 +26,17 @@ export async function batchImportAction(
 			accountId,
 			transactions
 		);
-		await clearCache('/', 'layout');
-		return { success: true, ...result };
+		// Imports can create both incomes and expenses, affecting accounts and budgets
+		invalidateTags(
+			CACHE_TAGS.INCOMES,
+			CACHE_TAGS.EXPENSES,
+			CACHE_TAGS.ACCOUNTS,
+			CACHE_TAGS.BUDGETS,
+			CACHE_TAGS.DASHBOARD
+		);
+		return { success: true as const, data: result };
 	} catch (error) {
 		return {
-			success: false,
 			error:
 				error instanceof Error
 					? error.message
@@ -46,31 +50,37 @@ export async function detectDuplicatesAction(
 	transactions: ImportTransaction[]
 ) {
 	const session = await auth();
-	if (!session?.user?.id) return { duplicates: [] };
+	if (!session?.user?.id) return { success: true as const, data: { duplicates: [] as number[] } };
 
 	const duplicateIndices = await ImportService.detectDuplicates(
 		session.user.id,
 		accountId,
 		transactions
 	);
-	return { duplicates: Array.from(duplicateIndices) };
+	return { success: true as const, data: { duplicates: Array.from(duplicateIndices) } };
 }
 
 export async function undoImportAction(importBatchId: string) {
 	const session = await auth();
 	if (!session?.user?.id)
-		return { success: false, error: 'Not authenticated' };
+		return { error: 'Not authenticated' };
 
 	try {
 		const deleted = await ImportService.undoImport(
 			session.user.id,
 			importBatchId
 		);
-		await clearCache('/', 'layout');
-		return { success: true, deleted };
+		// Undo reverses incomes/expenses and restores account balances
+		invalidateTags(
+			CACHE_TAGS.INCOMES,
+			CACHE_TAGS.EXPENSES,
+			CACHE_TAGS.ACCOUNTS,
+			CACHE_TAGS.BUDGETS,
+			CACHE_TAGS.DASHBOARD
+		);
+		return { success: true as const, data: { deleted } };
 	} catch (error) {
 		return {
-			success: false,
 			error:
 				error instanceof Error
 					? error.message

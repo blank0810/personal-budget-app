@@ -1,15 +1,26 @@
 'use server';
 
-import { revalidatePath } from 'next/cache';
+import { revalidatePath, revalidateTag } from 'next/cache';
+import { type CacheTag } from '@/server/lib/cache-tags';
 
 /**
- * clearCache
+ * Invalidate one or more cache tags in a single call.
  *
- * Revalidates the cache for a specific path or tag.
- * Defaults to revalidating the entire root layout to ensure fresh data everywhere.
- *
- * @param path The path to revalidate (default: '/')
- * @param type The type of revalidation: 'page' or 'layout' (default: 'layout')
+ * Usage:
+ *   invalidateTags(CACHE_TAGS.INCOMES, CACHE_TAGS.ACCOUNTS, CACHE_TAGS.DASHBOARD);
+ */
+export async function invalidateTags(...tags: CacheTag[]) {
+	for (const tag of tags) {
+		revalidateTag(tag, 'max');
+	}
+}
+
+// ---------------------------------------------------------------------------
+// Legacy path-based invalidation (deprecated)
+// ---------------------------------------------------------------------------
+
+/**
+ * @deprecated Prefer `invalidateTags()` with `CACHE_TAGS` constants instead.
  */
 export async function clearCache(
 	path: string = '/',

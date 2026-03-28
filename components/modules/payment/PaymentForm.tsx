@@ -35,7 +35,7 @@ import {
 	CreatePaymentInput,
 } from '@/server/modules/payment/payment.types';
 import { createPaymentAction } from '@/server/modules/payment/payment.controller';
-import { useState } from 'react';
+import { useState, useTransition } from 'react';
 import { Account } from '@prisma/client';
 
 interface PaymentFormProps {
@@ -44,7 +44,7 @@ interface PaymentFormProps {
 
 export function PaymentForm({ accounts }: PaymentFormProps) {
 	const { formatCurrency } = useCurrency();
-	const [isPending, setIsPending] = useState(false);
+	const [isPending, startTransition] = useTransition();
 	const [showReview, setShowReview] = useState(false);
 	const [formData, setFormData] = useState<CreatePaymentInput | null>(null);
 
@@ -85,37 +85,28 @@ export function PaymentForm({ accounts }: PaymentFormProps) {
 	}
 
 	// Step 2: Confirm and Execute
-	async function onConfirm() {
+	function onConfirm() {
 		if (!formData) return;
-		setIsPending(true);
+		startTransition(async () => {
+			const result = await createPaymentAction(formData);
+			setShowReview(false);
 
-		const payload = new FormData();
-		payload.append('amount', formData.amount.toString());
-		payload.append('fee', (formData.fee || 0).toString());
-		payload.append('description', formData.description || '');
-		payload.append('date', formData.date.toISOString());
-		payload.append('fromAccountId', formData.fromAccountId);
-		payload.append('toLiabilityId', formData.toLiabilityId);
-
-		const result = await createPaymentAction(payload);
-		setIsPending(false);
-		setShowReview(false);
-
-		if (result?.error) {
-			console.error(result.error);
-			// Ideally show toast error
-		} else {
-			form.reset({
-				amount: undefined,
-				fee: undefined,
-				description: '',
-				date: new Date(),
-				fromAccountId: '',
-				toLiabilityId: '',
-			});
-			setFormData(null);
-			// Ideally show toast success
-		}
+			if (result?.error) {
+				console.error(result.error);
+				// Ideally show toast error
+			} else {
+				form.reset({
+					amount: undefined,
+					fee: undefined,
+					description: '',
+					date: new Date(),
+					fromAccountId: '',
+					toLiabilityId: '',
+				});
+				setFormData(null);
+				// Ideally show toast success
+			}
+		});
 	}
 
 	const fromAccountName = accounts.find(

@@ -1,102 +1,32 @@
 'use server';
 
-import { auth } from '@/auth';
+import { getAuthenticatedUser } from '@/server/lib/auth-guard';
 import { IncomeService } from './income.service';
-import { createIncomeSchema, updateIncomeSchema } from './income.types';
-import { revalidatePath } from 'next/cache';
-import prisma from '@/lib/prisma';
-import { NotificationService } from '@/server/modules/notification/notification.service';
-
-/**
- * Helper to authenticate user
- */
-async function getAuthenticatedUser() {
-	const session = await auth();
-	if (!session?.user?.id) {
-		throw new Error('Unauthorized');
-	}
-	return session.user.id;
-}
+import {
+	createIncomeSchema,
+	updateIncomeSchema,
+	getPaginatedIncomesSchema,
+} from './income.types';
+import { invalidateTags } from '@/server/actions/cache';
+import { CACHE_TAGS } from '@/server/lib/cache-tags';
+import { serialize } from '@/lib/serialization';
+import { coerceDateFields } from '@/server/lib/action-utils';
 
 /**
  * Server Action: Create Income
  */
-export async function createIncomeAction(formData: FormData) {
+export async function createIncomeAction(data: unknown) {
 	const userId = await getAuthenticatedUser();
 
-	// Parse FormData
-	const rawData = {
-		amount: Number(formData.get('amount')),
-		description: formData.get('description') as string,
-		date: new Date(formData.get('date') as string),
-		categoryId: (formData.get('categoryId') as string) || undefined,
-		categoryName: (formData.get('categoryName') as string) || undefined, // NEW: for custom category
-		accountId: (formData.get('accountId') as string) || undefined,
-		isRecurring: formData.get('isRecurring') === 'on',
-		recurringPeriod:
-			(formData.get('recurringPeriod') as
-				| 'MONTHLY'
-				| 'WEEKLY'
-				| 'YEARLY') || undefined,
-		titheEnabled: formData.get('titheEnabled') === 'on',
-		tithePercentage: Number(formData.get('tithePercentage')) || undefined,
-		emergencyFundEnabled: formData.get('emergencyFundEnabled') === 'on',
-		emergencyFundPercentage:
-			Number(formData.get('emergencyFundPercentage')) || undefined,
-	};
-
-	// Validate
-	const validatedFields = createIncomeSchema.safeParse(rawData);
-
-	if (!validatedFields.success) {
-		return {
-			error: 'Invalid fields',
-			issues: validatedFields.error.issues,
-		};
+	const parsed = createIncomeSchema.safeParse(coerceDateFields(data));
+	if (!parsed.success) {
+		return { error: parsed.error.issues[0]?.message || 'Validation failed' };
 	}
 
 	try {
-		await IncomeService.createIncome(userId, validatedFields.data);
-		revalidatePath('/', 'layout');
-
-		// Fire-and-forget income notification
-		const categoryId = validatedFields.data.categoryId;
-		const accountId = validatedFields.data.accountId;
-
-		let categoryName = 'Uncategorized';
-		if (categoryId) {
-			const cat = await prisma.category.findUnique({
-				where: { id: categoryId },
-				select: { name: true },
-			});
-			if (cat) categoryName = cat.name;
-		}
-
-		let accountInfo: { name: string; newBalance: number } | null = null;
-		if (accountId) {
-			const acc = await prisma.account.findUnique({
-				where: { id: accountId },
-				select: { name: true, balance: true },
-			});
-			if (acc) {
-				accountInfo = {
-					name: acc.name,
-					newBalance: acc.balance.toNumber(),
-				};
-			}
-		}
-
-		NotificationService.sendIncomeNotification(
-			userId,
-			{
-				amount: validatedFields.data.amount,
-				description: validatedFields.data.description || null,
-				categoryName,
-			},
-			accountInfo
-		).catch(() => {});
-
-		return { success: true };
+		await IncomeService.createIncome(userId, parsed.data);
+		invalidateTags(CACHE_TAGS.INCOMES, CACHE_TAGS.ACCOUNTS, CACHE_TAGS.DASHBOARD);
+		return { success: true as const };
 	} catch (error) {
 		console.error('Failed to create income:', error);
 		return { error: 'Failed to create income' };
@@ -106,37 +36,18 @@ export async function createIncomeAction(formData: FormData) {
 /**
  * Server Action: Update Income
  */
-export async function updateIncomeAction(formData: FormData) {
+export async function updateIncomeAction(data: unknown) {
 	const userId = await getAuthenticatedUser();
 
-	const rawData = {
-		id: formData.get('id') as string,
-		amount: Number(formData.get('amount')),
-		description: formData.get('description') as string,
-		date: new Date(formData.get('date') as string),
-		categoryId: (formData.get('categoryId') as string) || undefined,
-		accountId: (formData.get('accountId') as string) || undefined,
-		isRecurring: formData.get('isRecurring') === 'on',
-		recurringPeriod:
-			(formData.get('recurringPeriod') as
-				| 'MONTHLY'
-				| 'WEEKLY'
-				| 'YEARLY') || undefined,
-	};
-
-	const validatedFields = updateIncomeSchema.safeParse(rawData);
-
-	if (!validatedFields.success) {
-		return {
-			error: 'Invalid fields',
-			issues: validatedFields.error.issues,
-		};
+	const parsed = updateIncomeSchema.safeParse(coerceDateFields(data));
+	if (!parsed.success) {
+		return { error: parsed.error.issues[0]?.message || 'Validation failed' };
 	}
 
 	try {
-		await IncomeService.updateIncome(userId, validatedFields.data);
-		revalidatePath('/', 'layout');
-		return { success: true };
+		await IncomeService.updateIncome(userId, parsed.data);
+		invalidateTags(CACHE_TAGS.INCOMES, CACHE_TAGS.ACCOUNTS, CACHE_TAGS.DASHBOARD);
+		return { success: true as const };
 	} catch (error) {
 		console.error('Failed to update income:', error);
 		return { error: 'Failed to update income' };
@@ -151,11 +62,57 @@ export async function deleteIncomeAction(incomeId: string) {
 
 	try {
 		await IncomeService.deleteIncome(userId, incomeId);
-		revalidatePath('/', 'layout');
-		return { success: true };
+		invalidateTags(CACHE_TAGS.INCOMES, CACHE_TAGS.ACCOUNTS, CACHE_TAGS.DASHBOARD);
+		return { success: true as const };
 	} catch (error) {
 		console.error('Failed to delete income:', error);
 		return { error: 'Failed to delete income' };
+	}
+}
+
+/**
+ * Server Action: Get Monthly Income Totals for a year
+ */
+export async function getIncomeMonthlyTotalsAction(year: number) {
+	const userId = await getAuthenticatedUser();
+
+	try {
+		const totals = await IncomeService.getMonthlyTotals(userId, year);
+		return { success: true as const, data: totals };
+	} catch (error) {
+		return {
+			error:
+				error instanceof Error
+					? error.message
+					: 'Failed to fetch monthly totals',
+		};
+	}
+}
+
+/**
+ * Server Action: Get Paginated Incomes
+ */
+export async function getPaginatedIncomesAction(filters: unknown) {
+	const userId = await getAuthenticatedUser();
+
+	const parsed = getPaginatedIncomesSchema.safeParse(filters);
+	if (!parsed.success) {
+		return { error: parsed.error.issues[0]?.message || 'Invalid filters' };
+	}
+
+	try {
+		const result = await IncomeService.getPaginatedIncomes(userId, parsed.data);
+		return {
+			success: true as const,
+			data: { incomes: serialize(result.data), total: result.total },
+		};
+	} catch (error) {
+		return {
+			error:
+				error instanceof Error
+					? error.message
+					: 'Failed to fetch incomes',
+		};
 	}
 }
 
@@ -167,7 +124,7 @@ export async function getIncomeStabilityAction() {
 
 	try {
 		const analysis = await IncomeService.analyzeIncomeStability(userId, 6);
-		return { success: true, data: analysis };
+		return { success: true as const, data: analysis };
 	} catch (error) {
 		console.error('Failed to analyze income stability:', error);
 		return { error: 'Failed to analyze income stability' };
