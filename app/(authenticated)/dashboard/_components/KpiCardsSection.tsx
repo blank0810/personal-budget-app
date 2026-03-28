@@ -88,7 +88,7 @@ function EmergencyFundContent({
 	emergencyFundExpenseSource,
 }: {
 	emergencyFundMonths: number | null;
-	emergencyFundHealth: string;
+	emergencyFundHealth: string | null;
 	emergencyFundExpenseSource: string | null;
 }) {
 	const statusConfig = {
