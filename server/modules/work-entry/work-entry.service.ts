@@ -111,30 +111,50 @@ export const WorkEntryService = {
 	},
 
 	/**
-	 * Get all work entries for a user with optional filters and pagination
+	 * Get all work entries for a user with optional filters, pagination, and sorting
 	 */
 	async getAll(userId: string, filters?: GetWorkEntriesInput) {
-		return await prisma.workEntry.findMany({
-			where: {
-				userId,
-				...(filters?.clientId && { clientId: filters.clientId }),
-				...(filters?.status && { status: filters.status }),
-				...((filters?.startDate || filters?.endDate) && {
-					date: {
-						...(filters?.startDate && { gte: filters.startDate }),
-						...(filters?.endDate && { lte: filters.endDate }),
+		const page = filters?.page ?? 1;
+		const pageSize = filters?.pageSize ?? 20;
+		const skip = (page - 1) * pageSize;
+		const sortBy = filters?.sortBy ?? 'date';
+		const sortOrder = filters?.sortOrder ?? 'desc';
+
+		const where = {
+			userId,
+			...(filters?.clientId && { clientId: filters.clientId }),
+			...(filters?.status && { status: filters.status }),
+			...(filters?.startDate || filters?.endDate
+				? {
+						date: {
+							...(filters?.startDate && { gte: filters.startDate }),
+							...(filters?.endDate && { lte: filters.endDate }),
+						},
+					}
+				: {}),
+		};
+
+		const orderBy =
+			sortBy === 'clientName'
+				? { client: { name: sortOrder } }
+				: { [sortBy]: sortOrder };
+
+		const [data, total] = await prisma.$transaction([
+			prisma.workEntry.findMany({
+				where,
+				include: {
+					client: {
+						select: { id: true, name: true, currency: true },
 					},
-				}),
-			},
-			include: {
-				client: {
-					select: { id: true, name: true, currency: true },
 				},
-			},
-			orderBy: [{ date: 'desc' }, { createdAt: 'desc' }],
-			...(filters?.skip !== undefined && { skip: filters.skip }),
-			...(filters?.take !== undefined && { take: filters.take }),
-		});
+				orderBy: [orderBy, { createdAt: 'desc' }],
+				skip,
+				take: pageSize,
+			}),
+			prisma.workEntry.count({ where }),
+		]);
+
+		return { data, total };
 	},
 
 	/**
@@ -161,12 +181,30 @@ export const WorkEntryService = {
 	},
 
 	/**
-	 * Count total work entries for a user
+	 * Get unbilled entry counts and totals grouped by client
 	 */
-	async count(userId: string) {
-		return await prisma.workEntry.count({
-			where: { userId },
+	async getUnbilledCountsByClient(userId: string) {
+		const results = await prisma.workEntry.groupBy({
+			by: ['clientId'],
+			where: { userId, status: 'UNBILLED' },
+			_count: true,
+			_sum: { amount: true },
 		});
+
+		const clientIds = results.map((r) => r.clientId);
+		const clients = await prisma.client.findMany({
+			where: { id: { in: clientIds } },
+			select: { id: true, name: true },
+		});
+
+		const clientMap = new Map(clients.map((c) => [c.id, c.name]));
+
+		return results.map((r) => ({
+			clientId: r.clientId,
+			clientName: clientMap.get(r.clientId) || 'Unknown',
+			count: r._count,
+			total: r._sum.amount?.toNumber() ?? 0,
+		}));
 	},
 
 	/**

@@ -20,8 +20,10 @@ export const getWorkEntriesSchema = z.object({
 	status: z.enum(['UNBILLED', 'BILLED']).optional(),
 	startDate: z.coerce.date().optional(),
 	endDate: z.coerce.date().optional(),
-	skip: z.number().optional(),
-	take: z.number().optional(),
+	page: z.number().int().min(1).default(1),
+	pageSize: z.number().int().min(1).max(100).default(20),
+	sortBy: z.enum(['date', 'clientName', 'amount']).default('date'),
+	sortOrder: z.enum(['asc', 'desc']).default('desc'),
 });
 
 export type GetWorkEntriesInput = z.infer<typeof getWorkEntriesSchema>;
