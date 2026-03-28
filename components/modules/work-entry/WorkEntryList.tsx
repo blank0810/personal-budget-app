@@ -631,7 +631,7 @@ export function WorkEntryList({ initialEntries, unbilledCounts, clients }: WorkE
 											key={`divider-${row.date}-${idx}`}
 											className='hover:bg-transparent'
 										>
-											<TableCell colSpan={6} className='bg-muted/30 py-1.5 px-3'>
+											<TableCell colSpan={7} className='bg-muted/30 py-1.5 px-3'>
 												<div className='flex items-center justify-between'>
 													<span className='text-xs font-semibold'>
 														{formatGroupDate(row.date)}
@@ -659,7 +659,7 @@ export function WorkEntryList({ initialEntries, unbilledCounts, clients }: WorkE
 										)}
 									>
 										{/* Mobile stacked layout */}
-										<TableCell className='sm:hidden p-3' colSpan={6}>
+										<TableCell className='sm:hidden p-3' colSpan={7}>
 											<div className='flex items-start justify-between gap-2'>
 												<div className='min-w-0 flex-1'>
 													<div className='flex items-center gap-2 mb-1'>

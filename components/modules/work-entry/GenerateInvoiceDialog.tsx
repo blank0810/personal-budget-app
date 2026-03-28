@@ -249,18 +249,21 @@ export function GenerateInvoiceDialog({
 		e.preventDefault();
 		if (noneSelected) return;
 
-		// Build billing period note
+		// Build billing period from the actual dates of the selected entries so
+		// the note reflects what is on the invoice, not the date range filter.
+		const selectedDateKeys = entries
+			.filter((e) => selectedIds.has(e.id))
+			.map((e) => toEntryDateKey(e.date))
+			.sort();
+
 		const effectiveFrom =
-			fromDate ||
-			(filteredEntries.length > 0
-				? format(
-						toEntryDate(
-							filteredEntries[filteredEntries.length - 1].date
-						),
-						'yyyy-MM-dd'
-					)
-				: issueDate);
-		const effectiveTo = toDate || issueDate;
+			selectedDateKeys.length > 0
+				? selectedDateKeys[0]
+				: fromDate || issueDate;
+		const effectiveTo =
+			selectedDateKeys.length > 0
+				? selectedDateKeys[selectedDateKeys.length - 1]
+				: toDate || issueDate;
 
 		const billingPeriod = `Services rendered: ${format(parseISO(effectiveFrom), 'MMM d')} \u2013 ${format(parseISO(effectiveTo), 'MMM d, yyyy')}`;
 		const notesWithPeriod = notes
