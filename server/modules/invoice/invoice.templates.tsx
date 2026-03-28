@@ -98,11 +98,15 @@ const styles = StyleSheet.create({
 		borderBottomColor: BORDER,
 		marginBottom: 24,
 	},
-	// --- Bill To ---
-	billToContainer: {
+	// --- From / Bill To ---
+	partyRow: {
+		flexDirection: 'row',
 		marginBottom: 28,
 	},
-	billToLabel: {
+	partyCol: {
+		flex: 1,
+	},
+	partyLabel: {
 		fontSize: 8,
 		fontWeight: 700,
 		color: TEXT_MUTED,
@@ -292,6 +296,8 @@ interface InvoicePDFData {
 	id: string;
 	invoiceNumber: string;
 	status: string;
+	userName: string | null;
+	userEmail: string | null;
 	clientName: string;
 	clientEmail: string | null;
 	clientAddress: string | null;
@@ -416,22 +422,35 @@ function StatusStamp({ status }: { status: string }) {
 	return null;
 }
 
-function BillToSection({ invoice }: { invoice: InvoicePDFData }) {
+function FromBillToSection({ invoice }: { invoice: InvoicePDFData }) {
 	return (
-		<View style={styles.billToContainer}>
-			<Text style={styles.billToLabel}>Bill To</Text>
-			<Text style={styles.clientName}>{invoice.clientName}</Text>
-			{invoice.clientEmail && (
-				<Text style={styles.clientDetail}>{invoice.clientEmail}</Text>
-			)}
-			{invoice.clientPhone && (
-				<Text style={styles.clientDetail}>{invoice.clientPhone}</Text>
-			)}
-			{invoice.clientAddress && (
-				<Text style={styles.clientDetail}>
-					{invoice.clientAddress}
-				</Text>
-			)}
+		<View style={styles.partyRow}>
+			{/* From */}
+			<View style={styles.partyCol}>
+				<Text style={styles.partyLabel}>From</Text>
+				{invoice.userName ? (
+					<Text style={styles.clientName}>{invoice.userName}</Text>
+				) : null}
+				{invoice.userEmail ? (
+					<Text style={styles.clientDetail}>{invoice.userEmail}</Text>
+				) : null}
+			</View>
+			{/* Bill To */}
+			<View style={styles.partyCol}>
+				<Text style={styles.partyLabel}>Bill To</Text>
+				<Text style={styles.clientName}>{invoice.clientName}</Text>
+				{invoice.clientEmail ? (
+					<Text style={styles.clientDetail}>{invoice.clientEmail}</Text>
+				) : null}
+				{invoice.clientPhone ? (
+					<Text style={styles.clientDetail}>{invoice.clientPhone}</Text>
+				) : null}
+				{invoice.clientAddress ? (
+					<Text style={styles.clientDetail}>
+						{invoice.clientAddress}
+					</Text>
+				) : null}
+			</View>
 		</View>
 	);
 }
@@ -591,7 +610,7 @@ function InvoiceDocument({
 				<StatusStamp status={invoice.status} />
 				<HeaderSection invoice={invoice} />
 				<View style={styles.separator} />
-				<BillToSection invoice={invoice} />
+				<FromBillToSection invoice={invoice} />
 				<LineItemsTable lineItems={invoice.lineItems} fmt={fmt} />
 				<TotalsSection invoice={invoice} fmt={fmt} />
 				{invoice.notes && <NotesSection notes={invoice.notes} />}

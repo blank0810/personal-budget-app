@@ -8,6 +8,7 @@ import { Pencil, Trash2, FileText, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import {
 	Select,
@@ -184,11 +185,18 @@ function EditDialog({ entry, clients, open, onOpenChange }: EditDialogProps) {
 
 					<div className='space-y-1.5'>
 						<Label htmlFor='edit-description'>Description</Label>
-						<Input
+						<Textarea
 							id='edit-description'
 							value={form.description}
 							onChange={(e) => handleChange('description', e.target.value)}
 							required
+							rows={2}
+							className='resize-none'
+							onInput={(e) => {
+								const target = e.target as HTMLTextAreaElement;
+								target.style.height = 'auto';
+								target.style.height = target.scrollHeight + 'px';
+							}}
 						/>
 					</div>
 
@@ -495,7 +503,7 @@ export function WorkEntryList({ entries, clients, totalCount, pageLimit }: WorkE
 													</td>
 
 													{/* Description */}
-													<td className='px-3 py-2.5 truncate max-w-0'>
+													<td className='px-3 py-2.5 whitespace-pre-line max-w-0 min-w-0'>
 														{entry.description}
 													</td>
 

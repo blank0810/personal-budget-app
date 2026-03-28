@@ -453,6 +453,9 @@ export const InvoiceService = {
 						},
 					},
 				},
+				user: {
+					select: { name: true, email: true },
+				},
 			},
 		});
 	},
