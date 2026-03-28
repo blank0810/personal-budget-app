@@ -70,6 +70,14 @@ export function PaymentForm({ accounts }: PaymentFormProps) {
 		},
 	});
 
+	// Watch values for Max buttons
+	// eslint-disable-next-line react-hooks/incompatible-library -- React Hook Form's watch() is not compiler-safe but works correctly
+	const fromAccountId = form.watch('fromAccountId');
+	const toLiabilityId = form.watch('toLiabilityId');
+
+	const fromAccount = accounts.find((a) => a.id === fromAccountId);
+	const toAccount = accounts.find((a) => a.id === toLiabilityId);
+
 	// Step 1: Validate and open Review
 	function onSubmit(data: CreatePaymentInput) {
 		setFormData(data);
@@ -221,7 +229,35 @@ export function PaymentForm({ accounts }: PaymentFormProps) {
 							name='amount'
 							render={({ field }) => (
 								<FormItem>
-									<FormLabel>Payment Amount</FormLabel>
+									<FormLabel className='flex items-center justify-between'>
+										<span>Payment Amount</span>
+										<div className='flex gap-1'>
+											{toAccount && (
+												<Button
+													type='button'
+													variant='ghost'
+													size='sm'
+													className='h-5 px-1.5 text-xs text-muted-foreground hover:text-foreground'
+													onClick={() => form.setValue('amount', Number(toAccount.balance))}
+													title={`Pay full balance: ${Number(toAccount.balance)}`}
+												>
+													Full Balance
+												</Button>
+											)}
+											{fromAccount && (
+												<Button
+													type='button'
+													variant='ghost'
+													size='sm'
+													className='h-5 px-1.5 text-xs text-muted-foreground hover:text-foreground'
+													onClick={() => form.setValue('amount', Number(fromAccount.balance))}
+													title={`Max from account: ${Number(fromAccount.balance)}`}
+												>
+													Max
+												</Button>
+											)}
+										</div>
+									</FormLabel>
 									<FormControl>
 										<CurrencyInput
 											placeholder='0.00'
