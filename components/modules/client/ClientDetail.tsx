@@ -254,8 +254,6 @@ export function ClientDetail({ client, entries, invoices }: ClientDetailProps) {
 											<TableCell>
 												<WorkEntryStatusBadge
 													status={entry.status}
-													invoiceId={entry.lastInvoiceId ?? undefined}
-													invoiceNumber={entry.lastInvoiceNumber ?? undefined}
 												/>
 											</TableCell>
 										</TableRow>

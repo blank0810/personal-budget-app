@@ -2,6 +2,7 @@
 
 import { useState, useTransition, useMemo, useCallback, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { format, parseISO, startOfWeek, endOfWeek } from 'date-fns';
 import { toast } from 'sonner';
 import { Pencil, Trash2, FileText, Loader2, ArrowUpDown } from 'lucide-react';
@@ -681,11 +682,7 @@ export function WorkEntryList({ initialEntries, unbilledCounts, clients }: WorkE
 															currency: entry.client.currency || entry.currency,
 														})}
 													</p>
-													<WorkEntryStatusBadge
-														status={entry.status}
-														invoiceNumber={entry.lastInvoiceNumber ?? undefined}
-														invoiceId={entry.lastInvoiceId ?? undefined}
-													/>
+													<WorkEntryStatusBadge status={entry.status} />
 												</div>
 											</div>
 											{entry.status === 'UNBILLED' && (
@@ -744,11 +741,7 @@ export function WorkEntryList({ initialEntries, unbilledCounts, clients }: WorkE
 
 										{/* Desktop: Status */}
 										<TableCell className='hidden sm:table-cell px-3 py-2.5'>
-											<WorkEntryStatusBadge
-												status={entry.status}
-												invoiceNumber={entry.lastInvoiceNumber ?? undefined}
-												invoiceId={entry.lastInvoiceId ?? undefined}
-											/>
+											<WorkEntryStatusBadge status={entry.status} />
 										</TableCell>
 
 										{/* Desktop: Actions */}
@@ -774,9 +767,19 @@ export function WorkEntryList({ initialEntries, unbilledCounts, clients }: WorkE
 														<span className='sr-only'>Delete</span>
 													</Button>
 												</div>
-											) : (
-												<div className='w-[60px]' />
-											)}
+											) : entry.lastInvoiceId ? (
+												<Button
+													variant='ghost'
+													size='sm'
+													className='h-7 text-xs'
+													asChild
+												>
+													<Link href={`/invoices/${entry.lastInvoiceId}`}>
+														<FileText className='h-3.5 w-3.5 mr-1' />
+														{entry.lastInvoiceNumber || 'View'}
+													</Link>
+												</Button>
+											) : null}
 										</TableCell>
 									</TableRow>
 								);
