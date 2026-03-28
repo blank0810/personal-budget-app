@@ -70,6 +70,8 @@ export function TransferForm({ accounts }: TransferFormProps) {
 	const fromAccountId = form.watch('fromAccountId');
 	const toAccountId = form.watch('toAccountId');
 
+	const fromAccount = accounts.find((a) => a.id === fromAccountId);
+
 	// Step 1: Validate and open Review
 	function onSubmit(data: CreateTransferInput) {
 		setFormData(data);
@@ -226,7 +228,20 @@ export function TransferForm({ accounts }: TransferFormProps) {
 							name='amount'
 							render={({ field }) => (
 								<FormItem>
-									<FormLabel>Amount</FormLabel>
+									<FormLabel className='flex items-center justify-between'>
+										<span>Amount</span>
+										{fromAccount && (
+											<Button
+												type='button'
+												variant='ghost'
+												size='sm'
+												className='h-5 px-1.5 text-xs text-muted-foreground hover:text-foreground'
+												onClick={() => form.setValue('amount', Number(fromAccount.balance))}
+											>
+												Max
+											</Button>
+										)}
+									</FormLabel>
 									<FormControl>
 										<CurrencyInput
 											placeholder='0.00'
