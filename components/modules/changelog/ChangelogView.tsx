@@ -61,7 +61,7 @@ function PatchSection({ patch }: { patch: Patch }) {
 						<p className='text-sm text-muted-foreground'>
 							{patch.description}
 						</p>
-						<div className='grid gap-4 md:grid-cols-2'>
+						{patch.features && patch.features.length > 0 && <div className='grid gap-4 md:grid-cols-2'>
 							{patch.features.map((feature) => (
 								<Card
 									key={feature.title}
@@ -88,7 +88,7 @@ function PatchSection({ patch }: { patch: Patch }) {
 									</CardContent>
 								</Card>
 							))}
-						</div>
+						</div>}
 					</div>
 				</CollapsibleContent>
 			</div>

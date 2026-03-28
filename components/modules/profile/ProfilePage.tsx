@@ -1228,9 +1228,9 @@ function DangerZoneCard({ hasPassword }: { hasPassword: boolean }) {
 										</DialogTitle>
 										<DialogDescription>
 											Type{' '}
-											<span className="font-mono font-bold text-destructive">
+											<code className="font-mono font-bold text-destructive bg-destructive/10 px-1.5 py-0.5 rounded select-all cursor-text">
 												DELETE ALL DATA
-											</span>{' '}
+											</code>{' '}
 											to confirm the{' '}
 											{tier === 'full'
 												? 'full'
