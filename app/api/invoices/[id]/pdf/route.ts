@@ -38,6 +38,8 @@ export async function GET(
 		// Convert Decimals to numbers for the template
 		const pdfData = {
 			...invoice,
+			userName: invoice.user?.name ?? null,
+			userEmail: invoice.user?.email ?? null,
 			subtotal: Number(invoice.subtotal),
 			taxRate: invoice.taxRate ? Number(invoice.taxRate) : null,
 			taxAmount: Number(invoice.taxAmount),

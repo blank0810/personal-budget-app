@@ -6,6 +6,7 @@ import { toast } from 'sonner';
 import { Plus, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import {
 	Select,
@@ -114,12 +115,19 @@ function EntryFields({
 
 				<div className='space-y-1.5'>
 					<Label htmlFor='mobile-description'>Description</Label>
-					<Input
+					<Textarea
 						id='mobile-description'
 						placeholder='What did you work on?'
 						value={form.description}
 						onChange={(e) => onChange('description', e.target.value)}
 						required
+						rows={1}
+						className='min-h-[36px] resize-none'
+						onInput={(e) => {
+							const target = e.target as HTMLTextAreaElement;
+							target.style.height = 'auto';
+							target.style.height = target.scrollHeight + 'px';
+						}}
 					/>
 				</div>
 
@@ -199,12 +207,19 @@ function EntryFields({
 							/>
 						</td>
 						<td className='align-bottom'>
-							<Input
+							<Textarea
 								id='desktop-description'
 								placeholder='What did you work on?'
 								value={form.description}
 								onChange={(e) => onChange('description', e.target.value)}
 								required
+								rows={1}
+								className='min-h-[36px] resize-none'
+								onInput={(e) => {
+									const target = e.target as HTMLTextAreaElement;
+									target.style.height = 'auto';
+									target.style.height = target.scrollHeight + 'px';
+								}}
 							/>
 						</td>
 						<td className='align-bottom'>

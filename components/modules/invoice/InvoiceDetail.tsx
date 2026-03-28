@@ -38,6 +38,8 @@ interface LineItem {
 export interface InvoiceWithDetails {
 	id: string;
 	invoiceNumber: string;
+	userName: string | null;
+	userEmail: string | null;
 	clientName: string;
 	clientEmail: string | null;
 	clientAddress: string | null;
@@ -183,29 +185,46 @@ function InvoicePreview({
 						{/* Separator */}
 						<div className="border-b border-[#e5e5e5] mb-6" />
 
-						{/* Bill To */}
-						<div className="mb-7">
-							<p className="text-[11px] font-bold uppercase tracking-wider text-[#6b7280] mb-1.5">
-								Bill To
-							</p>
-							<p className="text-sm font-bold text-[#111111]">
-								{invoice.clientName}
-							</p>
-							{invoice.clientEmail && (
-								<p className="text-xs text-[#4b5563]">
-									{invoice.clientEmail}
+						{/* From / Bill To */}
+						<div className="grid grid-cols-2 gap-8 mb-7">
+							<div>
+								<p className="text-[11px] font-bold uppercase tracking-wider text-[#6b7280] mb-1.5">
+									From
 								</p>
-							)}
-							{invoice.clientPhone && (
-								<p className="text-xs text-[#4b5563]">
-									{invoice.clientPhone}
+								{invoice.userName && (
+									<p className="text-sm font-bold text-[#111111]">
+										{invoice.userName}
+									</p>
+								)}
+								{invoice.userEmail && (
+									<p className="text-xs text-[#4b5563]">
+										{invoice.userEmail}
+									</p>
+								)}
+							</div>
+							<div>
+								<p className="text-[11px] font-bold uppercase tracking-wider text-[#6b7280] mb-1.5">
+									Bill To
 								</p>
-							)}
-							{invoice.clientAddress && (
-								<p className="text-xs text-[#4b5563] whitespace-pre-line">
-									{invoice.clientAddress}
+								<p className="text-sm font-bold text-[#111111]">
+									{invoice.clientName}
 								</p>
-							)}
+								{invoice.clientEmail && (
+									<p className="text-xs text-[#4b5563]">
+										{invoice.clientEmail}
+									</p>
+								)}
+								{invoice.clientPhone && (
+									<p className="text-xs text-[#4b5563]">
+										{invoice.clientPhone}
+									</p>
+								)}
+								{invoice.clientAddress && (
+									<p className="text-xs text-[#4b5563] whitespace-pre-line">
+										{invoice.clientAddress}
+									</p>
+								)}
+							</div>
 						</div>
 
 						{/* Line Items Table */}
@@ -233,7 +252,7 @@ function InvoicePreview({
 											key={item.id}
 											className="border-b border-[#e5e5e5]"
 										>
-											<td className="px-3 py-2.5 text-[#4b5563]">
+											<td className="px-3 py-2.5 text-[#4b5563] whitespace-pre-line">
 												{item.description}
 											</td>
 											<td className="px-3 py-2.5 text-right text-[#4b5563] tabular-nums">
