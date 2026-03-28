@@ -68,22 +68,15 @@ export function UserTable({
 			});
 			setLoading(false);
 
-			if (result.success && 'users' in result) {
-				setUsers(
-					(
-						result as {
-							users: UserRow[];
-							total: number;
-							pages: number;
-						}
-					).users
-				);
-				setTotal(
-					(result as { total: number }).total
-				);
-				setPages(
-					(result as { pages: number }).pages
-				);
+			if ('success' in result && result.data) {
+				const { users: u, total: t, pages: pg } = result.data as {
+					users: UserRow[];
+					total: number;
+					pages: number;
+				};
+				setUsers(u);
+				setTotal(t);
+				setPages(pg);
 				setPage(p);
 			}
 		},

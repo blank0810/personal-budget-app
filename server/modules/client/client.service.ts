@@ -1,5 +1,6 @@
 import prisma from '@/lib/prisma';
 import { CreateClientInput, UpdateClientInput } from './client.types';
+import { UserService } from '@/server/modules/user/user.service';
 import { InvoiceStatus } from '@prisma/client';
 
 export const ClientService = {
@@ -10,11 +11,7 @@ export const ClientService = {
 		// If no currency provided, default to user's currency
 		let currency = data.currency;
 		if (!currency) {
-			const user = await prisma.user.findUniqueOrThrow({
-				where: { id: userId },
-				select: { currency: true },
-			});
-			currency = user.currency;
+			currency = await UserService.getCurrency(userId);
 		}
 
 		return await prisma.client.create({

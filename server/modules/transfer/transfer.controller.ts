@@ -1,49 +1,27 @@
 'use server';
 
-import { auth } from '@/auth';
+import { getAuthenticatedUser } from '@/server/lib/auth-guard';
 import { TransferService } from './transfer.service';
 import { createTransferSchema } from './transfer.types';
-import { revalidatePath } from 'next/cache';
-
-/**
- * Helper to authenticate user
- */
-async function getAuthenticatedUser() {
-	const session = await auth();
-	if (!session?.user?.id) {
-		throw new Error('Unauthorized');
-	}
-	return session.user.id;
-}
+import { invalidateTags } from '@/server/actions/cache';
+import { CACHE_TAGS } from '@/server/lib/cache-tags';
+import { coerceDateFields } from '@/server/lib/action-utils';
 
 /**
  * Server Action: Create Transfer
  */
-export async function createTransferAction(formData: FormData) {
+export async function createTransferAction(data: unknown) {
 	const userId = await getAuthenticatedUser();
 
-	const rawData = {
-		amount: Number(formData.get('amount')),
-		date: new Date(formData.get('date') as string),
-		description: formData.get('description') as string,
-		fee: formData.get('fee') ? Number(formData.get('fee')) : 0,
-		fromAccountId: formData.get('fromAccountId') as string,
-		toAccountId: formData.get('toAccountId') as string,
-	};
-
-	const validatedFields = createTransferSchema.safeParse(rawData);
-
-	if (!validatedFields.success) {
-		return {
-			error: 'Invalid fields',
-			issues: validatedFields.error.issues,
-		};
+	const parsed = createTransferSchema.safeParse(coerceDateFields(data));
+	if (!parsed.success) {
+		return { error: parsed.error.issues[0]?.message || 'Validation failed' };
 	}
 
 	try {
-		await TransferService.createTransfer(userId, validatedFields.data);
-		revalidatePath('/', 'layout');
-		return { success: true };
+		await TransferService.createTransfer(userId, parsed.data);
+		invalidateTags(CACHE_TAGS.TRANSFERS, CACHE_TAGS.ACCOUNTS, CACHE_TAGS.DASHBOARD);
+		return { success: true as const };
 	} catch (error) {
 		console.error('Failed to create transfer:', error);
 		return { error: 'Failed to create transfer' };
@@ -58,8 +36,8 @@ export async function deleteTransferAction(transferId: string) {
 
 	try {
 		await TransferService.deleteTransfer(userId, transferId);
-		revalidatePath('/', 'layout');
-		return { success: true };
+		invalidateTags(CACHE_TAGS.TRANSFERS, CACHE_TAGS.ACCOUNTS, CACHE_TAGS.DASHBOARD);
+		return { success: true as const };
 	} catch (error) {
 		console.error('Failed to delete transfer:', error);
 		return { error: 'Failed to delete transfer' };

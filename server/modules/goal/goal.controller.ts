@@ -1,19 +1,14 @@
 'use server';
 
-import { auth } from '@/auth';
+import { getAuthenticatedUser } from '@/server/lib/auth-guard';
 import { GoalService } from './goal.service';
 import {
 	createGoalSchema,
 	updateGoalSchema,
 	addContributionSchema,
 } from './goal.types';
-import { clearCache } from '@/server/actions/cache';
-
-async function getAuthenticatedUser() {
-	const session = await auth();
-	if (!session?.user?.id) throw new Error('Not authenticated');
-	return session.user.id;
-}
+import { invalidateTags } from '@/server/actions/cache';
+import { CACHE_TAGS } from '@/server/lib/cache-tags';
 
 export async function createGoalAction(formData: FormData) {
 	const userId = await getAuthenticatedUser();
@@ -59,8 +54,8 @@ export async function createGoalAction(formData: FormData) {
 
 	try {
 		await GoalService.create(userId, parsed.data);
-		await clearCache('/goals');
-		return { success: true };
+		invalidateTags(CACHE_TAGS.GOALS, CACHE_TAGS.DASHBOARD);
+		return { success: true as const };
 	} catch (error) {
 		return {
 			error:
@@ -116,8 +111,8 @@ export async function updateGoalAction(formData: FormData) {
 
 	try {
 		await GoalService.update(userId, parsed.data);
-		await clearCache('/goals');
-		return { success: true };
+		invalidateTags(CACHE_TAGS.GOALS, CACHE_TAGS.DASHBOARD);
+		return { success: true as const };
 	} catch (error) {
 		return {
 			error:
@@ -133,8 +128,8 @@ export async function deleteGoalAction(id: string) {
 
 	try {
 		await GoalService.delete(userId, id);
-		await clearCache('/goals');
-		return { success: true };
+		invalidateTags(CACHE_TAGS.GOALS, CACHE_TAGS.DASHBOARD);
+		return { success: true as const };
 	} catch (error) {
 		return {
 			error:
@@ -150,8 +145,8 @@ export async function archiveGoalAction(id: string) {
 
 	try {
 		await GoalService.archive(userId, id);
-		await clearCache('/goals');
-		return { success: true };
+		invalidateTags(CACHE_TAGS.GOALS, CACHE_TAGS.DASHBOARD);
+		return { success: true as const };
 	} catch (error) {
 		return {
 			error:
@@ -167,8 +162,8 @@ export async function completeGoalAction(id: string) {
 
 	try {
 		await GoalService.complete(userId, id);
-		await clearCache('/goals');
-		return { success: true };
+		invalidateTags(CACHE_TAGS.GOALS, CACHE_TAGS.DASHBOARD);
+		return { success: true as const };
 	} catch (error) {
 		return {
 			error:
@@ -197,8 +192,8 @@ export async function addContributionAction(formData: FormData) {
 
 	try {
 		await GoalService.addContribution(userId, parsed.data);
-		await clearCache('/goals');
-		return { success: true };
+		invalidateTags(CACHE_TAGS.GOALS, CACHE_TAGS.DASHBOARD);
+		return { success: true as const };
 	} catch (error) {
 		return {
 			error:
@@ -214,8 +209,8 @@ export async function syncLinkedGoalsAction() {
 
 	try {
 		await GoalService.syncLinkedAccounts(userId);
-		await clearCache('/goals');
-		return { success: true };
+		invalidateTags(CACHE_TAGS.GOALS, CACHE_TAGS.DASHBOARD);
+		return { success: true as const };
 	} catch (error) {
 		return {
 			error:

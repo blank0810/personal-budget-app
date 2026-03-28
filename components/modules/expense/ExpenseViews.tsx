@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useTransition, useCallback } from 'react';
 import { Expense, Category, Account, Budget } from '@prisma/client';
-import { format, isSameMonth, startOfYear, addMonths } from 'date-fns';
+import { format, startOfYear, addMonths, startOfMonth, endOfMonth } from 'date-fns';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { ExpenseList } from './ExpenseList';
@@ -12,7 +12,14 @@ import {
 	ChevronLeft,
 	ChevronRight,
 	Download,
+	Loader2,
 } from 'lucide-react';
+import {
+	getPaginatedExpensesAction,
+	getExpenseMonthlyTotalsAction,
+} from '@/server/modules/expense/expense.controller';
+import { toast } from 'sonner';
+import { useCurrency } from '@/lib/contexts/currency-context';
 
 interface ExpenseWithRelations extends Expense {
 	category: Category;
@@ -20,90 +27,176 @@ interface ExpenseWithRelations extends Expense {
 	budget: Budget | null;
 }
 
-interface ExpenseViewsProps {
-	expenses: ExpenseWithRelations[];
+interface MonthlyTotal {
+	month: number;
+	total: number;
+	count: number;
 }
 
-export function ExpenseViews({ expenses }: ExpenseViewsProps) {
-	// Default to list view for the current month
+interface ExpenseViewsProps {
+	initialExpenses: ExpenseWithRelations[];
+	initialTotal: number;
+	initialMonthlyTotals: MonthlyTotal[];
+	initialYear: number;
+	initialMonth: number;
+}
+
+const PAGE_SIZE = 20;
+
+export function ExpenseViews({
+	initialExpenses,
+	initialTotal,
+	initialMonthlyTotals,
+	initialYear,
+	initialMonth,
+}: ExpenseViewsProps) {
+	const { formatCurrency } = useCurrency();
+
 	const [viewMode, setViewMode] = useState<'months' | 'list'>('list');
-	const [selectedMonth, setSelectedMonth] = useState<Date>(new Date());
-	const [selectedYear, setSelectedYear] = useState<number>(
-		new Date().getFullYear()
+	const [selectedMonth, setSelectedMonth] = useState(initialMonth);
+	const [selectedYear, setSelectedYear] = useState(initialYear);
+
+	// Paginated list state
+	const [expenses, setExpenses] = useState<ExpenseWithRelations[]>(initialExpenses);
+	const [total, setTotal] = useState(initialTotal);
+	const [page, setPage] = useState(1);
+	const [sortBy, setSortBy] = useState<string>('date');
+	const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
+
+	// Monthly totals state
+	const [monthlyTotals, setMonthlyTotals] = useState<MonthlyTotal[]>(initialMonthlyTotals);
+	const [monthlyTotalsYear, setMonthlyTotalsYear] = useState(initialYear);
+
+	const [isPending, startTransition] = useTransition();
+
+	const fetchExpenses = useCallback(
+		(opts: {
+			page: number;
+			month: number;
+			year: number;
+			sortBy: string;
+			sortOrder: 'asc' | 'desc';
+		}) => {
+			startTransition(async () => {
+				const monthDate = new Date(opts.year, opts.month, 1);
+				const result = await getPaginatedExpensesAction({
+					page: opts.page,
+					pageSize: PAGE_SIZE,
+					sortBy: opts.sortBy,
+					sortOrder: opts.sortOrder,
+					startDate: startOfMonth(monthDate),
+					endDate: endOfMonth(monthDate),
+				});
+				if ('error' in result) {
+					toast.error(result.error);
+					return;
+				}
+				const { expenses: rows, total: t } = result.data as { expenses: unknown[]; total: number };
+				setExpenses(rows as ExpenseWithRelations[]);
+				setTotal(t);
+			});
+		},
+		[]
 	);
-	const [selectedCategory, setSelectedCategory] = useState<string>('');
 
-	// Extract unique categories from ALL expenses (not just current month)
-	const categoryOptions = useMemo(() => {
-		const uniqueCategories = new Map<string, string>();
-		expenses.forEach((exp) => {
-			uniqueCategories.set(exp.category.id, exp.category.name);
+	const fetchMonthlyTotals = useCallback(
+		(year: number) => {
+			startTransition(async () => {
+				const result = await getExpenseMonthlyTotalsAction(year);
+				if ('error' in result) {
+					toast.error(result.error);
+					return;
+				}
+				setMonthlyTotals(result.data!);
+				setMonthlyTotalsYear(year);
+			});
+		},
+		[]
+	);
+
+	const handlePageChange = (newPage: number) => {
+		setPage(newPage);
+		fetchExpenses({
+			page: newPage,
+			month: selectedMonth,
+			year: selectedYear,
+			sortBy,
+			sortOrder,
 		});
-		return Array.from(uniqueCategories.entries())
-			.map(([value, label]) => ({ value, label }))
-			.sort((a, b) => a.label.localeCompare(b.label));
-	}, [expenses]);
+	};
 
-	// Generate all 12 months for the selected year
-	const allMonthsData = useMemo(() => {
-		const yearStart = startOfYear(new Date(selectedYear, 0, 1));
-		const months = [];
+	const handleSort = (newSortBy: string, newSortOrder: 'asc' | 'desc') => {
+		setSortBy(newSortBy);
+		setSortOrder(newSortOrder);
+		setPage(1);
+		fetchExpenses({
+			page: 1,
+			month: selectedMonth,
+			year: selectedYear,
+			sortBy: newSortBy,
+			sortOrder: newSortOrder,
+		});
+	};
 
-		for (let i = 0; i < 12; i++) {
-			const monthDate = addMonths(yearStart, i);
+	const handleMonthClick = (monthIndex: number) => {
+		setSelectedMonth(monthIndex);
+		setPage(1);
+		setViewMode('list');
+		fetchExpenses({
+			page: 1,
+			month: monthIndex,
+			year: selectedYear,
+			sortBy,
+			sortOrder,
+		});
+	};
 
-			// Calculate total expenses for this month
-			const monthExpenses = expenses.filter((expense) =>
-				isSameMonth(new Date(expense.date), monthDate)
-			);
-
-			const total = monthExpenses.reduce(
-				(sum, expense) => sum + Number(expense.amount),
-				0
-			);
-
-			months.push({
-				date: monthDate,
-				total,
-				count: monthExpenses.length,
+	const handlePreviousYear = () => {
+		const newYear = selectedYear - 1;
+		setSelectedYear(newYear);
+		if (viewMode === 'months') {
+			fetchMonthlyTotals(newYear);
+		} else {
+			setPage(1);
+			fetchExpenses({
+				page: 1,
+				month: selectedMonth,
+				year: newYear,
+				sortBy,
+				sortOrder,
 			});
 		}
+	};
 
-		return months;
-	}, [expenses, selectedYear]);
+	const handleNextYear = () => {
+		const newYear = selectedYear + 1;
+		setSelectedYear(newYear);
+		if (viewMode === 'months') {
+			fetchMonthlyTotals(newYear);
+		} else {
+			setPage(1);
+			fetchExpenses({
+				page: 1,
+				month: selectedMonth,
+				year: newYear,
+				sortBy,
+				sortOrder,
+			});
+		}
+	};
 
-	// Filter expenses for the selected month AND category
-	const filteredExpenses = useMemo(() => {
-		return expenses.filter((expense) => {
-			const matchesMonth = isSameMonth(new Date(expense.date), selectedMonth);
-			const matchesCategory =
-				!selectedCategory || expense.categoryId === selectedCategory;
-			return matchesMonth && matchesCategory;
-		});
-	}, [expenses, selectedMonth, selectedCategory]);
-
-	// Filter config for ExpenseList
-	const filters = [
-		{
-			key: 'category',
-			label: 'Categories',
-			options: categoryOptions,
-			value: selectedCategory,
-			onChange: setSelectedCategory,
-		},
-	];
-
-	const handleMonthClick = (date: Date) => {
-		setSelectedMonth(date);
-		setSelectedCategory(''); // Reset category filter when changing months
-		setViewMode('list');
+	const handleViewMonths = () => {
+		setViewMode('months');
+		if (monthlyTotalsYear !== selectedYear) {
+			fetchMonthlyTotals(selectedYear);
+		}
 	};
 
 	const handleExportCSV = () => {
 		const headers = ['Date', 'Description', 'Category', 'Account', 'Amount'];
 		const csvContent = [
 			headers.join(','),
-			...filteredExpenses.map((expense) =>
+			...expenses.map((expense) =>
 				[
 					format(new Date(expense.date), 'yyyy-MM-dd'),
 					`"${(expense.description || '').replace(/"/g, '""')}"`,
@@ -114,11 +207,9 @@ export function ExpenseViews({ expenses }: ExpenseViewsProps) {
 			),
 		].join('\n');
 
-		const monthName = format(selectedMonth, 'MMMM_yyyy').toLowerCase();
-		const categoryName = selectedCategory
-			? `_${categoryOptions.find((c) => c.value === selectedCategory)?.label?.toLowerCase().replace(/\s+/g, '_') || ''}`
-			: '';
-		const filename = `expenses_${monthName}${categoryName}.csv`;
+		const monthDate = new Date(selectedYear, selectedMonth, 1);
+		const monthName = format(monthDate, 'MMMM_yyyy').toLowerCase();
+		const filename = `expenses_${monthName}.csv`;
 
 		const blob = new Blob([csvContent], { type: 'text/csv' });
 		const url = window.URL.createObjectURL(blob);
@@ -131,23 +222,32 @@ export function ExpenseViews({ expenses }: ExpenseViewsProps) {
 		window.URL.revokeObjectURL(url);
 	};
 
-	const handlePreviousYear = () => {
-		setSelectedYear((prev) => prev - 1);
-	};
-
-	const handleNextYear = () => {
-		setSelectedYear((prev) => prev + 1);
-	};
-
 	const isCurrentYear = selectedYear === new Date().getFullYear();
+	const displayMonthDate = new Date(selectedYear, selectedMonth, 1);
+
+	// Generate all 12 months data from monthly totals
+	const allMonthsData = monthlyTotals.map((mt) => {
+		const yearStart = startOfYear(new Date(selectedYear, 0, 1));
+		return {
+			date: addMonths(yearStart, mt.month),
+			total: mt.total,
+			count: mt.count,
+			monthIndex: mt.month,
+		};
+	});
+
+	const totalPages = Math.ceil(total / PAGE_SIZE);
 
 	return (
 		<div className='space-y-6'>
 			<div className='flex items-center justify-between'>
 				<h2 className='text-xl font-semibold tracking-tight'>
 					{viewMode === 'list'
-						? format(selectedMonth, 'MMMM yyyy')
+						? format(displayMonthDate, 'MMMM yyyy')
 						: `Expense Overview - ${selectedYear}`}
+					{isPending && (
+						<Loader2 className='inline-block ml-2 h-4 w-4 animate-spin' />
+					)}
 				</h2>
 				{viewMode === 'list' && (
 					<div className='flex items-center gap-2'>
@@ -163,7 +263,7 @@ export function ExpenseViews({ expenses }: ExpenseViewsProps) {
 						<Button
 							variant='outline'
 							size='sm'
-							onClick={() => setViewMode('months')}
+							onClick={handleViewMonths}
 						>
 							<CalendarDays className='mr-2 h-4 w-4' />
 							View All Months
@@ -174,10 +274,20 @@ export function ExpenseViews({ expenses }: ExpenseViewsProps) {
 					<Button
 						variant='ghost'
 						size='sm'
-						onClick={() => setViewMode('list')}
+						onClick={() => {
+							setViewMode('list');
+							setPage(1);
+							fetchExpenses({
+								page: 1,
+								month: selectedMonth,
+								year: selectedYear,
+								sortBy,
+								sortOrder,
+							});
+						}}
 					>
 						<ArrowLeft className='mr-2 h-4 w-4' />
-						Back to {format(selectedMonth, 'MMMM')}
+						Back to {format(displayMonthDate, 'MMMM')}
 					</Button>
 				)}
 			</div>
@@ -190,6 +300,7 @@ export function ExpenseViews({ expenses }: ExpenseViewsProps) {
 							variant='outline'
 							size='icon'
 							onClick={handlePreviousYear}
+							disabled={isPending}
 						>
 							<ChevronLeft className='h-4 w-4' />
 						</Button>
@@ -200,7 +311,7 @@ export function ExpenseViews({ expenses }: ExpenseViewsProps) {
 							variant='outline'
 							size='icon'
 							onClick={handleNextYear}
-							disabled={isCurrentYear}
+							disabled={isCurrentYear || isPending}
 						>
 							<ChevronRight className='h-4 w-4' />
 						</Button>
@@ -216,7 +327,7 @@ export function ExpenseViews({ expenses }: ExpenseViewsProps) {
 										? 'opacity-60 hover:opacity-100'
 										: ''
 								}`}
-								onClick={() => handleMonthClick(month.date)}
+								onClick={() => handleMonthClick(month.monthIndex)}
 							>
 								<CardHeader className='pb-3'>
 									<CardTitle className='text-base font-medium text-muted-foreground'>
@@ -231,11 +342,7 @@ export function ExpenseViews({ expenses }: ExpenseViewsProps) {
 												: 'text-muted-foreground'
 										}`}
 									>
-										$
-										{month.total.toLocaleString('en-US', {
-											minimumFractionDigits: 2,
-											maximumFractionDigits: 2,
-										})}
+										{formatCurrency(month.total)}
 									</div>
 									<p className='text-xs text-muted-foreground mt-1'>
 										{month.count > 0
@@ -250,7 +357,18 @@ export function ExpenseViews({ expenses }: ExpenseViewsProps) {
 					</div>
 				</>
 			) : (
-				<ExpenseList expenses={filteredExpenses} filters={filters} />
+				<ExpenseList
+					expenses={expenses}
+					total={total}
+					page={page}
+					pageSize={PAGE_SIZE}
+					totalPages={totalPages}
+					sortBy={sortBy}
+					sortOrder={sortOrder}
+					onPageChange={handlePageChange}
+					onSort={handleSort}
+					isPending={isPending}
+				/>
 			)}
 		</div>
 	);

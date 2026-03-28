@@ -91,10 +91,11 @@ export function ReplicateBudgetDialog({
 				setSelectedIds(new Set());
 				setAmounts({});
 			} else {
-				setBudgetItems(result);
-				setSelectedIds(new Set(result.map((b) => b.id)));
+				const budgets = result.data ?? [];
+				setBudgetItems(budgets);
+				setSelectedIds(new Set(budgets.map((b) => b.id)));
 				setAmounts(
-					result.reduce(
+					budgets.reduce(
 						(acc, b) => ({ ...acc, [b.id]: b.amount }),
 						{}
 					)
@@ -184,7 +185,7 @@ export function ReplicateBudgetDialog({
 			if ('error' in result) {
 				toast.error(result.error);
 			} else {
-				const { created, skipped } = result;
+				const { created, skipped } = result.data as { created: number; skipped: string[] };
 				if (skipped.length > 0) {
 					toast.success(
 						`${created} budget${created !== 1 ? 's' : ''} created. Skipped: ${skipped.join(', ')} (already exist)`

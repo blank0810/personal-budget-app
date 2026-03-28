@@ -40,3 +40,19 @@ export const getExpensesSchema = z.object({
 });
 
 export type GetExpensesInput = z.infer<typeof getExpensesSchema>;
+
+// Paginated query input (follows work-entry pattern)
+export const getPaginatedExpensesSchema = z.object({
+	categoryId: z.string().optional(),
+	accountId: z.string().optional(),
+	budgetId: z.string().optional(),
+	startDate: z.coerce.date().optional(),
+	endDate: z.coerce.date().optional(),
+	search: z.string().optional(),
+	page: z.number().int().min(1).default(1),
+	pageSize: z.number().int().min(1).max(100).default(20),
+	sortBy: z.enum(['date', 'amount', 'description', 'categoryName', 'accountName']).default('date'),
+	sortOrder: z.enum(['asc', 'desc']).default('desc'),
+});
+
+export type GetPaginatedExpensesInput = z.infer<typeof getPaginatedExpensesSchema>;

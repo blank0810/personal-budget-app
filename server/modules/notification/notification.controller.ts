@@ -1,32 +1,30 @@
 'use server';
 
-import { auth } from '@/auth';
+import { getAuthenticatedUser } from '@/server/lib/auth-guard';
 import { NotificationChannel } from '@prisma/client';
 import { NotificationService } from './notification.service';
 import { SmsService } from './sms.service';
 import { updatePreferenceSchema, updatePhoneNumberSchema } from './notification.types';
-import { revalidatePath } from 'next/cache';
+import { invalidateTags } from '@/server/actions/cache';
+import { CACHE_TAGS } from '@/server/lib/cache-tags';
+import { UserService } from '@/server/modules/user/user.service';
 import prisma from '@/lib/prisma';
 import bcrypt from 'bcryptjs';
 import { z } from 'zod';
-
-/**
- * Helper to authenticate user
- */
-async function getAuthenticatedUser() {
-	const session = await auth();
-	if (!session?.user?.id) {
-		throw new Error('Unauthorized');
-	}
-	return session.user.id;
-}
 
 /**
  * Server Action: Get notification preferences for current user
  */
 export async function getNotificationPreferencesAction() {
 	const userId = await getAuthenticatedUser();
-	return NotificationService.getPreferencesForUser(userId);
+
+	try {
+		const preferences = await NotificationService.getPreferencesForUser(userId);
+		return { success: true as const, data: preferences };
+	} catch (error) {
+		console.error('Failed to get notification preferences:', error);
+		return { error: 'Failed to get notification preferences' };
+	}
 }
 
 /**
@@ -51,8 +49,8 @@ export async function updateNotificationPreferenceAction(
 			enabled,
 			channel
 		);
-		revalidatePath('/profile');
-		return { success: true };
+		invalidateTags(CACHE_TAGS.PROFILE);
+		return { success: true as const };
 	} catch (error) {
 		console.error('Failed to update notification preference:', error);
 		return { error: 'Failed to update preference' };
@@ -71,12 +69,9 @@ export async function updatePhoneNumberAction(phoneNumber: string | null) {
 	}
 
 	try {
-		await prisma.user.update({
-			where: { id: userId },
-			data: { phoneNumber: validated.data.phoneNumber },
-		});
-		revalidatePath('/profile');
-		return { success: true };
+		await UserService.updatePhoneNumber(userId, validated.data.phoneNumber);
+		invalidateTags(CACHE_TAGS.PROFILE);
+		return { success: true as const };
 	} catch (error) {
 		console.error('Failed to update phone number:', error);
 		return { error: 'Failed to update phone number' };
@@ -90,10 +85,7 @@ export async function sendTestSmsAction() {
 	const userId = await getAuthenticatedUser();
 
 	try {
-		const user = await prisma.user.findUniqueOrThrow({
-			where: { id: userId },
-			select: { phoneNumber: true, name: true },
-		});
+		const user = await UserService.getPhoneAndName(userId);
 
 		if (!user.phoneNumber) {
 			return { error: 'No phone number set' };
@@ -106,7 +98,7 @@ export async function sendTestSmsAction() {
 			return { error: 'SMS delivery failed. Check your API key and number.' };
 		}
 
-		return { success: true };
+		return { success: true as const };
 	} catch (error) {
 		console.error('Failed to send test SMS:', error);
 		return { error: 'Failed to send test SMS' };
@@ -142,12 +134,9 @@ export async function updateProfileAction(data: { name: string }) {
 	}
 
 	try {
-		await prisma.user.update({
-			where: { id: userId },
-			data: { name: validated.data.name },
-		});
-		revalidatePath('/profile');
-		return { success: true };
+		await UserService.updateName(userId, validated.data.name);
+		invalidateTags(CACHE_TAGS.PROFILE);
+		return { success: true as const };
 	} catch (error) {
 		console.error('Failed to update profile:', error);
 		return { error: 'Failed to update profile' };
@@ -170,19 +159,16 @@ export async function updatePasswordAction(data: {
 	}
 
 	try {
-		const user = await prisma.user.findUniqueOrThrow({
-			where: { id: userId },
-			select: { password: true },
-		});
+		const currentHash = await UserService.getPassword(userId);
 
 		// If user has a password, verify current one
-		if (user.password) {
+		if (currentHash) {
 			if (!validated.data.currentPassword) {
 				return { error: 'Current password is required' };
 			}
 			const match = await bcrypt.compare(
 				validated.data.currentPassword,
-				user.password
+				currentHash
 			);
 			if (!match) {
 				return { error: 'Current password is incorrect' };
@@ -190,13 +176,10 @@ export async function updatePasswordAction(data: {
 		}
 
 		const hashedPassword = await bcrypt.hash(validated.data.newPassword, 10);
-		await prisma.user.update({
-			where: { id: userId },
-			data: { password: hashedPassword },
-		});
+		await UserService.updatePassword(userId, hashedPassword);
 
-		revalidatePath('/profile');
-		return { success: true };
+		invalidateTags(CACHE_TAGS.PROFILE);
+		return { success: true as const };
 	} catch (error) {
 		console.error('Failed to update password:', error);
 		return { error: 'Failed to update password' };
@@ -211,12 +194,9 @@ export async function disconnectProviderAction(provider: string) {
 
 	try {
 		// Check that user has a password set (can't disconnect if no other auth method)
-		const user = await prisma.user.findUniqueOrThrow({
-			where: { id: userId },
-			select: { password: true },
-		});
+		const hasPassword = await UserService.getHasPassword(userId);
 
-		if (!user.password) {
+		if (!hasPassword) {
 			return { error: 'Set a password before disconnecting your provider' };
 		}
 
@@ -225,8 +205,8 @@ export async function disconnectProviderAction(provider: string) {
 			where: { userId, provider },
 		});
 
-		revalidatePath('/profile');
-		return { success: true };
+		invalidateTags(CACHE_TAGS.PROFILE);
+		return { success: true as const };
 	} catch (error) {
 		console.error('Failed to disconnect provider:', error);
 		return { error: 'Failed to disconnect provider' };

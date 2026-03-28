@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useTransition } from 'react';
 import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -58,7 +58,7 @@ interface EditAccountDialogProps {
 export function EditAccountDialog({ account }: EditAccountDialogProps) {
 	const { formatCurrency } = useCurrency();
 	const [open, setOpen] = useState(false);
-	const [isPending, setIsPending] = useState(false);
+	const [isPending, startTransition] = useTransition();
 	const [selectedColor, setSelectedColor] = useState(account.color || 'blue');
 
 	const form = useForm<UpdateAccountInput>({
@@ -91,30 +91,20 @@ export function EditAccountDialog({ account }: EditAccountDialogProps) {
 		}
 	}, [isCreditOrLoan, form]);
 
-	async function onSubmit(data: UpdateAccountInput) {
-		setIsPending(true);
-		const formData = new FormData();
-		Object.entries(data).forEach(([key, value]) => {
-			if (value !== undefined && value !== null) {
-				formData.append(key, value.toString());
+	function onSubmit(data: UpdateAccountInput) {
+		startTransition(async () => {
+			const result = await updateAccountAction({
+				...data,
+				isLiability: isCreditOrLoan || data.isLiability,
+				color: selectedColor,
+			});
+
+			if (result?.error) {
+				console.error(result.error);
+			} else {
+				setOpen(false);
 			}
 		});
-
-		// Force true if credit/loan, otherwise use form value
-		if (isCreditOrLoan || data.isLiability) {
-			formData.append('isLiability', 'on');
-		}
-
-		formData.set('color', selectedColor);
-
-		const result = await updateAccountAction(formData);
-		setIsPending(false);
-
-		if (result?.error) {
-			console.error(result.error);
-		} else {
-			setOpen(false);
-		}
 	}
 
 	return (

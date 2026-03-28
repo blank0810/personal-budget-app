@@ -2,22 +2,19 @@
 
 import { auth, unstable_update } from '@/auth';
 import { OnboardingService } from './onboarding.service';
-import { clearCache } from '@/server/actions/cache';
+import { invalidateTags } from '@/server/actions/cache';
+import { CACHE_TAGS } from '@/server/lib/cache-tags';
 import { setCurrencySchema } from './onboarding.types';
 
 export async function setUserCurrency(currency: string) {
 	const session = await auth();
 	if (!session?.user?.id)
-		return { success: false, error: 'Not authenticated' };
+		return { error: 'Not authenticated' };
 
 	const validatedFields = setCurrencySchema.safeParse({ currency });
 
 	if (!validatedFields.success) {
-		return {
-			success: false,
-			error: 'Invalid fields',
-			issues: validatedFields.error.issues,
-		};
+		return { error: validatedFields.error.issues[0]?.message || 'Invalid fields' };
 	}
 
 	try {
@@ -29,10 +26,9 @@ export async function setUserCurrency(currency: string) {
 		await unstable_update({
 			user: { currency: validatedFields.data.currency },
 		});
-		return { success: true };
+		return { success: true as const };
 	} catch (error) {
 		return {
-			success: false,
 			error:
 				error instanceof Error
 					? error.message
@@ -44,11 +40,27 @@ export async function setUserCurrency(currency: string) {
 export async function completeOnboarding() {
 	const session = await auth();
 	if (!session?.user?.id)
-		return { success: false, error: 'Not authenticated' };
+		return { error: 'Not authenticated' };
 
 	await OnboardingService.completeOnboarding(session.user.id);
 	// Update the JWT so middleware knows the user is onboarded
 	await unstable_update({ user: { isOnboarded: true } });
-	await clearCache('/', 'layout');
-	return { success: true };
+	// Onboarding completion -- invalidate everything for fresh start
+	invalidateTags(
+		CACHE_TAGS.INCOMES,
+		CACHE_TAGS.EXPENSES,
+		CACHE_TAGS.ACCOUNTS,
+		CACHE_TAGS.BUDGETS,
+		CACHE_TAGS.TRANSFERS,
+		CACHE_TAGS.PAYMENTS,
+		CACHE_TAGS.GOALS,
+		CACHE_TAGS.DASHBOARD,
+		CACHE_TAGS.RECURRING,
+		CACHE_TAGS.CATEGORIES,
+		CACHE_TAGS.REPORTS,
+		CACHE_TAGS.CLIENTS,
+		CACHE_TAGS.WORK_ENTRIES,
+		CACHE_TAGS.INVOICES
+	);
+	return { success: true as const };
 }

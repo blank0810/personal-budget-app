@@ -48,7 +48,7 @@ export async function submitFeatureRequestAction(data: {
 			ip,
 		});
 
-		return { success: true };
+		return { success: true as const };
 	} catch (error) {
 		console.error('Failed to submit feature request:', error);
 		return { error: 'Failed to submit request. Please try again.' };

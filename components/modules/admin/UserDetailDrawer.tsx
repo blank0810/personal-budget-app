@@ -100,11 +100,11 @@ export function UserDetailDrawer({ userId, onClose }: UserDetailDrawerProps) {
 				adminGetUserActivityAction(userId!),
 			]);
 
-			if (detailResult.success && 'user' in detailResult) {
-				setUser(detailResult.user as unknown as UserDetail);
+			if ('success' in detailResult && detailResult.data) {
+				setUser((detailResult.data as { user: unknown }).user as UserDetail);
 			}
-			if (activityResult.success && 'timeline' in activityResult) {
-				setTimeline(activityResult.timeline as TimelineItem[]);
+			if ('success' in activityResult && activityResult.data) {
+				setTimeline((activityResult.data as { timeline: TimelineItem[] }).timeline);
 			}
 			setLoading(false);
 		}
@@ -135,7 +135,7 @@ export function UserDetailDrawer({ userId, onClose }: UserDetailDrawerProps) {
 		const result = await adminExportUserDataAction(user.id);
 		setActionLoading(false);
 
-		if (result.success && 'data' in result) {
+		if ('success' in result && result.data) {
 			const blob = new Blob([JSON.stringify(result.data, null, 2)], {
 				type: 'application/json',
 			});

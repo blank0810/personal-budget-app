@@ -1,7 +1,7 @@
 import { auth } from '@/auth';
 import { redirect } from 'next/navigation';
-import prisma from '@/lib/prisma';
 import { AdminService } from '@/server/modules/admin/admin.service';
+import { UserService } from '@/server/modules/user/user.service';
 import { AdminReauthDialog } from '@/components/modules/admin/AdminReauthDialog';
 import { ExitAdminButton } from '@/components/modules/admin/ExitAdminButton';
 import { AdminNav } from '@/components/modules/admin/AdminNav';
@@ -20,11 +20,8 @@ export default async function AdminLayout({
 	const isActive = await AdminService.isAdminSessionActive(session.user.id);
 
 	if (!isActive) {
-		const user = await prisma.user.findUnique({
-			where: { id: session.user.id },
-			select: { password: true },
-		});
-		return <AdminReauthDialog hasPassword={!!user?.password} />;
+		const hasPassword = await UserService.getHasPassword(session.user.id);
+		return <AdminReauthDialog hasPassword={hasPassword} />;
 	}
 
 	return (

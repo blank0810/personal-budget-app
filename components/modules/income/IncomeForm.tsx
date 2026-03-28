@@ -39,7 +39,7 @@ import {
 	createIncomeAction,
 	getIncomeStabilityAction,
 } from '@/server/modules/income/income.controller';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useTransition } from 'react';
 import { Account, Category } from '@prisma/client';
 
 interface IncomeFormProps {
@@ -54,7 +54,7 @@ export function IncomeForm({
 	hasEmergencyFundGoal,
 }: IncomeFormProps) {
 	const { formatCurrency } = useCurrency();
-	const [isPending, setIsPending] = useState(false);
+	const [isPending, startTransition] = useTransition();
 	const [showCustomCategoryInput, setShowCustomCategoryInput] =
 		useState(false);
 	const [efSuggestion, setEfSuggestion] = useState<{
@@ -106,61 +106,33 @@ export function IncomeForm({
 		}
 	}, [emergencyFundEnabled, efSuggestion, form]);
 
-	async function onSubmit(data: CreateIncomeInput) {
-		setIsPending(true);
-		const formData = new FormData();
-		formData.append('amount', data.amount.toString());
-		formData.append('description', data.description || '');
-		formData.append('date', data.date.toISOString());
+	function onSubmit(data: CreateIncomeInput) {
+		startTransition(async () => {
+			const result = await createIncomeAction(data);
 
-		// Handle category: pass either categoryId or categoryName
-		if (data.categoryId) {
-			formData.append('categoryId', data.categoryId);
-		} else if (data.categoryName) {
-			formData.append('categoryName', data.categoryName);
-		}
-
-		if (data.accountId) formData.append('accountId', data.accountId);
-		if (data.isRecurring) formData.append('isRecurring', 'on');
-		if (data.recurringPeriod)
-			formData.append('recurringPeriod', data.recurringPeriod);
-		if (data.titheEnabled) {
-			formData.append('titheEnabled', 'on');
-			formData.append('tithePercentage', data.tithePercentage.toString());
-		}
-		if (data.emergencyFundEnabled) {
-			formData.append('emergencyFundEnabled', 'on');
-			formData.append(
-				'emergencyFundPercentage',
-				data.emergencyFundPercentage?.toString() || '10'
-			);
-		}
-
-		const result = await createIncomeAction(formData);
-		setIsPending(false);
-
-		if (result?.error) {
-			console.error(result.error);
-			// Handle error (toast)
-		} else {
-			form.reset({
-				amount: undefined,
-				description: '',
-				date: new Date(),
-				isRecurring: false,
-				categoryId: undefined,
-				categoryName: '',
-				accountId: undefined,
-				titheEnabled: true,
-				tithePercentage: 10,
-				emergencyFundEnabled: false,
-				emergencyFundPercentage: 10,
-				recurringPeriod: undefined,
-			});
-			setShowCustomCategoryInput(false);
-			setEfSuggestion(null);
-			// Handle success (toast)
-		}
+			if (result?.error) {
+				console.error(result.error);
+				// Handle error (toast)
+			} else {
+				form.reset({
+					amount: undefined,
+					description: '',
+					date: new Date(),
+					isRecurring: false,
+					categoryId: undefined,
+					categoryName: '',
+					accountId: undefined,
+					titheEnabled: true,
+					tithePercentage: 10,
+					emergencyFundEnabled: false,
+					emergencyFundPercentage: 10,
+					recurringPeriod: undefined,
+				});
+				setShowCustomCategoryInput(false);
+				setEfSuggestion(null);
+				// Handle success (toast)
+			}
+		});
 	}
 
 	return (

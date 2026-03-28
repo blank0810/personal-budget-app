@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { addBatchReportJobs } from '@/server/modules/report/report.queue';
+import { CronService } from '@/server/modules/cron/cron.service';
 import { startOfMonth, subMonths } from 'date-fns';
 
 export async function GET(req: NextRequest) {
@@ -29,13 +30,9 @@ export async function GET(req: NextRequest) {
 		});
 
 		if (users.length === 0) {
-			await prisma.cronRunLog.create({
-				data: {
-					key: 'monthly-report',
-					status: 'success',
-					processedCount: 0,
-					duration: Date.now() - startTime,
-				},
+			await CronService.logSuccess('monthly-report', {
+				processedCount: 0,
+				duration: Date.now() - startTime,
 			});
 			return NextResponse.json({
 				message: 'No opted-in users',
@@ -48,13 +45,9 @@ export async function GET(req: NextRequest) {
 
 		await addBatchReportJobs(userIds, period);
 
-		await prisma.cronRunLog.create({
-			data: {
-				key: 'monthly-report',
-				status: 'success',
-				processedCount: userIds.length,
-				duration: Date.now() - startTime,
-			},
+		await CronService.logSuccess('monthly-report', {
+			processedCount: userIds.length,
+			duration: Date.now() - startTime,
 		});
 
 		return NextResponse.json({
@@ -63,14 +56,9 @@ export async function GET(req: NextRequest) {
 			period: period.toISOString(),
 		});
 	} catch (error) {
-		await prisma.cronRunLog.create({
-			data: {
-				key: 'monthly-report',
-				status: 'failed',
-				errorMessage:
-					error instanceof Error ? error.message : 'Unknown error',
-				duration: Date.now() - startTime,
-			},
+		await CronService.logFailure('monthly-report', {
+			error,
+			duration: Date.now() - startTime,
 		});
 
 		return NextResponse.json(

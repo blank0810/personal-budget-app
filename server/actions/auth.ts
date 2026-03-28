@@ -1,24 +1,13 @@
 'use server';
 
-import prisma from '@/lib/prisma';
-import bcrypt from 'bcryptjs';
 import { z } from 'zod';
 import { EmailService } from '@/server/modules/email/email.service';
-
-const registerSchema = z.object({
-	name: z.string().min(2),
-	email: z.string().email(),
-	password: z.string().min(6),
-});
-
-const requestResetSchema = z.object({
-	email: z.string().email(),
-});
-
-const resetPasswordSchema = z.object({
-	token: z.string().min(1),
-	password: z.string().min(6),
-});
+import { AuthService, AuthError } from '@/server/modules/auth/auth.service';
+import {
+	registerSchema,
+	requestResetSchema,
+	resetPasswordSchema,
+} from '@/server/modules/auth/auth.types';
 
 export async function registerUser(data: z.infer<typeof registerSchema>) {
 	const parsed = registerSchema.safeParse(data);
@@ -27,29 +16,13 @@ export async function registerUser(data: z.infer<typeof registerSchema>) {
 		return { error: 'Invalid input' };
 	}
 
-	const { name, email, password } = parsed.data;
-
 	try {
-		const existingUser = await prisma.user.findUnique({
-			where: { email },
-		});
-
-		if (existingUser) {
-			return { error: 'User already exists' };
-		}
-
-		const hashedPassword = await bcrypt.hash(password, 10);
-
-		await prisma.user.create({
-			data: {
-				name,
-				email,
-				password: hashedPassword,
-			},
-		});
-
+		await AuthService.register(parsed.data);
 		return { success: true };
 	} catch (error) {
+		if (error instanceof AuthError) {
+			return { error: error.message };
+		}
 		console.error('Registration error:', error);
 		return { error: 'Failed to create user' };
 	}
@@ -66,25 +39,13 @@ export async function requestPasswordReset(
 	const { email } = parsed.data;
 
 	try {
-		const user = await prisma.user.findUnique({ where: { email } });
+		const result = await AuthService.createPasswordResetToken(email);
 
-		if (user) {
-			// Delete any existing tokens for this email
-			await prisma.passwordResetToken.deleteMany({ where: { email } });
-
-			const token = crypto.randomUUID();
-			await prisma.passwordResetToken.create({
-				data: {
-					email,
-					token,
-					expiresAt: new Date(Date.now() + 60 * 60 * 1000), // 1 hour
-				},
-			});
-
+		if (result) {
 			await EmailService.sendPasswordReset({
 				email,
-				token,
-				userName: user.name || 'there',
+				token: result.token,
+				userName: result.userName,
 			});
 		}
 
@@ -110,36 +71,12 @@ export async function resetPassword(
 	const { token, password } = parsed.data;
 
 	try {
-		const resetToken = await prisma.passwordResetToken.findUnique({
-			where: { token },
-		});
-
-		if (!resetToken || resetToken.expiresAt < new Date()) {
-			return { error: 'Invalid or expired reset link. Please request a new one.' };
-		}
-
-		const user = await prisma.user.findUnique({
-			where: { email: resetToken.email },
-		});
-
-		if (!user) {
-			return { error: 'Invalid or expired reset link. Please request a new one.' };
-		}
-
-		const hashedPassword = await bcrypt.hash(password, 10);
-
-		await prisma.$transaction([
-			prisma.user.update({
-				where: { id: user.id },
-				data: { password: hashedPassword },
-			}),
-			prisma.passwordResetToken.delete({
-				where: { id: resetToken.id },
-			}),
-		]);
-
+		await AuthService.resetPassword(token, password);
 		return { success: true };
 	} catch (error) {
+		if (error instanceof AuthError) {
+			return { error: error.message };
+		}
 		console.error('Password reset error:', error);
 		return { error: 'Something went wrong. Please try again.' };
 	}

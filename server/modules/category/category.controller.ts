@@ -1,6 +1,6 @@
 'use server';
 
-import { auth } from '@/auth';
+import { getAuthenticatedUser } from '@/server/lib/auth-guard';
 import { CategoryService } from './category.service';
 import type { CategoryType } from '@prisma/client';
 
@@ -8,18 +8,11 @@ import type { CategoryType } from '@prisma/client';
  * Get categories for the authenticated user
  */
 export async function getCategoriesAction(type?: CategoryType) {
-	const session = await auth();
-
-	if (!session?.user?.id) {
-		return { error: 'Unauthorized' };
-	}
+	const userId = await getAuthenticatedUser();
 
 	try {
-		const categories = await CategoryService.getCategories(
-			session.user.id,
-			type
-		);
-		return { categories };
+		const categories = await CategoryService.getCategories(userId, type);
+		return { success: true as const, data: categories };
 	} catch (error) {
 		console.error('Error fetching categories:', error);
 		return { error: 'Failed to fetch categories' };
@@ -30,18 +23,14 @@ export async function getCategoriesAction(type?: CategoryType) {
  * Get frequently used expense categories (last 3 months)
  */
 export async function getFrequentCategoriesAction() {
-	const session = await auth();
-
-	if (!session?.user?.id) {
-		return { error: 'Unauthorized' };
-	}
+	const userId = await getAuthenticatedUser();
 
 	try {
 		const frequentCategories = await CategoryService.getFrequentCategories(
-			session.user.id,
+			userId,
 			5
 		);
-		return { success: true, data: frequentCategories };
+		return { success: true as const, data: frequentCategories };
 	} catch (error) {
 		console.error('Failed to get frequent categories:', error);
 		return { error: 'Failed to get frequent categories' };

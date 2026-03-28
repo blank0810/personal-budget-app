@@ -71,11 +71,12 @@ export function ReviewStep({
 				accountId,
 				transactions
 			);
-			setDuplicates(new Set(result.duplicates));
+			const dupes = result.data?.duplicates ?? [];
+			setDuplicates(new Set(dupes));
 			// Auto-deselect duplicates
 			setSelected((prev) => {
 				const next = new Set(prev);
-				for (const idx of result.duplicates) {
+				for (const idx of dupes) {
 					next.delete(idx);
 				}
 				return next;
@@ -116,16 +117,12 @@ export function ReviewStep({
 		const result = await batchImportAction(accountId, selectedTransactions);
 		setLoading(false);
 
-		if (!result.success) {
+		if ('error' in result) {
 			toast.error(result.error || 'Import failed');
 		} else {
-			setImportResult({
-				imported: (result as { imported: number; importBatchId: string }).imported,
-				importBatchId: (result as { imported: number; importBatchId: string }).importBatchId,
-			});
-			toast.success(
-				`Successfully imported ${(result as { imported: number }).imported} transactions`
-			);
+			const { imported, importBatchId } = result.data as { imported: number; importBatchId: string };
+			setImportResult({ imported, importBatchId });
+			toast.success(`Successfully imported ${imported} transactions`);
 		}
 	}
 
@@ -136,10 +133,11 @@ export function ReviewStep({
 		const result = await undoImportAction(importResult.importBatchId);
 		setUndoing(false);
 
-		if (!result.success) {
+		if ('error' in result) {
 			toast.error(result.error || 'Undo failed');
 		} else {
-			toast.success(`Undone: ${result.deleted} transactions removed`);
+			const { deleted } = result.data as { deleted: number };
+			toast.success(`Undone: ${deleted} transactions removed`);
 			setImportResult(null);
 			onReset();
 		}

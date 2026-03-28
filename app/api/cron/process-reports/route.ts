@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { processBatch } from '@/server/modules/report/report.queue';
-import prisma from '@/lib/prisma';
+import { CronService } from '@/server/modules/cron/cron.service';
 
 export async function GET(req: NextRequest) {
 	const authHeader = req.headers.get('authorization');
@@ -15,13 +15,9 @@ export async function GET(req: NextRequest) {
 	try {
 		const processed = await processBatch(50);
 
-		await prisma.cronRunLog.create({
-			data: {
-				key: 'process-reports',
-				status: 'success',
-				processedCount: processed,
-				duration: Date.now() - startTime,
-			},
+		await CronService.logSuccess('process-reports', {
+			processedCount: processed,
+			duration: Date.now() - startTime,
 		});
 
 		return NextResponse.json({
@@ -29,14 +25,9 @@ export async function GET(req: NextRequest) {
 			processed,
 		});
 	} catch (error) {
-		await prisma.cronRunLog.create({
-			data: {
-				key: 'process-reports',
-				status: 'failed',
-				errorMessage:
-					error instanceof Error ? error.message : 'Unknown error',
-				duration: Date.now() - startTime,
-			},
+		await CronService.logFailure('process-reports', {
+			error,
+			duration: Date.now() - startTime,
 		});
 
 		return NextResponse.json(

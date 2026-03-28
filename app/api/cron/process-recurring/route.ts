@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { RecurringService } from '@/server/modules/recurring/recurring.service';
-import prisma from '@/lib/prisma';
+import { CronService } from '@/server/modules/cron/cron.service';
 
 export async function GET(req: NextRequest) {
 	const authHeader = req.headers.get('authorization');
@@ -16,13 +16,9 @@ export async function GET(req: NextRequest) {
 		const result = await RecurringService.processDue();
 		const duration = Date.now() - startTime;
 
-		await prisma.cronRunLog.create({
-			data: {
-				key: 'process-recurring',
-				status: 'success',
-				processedCount: result.processed,
-				duration,
-			},
+		await CronService.logSuccess('process-recurring', {
+			processedCount: result.processed,
+			duration,
 		});
 
 		return NextResponse.json({
@@ -31,14 +27,9 @@ export async function GET(req: NextRequest) {
 			...result,
 		});
 	} catch (error) {
-		await prisma.cronRunLog.create({
-			data: {
-				key: 'process-recurring',
-				status: 'failed',
-				errorMessage:
-					error instanceof Error ? error.message : 'Unknown error',
-				duration: Date.now() - startTime,
-			},
+		await CronService.logFailure('process-recurring', {
+			error,
+			duration: Date.now() - startTime,
 		});
 
 		return NextResponse.json(

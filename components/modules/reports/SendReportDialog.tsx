@@ -62,7 +62,7 @@ export function SendReportDialog({ accountCreatedYear }: SendReportDialogProps) 
 				if ('error' in result) {
 					toast.error(result.error);
 				} else {
-					toast.success(result.message);
+					toast.success(result.data?.message || 'Report sent!');
 					setOpen(false);
 				}
 			} catch {

@@ -1,15 +1,10 @@
 'use server';
 
-import { auth } from '@/auth';
+import { getAuthenticatedUser } from '@/server/lib/auth-guard';
 import { RecurringService } from './recurring.service';
 import { createRecurringSchema, updateRecurringSchema } from './recurring.types';
-import { clearCache } from '@/server/actions/cache';
-
-async function getAuthenticatedUser() {
-	const session = await auth();
-	if (!session?.user?.id) throw new Error('Not authenticated');
-	return session.user.id;
-}
+import { invalidateTags } from '@/server/actions/cache';
+import { CACHE_TAGS } from '@/server/lib/cache-tags';
 
 export async function createRecurringAction(formData: FormData) {
 	const userId = await getAuthenticatedUser();
@@ -33,8 +28,8 @@ export async function createRecurringAction(formData: FormData) {
 
 	try {
 		await RecurringService.create(userId, parsed.data);
-		await clearCache('/recurring');
-		return { success: true };
+		invalidateTags(CACHE_TAGS.RECURRING);
+		return { success: true as const };
 	} catch (error) {
 		return {
 			error:
@@ -74,8 +69,8 @@ export async function updateRecurringAction(formData: FormData) {
 
 	try {
 		await RecurringService.update(userId, parsed.data);
-		await clearCache('/recurring');
-		return { success: true };
+		invalidateTags(CACHE_TAGS.RECURRING);
+		return { success: true as const };
 	} catch (error) {
 		return {
 			error:
@@ -91,8 +86,8 @@ export async function deleteRecurringAction(id: string) {
 
 	try {
 		await RecurringService.delete(userId, id);
-		await clearCache('/recurring');
-		return { success: true };
+		invalidateTags(CACHE_TAGS.RECURRING);
+		return { success: true as const };
 	} catch (error) {
 		return {
 			error:
@@ -108,8 +103,8 @@ export async function toggleRecurringAction(id: string) {
 
 	try {
 		await RecurringService.toggleActive(userId, id);
-		await clearCache('/recurring');
-		return { success: true };
+		invalidateTags(CACHE_TAGS.RECURRING);
+		return { success: true as const };
 	} catch (error) {
 		return {
 			error:

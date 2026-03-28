@@ -1,20 +1,15 @@
 'use server';
 
-import { auth } from '@/auth';
+import { getAuthenticatedUser } from '@/server/lib/auth-guard';
 import { WorkEntryService } from './work-entry.service';
 import {
 	createWorkEntrySchema,
 	updateWorkEntrySchema,
 	getWorkEntriesSchema,
 } from './work-entry.types';
-import { clearCache } from '@/server/actions/cache';
+import { invalidateTags } from '@/server/actions/cache';
+import { CACHE_TAGS } from '@/server/lib/cache-tags';
 import { serialize } from '@/lib/serialization';
-
-async function getAuthenticatedUser() {
-	const session = await auth();
-	if (!session?.user?.id) throw new Error('Not authenticated');
-	return session.user.id;
-}
 
 export async function createWorkEntryAction(data: unknown) {
 	const userId = await getAuthenticatedUser();
@@ -28,9 +23,8 @@ export async function createWorkEntryAction(data: unknown) {
 
 	try {
 		const entry = await WorkEntryService.create(userId, parsed.data);
-		await clearCache('/entries');
-		await clearCache('/clients');
-		return { success: true, entry: serialize(entry) };
+		invalidateTags(CACHE_TAGS.WORK_ENTRIES, CACHE_TAGS.INVOICES);
+		return { success: true as const, data: serialize(entry) };
 	} catch (error) {
 		return {
 			error:
@@ -53,9 +47,8 @@ export async function updateWorkEntryAction(data: unknown) {
 
 	try {
 		const entry = await WorkEntryService.update(userId, parsed.data);
-		await clearCache('/entries');
-		await clearCache('/clients');
-		return { success: true, entry: serialize(entry) };
+		invalidateTags(CACHE_TAGS.WORK_ENTRIES, CACHE_TAGS.INVOICES);
+		return { success: true as const, data: serialize(entry) };
 	} catch (error) {
 		return {
 			error:
@@ -71,9 +64,8 @@ export async function deleteWorkEntryAction(entryId: string) {
 
 	try {
 		await WorkEntryService.delete(userId, entryId);
-		await clearCache('/entries');
-		await clearCache('/clients');
-		return { success: true };
+		invalidateTags(CACHE_TAGS.WORK_ENTRIES, CACHE_TAGS.INVOICES);
+		return { success: true as const };
 	} catch (error) {
 		return {
 			error:
@@ -89,7 +81,7 @@ export async function getUnbilledByClientAction(clientId: string) {
 
 	try {
 		const entries = await WorkEntryService.getUnbilledByClient(userId, clientId);
-		return { success: true, entries: serialize(entries) };
+		return { success: true as const, data: serialize(entries) };
 	} catch (error) {
 		return {
 			error:
@@ -111,9 +103,8 @@ export async function getWorkEntriesAction(filters: unknown) {
 	try {
 		const result = await WorkEntryService.getAll(userId, parsed.data);
 		return {
-			success: true,
-			data: serialize(result.data),
-			total: result.total,
+			success: true as const,
+			data: { entries: serialize(result.data), total: result.total },
 		};
 	} catch (error) {
 		return {
@@ -129,7 +120,7 @@ export async function getUnbilledCountsAction() {
 	const userId = await getAuthenticatedUser();
 	try {
 		const counts = await WorkEntryService.getUnbilledCountsByClient(userId);
-		return { success: true, counts };
+		return { success: true as const, data: counts };
 	} catch (error) {
 		return {
 			error:

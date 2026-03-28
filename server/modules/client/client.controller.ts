@@ -1,16 +1,11 @@
 'use server';
 
-import { auth } from '@/auth';
+import { getAuthenticatedUser } from '@/server/lib/auth-guard';
 import { ClientService } from './client.service';
 import { createClientSchema, updateClientSchema } from './client.types';
-import { clearCache } from '@/server/actions/cache';
+import { invalidateTags } from '@/server/actions/cache';
+import { CACHE_TAGS } from '@/server/lib/cache-tags';
 import { serialize } from '@/lib/serialization';
-
-async function getAuthenticatedUser() {
-	const session = await auth();
-	if (!session?.user?.id) throw new Error('Not authenticated');
-	return session.user.id;
-}
 
 export async function createClientAction(data: unknown) {
 	const userId = await getAuthenticatedUser();
@@ -24,8 +19,8 @@ export async function createClientAction(data: unknown) {
 
 	try {
 		const client = await ClientService.create(userId, parsed.data);
-		await clearCache('/clients');
-		return { success: true, client: serialize(client) };
+		invalidateTags(CACHE_TAGS.CLIENTS);
+		return { success: true as const, data: serialize(client) };
 	} catch (error) {
 		return {
 			error:
@@ -48,8 +43,8 @@ export async function updateClientAction(data: unknown) {
 
 	try {
 		const client = await ClientService.update(userId, parsed.data);
-		await clearCache('/clients');
-		return { success: true, client: serialize(client) };
+		invalidateTags(CACHE_TAGS.CLIENTS, CACHE_TAGS.WORK_ENTRIES, CACHE_TAGS.INVOICES);
+		return { success: true as const, data: serialize(client) };
 	} catch (error) {
 		return {
 			error:
@@ -65,8 +60,8 @@ export async function archiveClientAction(clientId: string) {
 
 	try {
 		await ClientService.archive(userId, clientId);
-		await clearCache('/clients');
-		return { success: true };
+		invalidateTags(CACHE_TAGS.CLIENTS, CACHE_TAGS.WORK_ENTRIES, CACHE_TAGS.INVOICES);
+		return { success: true as const };
 	} catch (error) {
 		return {
 			error:
@@ -82,8 +77,8 @@ export async function restoreClientAction(clientId: string) {
 
 	try {
 		await ClientService.restore(userId, clientId);
-		await clearCache('/clients');
-		return { success: true };
+		invalidateTags(CACHE_TAGS.CLIENTS, CACHE_TAGS.WORK_ENTRIES, CACHE_TAGS.INVOICES);
+		return { success: true as const };
 	} catch (error) {
 		return {
 			error:
@@ -99,8 +94,8 @@ export async function deleteClientAction(clientId: string) {
 
 	try {
 		await ClientService.delete(userId, clientId);
-		await clearCache('/clients');
-		return { success: true };
+		invalidateTags(CACHE_TAGS.CLIENTS, CACHE_TAGS.WORK_ENTRIES, CACHE_TAGS.INVOICES);
+		return { success: true as const };
 	} catch (error) {
 		// Prisma P2003 = foreign key constraint violation (Restrict)
 		const message =

@@ -30,7 +30,7 @@ import {
 	CreateAccountInput,
 } from '@/server/modules/account/account.types';
 import { createAccountAction } from '@/server/modules/account/account.controller';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useTransition } from 'react';
 import { AccountType } from '@prisma/client';
 import {
 	Landmark,
@@ -76,7 +76,7 @@ const COLORS = [
 
 export function AccountForm() {
 	const { formatCurrency } = useCurrency();
-	const [isPending, setIsPending] = useState(false);
+	const [isPending, startTransition] = useTransition();
 
 	const [selectedColor, setSelectedColor] = useState('blue');
 
@@ -117,36 +117,25 @@ export function AccountForm() {
 		}
 	}, [isLiability, form]);
 
-	async function onSubmit(data: CreateAccountInput) {
-		setIsPending(true);
-		const formData = new FormData();
-		formData.append('name', data.name);
-		formData.append('type', data.type);
-		formData.append('balance', data.balance.toString());
+	function onSubmit(data: CreateAccountInput) {
+		startTransition(async () => {
+			// Auto-assign icon based on account type
+			const iconKey = ACCOUNT_TYPE_ICON_KEY[data.type] || 'landmark';
 
-		// Auto-determine liability from type
-		if (isLiability) {
-			formData.append('isLiability', 'on');
-		}
+			const result = await createAccountAction({
+				...data,
+				isLiability,
+				icon: iconKey,
+				color: selectedColor,
+			});
 
-		if (data.creditLimit) {
-			formData.append('creditLimit', data.creditLimit.toString());
-		}
-
-		// Auto-assign icon based on account type
-		const iconKey = ACCOUNT_TYPE_ICON_KEY[data.type] || 'landmark';
-		formData.append('icon', iconKey);
-		formData.append('color', selectedColor);
-
-		const result = await createAccountAction(formData);
-		setIsPending(false);
-
-		if (result?.error) {
-			console.error(result.error);
-		} else {
-			form.reset();
-			setSelectedColor('blue');
-		}
+			if (result?.error) {
+				console.error(result.error);
+			} else {
+				form.reset();
+				setSelectedColor('blue');
+			}
+		});
 	}
 
 	// Get utilization status

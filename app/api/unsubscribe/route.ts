@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import crypto from 'crypto';
-import prisma from '@/lib/prisma';
+import { UserService } from '@/server/modules/user/user.service';
 import { NotificationService } from '@/server/modules/notification/notification.service';
 
 export function generateUnsubscribeToken(userId: string): string {
@@ -33,10 +33,7 @@ export async function GET(req: NextRequest) {
 	}
 
 	try {
-		const user = await prisma.user.findUnique({
-			where: { id: userId },
-			select: { id: true },
-		});
+		const user = await UserService.findById(userId);
 
 		if (!user) {
 			return new NextResponse(

@@ -1,29 +1,17 @@
-import prisma from '@/lib/prisma';
+import { UserService } from '@/server/modules/user/user.service';
 
 export class OnboardingService {
 	static async setCurrency(userId: string, currency: string) {
 		// Currency can only be set during onboarding (before isOnboarded is true)
-		const user = await prisma.user.findUnique({
-			where: { id: userId },
-			select: { isOnboarded: true },
-		});
-		if (!user) {
-			throw new Error('User not found');
-		}
-		if (user.isOnboarded) {
+		const isOnboarded = await UserService.getIsOnboarded(userId);
+		if (isOnboarded) {
 			throw new Error('Currency cannot be changed after onboarding');
 		}
 
-		await prisma.user.update({
-			where: { id: userId },
-			data: { currency },
-		});
+		await UserService.setCurrency(userId, currency);
 	}
 
 	static async completeOnboarding(userId: string) {
-		await prisma.user.update({
-			where: { id: userId },
-			data: { isOnboarded: true },
-		});
+		await UserService.completeOnboarding(userId);
 	}
 }

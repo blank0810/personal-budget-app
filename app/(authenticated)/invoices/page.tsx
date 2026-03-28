@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { serialize } from '@/lib/serialization';
 import { Plus } from 'lucide-react';
 import type { InvoiceRow } from '@/components/modules/invoice/InvoiceList';
-import type { InvoiceSummaryData } from '@/components/modules/invoice/InvoiceSummaryCards';
+import type { InvoiceSummary } from '@/server/modules/invoice/invoice.types';
 
 export default async function InvoicesPage() {
 	const session = await auth();
@@ -34,7 +34,7 @@ export default async function InvoicesPage() {
 			</div>
 
 			<InvoiceSummaryCards
-				summary={serialize(summary) as unknown as InvoiceSummaryData}
+				summary={serialize(summary) as unknown as InvoiceSummary}
 			/>
 
 			<InvoiceList

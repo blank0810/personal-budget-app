@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { InvoiceService } from '@/server/modules/invoice/invoice.service';
-import prisma from '@/lib/prisma';
+import { CronService } from '@/server/modules/cron/cron.service';
 
 export async function GET(req: NextRequest) {
 	const authHeader = req.headers.get('authorization');
@@ -16,13 +16,9 @@ export async function GET(req: NextRequest) {
 		const result = await InvoiceService.processOverdue();
 		const duration = Date.now() - startTime;
 
-		await prisma.cronRunLog.create({
-			data: {
-				key: 'invoice-overdue',
-				status: 'success',
-				processedCount: result.processed,
-				duration,
-			},
+		await CronService.logSuccess('invoice-overdue', {
+			processedCount: result.processed,
+			duration,
 		});
 
 		return NextResponse.json({
@@ -30,15 +26,9 @@ export async function GET(req: NextRequest) {
 			duration: `${duration}ms`,
 		});
 	} catch (error) {
-		const duration = Date.now() - startTime;
-		await prisma.cronRunLog.create({
-			data: {
-				key: 'invoice-overdue',
-				status: 'failed',
-				errorMessage:
-					error instanceof Error ? error.message : 'Unknown error',
-				duration,
-			},
+		await CronService.logFailure('invoice-overdue', {
+			error,
+			duration: Date.now() - startTime,
 		});
 
 		return NextResponse.json(

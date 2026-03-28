@@ -7,26 +7,25 @@ export class AdminService {
 	static async verifyAndElevate(
 		userId: string,
 		password: string
-	): Promise<{ success: boolean; error?: string }> {
+	): Promise<{ success: true } | { error: string }> {
 		const user = await prisma.user.findUnique({
 			where: { id: userId },
 			select: { role: true, password: true },
 		});
 
 		if (!user || user.role !== 'ADMIN') {
-			return { success: false, error: 'Unauthorized' };
+			return { error: 'Unauthorized' };
 		}
 
 		if (!user.password) {
 			return {
-				success: false,
 				error: 'Password auth not available. Use Google re-auth.',
 			};
 		}
 
 		const valid = await bcrypt.compare(password, user.password);
 		if (!valid) {
-			return { success: false, error: 'Invalid password' };
+			return { error: 'Invalid password' };
 		}
 
 		await prisma.user.update({
@@ -43,14 +42,14 @@ export class AdminService {
 
 	static async elevateViaOAuth(
 		userId: string
-	): Promise<{ success: boolean; error?: string }> {
+	): Promise<{ success: true } | { error: string }> {
 		const user = await prisma.user.findUnique({
 			where: { id: userId },
 			select: { role: true },
 		});
 
 		if (!user || user.role !== 'ADMIN') {
-			return { success: false, error: 'Unauthorized' };
+			return { error: 'Unauthorized' };
 		}
 
 		await prisma.user.update({

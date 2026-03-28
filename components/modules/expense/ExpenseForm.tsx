@@ -35,7 +35,7 @@ import {
 	CreateExpenseInput,
 } from '@/server/modules/expense/expense.types';
 import { createExpenseAction } from '@/server/modules/expense/expense.controller';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useTransition } from 'react';
 import { Account, Category, Budget } from '@prisma/client';
 import { CategoryCombobox } from './CategoryCombobox';
 import { BudgetSelector } from './BudgetSelector';
@@ -60,7 +60,7 @@ export function ExpenseForm({
 	budgets,
 }: ExpenseFormProps) {
 	const { formatCurrency } = useCurrency();
-	const [isPending, setIsPending] = useState(false);
+	const [isPending, startTransition] = useTransition();
 	const [showCustomCategoryInput, setShowCustomCategoryInput] =
 		useState(false);
 	const [confirmationName, setConfirmationName] = useState('');
@@ -127,48 +127,29 @@ export function ExpenseForm({
 		isPending ||
 		(isSavingsAccount && confirmationName !== selectedAccount?.name);
 
-	async function onSubmit(data: CreateExpenseInput) {
-		setIsPending(true);
-		const formData = new FormData();
-		formData.append('amount', data.amount.toString());
-		formData.append('description', data.description || '');
-		formData.append('date', data.date.toISOString());
+	function onSubmit(data: CreateExpenseInput) {
+		startTransition(async () => {
+			const result = await createExpenseAction(data);
 
-		// Handle category: pass either categoryId or categoryName
-		if (data.categoryId) {
-			formData.append('categoryId', data.categoryId);
-		} else if (data.categoryName) {
-			formData.append('categoryName', data.categoryName);
-		}
-
-		if (data.accountId) formData.append('accountId', data.accountId);
-		if (data.budgetId) formData.append('budgetId', data.budgetId);
-		if (data.notes) formData.append('notes', data.notes);
-		if (data.isRecurring) formData.append('isRecurring', 'on');
-		if (data.recurringPeriod)
-			formData.append('recurringPeriod', data.recurringPeriod);
-
-		const result = await createExpenseAction(formData);
-		setIsPending(false);
-
-		if (result?.error) {
-			console.error(result.error);
-			// Handle error (toast)
-		} else {
-			form.reset({
-				amount: undefined,
-				description: '',
-				date: new Date(),
-				isRecurring: false,
-				categoryId: undefined,
-				categoryName: '',
-				accountId: undefined,
-				budgetId: undefined,
-				recurringPeriod: undefined,
-			});
-			setShowCustomCategoryInput(false); // Reset custom category state
-			// Handle success (toast)
-		}
+			if (result?.error) {
+				console.error(result.error);
+				// Handle error (toast)
+			} else {
+				form.reset({
+					amount: undefined,
+					description: '',
+					date: new Date(),
+					isRecurring: false,
+					categoryId: undefined,
+					categoryName: '',
+					accountId: undefined,
+					budgetId: undefined,
+					recurringPeriod: undefined,
+				});
+				setShowCustomCategoryInput(false); // Reset custom category state
+				// Handle success (toast)
+			}
+		});
 	}
 
 	return (
