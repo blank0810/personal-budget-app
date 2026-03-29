@@ -1,5 +1,6 @@
 import { auth } from '@/auth';
 import { redirect } from 'next/navigation';
+import { requireFeature } from '@/lib/feature-gate';
 import Link from 'next/link';
 import { InvoiceService } from '@/server/modules/invoice/invoice.service';
 import { InvoiceSummaryCards } from '@/components/modules/invoice/InvoiceSummaryCards';
@@ -11,6 +12,7 @@ import type { InvoiceRow } from '@/components/modules/invoice/InvoiceList';
 import type { InvoiceSummary } from '@/server/modules/invoice/invoice.types';
 
 export default async function InvoicesPage() {
+	await requireFeature('invoices');
 	const session = await auth();
 	if (!session?.user?.id) redirect('/login');
 

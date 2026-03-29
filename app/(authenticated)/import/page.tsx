@@ -1,5 +1,6 @@
 import { auth } from '@/auth';
 import { redirect } from 'next/navigation';
+import { requireFeature } from '@/lib/feature-gate';
 import { AccountService } from '@/server/modules/account/account.service';
 import { CategoryService } from '@/server/modules/category/category.service';
 import { ImportWizard } from '@/components/modules/import/ImportWizard';
@@ -7,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { serialize } from '@/lib/serialization';
 
 export default async function ImportPage() {
+	await requireFeature('csv_import');
 	const session = await auth();
 	if (!session?.user?.id) redirect('/login');
 

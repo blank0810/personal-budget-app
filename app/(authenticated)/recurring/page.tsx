@@ -1,5 +1,6 @@
 import { auth } from '@/auth';
 import { redirect } from 'next/navigation';
+import { requireFeature } from '@/lib/feature-gate';
 import { RecurringService } from '@/server/modules/recurring/recurring.service';
 import { AccountService } from '@/server/modules/account/account.service';
 import { CategoryService } from '@/server/modules/category/category.service';
@@ -11,6 +12,7 @@ import { serialize } from '@/lib/serialization';
 import { startOfMonth } from 'date-fns';
 
 export default async function RecurringPage() {
+	await requireFeature('recurring_transactions');
 	const session = await auth();
 	if (!session?.user?.id) redirect('/login');
 

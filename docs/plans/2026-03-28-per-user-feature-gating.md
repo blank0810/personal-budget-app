@@ -8,6 +8,16 @@
 
 **Tech Stack:** Next.js 15, React 19, TypeScript, Prisma ORM, Tailwind CSS 4, shadcn/ui
 
+**Architecture alignment notes (v1.9.3):**
+- All server actions return `ActionResponse<T>` from `@/server/lib/action-types` -- success: `{ success: true as const, data: T }`, error: `{ error: string }` (no `success` field on errors)
+- Cache invalidation uses `invalidateTags(CACHE_TAGS.X)` from `@/server/actions/cache` -- never the deprecated `clearCache()`
+- Auth in server actions uses `getAuthenticatedUser()` from `@/server/lib/auth-guard` (throws on no session) for user-facing actions, `requireAdminSession()` (returns `{ error }`) for admin actions
+- Mutation controllers accept `(data: unknown)` and validate with Zod `safeParse` -- schemas live in the module's `.types.ts` file
+- Prisma data with Date/Decimal fields must pass through `serialize()` from `@/lib/serialization` before returning to the client
+- `Set<string>` is not serializable across server/client boundary -- pass `string[]` instead
+- `useServerAction` hook from `@/hooks/use-server-action` wraps mutations with `useTransition` and auto-toasts errors
+- Defer `unstable_cache` wrapping for feature resolution until profiling shows it is needed -- two small queries per layout render is acceptable at current scale
+
 ---
 
 ## Task 1: Schema Migration -- UserFeature join table + SystemSetting model
@@ -83,8 +93,19 @@ docker compose exec app npx prisma migrate dev --name add-user-features-and-syst
 **Files:**
 - Create: `server/modules/feature-flag/feature-flag.service.ts`
 - Create: `server/modules/feature-flag/feature-flag.types.ts`
+- Modify: `server/lib/cache-tags.ts` (add `FEATURE_FLAGS` tag)
 
-### Step 1: Create types file
+### Step 1: Add FEATURE_FLAGS cache tag
+
+In `server/lib/cache-tags.ts`, add to the `CACHE_TAGS` object:
+
+```typescript
+FEATURE_FLAGS: 'feature-flags',
+```
+
+This tag is invalidated whenever a user feature override or global flag is mutated.
+
+### Step 2: Create types file
 
 ```
 server/modules/feature-flag/feature-flag.types.ts
@@ -93,6 +114,8 @@ server/modules/feature-flag/feature-flag.types.ts
 Define:
 
 ```typescript
+import { z } from 'zod';
+
 // All known feature flag keys -- single source of truth
 export const FEATURE_KEYS = {
   RECURRING_TRANSACTIONS: 'recurring_transactions',
@@ -103,6 +126,35 @@ export const FEATURE_KEYS = {
 } as const;
 
 export type FeatureKey = (typeof FEATURE_KEYS)[keyof typeof FEATURE_KEYS];
+
+// Allowed flag key values for Zod validation
+const featureKeyValues = Object.values(FEATURE_KEYS) as [string, ...string[]];
+
+// --- Zod schemas for mutation actions ---
+
+export const setUserFeatureSchema = z.object({
+  userId: z.string().min(1, 'userId is required'),
+  flagKey: z.enum(featureKeyValues, {
+    errorMap: () => ({ message: 'Unknown feature key' }),
+  }),
+  enabled: z.boolean(),
+});
+
+export const resetUserFeatureSchema = z.object({
+  userId: z.string().min(1, 'userId is required'),
+  flagKey: z.enum(featureKeyValues, {
+    errorMap: () => ({ message: 'Unknown feature key' }),
+  }),
+});
+
+export const getUserFeaturesSchema = z.object({
+  userId: z.string().min(1, 'userId is required'),
+});
+
+export const updateSystemSettingSchema = z.object({
+  key: z.string().min(1, 'key is required'),
+  value: z.string(),
+});
 
 // Maps feature keys to the sidebar items and routes they gate
 export const FEATURE_ROUTE_MAP: Record<string, { routes: string[]; sidebarKeys: string[] }> = {
@@ -131,7 +183,7 @@ export const FEATURE_ROUTE_MAP: Record<string, { routes: string[]; sidebarKeys: 
 export type ResolvedFeatures = Record<string, boolean>;
 ```
 
-### Step 2: Create feature flag service
+### Step 3: Create feature flag service
 
 ```
 server/modules/feature-flag/feature-flag.service.ts
@@ -146,8 +198,8 @@ export const FeatureFlagService = {
    * Resolve all feature flags for a user.
    * Resolution order: user override > global default > disabled.
    *
-   * Single query using a raw join would be premature -- two small queries
-   * (global flags + user overrides) are simple and cache-friendly.
+   * Two small queries (global flags + user overrides) are simple and
+   * cache-friendly. Do NOT wrap in unstable_cache until profiling shows need.
    */
   async getResolvedFeaturesForUser(userId: string): Promise<ResolvedFeatures> {
     const [globalFlags, userOverrides] = await Promise.all([
@@ -231,10 +283,13 @@ export const FeatureFlagService = {
 ```
 
 **Acceptance criteria:**
+- `FEATURE_FLAGS` tag added to `server/lib/cache-tags.ts`
 - `getResolvedFeaturesForUser(userId)` returns `Record<string, boolean>` with user overrides winning
 - `setUserFeatureOverride` upserts correctly (no duplicates)
 - `removeUserFeatureOverride` deletes the override, making the user fall back to global default
 - Feature key not in global flags AND not in user overrides = absent from result (treated as disabled)
+- Zod schemas validate `flagKey` against known `FEATURE_KEYS` values and `userId` is non-empty string
+- No `unstable_cache` wrapping -- deferred until profiling shows need
 
 ---
 
@@ -243,32 +298,54 @@ export const FeatureFlagService = {
 **Files:**
 - Modify: `server/modules/admin/admin.controller.ts`
 
-### Step 1: Import FeatureFlagService
+All new actions follow the v1.9.3 controller pattern:
+- Import `ActionResponse` from `@/server/lib/action-types` and annotate return types
+- Mutation actions accept `(data: unknown)` and validate with Zod `safeParse`
+- Error paths return `{ error: string }` (no `success` field)
+- Success paths return `{ success: true as const }` or `{ success: true as const, data: { ... } }`
+- Cache invalidation uses `invalidateTags(CACHE_TAGS.FEATURE_FLAGS)`
+- Prisma data with Date fields passes through `serialize()` before returning
+
+### Step 1: Add imports
 
 At the top of the file, add:
 
 ```typescript
 import { FeatureFlagService } from '@/server/modules/feature-flag/feature-flag.service';
+import {
+  getUserFeaturesSchema,
+  setUserFeatureSchema,
+  resetUserFeatureSchema,
+} from '@/server/modules/feature-flag/feature-flag.types';
+import type { ActionResponse } from '@/server/lib/action-types';
 ```
+
+Note: `invalidateTags`, `CACHE_TAGS`, and `serialize` are already imported in this file.
 
 ### Step 2: Add getUserFeatures action
 
 After the existing `adminExportUserDataAction`, add:
 
 ```typescript
-export async function adminGetUserFeaturesAction(userId: string) {
+export async function adminGetUserFeaturesAction(
+  data: unknown
+): Promise<ActionResponse<{ flags: Array<{ key: string; description: string | null; enabled: boolean }>; overrides: Record<string, boolean> }>> {
   const { error } = await requireAdminSession();
-  if (error) return { success: false, error };
+  if (error) return { error };
+
+  const parsed = getUserFeaturesSchema.safeParse(data);
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message || 'Validation failed' };
+  }
 
   try {
     const [flags, overrides] = await Promise.all([
       AdminContentService.getFeatureFlags(),
-      FeatureFlagService.getUserOverrides(userId),
+      FeatureFlagService.getUserOverrides(parsed.data.userId),
     ]);
-    return { success: true, flags, overrides };
+    return { success: true as const, data: { flags: serialize(flags), overrides } };
   } catch (err) {
     return {
-      success: false,
       error: err instanceof Error ? err.message : 'Failed to fetch user features',
     };
   }
@@ -279,20 +356,26 @@ export async function adminGetUserFeaturesAction(userId: string) {
 
 ```typescript
 export async function adminSetUserFeatureAction(
-  userId: string,
-  flagKey: string,
-  enabled: boolean
-) {
+  data: unknown
+): Promise<ActionResponse> {
   const { error } = await requireAdminSession();
-  if (error) return { success: false, error };
+  if (error) return { error };
+
+  const parsed = setUserFeatureSchema.safeParse(data);
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message || 'Validation failed' };
+  }
 
   try {
-    await FeatureFlagService.setUserFeatureOverride(userId, flagKey, enabled);
-    await clearCache('/', 'layout');
-    return { success: true };
+    await FeatureFlagService.setUserFeatureOverride(
+      parsed.data.userId,
+      parsed.data.flagKey,
+      parsed.data.enabled
+    );
+    invalidateTags(CACHE_TAGS.FEATURE_FLAGS);
+    return { success: true as const };
   } catch (err) {
     return {
-      success: false,
       error: err instanceof Error ? err.message : 'Failed to set user feature',
     };
   }
@@ -303,30 +386,48 @@ export async function adminSetUserFeatureAction(
 
 ```typescript
 export async function adminResetUserFeatureAction(
-  userId: string,
-  flagKey: string
-) {
+  data: unknown
+): Promise<ActionResponse> {
   const { error } = await requireAdminSession();
-  if (error) return { success: false, error };
+  if (error) return { error };
+
+  const parsed = resetUserFeatureSchema.safeParse(data);
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message || 'Validation failed' };
+  }
 
   try {
-    await FeatureFlagService.removeUserFeatureOverride(userId, flagKey);
-    await clearCache('/', 'layout');
-    return { success: true };
+    await FeatureFlagService.removeUserFeatureOverride(
+      parsed.data.userId,
+      parsed.data.flagKey
+    );
+    invalidateTags(CACHE_TAGS.FEATURE_FLAGS);
+    return { success: true as const };
   } catch (err) {
     return {
-      success: false,
       error: err instanceof Error ? err.message : 'Failed to reset user feature',
     };
   }
 }
 ```
 
+### Step 5: Update existing global flag toggle to also invalidate FEATURE_FLAGS
+
+In the existing `adminToggleFeatureFlagAction`, add `CACHE_TAGS.FEATURE_FLAGS` to the invalidation call:
+
+```typescript
+// Change the existing invalidation (if any) or add:
+invalidateTags(CACHE_TAGS.FEATURE_FLAGS);
+```
+
 **Acceptance criteria:**
-- All three actions require admin session
-- `adminGetUserFeaturesAction` returns both global flags and user-specific overrides
-- `adminSetUserFeatureAction` upserts the override and clears cache
-- `adminResetUserFeatureAction` removes the override and clears cache
+- All three new actions require admin session via `requireAdminSession()`
+- Auth error returns `{ error }` (no `success: false`)
+- Mutation actions accept `(data: unknown)` and validate with Zod schemas from `feature-flag.types.ts`
+- `adminGetUserFeaturesAction` returns `{ success: true as const, data: { flags, overrides } }` with `serialize()` on flags
+- `adminSetUserFeatureAction` validates `flagKey` is a known feature key, upserts override, invalidates `CACHE_TAGS.FEATURE_FLAGS`
+- `adminResetUserFeatureAction` validates inputs, removes override, invalidates `CACHE_TAGS.FEATURE_FLAGS`
+- All actions annotated with `Promise<ActionResponse<T>>` return types
 
 ---
 
@@ -369,53 +470,76 @@ In the existing `load()` function inside useEffect, add a third parallel call:
 const [detailResult, activityResult, featuresResult] = await Promise.all([
   adminGetUserDetailAction(userId!),
   adminGetUserActivityAction(userId!),
-  adminGetUserFeaturesAction(userId!),
+  adminGetUserFeaturesAction({ userId: userId! }),
 ]);
 
 // ... existing handlers ...
 
-if (featuresResult.success && 'flags' in featuresResult && 'overrides' in featuresResult) {
+if (featuresResult.success && featuresResult.data) {
   setFeatureFlags(
-    (featuresResult.flags as Array<{ key: string; description: string | null; enabled: boolean }>)
-      .map((f) => ({ key: f.key, description: f.description, globalEnabled: f.enabled }))
+    featuresResult.data.flags.map((f) => ({
+      key: f.key,
+      description: f.description,
+      globalEnabled: f.enabled,
+    }))
   );
-  setUserOverrides(featuresResult.overrides as Record<string, boolean>);
+  setUserOverrides(featuresResult.data.overrides);
 }
 ```
 
-### Step 4: Add toggle and reset handlers
+Note: `adminGetUserFeaturesAction` now takes `{ userId }` (validated via Zod), not a bare string argument.
+
+### Step 4: Add toggle and reset handlers with useTransition
+
+Replace bare `await` calls with `useTransition` wrapping. The per-flag `featureLoading` state is kept for the per-toggle spinner UX (a legitimate need since we need to track *which* flag is loading, which a single `isPending` boolean cannot express).
 
 ```typescript
-async function handleFeatureToggle(flagKey: string, enabled: boolean) {
+import { useTransition } from 'react';
+
+// Inside the component:
+const [isFeaturePending, startFeatureTransition] = useTransition();
+
+function handleFeatureToggle(flagKey: string, enabled: boolean) {
   if (!user) return;
   setFeatureLoading(flagKey);
-  const result = await adminSetUserFeatureAction(user.id, flagKey, enabled);
-  setFeatureLoading(null);
+  startFeatureTransition(async () => {
+    const result = await adminSetUserFeatureAction({
+      userId: user.id,
+      flagKey,
+      enabled,
+    });
+    setFeatureLoading(null);
 
-  if (result.success) {
-    setUserOverrides((prev) => ({ ...prev, [flagKey]: enabled }));
-    toast.success(`${flagKey} ${enabled ? 'enabled' : 'disabled'} for user`);
-  } else {
-    toast.error(result.error || 'Failed');
-  }
+    if ('error' in result) {
+      toast.error(result.error);
+    } else {
+      setUserOverrides((prev) => ({ ...prev, [flagKey]: enabled }));
+      toast.success(`${flagKey} ${enabled ? 'enabled' : 'disabled'} for user`);
+    }
+  });
 }
 
-async function handleFeatureReset(flagKey: string) {
+function handleFeatureReset(flagKey: string) {
   if (!user) return;
   setFeatureLoading(flagKey);
-  const result = await adminResetUserFeatureAction(user.id, flagKey);
-  setFeatureLoading(null);
-
-  if (result.success) {
-    setUserOverrides((prev) => {
-      const next = { ...prev };
-      delete next[flagKey];
-      return next;
+  startFeatureTransition(async () => {
+    const result = await adminResetUserFeatureAction({
+      userId: user.id,
+      flagKey,
     });
-    toast.success(`${flagKey} reset to global default`);
-  } else {
-    toast.error(result.error || 'Failed');
-  }
+    setFeatureLoading(null);
+
+    if ('error' in result) {
+      toast.error(result.error);
+    } else {
+      setUserOverrides((prev) => {
+        const next = { ...prev };
+        delete next[flagKey];
+        return next;
+      });
+      toast.success(`${flagKey} reset to global default`);
+    }
+  });
 }
 ```
 
@@ -496,10 +620,12 @@ Insert a new section between Notification Preferences and Actions (between the t
 
 **Acceptance criteria:**
 - Each feature flag row shows: flag key (mono), "Custom" or "Default" badge, description, toggle switch
-- Toggle creates/updates a UserFeature override record
+- Toggle creates/updates a UserFeature override record via `adminSetUserFeatureAction({ userId, flagKey, enabled })`
 - "Reset" button (RotateCcw icon) appears only when the user has a custom override
 - Clicking reset removes the override and the toggle snaps to the global default
-- Loading state disables the toggle while the action is in flight
+- All mutations wrapped in `useTransition` via `startFeatureTransition`
+- Per-flag loading state disables the toggle while the action is in flight
+- Action calls pass object payloads (not positional args) matching Zod schemas
 
 ---
 
@@ -508,6 +634,7 @@ Insert a new section between Notification Preferences and Actions (between the t
 **Files:**
 - Modify: `app/(authenticated)/layout.tsx`
 - Modify: `components/common/app-sidebar.tsx`
+- Create: `lib/feature-gate.ts`
 
 ### Step 1: Fetch resolved features in layout
 
@@ -524,14 +651,16 @@ After the existing `dbUser` query, add:
 const resolvedFeatures = await FeatureFlagService.getResolvedFeaturesForUser(session!.user!.id);
 ```
 
-### Step 2: Compute disabled sidebar keys
+### Step 2: Compute disabled sidebar keys as string[]
+
+**Important:** `Set<string>` is not serializable across the server/client boundary. Compute a `string[]` instead.
 
 ```typescript
-const disabledSidebarKeys = new Set<string>();
+const disabledSidebarKeys: string[] = [];
 for (const [featureKey, mapping] of Object.entries(FEATURE_ROUTE_MAP)) {
   if (!resolvedFeatures[featureKey]) {
     for (const key of mapping.sidebarKeys) {
-      disabledSidebarKeys.add(key);
+      disabledSidebarKeys.push(key);
     }
   }
 }
@@ -554,74 +683,58 @@ Add a new prop `disabledSidebarKeys` to the `<AppSidebar>` component:
 
 In `components/common/app-sidebar.tsx`:
 
-1. Add `disabledSidebarKeys?: Set<string>` to `AppSidebarProps`.
+1. Add `disabledSidebarKeys?: string[]` to `AppSidebarProps`.
 2. Filter both main nav items and footer nav items before rendering:
 
 ```typescript
-const filteredNavItems = disabledSidebarKeys
-  ? navItems.filter((item) => !disabledSidebarKeys.has(item.title))
+const filteredNavItems = disabledSidebarKeys?.length
+  ? navItems.filter((item) => !disabledSidebarKeys.includes(item.title))
   : navItems;
 ```
 
-Also filter the footer items (Recurring, Import) by checking the same set:
+Also filter the footer items (Recurring, Import) by checking the same array:
 
 ```typescript
 // In the footer, conditionally render each SidebarMenuItem:
-{!disabledSidebarKeys?.has('Recurring') && (
+{!disabledSidebarKeys?.includes('Recurring') && (
   <SidebarMenuItem>...</SidebarMenuItem>
 )}
-{!disabledSidebarKeys?.has('Import') && (
+{!disabledSidebarKeys?.includes('Import') && (
   <SidebarMenuItem>...</SidebarMenuItem>
 )}
 ```
 
-### Step 5: Route redirect for gated features
+### Step 5: Feature gate utility for route-level gating
 
-Still in `app/(authenticated)/layout.tsx`, add a route guard. If the user is on a gated route, redirect to dashboard:
-
-```typescript
-import { redirect } from 'next/navigation';
-import { headers } from 'next/headers';
-
-// Inside the component, after resolvedFeatures:
-const headersList = await headers();
-const pathname = headersList.get('x-nexturl-pathname') || headersList.get('x-invoke-path') || '';
-
-// Check if user is accessing a disabled feature's route
-for (const [featureKey, mapping] of Object.entries(FEATURE_ROUTE_MAP)) {
-  if (!resolvedFeatures[featureKey]) {
-    if (mapping.routes.some((route) => pathname.startsWith(route))) {
-      redirect('/dashboard');
-    }
-  }
-}
-```
-
-**Note:** The `x-nexturl-pathname` header may not be available in all Next.js configurations. Alternative approach: use `middleware.ts` to set a custom header, or move the route guard to each gated page's layout/page.tsx. The simplest reliable approach is to add a lightweight check in each gated route group's layout or page. Decide during implementation based on what the Next.js 15 headers expose.
-
-**Fallback approach for route gating (preferred for reliability):**
-
-Create a reusable wrapper:
+Create a reusable wrapper. This is the preferred approach for route gating -- explicit per-page guards that work regardless of header availability.
 
 ```
 lib/feature-gate.ts
 ```
 
 ```typescript
-import { auth } from '@/auth';
 import { redirect } from 'next/navigation';
+import { getAuthenticatedUser } from '@/server/lib/auth-guard';
 import { FeatureFlagService } from '@/server/modules/feature-flag/feature-flag.service';
 
+/**
+ * Guard a server component page behind a feature flag.
+ * Redirects to /dashboard if the feature is disabled for the current user.
+ *
+ * Usage:
+ *   await requireFeature('recurring_transactions');
+ */
 export async function requireFeature(featureKey: string) {
-  const session = await auth();
-  if (!session?.user?.id) redirect('/login');
+  const userId = await getAuthenticatedUser();
 
-  const features = await FeatureFlagService.getResolvedFeaturesForUser(session.user.id);
+  const features = await FeatureFlagService.getResolvedFeaturesForUser(userId);
   if (!features[featureKey]) {
     redirect('/dashboard');
   }
 }
 ```
+
+**Note:** Uses `getAuthenticatedUser()` from `@/server/lib/auth-guard` (throws on no session), NOT raw `auth()`.
 
 Then in each gated page/layout:
 
@@ -635,10 +748,12 @@ export default async function RecurringPage() {
 }
 ```
 
-This is more explicit, harder to break, and works regardless of header availability.
+**Caching note:** `requireFeature()` calls `getResolvedFeaturesForUser()` which runs two Prisma queries. At current scale this is fine. Do NOT wrap in `unstable_cache` preemptively -- defer until profiling shows the feature resolution query is a hot path. The layout already calls `getResolvedFeaturesForUser()` for sidebar gating, so pages guarded with `requireFeature()` will result in a second resolution call. If this becomes measurable, the fix is to lift the resolved features into a React cache or pass them as a prop -- but wait for data before optimizing.
 
 **Acceptance criteria:**
 - Sidebar hides nav items for disabled features entirely (not grayed out)
+- `disabledSidebarKeys` is passed as `string[]` (not `Set<string>`) across server/client boundary
+- `lib/feature-gate.ts` uses `getAuthenticatedUser()` from `@/server/lib/auth-guard`, not raw `auth()`
 - Direct URL access to a gated route redirects to `/dashboard`
 - Admin users are not exempt from feature gating (their overrides apply the same way)
 - Core features (dashboard, transactions, budgets, accounts, reports) are never gated
@@ -748,41 +863,55 @@ export const AdminSystemService = {
 
 ### Step 2: Add controller actions
 
-In `admin.controller.ts`, add:
+In `admin.controller.ts`, add imports:
 
 ```typescript
 import { AdminSystemService } from './admin-system.service';
+import { updateSystemSettingSchema } from '@/server/modules/feature-flag/feature-flag.types';
+```
 
-export async function adminGetSystemSettingsAction() {
+Then add the actions:
+
+```typescript
+export async function adminGetSystemSettingsAction(): Promise<
+  ActionResponse<{ settings: Array<{ id: string; key: string; value: string; label: string | null; createdAt: string; updatedAt: string }> }>
+> {
   const { error } = await requireAdminSession();
-  if (error) return { success: false, error };
+  if (error) return { error };
 
   try {
     const settings = await AdminSystemService.getSettings();
-    return { success: true, settings };
+    return { success: true as const, data: { settings: serialize(settings) } };
   } catch (err) {
     return {
-      success: false,
       error: err instanceof Error ? err.message : 'Failed to fetch settings',
     };
   }
 }
 
-export async function adminUpdateSystemSettingAction(key: string, value: string) {
+export async function adminUpdateSystemSettingAction(
+  data: unknown
+): Promise<ActionResponse> {
   const { error } = await requireAdminSession();
-  if (error) return { success: false, error };
+  if (error) return { error };
+
+  const parsed = updateSystemSettingSchema.safeParse(data);
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message || 'Validation failed' };
+  }
 
   try {
-    await AdminSystemService.updateSetting(key, value);
-    return { success: true };
+    await AdminSystemService.updateSetting(parsed.data.key, parsed.data.value);
+    return { success: true as const };
   } catch (err) {
     return {
-      success: false,
       error: err instanceof Error ? err.message : 'Failed to update setting',
     };
   }
 }
 ```
+
+**Note:** `adminGetSystemSettingsAction` wraps the result in `serialize()` because `SystemSetting` has `createdAt` and `updatedAt` Date fields that must be converted to ISO strings before crossing the server/client boundary.
 
 ### Step 3: Create SystemSettingsTable component
 
@@ -792,7 +921,8 @@ File: `components/modules/admin/SystemSettingsTable.tsx`
 
 - Use inline editing (click value cell to edit, blur or enter to save)
 - Show toast on save success/failure
-- Use `adminUpdateSystemSettingAction` server action
+- Use `useServerAction` hook from `@/hooks/use-server-action` for the save mutation, OR use `useTransition` directly since each row needs independent loading state
+- Call `adminUpdateSystemSettingAction({ key, value })` -- object payload, not positional args
 
 ### Step 4: Update admin system page
 
@@ -801,6 +931,7 @@ The existing `app/(authenticated)/admin/system/page.tsx` currently shows cron ru
 ```tsx
 import { AdminSystemService } from '@/server/modules/admin/admin-system.service';
 import { SystemSettingsTable } from '@/components/modules/admin/SystemSettingsTable';
+import { serialize } from '@/lib/serialization';
 
 // In the page component:
 const settings = await AdminSystemService.getSettings();
@@ -808,13 +939,14 @@ const settings = await AdminSystemService.getSettings();
 // In the JSX, add section:
 <div className='space-y-6'>
   <h2 className='text-xl font-bold'>System Settings</h2>
-  <SystemSettingsTable initialSettings={settings} />
+  <SystemSettingsTable initialSettings={serialize(settings)} />
 </div>
 ```
 
 **Acceptance criteria:**
 - System settings table renders all SystemSetting records
-- Admin can edit the value inline and save
+- Admin can edit the value inline and save via `adminUpdateSystemSettingAction({ key, value })`
+- `serialize()` applied when passing settings from server component to client component (Date fields)
 - New settings can be added via seed without schema changes
 - Existing cron health monitoring on the system page is not affected
 
@@ -889,6 +1021,8 @@ In `feature-flag.types.ts`, add to `FEATURE_KEYS`:
 BULK_PDF_EXPORT: 'bulk_pdf_export',
 ```
 
+**Important:** After adding a new key to `FEATURE_KEYS`, the Zod `z.enum()` for `flagKey` in `setUserFeatureSchema` and `resetUserFeatureSchema` will automatically pick it up because they derive from `Object.values(FEATURE_KEYS)`.
+
 Add to `FEATURE_ROUTE_MAP`:
 
 ```typescript
@@ -937,48 +1071,71 @@ Or for a client component, pass it as a prop from the parent server component.
 | File | Purpose |
 |------|---------|
 | `server/modules/feature-flag/feature-flag.service.ts` | Feature resolution logic |
-| `server/modules/feature-flag/feature-flag.types.ts` | Feature keys, route map, types |
+| `server/modules/feature-flag/feature-flag.types.ts` | Feature keys, route map, Zod schemas, types |
 | `server/modules/admin/admin-system.service.ts` | System settings CRUD |
 | `components/modules/admin/SystemSettingsTable.tsx` | Admin system settings UI |
-| `lib/feature-gate.ts` | Reusable `requireFeature()` guard |
+| `lib/feature-gate.ts` | Reusable `requireFeature()` guard (uses `getAuthenticatedUser()`) |
 
 ### Modified files
 | File | Change |
 |------|--------|
 | `prisma/schema.prisma` | Add `UserFeature`, `SystemSetting` models; add relation to `User` |
 | `prisma/seed.ts` | Add `invoices` + `bulk_pdf_export` flags; seed admin overrides; seed system settings |
-| `server/modules/admin/admin.controller.ts` | Add 5 new actions (user features + system settings) |
+| `server/lib/cache-tags.ts` | Add `FEATURE_FLAGS: 'feature-flags'` tag |
+| `server/modules/admin/admin.controller.ts` | Add 5 new actions (user features + system settings) with `ActionResponse<T>` types, Zod validation, `serialize()` on Date data, `invalidateTags(CACHE_TAGS.FEATURE_FLAGS)` |
 | `server/modules/admin/admin-content.service.ts` | Enhance `getFeatureFlags()` with override counts |
-| `components/modules/admin/UserDetailDrawer.tsx` | Add Features section with toggle/reset UI |
+| `components/modules/admin/UserDetailDrawer.tsx` | Add Features section with toggle/reset UI, `useTransition` wrapping, object payloads |
 | `components/modules/admin/FeatureFlagTable.tsx` | Add override count column |
-| `app/(authenticated)/layout.tsx` | Fetch resolved features, compute disabled sidebar keys, pass to sidebar |
-| `components/common/app-sidebar.tsx` | Accept `disabledSidebarKeys` prop, filter nav items |
-| `app/(authenticated)/admin/system/page.tsx` | Add system settings section |
+| `app/(authenticated)/layout.tsx` | Fetch resolved features, compute `disabledSidebarKeys` as `string[]`, pass to sidebar |
+| `components/common/app-sidebar.tsx` | Accept `disabledSidebarKeys?: string[]` prop, filter nav items |
+| `app/(authenticated)/admin/system/page.tsx` | Add system settings section with `serialize()` |
 | `app/(authenticated)/recurring/page.tsx` | Add `requireFeature('recurring_transactions')` guard |
 | `app/(authenticated)/goals/page.tsx` (or layout) | Add `requireFeature('goals')` guard |
 | `app/(authenticated)/import/page.tsx` (or layout) | Add `requireFeature('csv_import')` guard |
 | Routes under clients/entries/invoices | Add `requireFeature('invoices')` guard |
 
+### Architecture patterns applied
+| Pattern | Reference | Applied in |
+|---------|-----------|------------|
+| `ActionResponse<T>` return type | `server/lib/action-types.ts` | All new controller actions |
+| `{ error: string }` on failure (no `success` field) | `server/lib/action-types.ts` | All error paths |
+| `{ success: true as const, data: T }` on success | `goal.controller.ts` | All success-with-data paths |
+| `(data: unknown)` + Zod `safeParse` | `goal.controller.ts` | Mutation actions |
+| `invalidateTags(CACHE_TAGS.X)` | `server/actions/cache.ts` | Cache invalidation (never `clearCache`) |
+| `serialize()` on Prisma Date/Decimal data | `lib/serialization.ts` | Flags, settings returned to client |
+| `getAuthenticatedUser()` | `server/lib/auth-guard.ts` | `lib/feature-gate.ts` |
+| `string[]` not `Set<string>` for serialization | Server/client boundary rule | `disabledSidebarKeys` prop |
+| `useTransition` for mutations | `hooks/use-server-action.ts` pattern | UserDetailDrawer handlers |
+| Deferred `unstable_cache` | Performance pragmatism | Feature resolution queries |
+
 ### Feature resolution flow
 ```
 User visits /goals
-  → layout.tsx: FeatureFlagService.getResolvedFeaturesForUser(userId)
-      → Query: global flags + user overrides
-      → Merge: user override wins
-      → Return: { goals: false, ... }
-  → Sidebar: 'Goals' item hidden
-  → requireFeature('goals') in goals page: redirect to /dashboard
+  -> layout.tsx: FeatureFlagService.getResolvedFeaturesForUser(userId)
+      -> Query: global flags + user overrides
+      -> Merge: user override wins
+      -> Return: { goals: false, ... }
+  -> Sidebar: 'Goals' item hidden (disabledSidebarKeys: string[] includes 'Goals')
+  -> requireFeature('goals') in goals page: redirect to /dashboard
 ```
 
 ### Admin UX flow
 ```
 Admin opens User Detail Drawer for "Jane"
-  → Features section loads:
-      recurring_transactions  [Default] [ON]     ← global is ON, no override
-      csv_import              [Custom]  [OFF] [x] ← user override: OFF
+  -> Features section loads via adminGetUserFeaturesAction({ userId })
+      -> Returns { success: true, data: { flags: [...], overrides: {...} } }
+      recurring_transactions  [Default] [ON]     <- global is ON, no override
+      csv_import              [Custom]  [OFF] [x] <- user override: OFF
       goals                   [Default] [ON]
-      invoices                [Custom]  [ON]  [x] ← user override: ON
+      invoices                [Custom]  [ON]  [x] <- user override: ON
       ai_features             [Default] [OFF]
-  → Admin toggles csv_import ON → creates UserFeature(jane, csv_import, true)
-  → Admin clicks reset on invoices → deletes UserFeature(jane, invoices) → falls back to global
+  -> Admin toggles csv_import ON
+      -> startFeatureTransition -> adminSetUserFeatureAction({ userId, flagKey, enabled: true })
+      -> Zod validates flagKey is known FEATURE_KEY
+      -> Upserts UserFeature(jane, csv_import, true)
+      -> invalidateTags(CACHE_TAGS.FEATURE_FLAGS)
+  -> Admin clicks reset on invoices
+      -> startFeatureTransition -> adminResetUserFeatureAction({ userId, flagKey })
+      -> Deletes UserFeature(jane, invoices) -> falls back to global
+      -> invalidateTags(CACHE_TAGS.FEATURE_FLAGS)
 ```

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import {
 	Table,
 	TableBody,
@@ -22,7 +23,6 @@ import {
 import { adminGetUsersAction } from '@/server/modules/admin/admin.controller';
 import { format } from 'date-fns';
 import { Search, ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
-import { UserDetailDrawer } from './UserDetailDrawer';
 
 interface UserRow {
 	id: string;
@@ -49,6 +49,7 @@ export function UserTable({
 	initialTotal,
 	initialPages,
 }: UserTableProps) {
+	const router = useRouter();
 	const [users, setUsers] = useState(initialUsers);
 	const [total, setTotal] = useState(initialTotal);
 	const [pages, setPages] = useState(initialPages);
@@ -57,7 +58,6 @@ export function UserTable({
 	const [roleFilter, setRoleFilter] = useState('');
 	const [statusFilter, setStatusFilter] = useState('');
 	const [loading, setLoading] = useState(false);
-	const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
 
 	const fetchUsers = useCallback(
 		async (p: number, s?: string, role?: string, status?: string) => {
@@ -192,7 +192,7 @@ export function UserTable({
 							<TableRow
 								key={user.id}
 								className='cursor-pointer hover:bg-muted/50'
-								onClick={() => setSelectedUserId(user.id)}
+								onClick={() => router.push(`/admin/users/${user.id}`)}
 							>
 								<TableCell className='font-medium'>
 									{user.name || '-'}
@@ -291,10 +291,6 @@ export function UserTable({
 				</div>
 			)}
 
-			<UserDetailDrawer
-				userId={selectedUserId}
-				onClose={() => setSelectedUserId(null)}
-			/>
 		</div>
 	);
 }

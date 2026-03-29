@@ -1,11 +1,14 @@
 import { AdminSystemService } from '@/server/modules/admin/admin-system.service';
 import { CronStatusPanel } from '@/components/modules/admin/CronStatusPanel';
 import { QueueHealthPanel } from '@/components/modules/admin/QueueHealthPanel';
+import { SystemSettingsTable } from '@/components/modules/admin/SystemSettingsTable';
+import { serialize } from '@/lib/serialization';
 
 export default async function AdminSystemPage() {
-	const [cronStatuses, queues] = await Promise.all([
+	const [cronStatuses, queues, settings] = await Promise.all([
 		AdminSystemService.getCronStatus(),
 		AdminSystemService.getQueueHealth(),
+		AdminSystemService.getSettings(),
 	]);
 
 	return (
@@ -15,6 +18,9 @@ export default async function AdminSystemPage() {
 			</h1>
 			<CronStatusPanel cronStatuses={cronStatuses} />
 			<QueueHealthPanel queues={queues} />
+
+			<h2 className='text-xl font-bold'>System Settings</h2>
+			<SystemSettingsTable initialSettings={serialize(settings)} />
 		</div>
 	);
 }

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useTransition } from 'react';
 import {
 	Sheet,
 	SheetContent,
@@ -10,12 +10,16 @@ import {
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
+import { Switch } from '@/components/ui/switch';
 import {
 	adminGetUserDetailAction,
 	adminGetUserActivityAction,
 	adminDisableUserAction,
 	adminEnableUserAction,
 	adminExportUserDataAction,
+	adminGetUserFeaturesAction,
+	adminSetUserFeatureAction,
+	adminResetUserFeatureAction,
 } from '@/server/modules/admin/admin.controller';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
@@ -28,6 +32,7 @@ import {
 	ArrowUpRight,
 	ArrowRightLeft,
 	Target,
+	RotateCcw,
 } from 'lucide-react';
 
 interface UserDetailDrawerProps {
@@ -84,6 +89,12 @@ export function UserDetailDrawer({ userId, onClose }: UserDetailDrawerProps) {
 	const [timeline, setTimeline] = useState<TimelineItem[]>([]);
 	const [loading, setLoading] = useState(false);
 	const [actionLoading, setActionLoading] = useState(false);
+	const [featureFlags, setFeatureFlags] = useState<
+		Array<{ key: string; description: string | null; globalEnabled: boolean }>
+	>([]);
+	const [userOverrides, setUserOverrides] = useState<Record<string, boolean>>({});
+	const [featureLoading, setFeatureLoading] = useState<string | null>(null);
+	const [, startFeatureTransition] = useTransition();
 
 	/* eslint-disable react-hooks/set-state-in-effect -- Data fetching effect: setState is needed for async load/reset */
 	useEffect(() => {
@@ -95,9 +106,10 @@ export function UserDetailDrawer({ userId, onClose }: UserDetailDrawerProps) {
 
 		async function load() {
 			setLoading(true);
-			const [detailResult, activityResult] = await Promise.all([
+			const [detailResult, activityResult, featuresResult] = await Promise.all([
 				adminGetUserDetailAction(userId!),
 				adminGetUserActivityAction(userId!),
+				adminGetUserFeaturesAction({ userId: userId! }),
 			]);
 
 			if ('success' in detailResult && detailResult.data) {
@@ -105,6 +117,18 @@ export function UserDetailDrawer({ userId, onClose }: UserDetailDrawerProps) {
 			}
 			if ('success' in activityResult && activityResult.data) {
 				setTimeline((activityResult.data as { timeline: TimelineItem[] }).timeline);
+			}
+			if (!('error' in featuresResult) && featuresResult.data) {
+				setFeatureFlags(
+					featuresResult.data.flags.map(
+						(f: { key: string; description: string | null; enabled: boolean }) => ({
+							key: f.key,
+							description: f.description,
+							globalEnabled: f.enabled,
+						})
+					)
+				);
+				setUserOverrides(featuresResult.data.overrides);
 			}
 			setLoading(false);
 		}
@@ -149,6 +173,49 @@ export function UserDetailDrawer({ userId, onClose }: UserDetailDrawerProps) {
 		} else {
 			toast.error('Export failed');
 		}
+	}
+
+	function handleFeatureToggle(flagKey: string, enabled: boolean) {
+		if (!user) return;
+		setFeatureLoading(flagKey);
+		startFeatureTransition(async () => {
+			const result = await adminSetUserFeatureAction({
+				userId: user.id,
+				flagKey,
+				enabled,
+			});
+			setFeatureLoading(null);
+
+			if ('error' in result) {
+				toast.error(result.error);
+			} else {
+				setUserOverrides((prev) => ({ ...prev, [flagKey]: enabled }));
+				toast.success(`${flagKey} ${enabled ? 'enabled' : 'disabled'} for user`);
+			}
+		});
+	}
+
+	function handleFeatureReset(flagKey: string) {
+		if (!user) return;
+		setFeatureLoading(flagKey);
+		startFeatureTransition(async () => {
+			const result = await adminResetUserFeatureAction({
+				userId: user.id,
+				flagKey,
+			});
+			setFeatureLoading(null);
+
+			if ('error' in result) {
+				toast.error(result.error);
+			} else {
+				setUserOverrides((prev) => {
+					const next = { ...prev };
+					delete next[flagKey];
+					return next;
+				});
+				toast.success(`${flagKey} reset to global default`);
+			}
+		});
 	}
 
 	return (
@@ -288,6 +355,88 @@ export function UserDetailDrawer({ userId, onClose }: UserDetailDrawerProps) {
 							) : (
 								<p className='text-sm text-muted-foreground'>
 									Default settings
+								</p>
+							)}
+						</div>
+
+						<Separator />
+
+						{/* Feature Access */}
+						<div>
+							<h4 className='font-medium text-sm mb-2'>
+								Feature Access ({featureFlags.length})
+							</h4>
+							{featureFlags.length > 0 ? (
+								<div className='space-y-3'>
+									{featureFlags.map((flag) => {
+										const hasOverride = flag.key in userOverrides;
+										const effectiveValue = hasOverride
+											? userOverrides[flag.key]
+											: flag.globalEnabled;
+										const isLoading = featureLoading === flag.key;
+
+										return (
+											<div
+												key={flag.key}
+												className='flex items-center justify-between gap-2'
+											>
+												<div className='flex-1 min-w-0'>
+													<div className='flex items-center gap-2'>
+														<span className='text-sm font-mono truncate'>
+															{flag.key}
+														</span>
+														{hasOverride ? (
+															<Badge
+																variant='outline'
+																className='text-xs shrink-0'
+															>
+																Custom
+															</Badge>
+														) : (
+															<Badge
+																variant='secondary'
+																className='text-xs shrink-0'
+															>
+																Default
+															</Badge>
+														)}
+													</div>
+													{flag.description && (
+														<p className='text-xs text-muted-foreground truncate'>
+															{flag.description}
+														</p>
+													)}
+												</div>
+												<div className='flex items-center gap-1 shrink-0'>
+													{hasOverride && (
+														<Button
+															variant='ghost'
+															size='icon'
+															className='h-7 w-7'
+															onClick={() =>
+																handleFeatureReset(flag.key)
+															}
+															disabled={isLoading}
+															title='Reset to global default'
+														>
+															<RotateCcw className='h-3 w-3' />
+														</Button>
+													)}
+													<Switch
+														checked={effectiveValue}
+														disabled={isLoading}
+														onCheckedChange={(checked) =>
+															handleFeatureToggle(flag.key, checked)
+														}
+													/>
+												</div>
+											</div>
+										);
+									})}
+								</div>
+							) : (
+								<p className='text-sm text-muted-foreground'>
+									No feature flags configured
 								</p>
 							)}
 						</div>

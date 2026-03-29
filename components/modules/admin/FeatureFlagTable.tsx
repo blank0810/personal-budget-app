@@ -19,6 +19,7 @@ interface FeatureFlag {
 	key: string;
 	description: string | null;
 	enabled: boolean;
+	overrideCount: number;
 }
 
 interface FeatureFlagTableProps {
@@ -51,6 +52,7 @@ export function FeatureFlagTable({ initialFlags }: FeatureFlagTableProps) {
 					<TableRow>
 						<TableHead>Key</TableHead>
 						<TableHead>Description</TableHead>
+						<TableHead>Overrides</TableHead>
 						<TableHead>Status</TableHead>
 						<TableHead className='text-right'>Toggle</TableHead>
 					</TableRow>
@@ -63,6 +65,15 @@ export function FeatureFlagTable({ initialFlags }: FeatureFlagTableProps) {
 							</TableCell>
 							<TableCell className='text-sm text-muted-foreground'>
 								{flag.description || '-'}
+							</TableCell>
+							<TableCell>
+								<Badge
+									variant='secondary'
+									className='text-xs'
+								>
+									{flag.overrideCount} user
+									{flag.overrideCount !== 1 ? 's' : ''}
+								</Badge>
 							</TableCell>
 							<TableCell>
 								<Badge
@@ -88,7 +99,7 @@ export function FeatureFlagTable({ initialFlags }: FeatureFlagTableProps) {
 					{flags.length === 0 && (
 						<TableRow>
 							<TableCell
-								colSpan={4}
+								colSpan={5}
 								className='text-center py-8 text-muted-foreground'
 							>
 								No feature flags configured

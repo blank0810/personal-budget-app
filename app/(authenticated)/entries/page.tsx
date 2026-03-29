@@ -1,5 +1,6 @@
 import { auth } from '@/auth';
 import { redirect } from 'next/navigation';
+import { requireFeature } from '@/lib/feature-gate';
 import { WorkEntryService } from '@/server/modules/work-entry/work-entry.service';
 import { ClientService } from '@/server/modules/client/client.service';
 import { WorkEntryForm } from '@/components/modules/work-entry/WorkEntryForm';
@@ -8,6 +9,7 @@ import { serialize } from '@/lib/serialization';
 import type { WorkEntryRow } from '@/components/modules/work-entry/WorkEntryList';
 
 export default async function EntriesPage() {
+	await requireFeature('invoices');
 	const session = await auth();
 	if (!session?.user?.id) redirect('/login');
 

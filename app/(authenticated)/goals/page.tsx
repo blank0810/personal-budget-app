@@ -1,5 +1,6 @@
 import { auth } from '@/auth';
 import { redirect } from 'next/navigation';
+import { requireFeature } from '@/lib/feature-gate';
 import { GoalService } from '@/server/modules/goal/goal.service';
 import { AccountService } from '@/server/modules/account/account.service';
 import { GoalForm } from '@/components/modules/goal/GoalForm';
@@ -9,6 +10,7 @@ import { serialize } from '@/lib/serialization';
 import type { GoalCardData } from '@/components/modules/goal/GoalCard';
 
 export default async function GoalsPage() {
+	await requireFeature('goals');
 	const session = await auth();
 	if (!session?.user?.id) redirect('/login');
 
