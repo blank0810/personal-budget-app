@@ -45,9 +45,24 @@ export const AdminContentService = {
 
 	// --- Feature Flags ---
 	async getFeatureFlags() {
-		return prisma.featureFlag.findMany({
+		const flags = await prisma.featureFlag.findMany({
 			orderBy: { key: 'asc' },
 		});
+
+		// Count per-flag how many users have overrides
+		const overrideCounts = await prisma.userFeature.groupBy({
+			by: ['flagKey'],
+			_count: { flagKey: true },
+		});
+
+		const countMap = new Map(
+			overrideCounts.map((o) => [o.flagKey, o._count.flagKey])
+		);
+
+		return flags.map((f) => ({
+			...f,
+			overrideCount: countMap.get(f.key) ?? 0,
+		}));
 	},
 
 	async toggleFeatureFlag(key: string, enabled: boolean) {

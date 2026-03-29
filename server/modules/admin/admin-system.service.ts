@@ -102,4 +102,20 @@ export const AdminSystemService = {
 			take: limit,
 		});
 	},
+
+	// --- System Settings ---
+
+	async getSettings() {
+		return prisma.systemSetting.findMany({
+			orderBy: { key: 'asc' },
+		});
+	},
+
+	async updateSetting(key: string, value: string) {
+		return prisma.systemSetting.upsert({
+			where: { key },
+			update: { value },
+			create: { key, value },
+		});
+	},
 };

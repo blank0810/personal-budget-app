@@ -20,6 +20,7 @@ export const CACHE_TAGS = {
 	REPORTS: 'reports',
 	PROFILE: 'profile',
 	ADMIN: 'admin',
+	FEATURE_FLAGS: 'feature-flags',
 } as const;
 
 export type CacheTag = (typeof CACHE_TAGS)[keyof typeof CACHE_TAGS];

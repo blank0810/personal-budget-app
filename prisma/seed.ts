@@ -129,7 +129,9 @@ async function main() {
 		{ key: 'recurring_transactions', enabled: true, description: 'Recurring transaction automation' },
 		{ key: 'csv_import', enabled: true, description: 'CSV transaction import' },
 		{ key: 'goals', enabled: true, description: 'Savings goals' },
+		{ key: 'invoices', enabled: true, description: 'Invoicing module (clients, entries, invoices)' },
 		{ key: 'ai_features', enabled: false, description: 'AI-powered features (coming soon)' },
+		{ key: 'bulk_pdf_export', enabled: false, description: 'Bulk PDF report export (premium)' },
 	];
 
 	for (const flag of featureFlags) {
@@ -141,6 +143,46 @@ async function main() {
 	}
 
 	console.log('Seeded feature flags');
+
+	// Grant admin user all features explicitly
+	const seededUserForFeatures = await prisma.user.findUnique({
+		where: { email },
+		select: { id: true },
+	});
+
+	if (seededUserForFeatures) {
+		for (const flag of featureFlags) {
+			await prisma.userFeature.upsert({
+				where: {
+					userId_flagKey: {
+						userId: seededUserForFeatures.id,
+						flagKey: flag.key,
+					},
+				},
+				update: { enabled: true },
+				create: {
+					userId: seededUserForFeatures.id,
+					flagKey: flag.key,
+					enabled: true,
+				},
+			});
+		}
+		console.log('Seeded admin user feature overrides');
+	}
+
+	// Seed default system settings
+	const systemSettings = [
+		{ key: 'invoice_due_days', value: '30', label: 'Default invoice due date (days from issue)' },
+	];
+
+	for (const setting of systemSettings) {
+		await prisma.systemSetting.upsert({
+			where: { key: setting.key },
+			update: { label: setting.label },
+			create: setting,
+		});
+	}
+	console.log('Seeded system settings');
 
 	// Seed sample recurring transaction
 	const seededUser = await prisma.user.findUnique({

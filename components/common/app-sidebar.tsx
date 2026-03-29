@@ -83,9 +83,10 @@ interface AppSidebarProps extends React.ComponentProps<typeof Sidebar> {
 	user: { name: string; email: string; role: string };
 	signOutAction: () => Promise<void>;
 	hasNewChangelog?: boolean;
+	disabledSidebarKeys?: string[];
 }
 
-function AppSidebarInner({ user, signOutAction, hasNewChangelog, ...props }: AppSidebarProps) {
+function AppSidebarInner({ user, signOutAction, hasNewChangelog, disabledSidebarKeys, ...props }: AppSidebarProps) {
 	const { state, setOpen, isMobile } = useSidebar();
 	const wasCollapsedRef = React.useRef(false);
 
@@ -134,39 +135,46 @@ function AppSidebarInner({ user, signOutAction, hasNewChangelog, ...props }: App
 			<SidebarSeparator />
 			<SidebarContent>
 				<NavMain
-					items={
-						user.role === 'ADMIN'
+					items={(() => {
+						const filteredNavItems = disabledSidebarKeys?.length
+							? navItems.filter((item) => !disabledSidebarKeys.includes(item.title))
+							: navItems;
+						return user.role === 'ADMIN'
 							? [
-									...navItems,
+									...filteredNavItems,
 									{
 										title: 'Admin',
 										url: '/admin',
 										icon: Shield,
 									},
 								]
-							: navItems
-					}
+							: filteredNavItems;
+					})()}
 				/>
 			</SidebarContent>
 			<SidebarSeparator />
 			<SidebarFooter className='p-3'>
 				<SidebarMenu>
-					<SidebarMenuItem>
-						<SidebarMenuButton asChild size='sm'>
-							<a href='/recurring'>
-								<ArrowRightLeft className='h-4 w-4' />
-								<span>Recurring</span>
-							</a>
-						</SidebarMenuButton>
-					</SidebarMenuItem>
-					<SidebarMenuItem>
-						<SidebarMenuButton asChild size='sm'>
-							<a href='/import'>
-								<Upload className='h-4 w-4' />
-								<span>Import</span>
-							</a>
-						</SidebarMenuButton>
-					</SidebarMenuItem>
+					{!disabledSidebarKeys?.includes('Recurring') && (
+						<SidebarMenuItem>
+							<SidebarMenuButton asChild size='sm'>
+								<a href='/recurring'>
+									<ArrowRightLeft className='h-4 w-4' />
+									<span>Recurring</span>
+								</a>
+							</SidebarMenuButton>
+						</SidebarMenuItem>
+					)}
+					{!disabledSidebarKeys?.includes('Import') && (
+						<SidebarMenuItem>
+							<SidebarMenuButton asChild size='sm'>
+								<a href='/import'>
+									<Upload className='h-4 w-4' />
+									<span>Import</span>
+								</a>
+							</SidebarMenuButton>
+						</SidebarMenuItem>
+					)}
 					<SidebarMenuItem>
 						<SidebarMenuButton asChild size='sm'>
 							<a href='/changelog'>

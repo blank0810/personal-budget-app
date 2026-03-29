@@ -6,6 +6,8 @@ import { auth, signOut } from '@/auth';
 import { CurrencyProvider } from '@/lib/contexts/currency-context';
 import { ChangelogService } from '@/server/modules/changelog/changelog.service';
 import { UserService } from '@/server/modules/user/user.service';
+import { FeatureFlagService } from '@/server/modules/feature-flag/feature-flag.service';
+import { FEATURE_ROUTE_MAP } from '@/server/modules/feature-flag/feature-flag.types';
 
 export default async function DashboardLayout({
 	children,
@@ -15,6 +17,17 @@ export default async function DashboardLayout({
 	const session = await auth();
 
 	const dbUser = await UserService.getForLayout(session!.user!.id);
+
+	const resolvedFeatures = await FeatureFlagService.getResolvedFeaturesForUser(session!.user!.id);
+
+	const disabledSidebarKeys: string[] = [];
+	for (const [featureKey, mapping] of Object.entries(FEATURE_ROUTE_MAP)) {
+		if (!resolvedFeatures[featureKey]) {
+			for (const key of mapping.sidebarKeys) {
+				disabledSidebarKeys.push(key);
+			}
+		}
+	}
 
 	const user = {
 		name: dbUser?.name || 'User',
@@ -35,7 +48,7 @@ export default async function DashboardLayout({
 	return (
 		<CurrencyProvider currency={dbUser?.currency ?? 'USD'}>
 			<SidebarProvider>
-				<AppSidebar user={user} signOutAction={signOutAction} hasNewChangelog={hasNewChangelog} />
+				<AppSidebar user={user} signOutAction={signOutAction} hasNewChangelog={hasNewChangelog} disabledSidebarKeys={disabledSidebarKeys} />
 				<SidebarInset>
 					<header className='flex h-16 shrink-0 items-center gap-2 border-b px-4 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12'>
 						<div className='flex items-center gap-2'>

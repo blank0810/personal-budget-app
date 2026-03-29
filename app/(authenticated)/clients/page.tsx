@@ -1,5 +1,6 @@
 import { auth } from '@/auth';
 import { redirect } from 'next/navigation';
+import { requireFeature } from '@/lib/feature-gate';
 import { ClientService } from '@/server/modules/client/client.service';
 import { ClientList } from '@/components/modules/client/ClientList';
 import { ClientFormTrigger } from '@/components/modules/client/ClientFormTrigger';
@@ -7,6 +8,7 @@ import { serialize } from '@/lib/serialization';
 import type { ClientListProps } from '@/components/modules/client/ClientList';
 
 export default async function ClientsPage() {
+	await requireFeature('invoices');
 	const session = await auth();
 	if (!session?.user?.id) redirect('/login');
 

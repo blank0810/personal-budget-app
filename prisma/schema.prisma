@@ -134,6 +134,7 @@ model User {
   invoices                Invoice[]
   clients                 Client[]
   workEntries             WorkEntry[]
+  userFeatures            UserFeature[]
 
   @@map("users")
 }
@@ -478,6 +479,33 @@ model FeatureFlag {
   updatedAt   DateTime @updatedAt
 
   @@map("feature_flags")
+}
+
+// Per-user feature flag overrides
+model UserFeature {
+  id        String   @id @default(cuid())
+  userId    String
+  flagKey   String
+  enabled   Boolean  @default(true)
+  grantedAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, flagKey])
+  @@index([userId])
+  @@map("user_features")
+}
+
+// Admin-configurable system defaults (key/value store)
+model SystemSetting {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  value     String
+  label     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("system_settings")
 }
 
 // Cron job execution log for system health monitoring
