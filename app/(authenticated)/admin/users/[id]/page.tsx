@@ -30,9 +30,9 @@ export default async function AdminUserDetailPage({
 
 	return (
 		<UserDetailPage
-			user={serialize(user)}
-			timeline={serialize(timeline)}
-			flags={serialize(flags)}
+			user={serialize(user) as any}
+			timeline={serialize(timeline) as any}
+			flags={serialize(flags) as any}
 			overrides={overrides}
 		/>
 	);
