@@ -136,36 +136,67 @@ export async function TransactionsAndAccountsSection({
 												<Icon className='h-3 w-3' /> {meta.label}
 											</h3>
 											<div className='space-y-4'>
-												{groupAccounts.map((account) => (
-													<div
-														key={account.id}
-														className='flex items-center'
-													>
-														<div
-															className={`flex h-9 w-9 items-center justify-center rounded-full ${bgMap[cls]}`}
-														>
-															<Icon className='h-4 w-4' />
-														</div>
-														<div className='ml-4 space-y-1'>
-															<p className='text-sm font-medium leading-none'>
-																{account.name}
-															</p>
-															<div className='flex gap-2 text-xs text-muted-foreground'>
-																<span>{account.type}</span>
+												{groupAccounts.map((account) => {
+													const balance = Number(account.balance);
+													const creditLimit = Number(account.creditLimit ?? 0);
+													const hasCreditLimit = isLiability && creditLimit > 0;
+													const utilization = hasCreditLimit ? balance / creditLimit : 0;
+													const utilizationPercent = Math.round(utilization * 100);
+													const availableCredit = hasCreditLimit ? creditLimit - balance : 0;
+
+													let barColor = 'bg-green-400';
+													if (utilization >= 0.9) barColor = 'bg-red-600';
+													else if (utilization >= 0.7) barColor = 'bg-red-500';
+													else if (utilization >= 0.5) barColor = 'bg-orange-500';
+													else if (utilization >= 0.3) barColor = 'bg-orange-400';
+													else if (utilization >= 0.1) barColor = 'bg-yellow-400';
+
+													return (
+														<div key={account.id} className='space-y-1'>
+															<div className='flex items-center'>
+																<div
+																	className={`flex h-9 w-9 items-center justify-center rounded-full ${bgMap[cls]}`}
+																>
+																	<Icon className='h-4 w-4' />
+																</div>
+																<div className='ml-4 space-y-1'>
+																	<p className='text-sm font-medium leading-none'>
+																		{account.name}
+																	</p>
+																	<div className='flex gap-2 text-xs text-muted-foreground'>
+																		<span>{account.type}</span>
+																	</div>
+																</div>
+																<div
+																	className={`ml-auto font-medium ${
+																		isLiability ? 'text-red-600' : ''
+																	}`}
+																>
+																	{formatCurrency(balance, { currency })}
+																</div>
 															</div>
-														</div>
-														<div
-															className={`ml-auto font-medium ${
-																isLiability ? 'text-red-600' : ''
-															}`}
-														>
-															{formatCurrency(
-																Number(account.balance),
-																{ currency }
+															{hasCreditLimit && (
+																<div className='ml-13 pl-0.5'>
+																	<div className='flex justify-between text-xs text-muted-foreground mb-1'>
+																		<span>{utilizationPercent}% Used</span>
+																		<span>
+																			Avail:{' '}
+																			{formatCurrency(availableCredit, { currency })}
+																		</span>
+																	</div>
+																	<div className='h-1.5 bg-secondary rounded-full overflow-hidden'>
+																		<div
+																			className={`h-full rounded-full ${barColor}`}
+																			style={{
+																				width: `${Math.min(utilizationPercent, 100)}%`,
+																			}}
+																		/>
+																	</div>
+																</div>
 															)}
 														</div>
-													</div>
-												))}
+													);
+												})}
 											</div>
 										</div>
 									</div>
