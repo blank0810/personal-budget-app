@@ -13,6 +13,7 @@ import {
 	Upload,
 	Target,
 	FileText,
+	type LucideIcon,
 } from 'lucide-react';
 
 import { NavMain } from '@/components/common/nav-main';
@@ -34,7 +35,7 @@ type SubItem = { title: string; url: string };
 type NavItem = {
 	title: string;
 	url: string;
-	icon?: React.ComponentType<{ className?: string }>;
+	icon?: LucideIcon;
 	items?: SubItem[];
 };
 
