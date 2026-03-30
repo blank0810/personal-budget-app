@@ -30,7 +30,15 @@ import {
 	useSidebar,
 } from '@/components/ui/sidebar';
 
-const navItems = [
+type SubItem = { title: string; url: string };
+type NavItem = {
+	title: string;
+	url: string;
+	icon?: React.ComponentType<{ className?: string }>;
+	items?: SubItem[];
+};
+
+const navItems: NavItem[] = [
 	{
 		title: 'Dashboard',
 		url: '/dashboard',
@@ -45,12 +53,18 @@ const navItems = [
 			{ title: 'Expenses', url: '/expense' },
 			{ title: 'Transfers', url: '/transfers' },
 			{ title: 'Payments', url: '/payments' },
+			{ title: 'Recurring', url: '/recurring' },
 		],
 	},
 	{
 		title: 'Budgets',
 		url: '/budgets',
 		icon: PieChart,
+	},
+	{
+		title: 'Accounts',
+		url: '/accounts',
+		icon: CreditCard,
 	},
 	{
 		title: 'Goals',
@@ -66,11 +80,6 @@ const navItems = [
 			{ title: 'Entries', url: '/entries' },
 			{ title: 'All Invoices', url: '/invoices' },
 		],
-	},
-	{
-		title: 'Accounts',
-		url: '/accounts',
-		icon: CreditCard,
 	},
 	{
 		title: 'Reports',
@@ -136,8 +145,20 @@ function AppSidebarInner({ user, signOutAction, hasNewChangelog, disabledSidebar
 			<SidebarContent>
 				<NavMain
 					items={(() => {
-						const filteredNavItems = disabledSidebarKeys?.length
-							? navItems.filter((item) => !disabledSidebarKeys.includes(item.title))
+						const disabled = disabledSidebarKeys ?? [];
+						const filteredNavItems: NavItem[] = disabled.length
+							? navItems
+									.filter((item) => !disabled.includes(item.title))
+									.map((item) =>
+										item.items
+											? {
+													...item,
+													items: item.items.filter(
+														(sub) => !disabled.includes(sub.title),
+													),
+												}
+											: item,
+									)
 							: navItems;
 						return user.role === 'ADMIN'
 							? [
@@ -155,16 +176,6 @@ function AppSidebarInner({ user, signOutAction, hasNewChangelog, disabledSidebar
 			<SidebarSeparator />
 			<SidebarFooter className='p-3'>
 				<SidebarMenu>
-					{!disabledSidebarKeys?.includes('Recurring') && (
-						<SidebarMenuItem>
-							<SidebarMenuButton asChild size='sm'>
-								<a href='/recurring'>
-									<ArrowRightLeft className='h-4 w-4' />
-									<span>Recurring</span>
-								</a>
-							</SidebarMenuButton>
-						</SidebarMenuItem>
-					)}
 					{!disabledSidebarKeys?.includes('Import') && (
 						<SidebarMenuItem>
 							<SidebarMenuButton asChild size='sm'>
