@@ -37,6 +37,8 @@ const lineItemSchema = z.object({
 	description: z.string().min(1, 'Description is required'),
 	quantity: z.number().positive('Quantity must be positive'),
 	unitPrice: z.number().min(0, 'Unit price must be non-negative'),
+	workEntryId: z.string().nullish(),
+	date: z.string().nullish(),
 });
 
 const invoiceFormSchema = z.object({
@@ -67,6 +69,8 @@ export interface ExistingInvoice {
 		description: string;
 		quantity: number;
 		unitPrice: number;
+		workEntryId?: string | null;
+		date?: string | Date | null;
 	}[];
 }
 
@@ -102,6 +106,10 @@ export function InvoiceForm({ mode, invoice }: InvoiceFormProps) {
 							description: li.description,
 							quantity: li.quantity,
 							unitPrice: li.unitPrice,
+							workEntryId: li.workEntryId ?? null,
+							date: li.date
+								? (typeof li.date === 'string' ? li.date : li.date.toISOString())
+								: null,
 						})),
 					}
 				: {
@@ -153,6 +161,8 @@ export function InvoiceForm({ mode, invoice }: InvoiceFormProps) {
 					description: li.description,
 					quantity: Number(li.quantity),
 					unitPrice: Number(li.unitPrice),
+					...(li.workEntryId ? { workEntryId: li.workEntryId } : {}),
+					...(li.date ? { date: new Date(li.date) } : {}),
 				})),
 			};
 
@@ -314,8 +324,10 @@ export function InvoiceForm({ mode, invoice }: InvoiceFormProps) {
 														render={({ field: f }) => (
 															<FormItem>
 																<FormControl>
-																	<Input
+																	<Textarea
 																		placeholder='Service description'
+																		rows={2}
+																		className='min-h-0 resize-none'
 																		{...f}
 																	/>
 																</FormControl>

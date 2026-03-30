@@ -6,6 +6,12 @@ const lineItemSchema = z.object({
 	unitPrice: z.number().min(0, 'Unit price must be non-negative'),
 });
 
+/** Extended line item schema that preserves workEntryId and date during invoice edits */
+const updateLineItemSchema = lineItemSchema.extend({
+	workEntryId: z.string().nullish(),
+	date: z.coerce.date().nullish(),
+});
+
 export const createInvoiceSchema = z.object({
 	clientName: z.string().min(1, 'Client name is required').max(200),
 	clientEmail: z.string().email().optional().or(z.literal('')),
@@ -18,9 +24,12 @@ export const createInvoiceSchema = z.object({
 	lineItems: z.array(lineItemSchema).min(1, 'At least one line item is required'),
 });
 
-export const updateInvoiceSchema = createInvoiceSchema.partial().extend({
-	id: z.string(),
-});
+export const updateInvoiceSchema = createInvoiceSchema
+	.partial()
+	.extend({
+		id: z.string(),
+		lineItems: z.array(updateLineItemSchema).min(1).optional(),
+	});
 
 export const markAsPaidSchema = z.object({
 	invoiceId: z.string(),

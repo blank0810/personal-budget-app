@@ -33,6 +33,7 @@ interface LineItem {
 	quantity: number;
 	unitPrice: number;
 	amount: number;
+	date: string | Date | null;
 }
 
 export interface InvoiceWithDetails {
@@ -229,45 +230,62 @@ function InvoicePreview({
 
 						{/* Line Items Table */}
 						<div className="mb-7">
-							<table className="w-full text-sm">
-								<thead>
-									<tr className="bg-[#f5f5f5] border-b border-[#e5e5e5]">
-										<th className="px-3 py-2 text-left text-[11px] font-bold uppercase tracking-wider text-[#4b5563]">
-											Description
-										</th>
-										<th className="px-3 py-2 text-right text-[11px] font-bold uppercase tracking-wider text-[#4b5563] w-20">
-											Hrs/Qty
-										</th>
-										<th className="px-3 py-2 text-right text-[11px] font-bold uppercase tracking-wider text-[#4b5563] w-24">
-											Rate
-										</th>
-										<th className="px-3 py-2 text-right text-[11px] font-bold uppercase tracking-wider text-[#4b5563] w-28">
-											Amount
-										</th>
-									</tr>
-								</thead>
-								<tbody>
-									{invoice.lineItems.map((item) => (
-										<tr
-											key={item.id}
-											className="border-b border-[#e5e5e5]"
-										>
-											<td className="px-3 py-2.5 text-[#4b5563] whitespace-pre-line">
-												{item.description}
-											</td>
-											<td className="px-3 py-2.5 text-right text-[#4b5563] tabular-nums">
-												{item.quantity}
-											</td>
-											<td className="px-3 py-2.5 text-right text-[#4b5563] tabular-nums">
-												{formatCurrency(item.unitPrice)}
-											</td>
-											<td className="px-3 py-2.5 text-right font-bold text-[#111111] tabular-nums">
-												{formatCurrency(item.amount)}
-											</td>
-										</tr>
-									))}
-								</tbody>
-							</table>
+							{(() => {
+								const hasAnyDate = invoice.lineItems.some((item) => item.date != null);
+								return (
+									<table className="w-full text-sm">
+										<thead>
+											<tr className="bg-[#f5f5f5] border-b border-[#e5e5e5]">
+												{hasAnyDate && (
+													<th className="px-3 py-2 text-left text-[11px] font-bold uppercase tracking-wider text-[#4b5563] w-28">
+														Date
+													</th>
+												)}
+												<th className="px-3 py-2 text-left text-[11px] font-bold uppercase tracking-wider text-[#4b5563]">
+													Description
+												</th>
+												<th className="px-3 py-2 text-right text-[11px] font-bold uppercase tracking-wider text-[#4b5563] w-20">
+													Hrs/Qty
+												</th>
+												<th className="px-3 py-2 text-right text-[11px] font-bold uppercase tracking-wider text-[#4b5563] w-24">
+													Rate
+												</th>
+												<th className="px-3 py-2 text-right text-[11px] font-bold uppercase tracking-wider text-[#4b5563] w-28">
+													Amount
+												</th>
+											</tr>
+										</thead>
+										<tbody>
+											{invoice.lineItems.map((item) => (
+												<tr
+													key={item.id}
+													className="border-b border-[#e5e5e5]"
+												>
+													{hasAnyDate && (
+														<td className="px-3 py-2.5 text-[#4b5563] tabular-nums whitespace-nowrap">
+															{item.date
+																? format(new Date(item.date), 'MMM d, yyyy')
+																: ''}
+														</td>
+													)}
+													<td className="px-3 py-2.5 text-[#4b5563] whitespace-pre-line">
+														{item.description}
+													</td>
+													<td className="px-3 py-2.5 text-right text-[#4b5563] tabular-nums">
+														{item.quantity}
+													</td>
+													<td className="px-3 py-2.5 text-right text-[#4b5563] tabular-nums">
+														{formatCurrency(item.unitPrice)}
+													</td>
+													<td className="px-3 py-2.5 text-right font-bold text-[#111111] tabular-nums">
+														{formatCurrency(item.amount)}
+													</td>
+												</tr>
+											))}
+										</tbody>
+									</table>
+								);
+							})()}
 						</div>
 
 						{/* Totals */}

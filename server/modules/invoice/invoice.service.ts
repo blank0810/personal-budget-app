@@ -162,6 +162,7 @@ export const InvoiceService = {
 					quantity: Number(entry.quantity),
 					unitPrice: Number(entry.unitPrice),
 					amount: Number(entry.amount),
+					date: entry.date,
 					sortOrder: index,
 				}));
 
@@ -260,16 +261,54 @@ export const InvoiceService = {
 				taxAmount = totals.taxAmount;
 				totalAmount = totals.totalAmount;
 
+				// --- Revert removed work entries to UNBILLED ---
+				// 1. Get old line items with linked work entries
+				const oldLinkedItems = await tx.invoiceLineItem.findMany({
+					where: { invoiceId: id, workEntryId: { not: null } },
+					select: { workEntryId: true },
+				});
+				const oldWorkEntryIds = new Set(
+					oldLinkedItems.map(
+						(i: { workEntryId: string | null }) => i.workEntryId!
+					)
+				);
+
+				// 2. Get new line items' workEntryIds (from the incoming data)
+				const newWorkEntryIds = new Set(
+					updateData.lineItems
+						.filter((i) => i.workEntryId)
+						.map((i) => i.workEntryId!)
+				);
+
+				// 3. Find removed entries (in old but not in new)
+				const removedWorkEntryIds = [...oldWorkEntryIds].filter(
+					(wId) => !newWorkEntryIds.has(wId)
+				);
+
+				// 4. Revert removed entries to UNBILLED
+				if (removedWorkEntryIds.length > 0) {
+					await tx.workEntry.updateMany({
+						where: { id: { in: removedWorkEntryIds } },
+						data: { status: 'UNBILLED' },
+					});
+				}
+
 				// Delete old line items
 				await tx.invoiceLineItem.deleteMany({
 					where: { invoiceId: id },
 				});
 
-				// Create new line items
+				// Create new line items (preserving workEntryId and date links)
 				await tx.invoiceLineItem.createMany({
-					data: lineItemsData.map((item) => ({
-						...item,
+					data: updateData.lineItems.map((item, index) => ({
+						description: item.description,
+						quantity: item.quantity,
+						unitPrice: item.unitPrice,
+						amount: item.quantity * item.unitPrice,
+						sortOrder: index,
 						invoiceId: id,
+						...(item.workEntryId ? { workEntryId: item.workEntryId } : {}),
+						...(item.date ? { date: item.date } : {}),
 					})),
 				});
 			} else if (updateData.taxRate !== undefined) {
