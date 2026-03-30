@@ -151,6 +151,7 @@ const styles = StyleSheet.create({
 		borderBottomWidth: 1,
 		borderBottomColor: BORDER,
 	},
+	colDate: { width: 75, textAlign: 'left' },
 	colDesc: { flex: 1 },
 	colQty: { width: 60, textAlign: 'right' },
 	colRate: { width: 80, textAlign: 'right' },
@@ -289,6 +290,7 @@ interface InvoiceLineItemData {
 	quantity: number;
 	unitPrice: number;
 	amount: number;
+	date: Date | null;
 	sortOrder: number;
 }
 
@@ -462,10 +464,17 @@ function LineItemsTable({
 	lineItems: InvoiceLineItemData[];
 	fmt: (val: number) => string;
 }) {
+	const hasAnyDate = lineItems.some((item) => item.date != null);
+
 	return (
 		<View style={styles.table}>
 			{/* Table Header */}
 			<View style={styles.tableHeader}>
+				{hasAnyDate && (
+					<Text style={{ ...styles.tableHeaderText, ...styles.colDate }}>
+						Date
+					</Text>
+				)}
 				<Text style={{ ...styles.tableHeaderText, ...styles.colDesc }}>
 					Description
 				</Text>
@@ -485,9 +494,18 @@ function LineItemsTable({
 			{/* Table Rows */}
 			{lineItems.map((item) => (
 				<View key={item.id} style={styles.tableRow}>
-					<Text style={{ ...styles.cellText, ...styles.colDesc }}>
-						{item.description}
-					</Text>
+					{hasAnyDate && (
+						<Text style={{ ...styles.cellText, ...styles.colDate }}>
+							{item.date ? formatDate(item.date) : ''}
+						</Text>
+					)}
+					<View style={styles.colDesc}>
+						{item.description.split('\n').map((line, i) => (
+							<Text key={i} style={styles.cellText}>
+								{line}
+							</Text>
+						))}
+					</View>
 					<Text style={{ ...styles.cellText, ...styles.colQty }}>
 						{item.quantity}
 					</Text>

@@ -564,6 +564,7 @@ model InvoiceLineItem {
   quantity    Decimal  @db.Decimal(10, 2) @default(1)
   unitPrice   Decimal  @db.Decimal(10, 2)
   amount      Decimal  @db.Decimal(12, 2)
+  date         DateTime?
   sortOrder    Int      @default(0)
   workEntryId  String?  @unique
   invoiceId    String
