@@ -1,7 +1,10 @@
-import { Wallet } from 'lucide-react';
+import { Wallet, Search, Bell } from 'lucide-react';
 import { AppSidebar } from '@/components/common/app-sidebar';
+import { ThemeToggle } from '@/components/common/ThemeToggle';
+import { HeaderUser } from '@/components/common/HeaderUser';
 import { Separator } from '@/components/ui/separator';
 import { SidebarInset, SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
+import { Button } from '@/components/ui/button';
 import { auth, signOut } from '@/auth';
 import { CurrencyProvider } from '@/lib/contexts/currency-context';
 import { ChangelogService } from '@/server/modules/changelog/changelog.service';
@@ -61,6 +64,21 @@ export default async function DashboardLayout({
 								<Wallet className='h-5 w-5' />
 								<span className='text-lg font-bold'>Budget Planner</span>
 							</div>
+						</div>
+						<div className='ml-auto flex items-center gap-1'>
+							<ThemeToggle />
+							<Button variant='ghost' size='icon' className='h-9 w-9 rounded-full'>
+								<Search className='h-4 w-4' />
+								<span className='sr-only'>Search</span>
+							</Button>
+							<div className='relative'>
+								<Button variant='ghost' size='icon' className='h-9 w-9 rounded-full'>
+									<Bell className='h-4 w-4' />
+									<span className='sr-only'>Notifications</span>
+								</Button>
+								<span className='pointer-events-none absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-red-500' />
+							</div>
+							<HeaderUser user={user} signOutAction={signOutAction} />
 						</div>
 					</header>
 					<main className='p-4 md:p-8'>{children}</main>

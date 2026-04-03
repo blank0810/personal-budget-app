@@ -5,21 +5,22 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Commands
 
 ```bash
-# Development
-npm run dev              # Start dev server (port 3000)
-npm run build            # Production build
-npm run start            # Production server
-npm run lint             # ESLint
+# The app runs entirely in Docker. All commands go through docker compose.
 
-# Database (run inside Docker)
+# Docker (full stack: app + PostgreSQL on 5433 + pgAdmin on 5051 + Redis)
+docker compose up        # Start all services
+docker compose down      # Stop all services
+
+# Development (runs inside Docker container)
+docker compose exec app npm run dev       # Start dev server (port 3000)
+docker compose exec app npm run build     # Production build
+docker compose exec app npm run lint      # ESLint
+
+# Database (runs inside Docker container)
 docker compose exec app npx prisma migrate dev   # Create/apply migrations
 docker compose exec app npx prisma db seed       # Seed database (uses prisma/seed.ts)
 docker compose exec app npx prisma generate      # Regenerate Prisma client
 docker compose exec app npx prisma studio        # Visual database browser
-
-# Docker (full stack with PostgreSQL on port 5433, pgAdmin on 5051)
-docker compose up        # Start all services
-docker compose down      # Stop all services
 ```
 
 ## Architecture

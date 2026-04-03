@@ -79,6 +79,61 @@ export const DashboardService = {
 	},
 
 	/**
+	 * Get monthly income vs expense totals for the last 6 months.
+	 * Returns all 6 months chronologically, filling 0 for months with no data.
+	 */
+	async getIncomeExpenseTrend(
+		userId: string
+	): Promise<
+		Array<{ month: string; income: number; expense: number }>
+	> {
+		const now = new Date();
+		const monthNames = [
+			'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+			'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+		];
+
+		// Build date ranges for each of the last 6 months (inclusive of current)
+		const months: Array<{
+			label: string;
+			start: Date;
+			end: Date;
+		}> = [];
+
+		for (let i = 5; i >= 0; i--) {
+			const year = now.getFullYear();
+			const month = now.getMonth() - i;
+			const start = new Date(year, month, 1);
+			const end = new Date(year, month + 1, 0); // last day of that month
+			months.push({
+				label: monthNames[start.getMonth()],
+				start,
+				end,
+			});
+		}
+
+		// Run all 12 aggregate queries in parallel (6 months x income + expense)
+		const queries = months.flatMap((m) => [
+			prisma.income.aggregate({
+				where: { userId, date: { gte: m.start, lte: m.end } },
+				_sum: { amount: true },
+			}),
+			prisma.expense.aggregate({
+				where: { userId, date: { gte: m.start, lte: m.end } },
+				_sum: { amount: true },
+			}),
+		]);
+
+		const results = await Promise.all(queries);
+
+		return months.map((m, idx) => ({
+			month: m.label,
+			income: results[idx * 2]._sum.amount?.toNumber() || 0,
+			expense: results[idx * 2 + 1]._sum.amount?.toNumber() || 0,
+		}));
+	},
+
+	/**
 	 * Get average monthly expenses over past N months
 	 */
 	async getAverageMonthlyExpense(userId: string, months: number = 3) {
