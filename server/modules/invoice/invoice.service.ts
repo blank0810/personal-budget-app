@@ -164,7 +164,19 @@ export const InvoiceService = {
 					);
 				}
 
-				// 3. Build line items from entries
+				// 3. Clear any stale workEntryId references from old cancelled/deleted invoices
+				//    This handles data created before the cancel-fix was deployed
+				await tx.invoiceLineItem.updateMany({
+					where: {
+						workEntryId: { in: data.workEntryIds },
+						invoice: {
+							status: { in: [InvoiceStatus.CANCELLED] },
+						},
+					},
+					data: { workEntryId: null },
+				});
+
+				// 4. Build line items from entries
 				const lineItems = entries.map((entry, index) => ({
 					description: entry.description,
 					quantity: Number(entry.quantity),
@@ -177,7 +189,7 @@ export const InvoiceService = {
 				const { subtotal, taxAmount, totalAmount } =
 					computeInvoiceTotals(lineItems, data.taxRate ?? 0);
 
-				// 4. Create invoice with line items, linking workEntryId on each
+				// 5. Create invoice with line items, linking workEntryId on each
 				//    Use the client's billing currency
 				const invoice = await tx.invoice.create({
 					data: {
@@ -208,7 +220,7 @@ export const InvoiceService = {
 					},
 				});
 
-				// 5. Flip entries to BILLED and set audit trail
+				// 6. Flip entries to BILLED and set audit trail
 				await tx.workEntry.updateMany({
 					where: { id: { in: data.workEntryIds } },
 					data: {
