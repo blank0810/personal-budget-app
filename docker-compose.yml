@@ -4,7 +4,7 @@ services:
         build:
             context: .
             dockerfile: docker/Dockerfile
-        restart: always
+        restart: on-failure
         environment:
             # Internal connection to postgres service on port 5432
             DATABASE_URL: ${DATABASE_URL}
@@ -34,7 +34,7 @@ services:
     redis:
         image: redis:7-alpine
         container_name: budget-planner-redis
-        restart: always
+        restart: on-failure
         ports:
             - '6379:6379'
         volumes:
@@ -45,7 +45,7 @@ services:
     db:
         image: postgres:16-alpine
         container_name: budget-planner-db
-        restart: always
+        restart: on-failure
         environment:
             POSTGRES_USER: ${POSTGRES_USER}
             POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
@@ -69,7 +69,7 @@ services:
     bull-board:
         image: deadly0/bull-board
         container_name: budget-planner-bull-board
-        restart: always
+        restart: on-failure
         environment:
             REDIS_HOST: redis
             REDIS_PORT: 6379
@@ -84,7 +84,7 @@ services:
     pgadmin:
         image: dpage/pgadmin4:latest
         container_name: budget-planner-pgadmin
-        restart: always
+        restart: on-failure
         environment:
             PGADMIN_DEFAULT_EMAIL: admin@budget-app.com
             PGADMIN_DEFAULT_PASSWORD: admin

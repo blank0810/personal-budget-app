@@ -59,7 +59,7 @@ export function RecentTransactions({
 					Show more
 				</Link>
 			</CardHeader>
-			<CardContent className='px-4 pb-4'>
+			<CardContent className='px-4 pb-4 overflow-y-auto max-h-[400px]'>
 				{transactions.length === 0 ? (
 					<p className='py-8 text-center text-sm text-muted-foreground'>
 						No recent transactions

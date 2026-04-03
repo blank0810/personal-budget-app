@@ -108,7 +108,7 @@ export function AccountCardCarousel({ accounts, totalBalance }: AccountCardCarou
 				{selected && (
 					<div
 						className='relative shrink-0 cursor-pointer'
-						style={{ width: 320, height: 220 }}
+						style={{ width: '100%', maxWidth: 320, height: 220 }}
 						onClick={handleCardClick}
 					>
 						{/* Back card - next card peeking behind */}
@@ -167,17 +167,33 @@ export function AccountCardCarousel({ accounts, totalBalance }: AccountCardCarou
 							</Link>
 						</div>
 
-						{/* Animated balance */}
-						<div className='flex items-baseline gap-3'>
-							<AnimatedNumber
-								value={selected.balance}
-								duration={700}
-								formatFn={formatCurrency}
-								className='text-4xl font-bold tabular-nums tracking-tight text-zinc-900 dark:text-white md:text-5xl'
-							/>
-							<span className='text-sm font-medium text-zinc-500 dark:text-white/50'>
-								{currency}
-							</span>
+						{/* Animated balance / available credit */}
+						<div>
+							{selected.isLiability && selected.creditLimit !== null && selected.creditLimit > 0 && (
+								<p className='text-xs font-medium text-zinc-500 dark:text-white/50 mb-1'>
+									Available Credit
+								</p>
+							)}
+							<div className='flex items-baseline gap-3'>
+								<AnimatedNumber
+									value={
+										selected.isLiability && selected.creditLimit !== null && selected.creditLimit > 0
+											? selected.creditLimit - selected.balance
+											: selected.balance
+									}
+									duration={700}
+									formatFn={formatCurrency}
+									className='text-4xl font-bold tabular-nums tracking-tight text-zinc-900 dark:text-white md:text-5xl'
+								/>
+								<span className='text-sm font-medium text-zinc-500 dark:text-white/50'>
+									{currency}
+								</span>
+							</div>
+							{selected.isLiability && selected.creditLimit !== null && selected.creditLimit > 0 && (
+								<p className='text-xs text-zinc-400 dark:text-white/40 mt-1'>
+									{formatCurrency(selected.balance)} owed of {formatCurrency(selected.creditLimit)} limit
+								</p>
+							)}
 						</div>
 
 						{/* Quick actions */}
