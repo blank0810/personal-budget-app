@@ -667,7 +667,7 @@ export function WorkEntryList({ initialEntries, unbilledCounts, clients }: WorkE
 															{formatDate(entry.date)}
 														</span>
 													</div>
-													<p className='text-sm line-clamp-2 whitespace-pre-line'>{entry.description}</p>
+													<p className='text-sm whitespace-pre-line'>{entry.description}</p>
 												</div>
 												<div className='text-right shrink-0'>
 													<p className='text-sm font-medium tabular-nums'>
@@ -722,7 +722,7 @@ export function WorkEntryList({ initialEntries, unbilledCounts, clients }: WorkE
 											className='hidden sm:table-cell px-3 py-2.5 max-w-[280px]'
 											title={entry.description}
 										>
-											<p className='line-clamp-2 text-sm whitespace-pre-line'>{entry.description}</p>
+											<p className='text-sm whitespace-pre-line'>{entry.description}</p>
 										</TableCell>
 
 										{/* Desktop: Amount */}

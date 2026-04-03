@@ -43,3 +43,9 @@ export interface FinancialHealthScore {
 	overallLabel: string;
 	pillars: HealthPillar[];
 }
+
+export interface IncomeExpenseTrendItem {
+	month: string;
+	income: number;
+	expense: number;
+}
