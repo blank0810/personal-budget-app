@@ -25,7 +25,7 @@ export async function createExpenseAction(data: unknown) {
 
 	try {
 		await ExpenseService.createExpense(userId, parsed.data);
-		invalidateTags(CACHE_TAGS.EXPENSES, CACHE_TAGS.ACCOUNTS, CACHE_TAGS.BUDGETS, CACHE_TAGS.DASHBOARD);
+		invalidateTags(CACHE_TAGS.EXPENSES, CACHE_TAGS.ACCOUNTS, CACHE_TAGS.BUDGETS, CACHE_TAGS.DASHBOARD, CACHE_TAGS.TRANSACTIONS);
 		return { success: true as const };
 	} catch (error) {
 		console.error('Failed to create expense:', error);
@@ -46,7 +46,7 @@ export async function updateExpenseAction(data: unknown) {
 
 	try {
 		await ExpenseService.updateExpense(userId, parsed.data);
-		invalidateTags(CACHE_TAGS.EXPENSES, CACHE_TAGS.ACCOUNTS, CACHE_TAGS.BUDGETS, CACHE_TAGS.DASHBOARD);
+		invalidateTags(CACHE_TAGS.EXPENSES, CACHE_TAGS.ACCOUNTS, CACHE_TAGS.BUDGETS, CACHE_TAGS.DASHBOARD, CACHE_TAGS.TRANSACTIONS);
 		return { success: true as const };
 	} catch (error) {
 		console.error('Failed to update expense:', error);
@@ -108,7 +108,7 @@ export async function deleteExpenseAction(expenseId: string) {
 
 	try {
 		await ExpenseService.deleteExpense(userId, expenseId);
-		invalidateTags(CACHE_TAGS.EXPENSES, CACHE_TAGS.ACCOUNTS, CACHE_TAGS.BUDGETS, CACHE_TAGS.DASHBOARD);
+		invalidateTags(CACHE_TAGS.EXPENSES, CACHE_TAGS.ACCOUNTS, CACHE_TAGS.BUDGETS, CACHE_TAGS.DASHBOARD, CACHE_TAGS.TRANSACTIONS);
 		return { success: true as const };
 	} catch (error) {
 		console.error('Failed to delete expense:', error);

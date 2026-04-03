@@ -20,7 +20,7 @@ export async function createTransferAction(data: unknown) {
 
 	try {
 		await TransferService.createTransfer(userId, parsed.data);
-		invalidateTags(CACHE_TAGS.TRANSFERS, CACHE_TAGS.ACCOUNTS, CACHE_TAGS.DASHBOARD);
+		invalidateTags(CACHE_TAGS.TRANSFERS, CACHE_TAGS.ACCOUNTS, CACHE_TAGS.DASHBOARD, CACHE_TAGS.TRANSACTIONS);
 		return { success: true as const };
 	} catch (error) {
 		console.error('Failed to create transfer:', error);
@@ -36,7 +36,7 @@ export async function deleteTransferAction(transferId: string) {
 
 	try {
 		await TransferService.deleteTransfer(userId, transferId);
-		invalidateTags(CACHE_TAGS.TRANSFERS, CACHE_TAGS.ACCOUNTS, CACHE_TAGS.DASHBOARD);
+		invalidateTags(CACHE_TAGS.TRANSFERS, CACHE_TAGS.ACCOUNTS, CACHE_TAGS.DASHBOARD, CACHE_TAGS.TRANSACTIONS);
 		return { success: true as const };
 	} catch (error) {
 		console.error('Failed to delete transfer:', error);
