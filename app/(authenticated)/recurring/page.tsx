@@ -5,9 +5,7 @@ import { RecurringService } from '@/server/modules/recurring/recurring.service';
 import { AccountService } from '@/server/modules/account/account.service';
 import { CategoryService } from '@/server/modules/category/category.service';
 import { BudgetService } from '@/server/modules/budget/budget.service';
-import { RecurringForm } from '@/components/modules/recurring/RecurringForm';
-import { RecurringList } from '@/components/modules/recurring/RecurringList';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { RecurringPageContainer } from '@/components/modules/recurring/RecurringPageContainer';
 import { serialize } from '@/lib/serialization';
 import { startOfMonth } from 'date-fns';
 
@@ -48,6 +46,14 @@ export default async function RecurringPage() {
 		amount: b.amount as number,
 	}));
 
+	const serializedAccounts = serialize(accounts).map(
+		(a: { id: string; name: string; type: string }) => ({
+			id: a.id,
+			name: a.name,
+			type: a.type,
+		})
+	);
+
 	return (
 		<div className='container mx-auto py-6 md:py-10 space-y-8'>
 			<div className='flex justify-between items-center'>
@@ -56,52 +62,12 @@ export default async function RecurringPage() {
 				</h1>
 			</div>
 
-			<div className='grid grid-cols-1 gap-8 lg:grid-cols-[350px_1fr]'>
-				<div className='min-w-0 space-y-6'>
-					<Card>
-						<CardHeader>
-							<CardTitle>New Recurring</CardTitle>
-						</CardHeader>
-						<CardContent>
-							<RecurringForm
-								categories={allCategories}
-								accounts={serialize(accounts).map(
-									(a: { id: string; name: string }) => ({
-										id: a.id,
-										name: a.name,
-									})
-								)}
-								budgets={serializedBudgets}
-							/>
-						</CardContent>
-					</Card>
-				</div>
-				<div className='min-w-0'>
-					<Card>
-						<CardHeader>
-							<CardTitle>All Recurring Transactions</CardTitle>
-						</CardHeader>
-						<CardContent>
-							<RecurringList
-							items={serialize(recurring)}
-							categories={allCategories}
-							accounts={serialize(accounts).map(
-								(a: {
-									id: string;
-									name: string;
-									type: string;
-								}) => ({
-									id: a.id,
-									name: a.name,
-									type: a.type,
-								})
-							)}
-							budgets={serializedBudgets}
-						/>
-						</CardContent>
-					</Card>
-				</div>
-			</div>
+			<RecurringPageContainer
+				items={serialize(recurring)}
+				categories={allCategories}
+				accounts={serializedAccounts}
+				budgets={serializedBudgets}
+			/>
 		</div>
 	);
 }

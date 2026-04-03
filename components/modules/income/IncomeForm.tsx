@@ -46,12 +46,14 @@ interface IncomeFormProps {
 	accounts: Account[];
 	categories: Category[];
 	hasEmergencyFundGoal?: boolean;
+	onSuccess?: () => void;
 }
 
 export function IncomeForm({
 	accounts,
 	categories,
 	hasEmergencyFundGoal,
+	onSuccess,
 }: IncomeFormProps) {
 	const { formatCurrency } = useCurrency();
 	const [isPending, startTransition] = useTransition();
@@ -130,7 +132,7 @@ export function IncomeForm({
 				});
 				setShowCustomCategoryInput(false);
 				setEfSuggestion(null);
-				// Handle success (toast)
+				onSuccess?.();
 			}
 		});
 	}

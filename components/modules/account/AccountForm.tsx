@@ -74,7 +74,11 @@ const COLORS = [
 	{ value: 'emerald', label: 'Emerald', swatch: 'bg-emerald-500' },
 ];
 
-export function AccountForm() {
+interface AccountFormProps {
+	onSuccess?: () => void;
+}
+
+export function AccountForm({ onSuccess }: AccountFormProps) {
 	const { formatCurrency } = useCurrency();
 	const [isPending, startTransition] = useTransition();
 
@@ -134,6 +138,7 @@ export function AccountForm() {
 			} else {
 				form.reset();
 				setSelectedColor('blue');
+				onSuccess?.();
 			}
 		});
 	}

@@ -41,6 +41,7 @@ interface IncomeListProps {
 	onPageChange: (page: number) => void;
 	onSort: (sortBy: string, sortOrder: 'asc' | 'desc') => void;
 	isPending: boolean;
+	onDeleted?: () => void;
 }
 
 interface ColumnDef {
@@ -69,6 +70,7 @@ export function IncomeList({
 	onPageChange,
 	onSort,
 	isPending,
+	onDeleted,
 }: IncomeListProps) {
 	const { formatCurrency } = useCurrency();
 
@@ -76,6 +78,7 @@ export function IncomeList({
 		e.stopPropagation();
 		if (confirm('Are you sure you want to delete this income?')) {
 			await deleteIncomeAction(id);
+			onDeleted?.();
 		}
 	}
 

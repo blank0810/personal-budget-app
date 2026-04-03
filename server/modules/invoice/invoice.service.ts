@@ -26,6 +26,8 @@ function computeInvoiceTotals(
 
 /**
  * Revert linked work entries back to UNBILLED when an invoice is cancelled or deleted.
+ * Also nulls out workEntryId on the line items to release the unique constraint,
+ * allowing those work entries to be linked to a future invoice.
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function revertLinkedEntries(tx: any, invoiceId: string) {
@@ -42,6 +44,12 @@ async function revertLinkedEntries(tx: any, invoiceId: string) {
 		await tx.workEntry.updateMany({
 			where: { id: { in: workEntryIds } },
 			data: { status: 'UNBILLED' },
+		});
+
+		// Release the unique constraint on workEntryId so entries can be re-invoiced
+		await tx.invoiceLineItem.updateMany({
+			where: { invoiceId, workEntryId: { not: null } },
+			data: { workEntryId: null },
 		});
 	}
 }
@@ -401,8 +409,9 @@ export const InvoiceService = {
 	},
 
 	/**
-	 * Cancel an invoice (DRAFT or SENT only).
-	 * Reverts any linked work entries back to UNBILLED.
+	 * Cancel an invoice (DRAFT, SENT, or OVERDUE).
+	 * Reverts any linked work entries back to UNBILLED and unlinks them
+	 * from the cancelled invoice's line items.
 	 */
 	async cancel(userId: string, invoiceId: string) {
 		const invoice = await prisma.invoice.findUniqueOrThrow({
@@ -411,9 +420,10 @@ export const InvoiceService = {
 
 		if (
 			invoice.status !== InvoiceStatus.DRAFT &&
-			invoice.status !== InvoiceStatus.SENT
+			invoice.status !== InvoiceStatus.SENT &&
+			invoice.status !== InvoiceStatus.OVERDUE
 		) {
-			throw new Error('Only DRAFT or SENT invoices can be cancelled');
+			throw new Error('Only DRAFT, SENT, or OVERDUE invoices can be cancelled');
 		}
 
 		return await prisma.$transaction(async (tx) => {

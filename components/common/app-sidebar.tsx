@@ -188,10 +188,10 @@ function AppSidebarInner({ user, signOutAction, hasNewChangelog, disabledSidebar
 						</SidebarMenuItem>
 					)}
 					<SidebarMenuItem>
-						<SidebarMenuButton asChild size='sm'>
+						<SidebarMenuButton asChild size='sm' tooltip='Community Changelog & Feedback'>
 							<a href='/changelog'>
 								<Sparkles className='h-4 w-4' />
-								<span>Changelog</span>
+								<span>Community</span>
 								{hasNewChangelog && (
 									<span className='ml-auto h-2 w-2 rounded-full bg-primary' />
 								)}

@@ -52,12 +52,14 @@ interface ExpenseFormProps {
 	accounts: Account[];
 	categories: Category[];
 	budgets: BudgetWithCategory[];
+	onSuccess?: () => void;
 }
 
 export function ExpenseForm({
 	accounts,
 	categories,
 	budgets,
+	onSuccess,
 }: ExpenseFormProps) {
 	const { formatCurrency } = useCurrency();
 	const [isPending, startTransition] = useTransition();
@@ -147,7 +149,7 @@ export function ExpenseForm({
 					recurringPeriod: undefined,
 				});
 				setShowCustomCategoryInput(false); // Reset custom category state
-				// Handle success (toast)
+				onSuccess?.();
 			}
 		});
 	}

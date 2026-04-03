@@ -12,6 +12,7 @@ import { useCurrency } from '@/lib/contexts/currency-context';
 import { Budget, Category } from '@prisma/client';
 import { cn } from '@/lib/utils';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 
 interface BudgetWithStats extends Budget {
 	category: Category;
@@ -27,11 +28,13 @@ interface BudgetListProps {
 
 export function BudgetList({ budgets, availableMonths = [] }: BudgetListProps) {
 	const { formatCurrency } = useCurrency();
+	const router = useRouter();
 
 	async function handleDelete(id: string, e: React.MouseEvent) {
 		e.stopPropagation();
 		if (confirm('Are you sure you want to delete this budget?')) {
 			await deleteBudgetAction(id);
+			router.refresh();
 		}
 	}
 

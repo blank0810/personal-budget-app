@@ -27,6 +27,7 @@ interface RecurringFormProps {
 	categories: Array<{ id: string; name: string; type: string }>;
 	accounts: Array<{ id: string; name: string }>;
 	budgets: Budget[];
+	onSuccess?: () => void;
 }
 
 const FREQUENCIES = [
@@ -37,7 +38,7 @@ const FREQUENCIES = [
 	{ value: 'YEARLY', label: 'Yearly' },
 ];
 
-export function RecurringForm({ categories, accounts, budgets }: RecurringFormProps) {
+export function RecurringForm({ categories, accounts, budgets, onSuccess }: RecurringFormProps) {
 	const [loading, setLoading] = useState(false);
 	const [type, setType] = useState<'INCOME' | 'EXPENSE'>('EXPENSE');
 	const [amount, setAmount] = useState<number | undefined>(undefined);
@@ -84,6 +85,7 @@ export function RecurringForm({ categories, accounts, budgets }: RecurringFormPr
 			setAmount(undefined);
 			setCategoryId('');
 			setBudgetId('');
+			onSuccess?.();
 		}
 	}
 

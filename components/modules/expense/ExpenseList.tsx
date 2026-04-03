@@ -41,6 +41,7 @@ interface ExpenseListProps {
 	onPageChange: (page: number) => void;
 	onSort: (sortBy: string, sortOrder: 'asc' | 'desc') => void;
 	isPending: boolean;
+	onDeleted?: () => void;
 }
 
 interface ColumnDef {
@@ -69,6 +70,7 @@ export function ExpenseList({
 	onPageChange,
 	onSort,
 	isPending,
+	onDeleted,
 }: ExpenseListProps) {
 	const { formatCurrency } = useCurrency();
 
@@ -76,6 +78,7 @@ export function ExpenseList({
 		e.stopPropagation();
 		if (confirm('Are you sure you want to delete this expense?')) {
 			await deleteExpenseAction(id);
+			onDeleted?.();
 		}
 	}
 
