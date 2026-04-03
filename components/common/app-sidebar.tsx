@@ -13,6 +13,7 @@ import {
 	Upload,
 	Target,
 	FileText,
+	RefreshCw,
 	type LucideIcon,
 } from 'lucide-react';
 
@@ -47,15 +48,13 @@ const navItems: NavItem[] = [
 	},
 	{
 		title: 'Transactions',
-		url: '#',
+		url: '/transactions',
 		icon: ArrowRightLeft,
-		items: [
-			{ title: 'Income', url: '/income' },
-			{ title: 'Expenses', url: '/expense' },
-			{ title: 'Transfers', url: '/transfers' },
-			{ title: 'Payments', url: '/payments' },
-			{ title: 'Recurring', url: '/recurring' },
-		],
+	},
+	{
+		title: 'Recurring',
+		url: '/recurring',
+		icon: RefreshCw,
 	},
 	{
 		title: 'Budgets',
