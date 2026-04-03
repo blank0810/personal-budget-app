@@ -1,9 +1,19 @@
 'use client';
 
+import { useState } from 'react';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Bug, Lightbulb, Sparkles, Palette, CheckCircle2 } from 'lucide-react';
+import {
+	Table,
+	TableBody,
+	TableCell,
+	TableHead,
+	TableHeader,
+	TableRow,
+} from '@/components/ui/table';
+import { Bug, Lightbulb, Sparkles, Palette, CheckCircle2, ChevronLeft, ChevronRight } from 'lucide-react';
 import type { RequestCategory } from '@prisma/client';
 
 interface FeatureRequestItem {
@@ -135,14 +145,26 @@ function RequestCard({
 	);
 }
 
+const ROWS_PER_PAGE = 10;
+
 export function FeatureRequestTabs({ requests = [] }: FeatureRequestTabsProps) {
+	const [page, setPage] = useState(0);
+
 	const openRequests = (requests ?? []).filter((r) =>
 		['NEW', 'REVIEWING', 'PLANNED'].includes(r.status)
 	);
-	const completedRequests = (requests ?? []).filter((r) => r.status === 'COMPLETED');
+	const completedRequests = (requests ?? [])
+		.filter((r) => r.status === 'COMPLETED')
+		.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+
+	const totalPages = Math.ceil(completedRequests.length / ROWS_PER_PAGE);
+	const paginatedCompleted = completedRequests.slice(
+		page * ROWS_PER_PAGE,
+		(page + 1) * ROWS_PER_PAGE
+	);
 
 	return (
-		<Tabs defaultValue='open'>
+		<Tabs defaultValue='open' onValueChange={() => setPage(0)}>
 			<TabsList className='mb-4'>
 				<TabsTrigger value='open'>
 					Open Requests ({openRequests.length})
@@ -172,10 +194,66 @@ export function FeatureRequestTabs({ requests = [] }: FeatureRequestTabsProps) {
 						No completed requests yet.
 					</p>
 				) : (
-					<div className='grid gap-3 sm:grid-cols-2'>
-						{completedRequests.map((req) => (
-							<RequestCard key={req.id} req={req} showCompletedBadge />
-						))}
+					<div className='rounded-md border bg-card'>
+						<Table>
+							<TableHeader>
+								<TableRow>
+									<TableHead>Title</TableHead>
+									<TableHead className='hidden sm:table-cell w-[140px]'>Category</TableHead>
+									<TableHead className='w-[140px] text-right'>Completed</TableHead>
+								</TableRow>
+							</TableHeader>
+							<TableBody>
+								{paginatedCompleted.map((req) => {
+									const config = CATEGORY_CONFIG[req.category] ?? CATEGORY_CONFIG.NEW_FEATURE;
+									const Icon = config.icon;
+									return (
+										<TableRow key={req.id}>
+											<TableCell className='font-medium text-sm'>{req.title}</TableCell>
+											<TableCell className='hidden sm:table-cell'>
+												<Badge
+													variant='outline'
+													className={`text-[10px] px-1.5 py-0 ${config.color}`}
+												>
+													<Icon className='h-3 w-3 mr-0.5' />
+													{config.label}
+												</Badge>
+											</TableCell>
+											<TableCell className='text-right text-sm text-muted-foreground'>
+												{formatCompletedOn(req.updatedAt)}
+											</TableCell>
+										</TableRow>
+									);
+								})}
+							</TableBody>
+						</Table>
+						{totalPages > 1 && (
+							<div className='flex items-center justify-between px-4 py-3 border-t'>
+								<p className='text-xs text-muted-foreground'>
+									{page * ROWS_PER_PAGE + 1}–{Math.min((page + 1) * ROWS_PER_PAGE, completedRequests.length)} of {completedRequests.length}
+								</p>
+								<div className='flex gap-1'>
+									<Button
+										variant='outline'
+										size='icon'
+										className='h-7 w-7'
+										disabled={page === 0}
+										onClick={() => setPage(page - 1)}
+									>
+										<ChevronLeft className='h-4 w-4' />
+									</Button>
+									<Button
+										variant='outline'
+										size='icon'
+										className='h-7 w-7'
+										disabled={page >= totalPages - 1}
+										onClick={() => setPage(page + 1)}
+									>
+										<ChevronRight className='h-4 w-4' />
+									</Button>
+								</div>
+							</div>
+						)}
 					</div>
 				)}
 			</TabsContent>

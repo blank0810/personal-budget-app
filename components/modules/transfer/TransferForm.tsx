@@ -40,9 +40,10 @@ import { Account } from '@prisma/client';
 
 interface TransferFormProps {
 	accounts: Account[];
+	onSuccess?: () => void;
 }
 
-export function TransferForm({ accounts }: TransferFormProps) {
+export function TransferForm({ accounts, onSuccess }: TransferFormProps) {
 	const { formatCurrency } = useCurrency();
 	const [isPending, startTransition] = useTransition();
 	const [showReview, setShowReview] = useState(false);
@@ -98,7 +99,7 @@ export function TransferForm({ accounts }: TransferFormProps) {
 					toAccountId: '',
 				});
 				setFormData(null);
-				// Ideally show toast success
+				onSuccess?.();
 			}
 		});
 	}

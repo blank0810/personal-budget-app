@@ -207,6 +207,51 @@ export const IncomeService = {
 				}
 			}
 
+			// Compute deductions for email breakdown
+			const deductions: {
+				tithe?: { amount: number; percentage: number };
+				emergencyFund?: { amount: number; percentage: number };
+			} = {};
+
+			if (data.titheEnabled && data.tithePercentage && accountId) {
+				// Check if account is asset (not liability) — same condition as tithe logic above
+				const acc = await prisma.account.findUnique({
+					where: { id: accountId },
+					select: { isLiability: true },
+				});
+				if (acc && !acc.isLiability) {
+					deductions.tithe = {
+						amount: data.amount * (data.tithePercentage / 100),
+						percentage: data.tithePercentage,
+					};
+				}
+			}
+
+			if (data.emergencyFundEnabled && data.emergencyFundPercentage && accountId) {
+				const acc = await prisma.account.findUnique({
+					where: { id: accountId },
+					select: { isLiability: true },
+				});
+				if (acc && !acc.isLiability) {
+					// Only include if there's an active EF goal with linked account
+					const efGoal = await prisma.goal.findFirst({
+						where: {
+							userId,
+							isEmergencyFund: true,
+							status: 'ACTIVE',
+							linkedAccountId: { not: null },
+						},
+						select: { id: true },
+					});
+					if (efGoal) {
+						deductions.emergencyFund = {
+							amount: data.amount * (data.emergencyFundPercentage / 100),
+							percentage: data.emergencyFundPercentage,
+						};
+					}
+				}
+			}
+
 			NotificationService.sendIncomeNotification(
 				userId,
 				{
@@ -214,7 +259,8 @@ export const IncomeService = {
 					description: data.description || null,
 					categoryName,
 				},
-				accountInfo
+				accountInfo,
+				Object.keys(deductions).length > 0 ? deductions : undefined
 			).catch(() => {});
 		} catch {
 			// Notification failure must never fail the main operation

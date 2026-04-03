@@ -23,6 +23,7 @@ import { deleteAccountAction } from '@/server/modules/account/account.controller
 import { useCurrency } from '@/lib/contexts/currency-context';
 import { Account } from '@prisma/client';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import {
 	groupAccountsByClass,
 	ACCOUNT_CLASS_ORDER,
@@ -55,6 +56,7 @@ interface AccountListProps {
 }
 
 export function AccountList({ accounts }: AccountListProps) {
+	const router = useRouter();
 	const groups = groupAccountsByClass(accounts);
 
 	async function handleDelete(id: string) {
@@ -66,6 +68,8 @@ export function AccountList({ accounts }: AccountListProps) {
 			const result = await deleteAccountAction(id);
 			if (result?.error) {
 				alert(result.error);
+			} else {
+				router.refresh();
 			}
 		}
 	}
@@ -152,13 +156,13 @@ function AccountGroup({
 				</span>
 			</div>
 			<div className='rounded-md border bg-card'>
-				<Table>
+				<Table className='table-fixed'>
 					<TableHeader>
 						<TableRow>
-							<TableHead>Name</TableHead>
-							<TableHead>Type</TableHead>
-							<TableHead className='text-right'>Balance</TableHead>
-							<TableHead className='w-[100px] text-right'>
+							<TableHead className='w-[30%]'>Name</TableHead>
+							<TableHead className='hidden sm:table-cell w-[20%]'>Type</TableHead>
+							<TableHead className='w-[30%] text-right'>Balance</TableHead>
+							<TableHead className='w-[20%] text-right'>
 								Actions
 							</TableHead>
 						</TableRow>
@@ -203,20 +207,20 @@ function AccountRow({
 					{account.name}
 				</span>
 			</TableCell>
-			<TableCell>
+			<TableCell className='hidden sm:table-cell'>
 				<span className='inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 border-transparent bg-primary/10 text-primary hover:bg-primary/20'>
 					{account.type}
 				</span>
 			</TableCell>
 			<TableCell className='text-right'>
-				<div className='font-bold ml-auto'>
+				<div className='font-bold'>
 					{formatCurrency(Number(account.balance))}
 				</div>
 				{account.type === 'CREDIT' && account.creditLimit && (
 					<CreditUtilization account={account} />
 				)}
 			</TableCell>
-			<TableCell>
+			<TableCell className='w-[100px] text-right'>
 				<div className='flex justify-end gap-2'>
 					<Button
 						variant='ghost'

@@ -3,9 +3,7 @@ import { redirect } from 'next/navigation';
 import { requireFeature } from '@/lib/feature-gate';
 import { GoalService } from '@/server/modules/goal/goal.service';
 import { AccountService } from '@/server/modules/account/account.service';
-import { GoalForm } from '@/components/modules/goal/GoalForm';
-import { GoalList } from '@/components/modules/goal/GoalList';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { GoalPageContainer } from '@/components/modules/goal/GoalPageContainer';
 import { serialize } from '@/lib/serialization';
 import type { GoalCardData } from '@/components/modules/goal/GoalCard';
 
@@ -37,6 +35,13 @@ export default async function GoalsPage() {
 		};
 	});
 
+	const serializedAccounts = serialize(accounts).map(
+		(a: { id: string; name: string }) => ({
+			id: a.id,
+			name: a.name,
+		})
+	);
+
 	return (
 		<div className='container mx-auto py-6 md:py-10 space-y-8'>
 			<div className='flex justify-between items-center'>
@@ -45,36 +50,11 @@ export default async function GoalsPage() {
 				</h1>
 			</div>
 
-			<div className='grid grid-cols-1 gap-8 lg:grid-cols-[350px_1fr]'>
-				<div className='min-w-0 space-y-6'>
-					<Card>
-						<CardHeader>
-							<CardTitle>New Goal</CardTitle>
-						</CardHeader>
-						<CardContent>
-							<GoalForm
-								accounts={serialize(accounts).map(
-									(a: { id: string; name: string }) => ({
-										id: a.id,
-										name: a.name,
-									})
-								)}
-								hasEmergencyFund={hasEmergencyFund}
-							/>
-						</CardContent>
-					</Card>
-				</div>
-				<div className='min-w-0'>
-					<Card>
-						<CardHeader>
-							<CardTitle>Your Goals</CardTitle>
-						</CardHeader>
-						<CardContent>
-							<GoalList goals={enrichedGoals} />
-						</CardContent>
-					</Card>
-				</div>
-			</div>
+			<GoalPageContainer
+				goals={enrichedGoals}
+				accounts={serializedAccounts}
+				hasEmergencyFund={hasEmergencyFund}
+			/>
 		</div>
 	);
 }

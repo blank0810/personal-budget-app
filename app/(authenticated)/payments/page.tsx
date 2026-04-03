@@ -1,13 +1,9 @@
-import { PaymentForm } from '@/components/modules/payment/PaymentForm';
-import {
-	PaymentList,
-	PaymentWithRelations,
-} from '@/components/modules/payment/PaymentList';
+import { PaymentPageContainer } from '@/components/modules/payment/PaymentPageContainer';
+import { PaymentWithRelations } from '@/components/modules/payment/PaymentList';
 import { PaymentService } from '@/server/modules/payment/payment.service';
 import { AccountService } from '@/server/modules/account/account.service';
 import { auth } from '@/auth';
 import { redirect } from 'next/navigation';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { serialize } from '@/lib/serialization';
 
 export default async function PaymentsPage() {
@@ -35,43 +31,11 @@ export default async function PaymentsPage() {
 				</div>
 			</div>
 
-			<div className='grid grid-cols-1 gap-8 lg:grid-cols-[350px_1fr]'>
-				<div className='min-w-0 space-y-6'>
-					<Card>
-						<CardHeader>
-							<CardTitle>Make Payment</CardTitle>
-							<CardDescription>
-								Pay off debt from your asset accounts
-							</CardDescription>
-						</CardHeader>
-						<CardContent>
-							{hasLiabilities ? (
-								<PaymentForm accounts={serialize(accounts)} />
-							) : (
-								<div className='text-center py-8 text-muted-foreground'>
-									<p className='text-sm'>No liability accounts found.</p>
-									<p className='text-xs mt-2'>
-										Add a credit card or loan account to start making payments.
-									</p>
-								</div>
-							)}
-						</CardContent>
-					</Card>
-				</div>
-
-				<div className='min-w-0 space-y-6'>
-					<h2 className='text-lg sm:text-xl font-semibold tracking-tight'>
-						Payment History
-					</h2>
-					<PaymentList
-						payments={
-							serialize(
-								payments
-							) as unknown as PaymentWithRelations[]
-						}
-					/>
-				</div>
-			</div>
+			<PaymentPageContainer
+				payments={serialize(payments) as unknown as PaymentWithRelations[]}
+				accounts={serialize(accounts)}
+				hasLiabilities={hasLiabilities}
+			/>
 		</div>
 	);
 }

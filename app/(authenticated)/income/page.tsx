@@ -1,12 +1,10 @@
-import { IncomeForm } from '@/components/modules/income/IncomeForm';
-import { IncomeViews } from '@/components/modules/income/IncomeViews';
+import { IncomePageContainer } from '@/components/modules/income/IncomePageContainer';
 import { IncomeService } from '@/server/modules/income/income.service';
 import { AccountService } from '@/server/modules/account/account.service';
 import { CategoryService } from '@/server/modules/category/category.service';
 import { GoalService } from '@/server/modules/goal/goal.service';
 import { auth } from '@/auth';
 import { redirect } from 'next/navigation';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { serialize } from '@/lib/serialization';
 import { startOfMonth, endOfMonth } from 'date-fns';
 
@@ -45,32 +43,16 @@ export default async function IncomePage() {
 				<h1 className='text-2xl sm:text-3xl font-bold tracking-tight'>Income</h1>
 			</div>
 
-			<div className='grid grid-cols-1 gap-8 lg:grid-cols-[350px_1fr]'>
-				<div className='min-w-0 space-y-6'>
-					<Card>
-						<CardHeader>
-							<CardTitle>Add Income</CardTitle>
-						</CardHeader>
-						<CardContent>
-							<IncomeForm
-								accounts={serialize(accounts)}
-								categories={serialize(categories)}
-								hasEmergencyFundGoal={hasEmergencyFundGoal}
-							/>
-						</CardContent>
-					</Card>
-				</div>
-
-				<div className='min-w-0 space-y-6'>
-					<IncomeViews
-						initialIncomes={serialize(initialResult.data)}
-						initialTotal={initialResult.total}
-						initialMonthlyTotals={monthlyTotals}
-						initialYear={now.getFullYear()}
-						initialMonth={now.getMonth()}
-					/>
-				</div>
-			</div>
+			<IncomePageContainer
+				accounts={serialize(accounts)}
+				categories={serialize(categories)}
+				hasEmergencyFundGoal={hasEmergencyFundGoal}
+				initialIncomes={serialize(initialResult.data)}
+				initialTotal={initialResult.total}
+				initialMonthlyTotals={monthlyTotals}
+				initialYear={now.getFullYear()}
+				initialMonth={now.getMonth()}
+			/>
 		</div>
 	);
 }

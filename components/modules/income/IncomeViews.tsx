@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useTransition, useCallback } from 'react';
+import { useState, useTransition, useCallback, useEffect, useRef } from 'react';
 import { Income, Category, Account } from '@prisma/client';
 import { format, startOfYear, addMonths, startOfMonth, endOfMonth } from 'date-fns';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -38,6 +38,7 @@ interface IncomeViewsProps {
 	initialMonthlyTotals: MonthlyTotal[];
 	initialYear: number;
 	initialMonth: number;
+	onRefreshReady?: (refresh: () => void) => void;
 }
 
 const PAGE_SIZE = 20;
@@ -48,6 +49,7 @@ export function IncomeViews({
 	initialMonthlyTotals,
 	initialYear,
 	initialMonth,
+	onRefreshReady,
 }: IncomeViewsProps) {
 	const { formatCurrency } = useCurrency();
 
@@ -97,6 +99,40 @@ export function IncomeViews({
 		},
 		[]
 	);
+
+	// Expose a refresh function to the parent so it can trigger a list reload after creating a new income
+	const selectedMonthRef = useRef(initialMonth);
+	const selectedYearRef = useRef(initialYear);
+	const sortByRef = useRef('date');
+	const sortOrderRef = useRef<'asc' | 'desc'>('desc');
+
+	useEffect(() => {
+		selectedMonthRef.current = selectedMonth;
+	}, [selectedMonth]);
+	useEffect(() => {
+		selectedYearRef.current = selectedYear;
+	}, [selectedYear]);
+	useEffect(() => {
+		sortByRef.current = sortBy;
+	}, [sortBy]);
+	useEffect(() => {
+		sortOrderRef.current = sortOrder;
+	}, [sortOrder]);
+
+	useEffect(() => {
+		if (!onRefreshReady) return;
+		onRefreshReady(() => {
+			fetchIncomes({
+				page: 1,
+				month: selectedMonthRef.current,
+				year: selectedYearRef.current,
+				sortBy: sortByRef.current,
+				sortOrder: sortOrderRef.current,
+			});
+			setPage(1);
+		});
+	// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [onRefreshReady, fetchIncomes]);
 
 	const fetchMonthlyTotals = useCallback(
 		(year: number) => {
@@ -369,6 +405,13 @@ export function IncomeViews({
 					onPageChange={handlePageChange}
 					onSort={handleSort}
 					isPending={isPending}
+					onDeleted={() => fetchIncomes({
+						page,
+						month: selectedMonth,
+						year: selectedYear,
+						sortBy,
+						sortOrder,
+					})}
 				/>
 			)}
 		</div>

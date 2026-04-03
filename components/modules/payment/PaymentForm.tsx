@@ -40,9 +40,10 @@ import { Account } from '@prisma/client';
 
 interface PaymentFormProps {
 	accounts: Account[];
+	onSuccess?: () => void;
 }
 
-export function PaymentForm({ accounts }: PaymentFormProps) {
+export function PaymentForm({ accounts, onSuccess }: PaymentFormProps) {
 	const { formatCurrency } = useCurrency();
 	const [isPending, startTransition] = useTransition();
 	const [showReview, setShowReview] = useState(false);
@@ -104,7 +105,7 @@ export function PaymentForm({ accounts }: PaymentFormProps) {
 					toLiabilityId: '',
 				});
 				setFormData(null);
-				// Ideally show toast success
+				onSuccess?.();
 			}
 		});
 	}
@@ -220,35 +221,7 @@ export function PaymentForm({ accounts }: PaymentFormProps) {
 							name='amount'
 							render={({ field }) => (
 								<FormItem>
-									<FormLabel className='flex items-center justify-between'>
-										<span>Payment Amount</span>
-										<div className='flex gap-1'>
-											{toAccount && (
-												<Button
-													type='button'
-													variant='ghost'
-													size='sm'
-													className='h-5 px-1.5 text-xs text-muted-foreground hover:text-foreground'
-													onClick={() => form.setValue('amount', Number(toAccount.balance))}
-													title={`Pay full balance: ${Number(toAccount.balance)}`}
-												>
-													Full Balance
-												</Button>
-											)}
-											{fromAccount && (
-												<Button
-													type='button'
-													variant='ghost'
-													size='sm'
-													className='h-5 px-1.5 text-xs text-muted-foreground hover:text-foreground'
-													onClick={() => form.setValue('amount', Number(fromAccount.balance))}
-													title={`Max from account: ${Number(fromAccount.balance)}`}
-												>
-													Max
-												</Button>
-											)}
-										</div>
-									</FormLabel>
+									<FormLabel>Payment Amount</FormLabel>
 									<FormControl>
 										<CurrencyInput
 											placeholder='0.00'
@@ -256,6 +229,32 @@ export function PaymentForm({ accounts }: PaymentFormProps) {
 											onChange={field.onChange}
 										/>
 									</FormControl>
+									<div className='flex gap-1'>
+										{toAccount && (
+											<Button
+												type='button'
+												variant='ghost'
+												size='sm'
+												className='h-5 px-1.5 text-xs text-muted-foreground hover:text-foreground'
+												onClick={() => form.setValue('amount', Number(toAccount.balance))}
+												title={`Pay full balance: ${Number(toAccount.balance)}`}
+											>
+												Full Balance
+											</Button>
+										)}
+										{fromAccount && (
+											<Button
+												type='button'
+												variant='ghost'
+												size='sm'
+												className='h-5 px-1.5 text-xs text-muted-foreground hover:text-foreground'
+												onClick={() => form.setValue('amount', Number(fromAccount.balance))}
+												title={`Max from account: ${Number(fromAccount.balance)}`}
+											>
+												Max
+											</Button>
+										)}
+									</div>
 									<FormMessage />
 								</FormItem>
 							)}

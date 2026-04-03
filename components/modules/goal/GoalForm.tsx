@@ -52,9 +52,10 @@ function deriveThresholds(targetMonths: number) {
 interface GoalFormProps {
 	accounts: Array<{ id: string; name: string }>;
 	hasEmergencyFund?: boolean;
+	onSuccess?: () => void;
 }
 
-export function GoalForm({ accounts, hasEmergencyFund = false }: GoalFormProps) {
+export function GoalForm({ accounts, hasEmergencyFund = false, onSuccess }: GoalFormProps) {
 	const [loading, setLoading] = useState(false);
 	const [amount, setAmount] = useState<number | undefined>(undefined);
 	const [goalType, setGoalType] = useState<'FIXED_AMOUNT' | 'MONTHS_COVERAGE'>('FIXED_AMOUNT');
@@ -91,6 +92,7 @@ export function GoalForm({ accounts, hasEmergencyFund = false }: GoalFormProps) 
 			setGoalType('FIXED_AMOUNT');
 			setIsEmergencyFund(false);
 			setTargetMonths(6);
+			onSuccess?.();
 		}
 	}
 

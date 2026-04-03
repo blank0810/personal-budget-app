@@ -215,7 +215,11 @@ export const NotificationService = {
 	async sendIncomeNotification(
 		userId: string,
 		income: { amount: number; description: string | null; categoryName: string },
-		account: { name: string; newBalance: number } | null
+		account: { name: string; newBalance: number } | null,
+		deductions?: {
+			tithe?: { amount: number; percentage: number };
+			emergencyFund?: { amount: number; percentage: number };
+		}
 	): Promise<void> {
 		// Fetch user's currency preference
 		const currency = await UserService.getCurrency(userId);
@@ -246,6 +250,24 @@ export const NotificationService = {
 									<td style="padding: 8px 0; color: #6B7280;">Amount</td>
 									<td style="padding: 8px 0; text-align: right; font-weight: 600; color: #059669;">${formatCurrency(income.amount, { currency })}</td>
 								</tr>
+								${deductions?.tithe ? `
+								<tr>
+									<td style="padding: 8px 0; color: #6B7280;">Church Tithe (${deductions.tithe.percentage}%)</td>
+									<td style="padding: 8px 0; text-align: right; font-weight: 600; color: #DC2626;">-${formatCurrency(deductions.tithe.amount, { currency })}</td>
+								</tr>
+								` : ''}
+								${deductions?.emergencyFund ? `
+								<tr>
+									<td style="padding: 8px 0; color: #6B7280;">Emergency Fund (${deductions.emergencyFund.percentage}%)</td>
+									<td style="padding: 8px 0; text-align: right; font-weight: 600; color: #DC2626;">-${formatCurrency(deductions.emergencyFund.amount, { currency })}</td>
+								</tr>
+								` : ''}
+								${deductions ? `
+								<tr>
+									<td style="padding: 8px 0; border-top: 1px solid #E5E7EB; color: #6B7280;">Net to Account</td>
+									<td style="padding: 8px 0; border-top: 1px solid #E5E7EB; text-align: right; font-weight: 600; color: #111827;">${formatCurrency(income.amount - (deductions.tithe?.amount ?? 0) - (deductions.emergencyFund?.amount ?? 0), { currency })}</td>
+								</tr>
+								` : ''}
 								<tr>
 									<td style="padding: 8px 0; color: #6B7280;">Category</td>
 									<td style="padding: 8px 0; text-align: right; font-weight: 600; color: #111827;">${income.categoryName}</td>
