@@ -62,7 +62,8 @@ export function TransactionKPICards(props: TransactionKPICardsProps) {
 				const value = card.getValue(props);
 				const isActive =
 					activeType &&
-					(('matchTypes' in card && card.matchTypes?.includes(activeType)) ||
+					(('matchTypes' in card &&
+						(card as { matchTypes?: readonly string[] }).matchTypes?.includes(activeType)) ||
 						card.key === activeType);
 				const Icon = card.icon;
 

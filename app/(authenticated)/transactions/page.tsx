@@ -1,6 +1,7 @@
 import { auth } from '@/auth';
 import { redirect } from 'next/navigation';
 import { startOfMonth, endOfMonth } from 'date-fns';
+import { TransactionSource } from '@prisma/client';
 import { TransactionService } from '@/server/modules/transaction/transaction.service';
 import { AccountService } from '@/server/modules/account/account.service';
 import { CategoryService } from '@/server/modules/category/category.service';
@@ -32,7 +33,7 @@ export default async function TransactionsPage({
 		categoryId: params.categoryId,
 		accountId: params.accountId,
 		search: params.search,
-		source: params.source,
+		source: params.source as TransactionSource | undefined,
 		amountMin: params.amountMin ? Number(params.amountMin) : undefined,
 		amountMax: params.amountMax ? Number(params.amountMax) : undefined,
 		startDate,

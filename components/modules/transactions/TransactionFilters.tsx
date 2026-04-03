@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { format } from 'date-fns';
 import {
@@ -96,13 +96,14 @@ export function TransactionFilters({
 
 	// Debounced search
 	const [localSearch, setLocalSearch] = useState(searchQuery);
+	const searchTimeoutRef = useRef<ReturnType<typeof setTimeout>>(null);
 	const handleSearchChange = useCallback(
 		(value: string) => {
 			setLocalSearch(value);
-			const timeout = setTimeout(() => {
+			if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
+			searchTimeoutRef.current = setTimeout(() => {
 				updateParams({ search: value || null });
 			}, 300);
-			return () => clearTimeout(timeout);
 		},
 		[updateParams]
 	);
