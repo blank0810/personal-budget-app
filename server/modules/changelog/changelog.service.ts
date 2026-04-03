@@ -52,11 +52,16 @@ export class ChangelogService {
 			} as Version;
 		});
 
-		// Sort by version number descending (v1.8 before v1.7)
+		// Sort by version number descending (v1.9.8 before v1.9.7 before v1.9)
 		versions.sort((a, b) => {
-			const aNum = parseFloat(a.version.replace('v', ''));
-			const bNum = parseFloat(b.version.replace('v', ''));
-			return bNum - aNum;
+			const aParts = a.version.replace('v', '').split('.').map(Number);
+			const bParts = b.version.replace('v', '').split('.').map(Number);
+			for (let i = 0; i < Math.max(aParts.length, bParts.length); i++) {
+				const aVal = aParts[i] ?? 0;
+				const bVal = bParts[i] ?? 0;
+				if (bVal !== aVal) return bVal - aVal;
+			}
+			return 0;
 		});
 
 		return versions;

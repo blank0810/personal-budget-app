@@ -111,7 +111,8 @@ export function AccountCard({ account, isSelected, onClick }: AccountCardProps) 
 				isSelected && 'ring-2 ring-primary scale-[1.02] shadow-xl'
 			)}
 			style={{
-				width: 300,
+				width: '100%',
+				maxWidth: 300,
 				minHeight: 190,
 				flexShrink: 0,
 			}}
