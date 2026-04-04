@@ -11,6 +11,7 @@ import {
 	type AccountClass,
 } from '@/lib/account-utils';
 import { useCurrency } from '@/lib/contexts/currency-context';
+import { useQuickAction, type QuickAction } from './QuickActionSheet';
 
 interface AccountCardCarouselProps {
 	accounts: Array<AccountCardAccount & { currency: string }>;
@@ -18,13 +19,36 @@ interface AccountCardCarouselProps {
 }
 
 const QUICK_ACTIONS = [
-	{ label: 'Send', href: '/transfers', icon: ArrowUpRight },
-	{ label: 'Receive', href: '/income', icon: ArrowDownLeft },
-	{ label: 'Transfer', href: '/transfers', icon: ArrowLeftRight },
-	{ label: 'Payment', href: '/payments', icon: CreditCard },
+	{ label: 'Send', action: 'transfer' as QuickAction, icon: ArrowUpRight },
+	{ label: 'Receive', action: 'income' as QuickAction, icon: ArrowDownLeft },
+	{ label: 'Transfer', action: 'transfer' as QuickAction, icon: ArrowLeftRight },
+	{ label: 'Payment', action: 'payment' as QuickAction, icon: CreditCard },
 ] as const;
 
 const AUTO_ROTATE_MS = 10000;
+
+function QuickActions() {
+	const { openSheet } = useQuickAction();
+	return (
+		<div className='flex items-center gap-4'>
+			{QUICK_ACTIONS.map(({ label, action, icon: Icon }) => (
+				<button
+					key={label}
+					type='button'
+					onClick={() => openSheet(action)}
+					className='group flex flex-col items-center gap-2'
+				>
+					<span className='flex h-10 w-10 items-center justify-center rounded-full border border-zinc-300 bg-zinc-200 transition-colors group-hover:bg-zinc-300 dark:border-white/20 dark:bg-white/5 dark:group-hover:bg-white/15'>
+						<Icon className='h-4.5 w-4.5 text-zinc-700 dark:text-white/80' />
+					</span>
+					<span className='text-[11px] font-medium text-zinc-500 transition-colors group-hover:text-zinc-800 dark:text-white/60 dark:group-hover:text-white/90'>
+						{label}
+					</span>
+				</button>
+			))}
+		</div>
+	);
+}
 
 function sortAccountsByClass(
 	accounts: AccountCardCarouselProps['accounts']
@@ -93,9 +117,7 @@ export function AccountCardCarousel({ accounts, totalBalance }: AccountCardCarou
 		);
 	}
 
-	const accountTypeLabel = selected
-		? selected.type.charAt(0) + selected.type.slice(1).toLowerCase() + ' account'
-		: '';
+	const accountLabel = selected ? selected.name : '';
 
 	// Get next card for the "peeking behind" effect
 	const nextIndex = (selectedIndex + 1) % sorted.length;
@@ -157,7 +179,7 @@ export function AccountCardCarousel({ accounts, totalBalance }: AccountCardCarou
 						{/* Account label + Add card */}
 						<div className='flex items-start justify-between'>
 							<p className='text-lg font-semibold text-zinc-900 dark:text-white'>
-								{accountTypeLabel}
+								{accountLabel}
 							</p>
 							<Link
 								href='/accounts'
@@ -197,22 +219,7 @@ export function AccountCardCarousel({ accounts, totalBalance }: AccountCardCarou
 						</div>
 
 						{/* Quick actions */}
-						<div className='flex items-center gap-4'>
-							{QUICK_ACTIONS.map(({ label, href, icon: Icon }) => (
-								<Link
-									key={label}
-									href={href}
-									className='group flex flex-col items-center gap-2'
-								>
-									<span className='flex h-10 w-10 items-center justify-center rounded-full border border-zinc-300 bg-zinc-200 transition-colors group-hover:bg-zinc-300 dark:border-white/20 dark:bg-white/5 dark:group-hover:bg-white/15'>
-										<Icon className='h-4.5 w-4.5 text-zinc-700 dark:text-white/80' />
-									</span>
-									<span className='text-[11px] font-medium text-zinc-500 transition-colors group-hover:text-zinc-800 dark:text-white/60 dark:group-hover:text-white/90'>
-										{label}
-									</span>
-								</Link>
-							))}
-						</div>
+						<QuickActions />
 
 						{/* Total balance across all accounts */}
 						{totalBalance !== undefined && (

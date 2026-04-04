@@ -72,6 +72,7 @@ const COLORS = [
 	{ value: 'orange', label: 'Orange', swatch: 'bg-orange-500' },
 	{ value: 'red', label: 'Red', swatch: 'bg-red-500' },
 	{ value: 'emerald', label: 'Emerald', swatch: 'bg-emerald-500' },
+	{ value: 'black', label: 'Black', swatch: 'bg-zinc-900' },
 ];
 
 interface AccountFormProps {

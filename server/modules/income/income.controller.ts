@@ -25,7 +25,7 @@ export async function createIncomeAction(data: unknown) {
 
 	try {
 		await IncomeService.createIncome(userId, parsed.data);
-		invalidateTags(CACHE_TAGS.INCOMES, CACHE_TAGS.ACCOUNTS, CACHE_TAGS.DASHBOARD);
+		invalidateTags(CACHE_TAGS.INCOMES, CACHE_TAGS.ACCOUNTS, CACHE_TAGS.DASHBOARD, CACHE_TAGS.TRANSACTIONS);
 		return { success: true as const };
 	} catch (error) {
 		console.error('Failed to create income:', error);
@@ -46,7 +46,7 @@ export async function updateIncomeAction(data: unknown) {
 
 	try {
 		await IncomeService.updateIncome(userId, parsed.data);
-		invalidateTags(CACHE_TAGS.INCOMES, CACHE_TAGS.ACCOUNTS, CACHE_TAGS.DASHBOARD);
+		invalidateTags(CACHE_TAGS.INCOMES, CACHE_TAGS.ACCOUNTS, CACHE_TAGS.DASHBOARD, CACHE_TAGS.TRANSACTIONS);
 		return { success: true as const };
 	} catch (error) {
 		console.error('Failed to update income:', error);
@@ -62,7 +62,7 @@ export async function deleteIncomeAction(incomeId: string) {
 
 	try {
 		await IncomeService.deleteIncome(userId, incomeId);
-		invalidateTags(CACHE_TAGS.INCOMES, CACHE_TAGS.ACCOUNTS, CACHE_TAGS.DASHBOARD);
+		invalidateTags(CACHE_TAGS.INCOMES, CACHE_TAGS.ACCOUNTS, CACHE_TAGS.DASHBOARD, CACHE_TAGS.TRANSACTIONS);
 		return { success: true as const };
 	} catch (error) {
 		console.error('Failed to delete income:', error);

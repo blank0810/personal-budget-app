@@ -252,7 +252,7 @@ export default async function DashboardPage() {
 			expenseCategories={expenseCategories}
 			budgets={currentBudgets}
 		>
-			<div className='dark:bg-[oklch(0.07_0_0)] -m-4 p-4 md:-m-8 md:p-8 min-h-[calc(100vh-4rem)]'>
+			<div className='dark:bg-[oklch(0.07_0_0)] -mx-4 -mt-2 -mb-4 px-4 pt-2 pb-4 md:-mx-8 md:-mt-3 md:-mb-8 md:px-8 md:pt-3 md:pb-8 min-h-[calc(100vh-4rem)]'>
 				<div className='container mx-auto space-y-6 py-4 md:py-6'>
 					<Suspense fallback={<GreetingHeaderSkeleton />}>
 						<GreetingSection userId={userId} />

@@ -9,6 +9,7 @@ export const CACHE_TAGS = {
 	ACCOUNTS: 'accounts',
 	BUDGETS: 'budgets',
 	TRANSFERS: 'transfers',
+	TRANSACTIONS: 'transactions',
 	PAYMENTS: 'payments',
 	GOALS: 'goals',
 	DASHBOARD: 'dashboard',
