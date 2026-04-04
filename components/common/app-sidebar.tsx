@@ -13,7 +13,6 @@ import {
 	Upload,
 	Target,
 	FileText,
-	RefreshCw,
 	type LucideIcon,
 } from 'lucide-react';
 
@@ -47,24 +46,19 @@ const navItems: NavItem[] = [
 		icon: LayoutDashboard,
 	},
 	{
+		title: 'Accounts',
+		url: '/accounts',
+		icon: CreditCard,
+	},
+	{
 		title: 'Transactions',
 		url: '/transactions',
 		icon: ArrowRightLeft,
 	},
 	{
-		title: 'Recurring',
-		url: '/recurring',
-		icon: RefreshCw,
-	},
-	{
 		title: 'Budgets',
 		url: '/budgets',
 		icon: PieChart,
-	},
-	{
-		title: 'Accounts',
-		url: '/accounts',
-		icon: CreditCard,
 	},
 	{
 		title: 'Goals',
@@ -120,10 +114,10 @@ function AppSidebarInner({ user, signOutAction, hasNewChangelog, disabledSidebar
 			onMouseLeave={handleMouseLeave}
 			{...props}
 		>
-			<SidebarHeader className='p-3'>
+			<SidebarHeader className='h-16 flex items-center px-3 py-2 border-b border-white/20 group-has-data-[collapsible=icon]/sidebar-wrapper:h-12'>
 				<SidebarMenu>
 					<SidebarMenuItem>
-						<SidebarMenuButton size='lg' asChild className='h-14 px-3'>
+						<SidebarMenuButton size='lg' asChild className='h-10 px-3'>
 							<a href='/dashboard'>
 								<div className='bg-sidebar-primary text-sidebar-primary-foreground flex aspect-square size-9 items-center justify-center rounded-lg'>
 									<Wallet className='size-5' />
@@ -141,7 +135,6 @@ function AppSidebarInner({ user, signOutAction, hasNewChangelog, disabledSidebar
 					</SidebarMenuItem>
 				</SidebarMenu>
 			</SidebarHeader>
-			<SidebarSeparator />
 			<SidebarContent>
 				<NavMain
 					items={(() => {

@@ -81,7 +81,7 @@ export default async function DashboardLayout({
 							<HeaderUser user={user} signOutAction={signOutAction} />
 						</div>
 					</header>
-					<main className='p-4 md:p-8'>{children}</main>
+					<main className='px-4 pt-2 pb-4 md:px-8 md:pt-3 md:pb-8'>{children}</main>
 				</SidebarInset>
 			</SidebarProvider>
 		</CurrencyProvider>

@@ -6,7 +6,10 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { TransactionKPICards } from './TransactionKPICards';
 import { TransactionFilters } from './TransactionFilters';
 import { TransactionTable } from './TransactionTable';
-import { getUnifiedTransactionsAction } from '@/server/modules/transaction/transaction.controller';
+import {
+	getUnifiedTransactionsAction,
+	getTransactionSummaryAction,
+} from '@/server/modules/transaction/transaction.controller';
 import type {
 	UnifiedTransaction,
 	TransactionSummary,
@@ -33,7 +36,14 @@ export function TransactionPageContainer({
 	const [transactions, setTransactions] =
 		useState<UnifiedTransaction[]>(initialTransactions);
 	const [total, setTotal] = useState(initialTotal);
-	const [summary] = useState(initialSummary);
+	const [summary, setSummary] = useState(initialSummary);
+
+	// Sync state when server re-renders with fresh data (e.g. after router.refresh())
+	useEffect(() => {
+		setTransactions(initialTransactions);
+		setTotal(initialTotal);
+		setSummary(initialSummary);
+	}, [initialTransactions, initialTotal, initialSummary]);
 
 	// Current filter/page state from URL
 	const page = Number(searchParams.get('page') ?? '1');
@@ -64,10 +74,19 @@ export function TransactionPageContainer({
 		);
 
 		startTransition(async () => {
-			const result = await getUnifiedTransactionsAction(cleanFilters);
+			const [result, summaryResult] = await Promise.all([
+				getUnifiedTransactionsAction(cleanFilters),
+				getTransactionSummaryAction({
+					startDate: searchParams.get('from') ?? undefined,
+					endDate: searchParams.get('to') ?? undefined,
+				}),
+			]);
 			if (result.success) {
 				setTransactions(result.data.data);
 				setTotal(result.data.total);
+			}
+			if (summaryResult.success) {
+				setSummary(summaryResult.data);
 			}
 		});
 	}, [searchParams]);

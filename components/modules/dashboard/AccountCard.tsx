@@ -32,6 +32,7 @@ const GRADIENT_MAP: Record<string, string> = {
 	purple: 'from-purple-600 via-purple-700 to-purple-900',
 	pink: 'from-pink-500 via-pink-600 to-pink-900',
 	teal: 'from-teal-500 via-teal-600 to-teal-900',
+	black: 'from-zinc-700 via-zinc-900 to-black',
 };
 
 const UTILIZATION_BAR_COLOR = (utilization: number): string => {

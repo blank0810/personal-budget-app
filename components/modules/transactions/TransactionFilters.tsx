@@ -47,8 +47,10 @@ const TYPE_CHIPS = [
 	{ value: 'payment', label: 'Payment' },
 ] as const;
 
+const ALL_VALUE = '__all__';
+
 const SOURCE_OPTIONS = [
-	{ value: '', label: 'All Sources' },
+	{ value: ALL_VALUE, label: 'All Sources' },
 	{ value: 'MANUAL', label: 'Manual' },
 	{ value: 'IMPORT', label: 'Imported' },
 	{ value: 'RECURRING', label: 'Recurring' },
@@ -109,14 +111,15 @@ export function TransactionFilters({
 	);
 
 	// Filter panel state (local until Apply)
+	// Use ALL_VALUE sentinel for Select components (Radix doesn't allow empty string)
 	const [filterCategory, setFilterCategory] = useState(
-		searchParams.get('categoryId') ?? ''
+		searchParams.get('categoryId') || ALL_VALUE
 	);
 	const [filterAccount, setFilterAccount] = useState(
-		searchParams.get('accountId') ?? ''
+		searchParams.get('accountId') || ALL_VALUE
 	);
 	const [filterSource, setFilterSource] = useState(
-		searchParams.get('source') ?? ''
+		searchParams.get('source') || ALL_VALUE
 	);
 	const [filterAmountMin, setFilterAmountMin] = useState<number | undefined>(
 		searchParams.get('amountMin') ? Number(searchParams.get('amountMin')) : undefined
@@ -127,9 +130,9 @@ export function TransactionFilters({
 
 	const applyFilters = () => {
 		updateParams({
-			categoryId: filterCategory || null,
-			accountId: filterAccount || null,
-			source: filterSource || null,
+			categoryId: filterCategory === ALL_VALUE ? null : filterCategory,
+			accountId: filterAccount === ALL_VALUE ? null : filterAccount,
+			source: filterSource === ALL_VALUE ? null : filterSource,
 			amountMin: filterAmountMin != null ? String(filterAmountMin) : null,
 			amountMax: filterAmountMax != null ? String(filterAmountMax) : null,
 		});
@@ -137,9 +140,9 @@ export function TransactionFilters({
 	};
 
 	const clearFilters = () => {
-		setFilterCategory('');
-		setFilterAccount('');
-		setFilterSource('');
+		setFilterCategory(ALL_VALUE);
+		setFilterAccount(ALL_VALUE);
+		setFilterSource(ALL_VALUE);
 		setFilterAmountMin(undefined);
 		setFilterAmountMax(undefined);
 		updateParams({
@@ -302,11 +305,11 @@ export function TransactionFilters({
 
 			{/* Advanced Filter Panel (Sheet) */}
 			<Sheet open={filterOpen} onOpenChange={setFilterOpen}>
-				<SheetContent side='right' className='w-full sm:max-w-sm'>
-					<SheetHeader>
+				<SheetContent side='right' className='w-full sm:max-w-md flex flex-col gap-0 p-0'>
+					<SheetHeader className='border-b px-4 py-4'>
 						<SheetTitle>Filters</SheetTitle>
 					</SheetHeader>
-					<div className='flex flex-col gap-4 py-4'>
+					<div className='flex flex-1 flex-col gap-4 overflow-y-auto px-4 py-4'>
 						{/* Category */}
 						<div className='space-y-2'>
 							<Label>Category</Label>
@@ -319,7 +322,7 @@ export function TransactionFilters({
 									<SelectValue placeholder='All categories' />
 								</SelectTrigger>
 								<SelectContent>
-									<SelectItem value=''>All categories</SelectItem>
+									<SelectItem value={ALL_VALUE}>All categories</SelectItem>
 									{categories.map((c) => (
 										<SelectItem key={c.id} value={c.id}>
 											{c.name}
@@ -340,7 +343,7 @@ export function TransactionFilters({
 									<SelectValue placeholder='All accounts' />
 								</SelectTrigger>
 								<SelectContent>
-									<SelectItem value=''>All accounts</SelectItem>
+									<SelectItem value={ALL_VALUE}>All accounts</SelectItem>
 									{accounts.map((a) => (
 										<SelectItem key={a.id} value={a.id}>
 											{a.name}
@@ -388,14 +391,14 @@ export function TransactionFilters({
 						</div>
 					</div>
 
-					<SheetFooter className='flex gap-2'>
+					<div className='border-t px-4 py-4 flex gap-2'>
 						<Button variant='outline' onClick={clearFilters} className='flex-1'>
 							Clear
 						</Button>
 						<Button onClick={applyFilters} className='flex-1'>
 							Apply
 						</Button>
-					</SheetFooter>
+					</div>
 				</SheetContent>
 			</Sheet>
 		</div>

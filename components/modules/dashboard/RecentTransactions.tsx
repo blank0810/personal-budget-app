@@ -53,7 +53,7 @@ export function RecentTransactions({
 			<CardHeader className='flex flex-row items-center justify-between pb-3'>
 				<CardTitle className='text-base font-semibold'>Transactions</CardTitle>
 				<Link
-					href='/expense'
+					href='/transactions'
 					className='text-xs text-muted-foreground hover:text-primary transition-colors'
 				>
 					Show more

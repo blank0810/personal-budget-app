@@ -2,7 +2,7 @@
 
 import { useTransition } from 'react';
 import { useRouter } from 'next/navigation';
-import { MoreHorizontal, Pencil, Trash2 } from 'lucide-react';
+import { MoreHorizontal, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import {
@@ -60,14 +60,6 @@ export function TransactionRowActions({ transaction }: TransactionRowActionsProp
 		});
 	};
 
-	// Determine the edit route based on kind
-	const editRoute =
-		transaction.kind === 'income'
-			? '/income'
-			: transaction.kind === 'expense'
-				? '/expense'
-				: '/transfers';
-
 	return (
 		<AlertDialog>
 			<DropdownMenu>
@@ -77,10 +69,6 @@ export function TransactionRowActions({ transaction }: TransactionRowActionsProp
 					</Button>
 				</DropdownMenuTrigger>
 				<DropdownMenuContent align='end'>
-					<DropdownMenuItem onClick={() => router.push(editRoute)}>
-						<Pencil className='mr-2 h-3.5 w-3.5' />
-						Edit
-					</DropdownMenuItem>
 					<AlertDialogTrigger asChild>
 						<DropdownMenuItem className='text-destructive'>
 							<Trash2 className='mr-2 h-3.5 w-3.5' />
