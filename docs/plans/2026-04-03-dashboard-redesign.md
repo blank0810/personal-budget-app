@@ -2,7 +2,7 @@
 
 **Date:** 2026-04-03
 **Status:** Approved
-**Reference:** Aniq UI Financial Dashboard (https://dashboard-1.aniq-ui.com)
+**Reference:** Financial Dashboard UI
 
 ## Layout
 
@@ -66,7 +66,7 @@ Row 4: [AI Financial Advisor - Coming Soon (~50%)] [Income vs Expense 6mo Chart 
 - Toggle between Transfer and Payment modes
 - Transfer mode: From account, To account, Amount, Transfer button
 - Payment mode: From asset, To liability, Amount, Pay button
-- Recent recipients/contacts (avatar row like Aniq UI)
+- Recent recipients/contacts (avatar row)
 
 ## Row 4 Left (~50%): AI Financial Advisor (Coming Soon)
 
