@@ -1,29 +1,15 @@
 'use client';
 
+import { useState } from 'react';
 import {
-	Table,
-	TableBody,
-	TableCell,
-	TableHead,
-	TableHeader,
-	TableRow,
-} from '@/components/ui/table';
-import { Button } from '@/components/ui/button';
-import {
-	Trash2,
-	FileText,
-	Landmark,
 	Wallet,
 	PiggyBank,
-	TrendingUp,
 	CreditCard,
-	Church,
 } from 'lucide-react';
-import { deleteAccountAction } from '@/server/modules/account/account.controller';
+import { Badge } from '@/components/ui/badge';
 import { useCurrency } from '@/lib/contexts/currency-context';
 import { Account } from '@prisma/client';
-import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { AccountCard } from '@/components/modules/dashboard/AccountCard';
 import {
 	groupAccountsByClass,
 	ACCOUNT_CLASS_ORDER,
@@ -32,262 +18,272 @@ import {
 } from '@/lib/account-utils';
 import { cn } from '@/lib/utils';
 
-const ACCOUNT_TYPE_ICON: Record<string, React.ElementType> = {
-	BANK: Landmark,
-	CASH: Wallet,
-	SAVINGS: PiggyBank,
-	INVESTMENT: TrendingUp,
-	CREDIT: CreditCard,
-	LOAN: FileText,
-	TITHE: Church,
-};
-
-const ACCOUNT_COLOR_MAP: Record<string, string> = {
-	blue: 'bg-blue-100 text-blue-600 dark:bg-blue-900 dark:text-blue-400',
-	green: 'bg-green-100 text-green-600 dark:bg-green-900 dark:text-green-400',
-	purple: 'bg-purple-100 text-purple-600 dark:bg-purple-900 dark:text-purple-400',
-	orange: 'bg-orange-100 text-orange-600 dark:bg-orange-900 dark:text-orange-400',
-	red: 'bg-red-100 text-red-600 dark:bg-red-900 dark:text-red-400',
-	emerald: 'bg-emerald-100 text-emerald-600 dark:bg-emerald-900 dark:text-emerald-400',
-};
-
-interface AccountListProps {
-	accounts: Account[];
+function getMaskedCardNumber(id: string): string {
+	const chars = id.replace(/-/g, '');
+	let num = 0;
+	for (let i = 0; i < chars.length; i++) {
+		num = (num * 31 + chars.charCodeAt(i)) >>> 0;
+	}
+	const suffix = String(num % 10000).padStart(4, '0');
+	return `•••• •••• •••• ${suffix}`;
 }
 
-export function AccountList({ accounts }: AccountListProps) {
-	const router = useRouter();
+const TYPE_CHIPS = [
+	{ value: null, label: 'All', icon: null },
+	{ value: 'liquid' as AccountClass, label: 'Liquid Assets', icon: Wallet },
+	{ value: 'savings' as AccountClass, label: 'Savings & Investments', icon: PiggyBank },
+	{ value: 'liability' as AccountClass, label: 'Liabilities', icon: CreditCard },
+] as const;
+
+interface AccountChipsProps {
+	accounts: Account[];
+	activeGroup: AccountClass | null;
+	onGroupChange: (group: AccountClass | null) => void;
+}
+
+export function AccountChips({ accounts, activeGroup, onGroupChange }: AccountChipsProps) {
 	const groups = groupAccountsByClass(accounts);
 
-	async function handleDelete(id: string) {
-		if (
-			confirm(
-				'Are you sure you want to delete this account? This action cannot be undone if there are related transactions.'
-			)
-		) {
-			const result = await deleteAccountAction(id);
-			if (result?.error) {
-				alert(result.error);
-			} else {
-				router.refresh();
-			}
-		}
-	}
-
-	if (accounts.length === 0) {
-		return (
-			<div className='rounded-md border bg-card p-8 text-center text-muted-foreground'>
-				No accounts found.
-			</div>
-		);
-	}
-
 	return (
-		<div className='space-y-6'>
-			{ACCOUNT_CLASS_ORDER.map((cls) => {
-				const groupAccounts = groups[cls];
-				if (groupAccounts.length === 0) return null;
-
-				const meta = ACCOUNT_CLASS_META[cls];
-				const Icon = meta.icon;
-				const subtotal = groupAccounts.reduce(
-					(sum, a) => sum + Number(a.balance),
-					0
-				);
+		<div className='flex items-center gap-2 flex-wrap'>
+			{TYPE_CHIPS.map((chip) => {
+				const count = chip.value ? groups[chip.value]?.length ?? 0 : accounts.length;
+				if (chip.value && count === 0) return null;
+				const Icon = chip.icon;
 
 				return (
-					<AccountGroup
-						key={cls}
-						cls={cls}
-						label={meta.label}
-						icon={<Icon className='h-4 w-4' />}
-						color={meta.color}
-						subtotal={subtotal}
-						accounts={groupAccounts}
-						onDelete={handleDelete}
-					/>
+					<button
+						key={chip.label}
+						type='button'
+						onClick={() => onGroupChange(chip.value)}
+						className={cn(
+							'rounded-full border px-3 py-1 text-xs font-medium transition-colors flex items-center gap-1.5',
+							activeGroup === chip.value ||
+								(chip.value === null && activeGroup === null)
+								? 'border-primary bg-primary text-primary-foreground'
+								: 'border-border bg-background text-muted-foreground hover:bg-accent'
+						)}
+					>
+						{Icon && <Icon className='h-3 w-3' />}
+						{chip.label}
+						<span className='opacity-70'>({count})</span>
+					</button>
 				);
 			})}
 		</div>
 	);
 }
 
-function AccountGroup({
+interface AccountListProps {
+	accounts: Account[];
+	selectedId: string | null;
+	onSelect: (id: string) => void;
+	activeGroup: AccountClass | null;
+}
+
+export function AccountList({ accounts, selectedId, onSelect, activeGroup }: AccountListProps) {
+	const groups = groupAccountsByClass(accounts);
+
+	if (accounts.length === 0) {
+		return (
+			<div className='rounded-md border bg-card p-8 text-center text-muted-foreground'>
+				No accounts found. Add your first account to get started.
+			</div>
+		);
+	}
+
+	// Determine which groups to show
+	const visibleGroups = activeGroup
+		? [activeGroup]
+		: ACCOUNT_CLASS_ORDER.filter((cls) => groups[cls].length > 0);
+
+	return (
+		<div className='space-y-3 max-h-[calc(100vh-300px)] overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]'>
+			{visibleGroups.map((cls) => {
+					const groupAccounts = groups[cls];
+					if (groupAccounts.length === 0) return null;
+					const meta = ACCOUNT_CLASS_META[cls];
+
+					return (
+						<div key={cls} className='space-y-3'>
+							{groupAccounts.map((account) => (
+								<AccountRow
+									key={account.id}
+									account={account}
+									isSelected={selectedId === account.id}
+									onSelect={onSelect}
+								/>
+							))}
+						</div>
+					);
+				})}
+		</div>
+	);
+}
+
+function GroupHeader({
 	cls,
 	label,
-	icon,
-	color,
-	subtotal,
 	accounts,
-	onDelete,
 }: {
 	cls: AccountClass;
 	label: string;
-	icon: React.ReactNode;
-	color: string;
-	subtotal: number;
 	accounts: Account[];
-	onDelete: (id: string) => void;
 }) {
 	const { formatCurrency } = useCurrency();
+	const meta = ACCOUNT_CLASS_META[cls];
+	const Icon = meta.icon;
+	const subtotal = accounts.reduce((sum, a) => sum + Number(a.balance), 0);
 	const isLiability = cls === 'liability';
 
 	return (
-		<div className='space-y-2'>
-			<div className='flex items-center justify-between px-1'>
-				<h3
-					className={cn(
-						'text-xs font-semibold uppercase tracking-wider flex items-center gap-1.5',
-						color === 'emerald' && 'text-emerald-600',
-						color === 'blue' && 'text-blue-600',
-						color === 'red' && 'text-red-600'
-					)}
-				>
-					{icon}
-					{label}
-				</h3>
-				<span
-					className={cn(
-						'text-sm font-bold',
-						isLiability ? 'text-red-600' : 'text-foreground'
-					)}
-				>
-					{formatCurrency(subtotal)}
-				</span>
-			</div>
-			<div className='rounded-md border bg-card'>
-				<Table className='table-fixed'>
-					<TableHeader>
-						<TableRow>
-							<TableHead className='w-[30%]'>Name</TableHead>
-							<TableHead className='hidden sm:table-cell w-[20%]'>Type</TableHead>
-							<TableHead className='w-[30%] text-right'>Balance</TableHead>
-							<TableHead className='w-[20%] text-right'>
-								Actions
-							</TableHead>
-						</TableRow>
-					</TableHeader>
-					<TableBody>
-						{accounts.map((account) => (
-							<AccountRow
-								key={account.id}
-								account={account}
-								onDelete={onDelete}
-							/>
-						))}
-					</TableBody>
-				</Table>
-			</div>
+		<div className='flex items-center justify-between py-2'>
+			<h3
+				className={cn(
+					'text-xs font-semibold uppercase tracking-wider flex items-center gap-1.5',
+					meta.color === 'emerald' && 'text-emerald-600 dark:text-emerald-400',
+					meta.color === 'blue' && 'text-blue-600 dark:text-blue-400',
+					meta.color === 'red' && 'text-red-600 dark:text-red-400'
+				)}
+			>
+				<Icon className='h-4 w-4' />
+				{label}
+				<span className='opacity-70'>({accounts.length})</span>
+			</h3>
+			<span
+				className={cn(
+					'text-sm font-bold tabular-nums',
+					isLiability
+						? 'text-red-600 dark:text-red-400'
+						: 'text-foreground'
+				)}
+			>
+				{formatCurrency(subtotal)}
+			</span>
 		</div>
 	);
 }
 
 function AccountRow({
 	account,
-	onDelete,
+	isSelected,
+	onSelect,
 }: {
 	account: Account;
-	onDelete: (id: string) => void;
+	isSelected: boolean;
+	onSelect: (id: string) => void;
 }) {
 	const { formatCurrency } = useCurrency();
-	const TypeIcon = ACCOUNT_TYPE_ICON[account.type] || Landmark;
-
-	return (
-		<TableRow>
-			<TableCell className='font-medium'>
-				<span className='flex items-center gap-2'>
-					<span className={cn(
-						'flex h-6 w-6 items-center justify-center rounded-full shrink-0',
-						account.color && ACCOUNT_COLOR_MAP[account.color]
-							? ACCOUNT_COLOR_MAP[account.color]
-							: 'text-muted-foreground'
-					)}>
-						<TypeIcon className='h-3.5 w-3.5' />
-					</span>
-					{account.name}
-				</span>
-			</TableCell>
-			<TableCell className='hidden sm:table-cell'>
-				<span className='inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 border-transparent bg-primary/10 text-primary hover:bg-primary/20'>
-					{account.type}
-				</span>
-			</TableCell>
-			<TableCell className='text-right'>
-				<div className='font-bold'>
-					{formatCurrency(Number(account.balance))}
-				</div>
-				{account.type === 'CREDIT' && account.creditLimit && (
-					<CreditUtilization account={account} />
-				)}
-			</TableCell>
-			<TableCell className='w-[100px] text-right'>
-				<div className='flex justify-end gap-2'>
-					<Button
-						variant='ghost'
-						size='icon'
-						className='h-8 w-8 text-muted-foreground hover:text-primary'
-						asChild
-					>
-						<Link href={`/accounts/${account.id}`}>
-							<FileText className='h-4 w-4' />
-						</Link>
-					</Button>
-					<Button
-						variant='ghost'
-						size='icon'
-						className='h-8 w-8 text-destructive'
-						onClick={() => onDelete(account.id)}
-					>
-						<Trash2 className='h-4 w-4' />
-					</Button>
-				</div>
-			</TableCell>
-		</TableRow>
-	);
-}
-
-function CreditUtilization({ account }: { account: Account }) {
-	const { formatCurrency } = useCurrency();
-	const creditLimit = Number(account.creditLimit);
 	const balance = Number(account.balance);
-	const utilization = balance / creditLimit;
-	const availableCredit = creditLimit - balance;
+	const creditLimit = Number(account.creditLimit ?? 0);
+	const isCredit = account.type === 'CREDIT' && creditLimit > 0;
+	const utilization = isCredit ? Math.min(balance / creditLimit, 1) : 0;
 	const utilizationPercent = Math.round(utilization * 100);
+	const availableCredit = isCredit ? creditLimit - balance : 0;
 
-	let barColor = 'bg-green-400';
-	if (utilization >= 0.9) barColor = 'bg-red-600';
-	else if (utilization >= 0.7) barColor = 'bg-red-500';
-	else if (utilization >= 0.5) barColor = 'bg-orange-500';
-	else if (utilization >= 0.3) barColor = 'bg-yellow-500';
-	else if (utilization >= 0.1) barColor = 'bg-green-500';
+	const cardAccount = {
+		id: account.id,
+		name: account.name,
+		type: account.type,
+		balance,
+		color: account.color,
+		isLiability: account.isLiability,
+		creditLimit: account.creditLimit ? creditLimit : null,
+	};
 
 	return (
-		<div className='flex flex-col items-end gap-1 mt-1'>
-			<div className='flex justify-between w-full text-xs'>
-				<span
-					className={
-						utilization >= 0.7
-							? 'text-red-600 dark:text-red-400'
-							: utilization >= 0.5
-							? 'text-orange-600 dark:text-orange-400'
-							: utilization >= 0.3
-							? 'text-yellow-600 dark:text-yellow-400'
-							: 'text-green-600 dark:text-green-400'
-					}
-				>
-					{utilizationPercent}% Used
-				</span>
-				<span className='text-green-600 dark:text-green-400'>
-					Avail: {formatCurrency(availableCredit)}
-				</span>
-			</div>
-			<div className='w-full h-1.5 bg-secondary rounded-full overflow-hidden'>
-				<div
-					className={`h-full ${barColor}`}
-					style={{
-						width: `${Math.min(utilizationPercent, 100)}%`,
-					}}
+		<div
+			role='button'
+			tabIndex={0}
+			onClick={() => onSelect(account.id)}
+			onKeyDown={(e) => e.key === 'Enter' && onSelect(account.id)}
+			className={cn(
+				'flex w-full cursor-pointer flex-col sm:flex-row items-stretch gap-4 rounded-xl border bg-card p-4 text-left transition-all',
+				isSelected
+					? 'ring-2 ring-primary border-primary'
+					: 'hover:bg-accent/50'
+			)}
+		>
+			{/* Left: Card graphic */}
+			<div className='shrink-0 sm:w-[260px] pointer-events-none'>
+				<AccountCard
+					account={cardAccount}
+					isSelected={false}
+					onClick={() => {}}
 				/>
+			</div>
+
+			{/* Right: 2x2 detail grid */}
+			<div className='flex flex-1 flex-col justify-center gap-3 min-w-0'>
+				<div className='flex items-center gap-2'>
+					<h3 className='text-sm font-semibold truncate'>
+						{account.name}
+					</h3>
+					<Badge
+						variant='secondary'
+						className='text-[10px] font-medium shrink-0'
+					>
+						{account.type}
+					</Badge>
+				</div>
+
+				<div className='grid grid-cols-2 gap-x-4 gap-y-3'>
+					{/* Row 1: Balance | Account Number */}
+					<div>
+						<p className='text-[10px] uppercase tracking-wider text-muted-foreground mb-0.5'>
+							{account.isLiability ? 'Amount Owed' : 'Balance'}
+						</p>
+						<p className='text-sm font-bold tabular-nums'>
+							{formatCurrency(balance)}
+						</p>
+					</div>
+					<div>
+						<p className='text-[10px] uppercase tracking-wider text-muted-foreground mb-0.5'>
+							Account Number
+						</p>
+						<p className='font-mono text-xs font-medium text-muted-foreground'>
+							{getMaskedCardNumber(account.id)}
+						</p>
+					</div>
+
+					{/* Row 2: Type | Credit info or placeholder */}
+					<div>
+						<p className='text-[10px] uppercase tracking-wider text-muted-foreground mb-0.5'>
+							Account Type
+						</p>
+						<p className='text-xs font-medium'>{account.type}</p>
+					</div>
+					<div>
+						{isCredit ? (
+							<>
+								<p className='text-[10px] uppercase tracking-wider text-muted-foreground mb-0.5'>
+									Available Credit
+								</p>
+								<p
+									className={cn(
+										'text-xs font-medium tabular-nums',
+										utilization >= 0.7
+											? 'text-red-600 dark:text-red-400'
+											: utilization >= 0.3
+												? 'text-yellow-600 dark:text-yellow-400'
+												: 'text-green-600 dark:text-green-400'
+									)}
+								>
+									{formatCurrency(availableCredit)}
+								</p>
+							</>
+						) : (
+							<>
+								<p className='text-[10px] uppercase tracking-wider text-muted-foreground mb-0.5'>
+									Status
+								</p>
+								<p className='text-xs font-medium text-green-600 dark:text-green-400'>
+									Active
+								</p>
+							</>
+						)}
+					</div>
+				</div>
 			</div>
 		</div>
 	);

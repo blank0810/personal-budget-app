@@ -39,14 +39,10 @@ app/
 ├── (auth)/              # Public auth pages (login, register, forgot-password)
 ├── (authenticated)/     # Protected routes with sidebar layout
 │   ├── dashboard/       # Main dashboard with health score, charts, goals widget
-│   ├── income/          # Income management
-│   ├── expense/         # Expense management
-│   ├── transfers/       # Account transfers
-│   ├── payments/        # Liability payments
+│   ├── transactions/    # Unified transactions (income, expense, transfer, payment)
+│   ├── accounts/        # Account management + detail ledger
 │   ├── budgets/         # Envelope budgets
-│   ├── accounts/        # Account management
 │   ├── goals/           # Savings goals
-│   ├── recurring/       # Recurring transactions
 │   ├── import/          # CSV import wizard
 │   ├── reports/         # Financial reports & PDF export
 │   ├── profile/         # User profile & notifications
@@ -62,11 +58,12 @@ app/
 server/
 ├── actions/             # Server actions (auth, cache)
 └── modules/             # Feature modules
+    ├── transaction/     # Unified transaction queries + KPI aggregation
     ├── income/          # Income CRUD + balance updates
     ├── expense/         # Expense CRUD + balance updates
-    ├── account/         # Account management
+    ├── account/         # Account management + summary KPIs
     ├── budget/          # Envelope budgets
-    ├── transfer/        # Account transfers
+    ├── transfer/        # Account transfers (includes payments to liabilities)
     ├── category/        # Categories (income/expense)
     ├── report/          # Monthly reports, PDF generation, email digest
     ├── recurring/       # Recurring transaction automation
@@ -85,9 +82,11 @@ components/
 └── modules/             # Feature-specific components
     ├── landing/         # Landing page sections (Navbar, Hero, Features, etc.)
     ├── admin/           # Admin panel components
+    ├── dashboard/       # Dashboard cards, carousel, charts, quick actions
+    ├── transactions/    # Unified transaction table, filters, KPI cards
+    ├── account/         # Account form, list, ledger, KPI cards
     ├── goal/            # Goal cards, forms, dashboard widget
     ├── import/          # CSV import wizard steps
-    ├── recurring/       # Recurring transaction UI
     └── ...              # Other feature modules
 
 content/
@@ -96,11 +95,13 @@ content/
 
 ### Data Flow Pattern
 ```
-UI Component → Server Action (controller) → Service → Prisma → PostgreSQL
+UI Component / Server Page → Controller (server action) → Service → Prisma → PostgreSQL
 ```
 
-Controllers handle: auth checks, Zod validation, error handling, cache revalidation.
-Services handle: business logic, Prisma transactions, balance updates.
+**All requests MUST route through the controller** — never call services directly from pages or components. This ensures consistent auth checks and validation at every entry point.
+
+Controllers handle: auth checks (`getAuthenticatedUser()`), Zod validation, error handling, cache revalidation (`invalidateTags()`).
+Services handle: business logic, Prisma queries/transactions, balance updates.
 
 ### Key Database Patterns
 - All monetary values use `Decimal(10,2)` or `Decimal(12,2)` for account balances

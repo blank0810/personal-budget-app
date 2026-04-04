@@ -13,6 +13,21 @@ import { IncomeService } from '../income/income.service';
 import { ExpenseService } from '../expense/expense.service';
 
 /**
+ * Server Action: Get Accounts
+ */
+export async function getAccountsAction() {
+	const userId = await getAuthenticatedUser();
+
+	try {
+		const accounts = await AccountService.getAccounts(userId);
+		return { success: true as const, data: accounts };
+	} catch (error) {
+		console.error('Failed to fetch accounts:', error);
+		return { error: 'Failed to fetch accounts' };
+	}
+}
+
+/**
  * Server Action: Create Account
  */
 export async function createAccountAction(data: unknown) {
@@ -79,6 +94,21 @@ export async function deleteAccountAction(accountId: string) {
 		return {
 			error: 'Failed to delete account. It may have related transactions.',
 		};
+	}
+}
+
+/**
+ * Server Action: Get Account KPI Summary
+ */
+export async function getAccountSummaryAction() {
+	const userId = await getAuthenticatedUser();
+
+	try {
+		const summary = await AccountService.getAccountSummary(userId);
+		return { success: true as const, data: summary };
+	} catch (error) {
+		console.error('Failed to fetch account summary:', error);
+		return { error: 'Failed to fetch account summary' };
 	}
 }
 

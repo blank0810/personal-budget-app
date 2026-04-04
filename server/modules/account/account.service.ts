@@ -90,6 +90,45 @@ export const AccountService = {
 	},
 
 	/**
+	 * Get account KPI summary (Net Worth, Total Balance, Total Debt, Credit Utilization)
+	 */
+	async getAccountSummary(userId: string) {
+		const accounts = await prisma.account.findMany({
+			where: { userId, isArchived: false },
+			select: { balance: true, isLiability: true, creditLimit: true },
+		});
+
+		let totalBalance = 0;
+		let totalDebt = 0;
+		let totalCreditUsed = 0;
+		let totalCreditLimit = 0;
+
+		for (const account of accounts) {
+			const balance = Number(account.balance);
+			if (account.isLiability) {
+				totalDebt += balance;
+				const limit = Number(account.creditLimit ?? 0);
+				if (limit > 0) {
+					totalCreditUsed += balance;
+					totalCreditLimit += limit;
+				}
+			} else {
+				totalBalance += balance;
+			}
+		}
+
+		return {
+			totalBalance,
+			totalDebt,
+			netWorth: totalBalance - totalDebt,
+			creditUtilization:
+				totalCreditLimit > 0
+					? (totalCreditUsed / totalCreditLimit) * 100
+					: null,
+		};
+	},
+
+	/**
 	 * Get all archived accounts for a user
 	 */
 	async getArchivedAccounts(userId: string) {
