@@ -24,6 +24,7 @@ const ACCOUNT_TYPE_ICON: Record<string, React.ElementType> = {
 
 const GRADIENT_MAP: Record<string, string> = {
 	slate: 'from-slate-600 via-slate-700 to-slate-900',
+	silver: 'from-slate-300 via-slate-400 to-slate-600',
 	blue: 'from-blue-600 via-blue-700 to-blue-900',
 	emerald: 'from-emerald-600 via-emerald-700 to-emerald-900',
 	red: 'from-red-500 via-orange-600 to-red-900',
