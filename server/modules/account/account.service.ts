@@ -6,70 +6,25 @@ import {
 } from './account.types';
 import { Prisma } from '@prisma/client';
 
-// System category name for opening balances
-const OPENING_BALANCE_CATEGORY = '💰 Opening Balance';
-
 export const AccountService = {
 	/**
-	 * Create a new account with optional Opening Balance income entry
+	 * Create a new account.
 	 *
-	 * For asset accounts with balance > 0, creates an "Opening Balance" income
-	 * to ensure financial statements are accurate from day one.
-	 *
-	 * For liability accounts, the balance IS the debt - no income entry needed.
+	 * If `balance > 0`, the starting value is also stored in `openingBalance`.
+	 * The ledger renders a synthetic "Opening Balance" row based on that column
+	 * via getAccountWithTransactions, so no real Income/Expense row is written.
+	 * This keeps opening balances out of reports, KPIs, and budget aggregates.
 	 */
 	async createAccount(userId: string, data: CreateAccountInput) {
 		const balance = data.balance || 0;
-		const isLiability = data.isLiability || false;
-		const needsOpeningBalanceEntry = balance > 0 && !isLiability;
 
-		// Use transaction to ensure both account and income are created together
-		return await prisma.$transaction(async (tx) => {
-			// 1. Create the account
-			const account = await tx.account.create({
-				data: {
-					...data,
-					userId,
-				},
-			});
-
-			// 2. For asset accounts with balance, create Opening Balance income
-			if (needsOpeningBalanceEntry) {
-				// Get or create the Opening Balance category
-				let category = await tx.category.findFirst({
-					where: {
-						userId,
-						name: OPENING_BALANCE_CATEGORY,
-						type: 'INCOME',
-					},
-				});
-
-				if (!category) {
-					category = await tx.category.create({
-						data: {
-							name: OPENING_BALANCE_CATEGORY,
-							type: 'INCOME',
-							icon: '💰',
-							color: '#16a34a', // Green
-							userId,
-						},
-					});
-				}
-
-				// Create the opening balance income entry
-				await tx.income.create({
-					data: {
-						amount: new Prisma.Decimal(balance),
-						description: `Opening balance for ${data.name}`,
-						date: new Date(),
-						categoryId: category.id,
-						accountId: account.id,
-						userId,
-					},
-				});
-			}
-
-			return account;
+		return await prisma.account.create({
+			data: {
+				...data,
+				userId,
+				openingBalance:
+					balance > 0 ? new Prisma.Decimal(balance) : null,
+			},
 		});
 	},
 
@@ -237,7 +192,22 @@ export const AccountService = {
 		// Calculate running balance
 		let currentBalance = account.balance;
 		const isLiability = account.isLiability;
-		const transactionsWithBalance = transactions.map((t) => {
+		type LedgerTransaction = (typeof transactions)[number] & {
+			runningBalance: Prisma.Decimal;
+		};
+		type LedgerRow =
+			| LedgerTransaction
+			| {
+					id: string;
+					date: Date;
+					amount: Prisma.Decimal;
+					type: 'OPENING';
+					description: string | null;
+					categoryName: undefined;
+					relatedAccountName: undefined;
+					runningBalance: Prisma.Decimal;
+			  };
+		const transactionsWithBalance: LedgerRow[] = transactions.map((t) => {
 			const runningBalance = currentBalance;
 			// Reverse calculation to find balance before this transaction (for the next iteration)
 			// For liabilities: expense INCREASES debt, income/transfer-in DECREASES debt
@@ -257,6 +227,21 @@ export const AccountService = {
 			}
 			return { ...t, runningBalance };
 		});
+
+		// Append synthetic OPENING row at the end (oldest position) so users can
+		// see the starting balance without writing a real Income/Expense row.
+		if (account.openingBalance !== null) {
+			transactionsWithBalance.push({
+				id: `opening-${account.id}`,
+				type: 'OPENING' as const,
+				amount: account.openingBalance,
+				description: 'Opening Balance',
+				date: account.createdAt,
+				categoryName: undefined,
+				relatedAccountName: undefined,
+				runningBalance: account.openingBalance,
+			});
+		}
 
 		return {
 			...account,

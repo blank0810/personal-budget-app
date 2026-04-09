@@ -97,14 +97,14 @@ enum WorkEntryStatus {
 
 // User model
 model User {
-  id            String    @id @default(cuid())
-  email         String    @unique
-  name          String?
-  password      String?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String?
+  password  String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  phoneNumber   String?
+  phoneNumber String?
 
   // SaaS fields
   role                  UserRole  @default(USER)
@@ -172,27 +172,28 @@ model PasswordResetToken {
 
 // Account model (Bank, Cash, Credit Card, Investment, Loan)
 model Account {
-  id          String      @id @default(cuid())
-  name        String
-  type        AccountType
-  balance     Decimal     @db.Decimal(12, 2) // Current balance
-  currency    String      @default("USD")
-  icon        String?
-  color       String?
-  isLiability Boolean     @default(false)
-  isArchived  Boolean     @default(false)  // Soft delete for data integrity
-  creditLimit Decimal?    @db.Decimal(12, 2)
+  id             String      @id @default(cuid())
+  name           String
+  type           AccountType
+  balance        Decimal     @db.Decimal(12, 2) // Current balance
+  openingBalance Decimal?    @db.Decimal(12, 2) // Starting balance captured at creation; renders as a synthetic ledger row
+  currency       String      @default("USD")
+  icon           String?
+  color          String?
+  isLiability    Boolean     @default(false)
+  isArchived     Boolean     @default(false) // Soft delete for data integrity
+  creditLimit    Decimal?    @db.Decimal(12, 2)
 
-  userId      String
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
+  userId    String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   // Relations
-  user                  User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user                  User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
   incomes               Income[]
   expenses              Expense[]
-  transfersFrom         Transfer[]            @relation("TransferFrom")
-  transfersTo           Transfer[]            @relation("TransferTo")
+  transfersFrom         Transfer[]             @relation("TransferFrom")
+  transfersTo           Transfer[]             @relation("TransferTo")
   recurringTransactions RecurringTransaction[]
   goals                 Goal[]
 
@@ -205,7 +206,7 @@ model Account {
 model Transfer {
   id            String   @id @default(cuid())
   amount        Decimal  @db.Decimal(10, 2)
-  fee           Decimal  @db.Decimal(10, 2) @default(0)  // Transfer/bank fee
+  fee           Decimal  @default(0) @db.Decimal(10, 2) // Transfer/bank fee
   date          DateTime
   description   String?
   fromAccountId String
@@ -228,14 +229,14 @@ model Category {
   id        String       @id @default(cuid())
   name      String
   type      CategoryType
-  icon      String?      // Emoji or icon identifier (customizable)
-  color     String?      // Hex color code (customizable)
+  icon      String? // Emoji or icon identifier (customizable)
+  color     String? // Hex color code (customizable)
   userId    String
   createdAt DateTime     @default(now())
   updatedAt DateTime     @updatedAt
 
   // Relations
-  user                  User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user                  User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
   incomes               Income[]
   expenses              Expense[]
   budgets               Budget[]
@@ -252,20 +253,20 @@ model Income {
   description     String?
   date            DateTime
   isRecurring     Boolean           @default(false)
-  recurringPeriod String?           // "MONTHLY", "WEEKLY", "YEARLY"
+  recurringPeriod String? // "MONTHLY", "WEEKLY", "YEARLY"
   source          TransactionSource @default(MANUAL)
   importBatchId   String?
   categoryId      String
-  accountId       String?           // Where the money went
+  accountId       String? // Where the money went
   userId          String
   createdAt       DateTime          @default(now())
   updatedAt       DateTime          @updatedAt
 
   // Relations
-  category       Category @relation(fields: [categoryId], references: [id], onDelete: Restrict)
-  account        Account? @relation(fields: [accountId], references: [id], onDelete: SetNull)
-  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  linkedInvoice  Invoice?
+  category      Category @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  account       Account? @relation(fields: [accountId], references: [id], onDelete: SetNull)
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  linkedInvoice Invoice?
 
   @@index([userId, date])
   @@index([importBatchId])
@@ -280,12 +281,12 @@ model Expense {
   date            DateTime
   notes           String?           @db.Text
   isRecurring     Boolean           @default(false)
-  recurringPeriod String?           // "MONTHLY", "WEEKLY", "YEARLY"
+  recurringPeriod String? // "MONTHLY", "WEEKLY", "YEARLY"
   source          TransactionSource @default(MANUAL)
   importBatchId   String?
   categoryId      String
-  budgetId        String?           // Optional: link to budget for tracking
-  accountId       String?           // Where the money came from
+  budgetId        String? // Optional: link to budget for tracking
+  accountId       String? // Where the money came from
   userId          String
   createdAt       DateTime          @default(now())
   updatedAt       DateTime          @updatedAt
@@ -305,24 +306,24 @@ model Expense {
 // Budget model - Envelope Budgeting
 // Each budget has a unique name, allowing multiple budgets per category
 model Budget {
-  id         String    @id @default(cuid())
-  name       String    // e.g., "My Insurance", "Family Insurance"
-  amount     Decimal   @db.Decimal(10, 2)
-  month      DateTime  // First day of the month
+  id         String   @id @default(cuid())
+  name       String // e.g., "My Insurance", "Family Insurance"
+  amount     Decimal  @db.Decimal(10, 2)
+  month      DateTime // First day of the month
   categoryId String
   userId     String
-  createdAt  DateTime  @default(now())
-  updatedAt  DateTime  @updatedAt
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
   // Relations
-  category Category  @relation(fields: [categoryId], references: [id], onDelete: Restrict)
-  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  expenses              Expense[]              // Track expenses under this budget
+  category              Category               @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  user                  User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expenses              Expense[] // Track expenses under this budget
   recurringTransactions RecurringTransaction[] // Recurring transactions linked to this budget
 
-  @@unique([userId, name, month])  // Unique by name+month (allows multiple per category)
+  @@unique([userId, name, month]) // Unique by name+month (allows multiple per category)
   @@index([userId, month])
-  @@index([userId, categoryId])    // For querying budgets by category
+  @@index([userId, categoryId]) // For querying budgets by category
   @@map("budgets")
 }
 
@@ -330,10 +331,10 @@ model Budget {
 model MonthlyReport {
   id        String   @id @default(cuid())
   userId    String
-  period    DateTime                        // First day of month (e.g. 2026-01-01)
-  blobUrl   String                          // Vercel Blob download URL
-  fileName  String                          // Budget_Planner_January_2026.pdf
-  status    String   @default("completed")  // completed, failed
+  period    DateTime // First day of month (e.g. 2026-01-01)
+  blobUrl   String // Vercel Blob download URL
+  fileName  String // Budget_Planner_January_2026.pdf
+  status    String   @default("completed") // completed, failed
   createdAt DateTime @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -394,23 +395,23 @@ model FeatureRequest {
 
 // Recurring Transaction template
 model RecurringTransaction {
-  id            String             @id @default(cuid())
-  name          String
-  type          RecurringType
-  amount        Decimal            @db.Decimal(10, 2)
-  description   String?
-  frequency     RecurringFrequency
-  startDate     DateTime
-  endDate       DateTime?
-  nextRunDate   DateTime
-  lastRunDate   DateTime?
-  isActive      Boolean            @default(true)
-  categoryId    String
-  accountId     String
-  budgetId      String?
-  userId        String
-  createdAt     DateTime           @default(now())
-  updatedAt     DateTime           @updatedAt
+  id          String             @id @default(cuid())
+  name        String
+  type        RecurringType
+  amount      Decimal            @db.Decimal(10, 2)
+  description String?
+  frequency   RecurringFrequency
+  startDate   DateTime
+  endDate     DateTime?
+  nextRunDate DateTime
+  lastRunDate DateTime?
+  isActive    Boolean            @default(true)
+  categoryId  String
+  accountId   String
+  budgetId    String?
+  userId      String
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
 
   category Category @relation(fields: [categoryId], references: [id], onDelete: Restrict)
   account  Account  @relation(fields: [accountId], references: [id], onDelete: Restrict)
@@ -440,14 +441,14 @@ model Goal {
   updatedAt       DateTime   @updatedAt
 
   // Fund consolidation fields
-  goalType        GoalType   @default(FIXED_AMOUNT)
-  isEmergencyFund Boolean    @default(false)
-  thresholdLow    Int?       @default(2)   // Months for "Critical"
-  thresholdMid    Int?       @default(4)   // Months for "Underfunded"
-  thresholdHigh   Int?       @default(6)   // Months for "Funded"
+  goalType        GoalType @default(FIXED_AMOUNT)
+  isEmergencyFund Boolean  @default(false)
+  thresholdLow    Int?     @default(2) // Months for "Critical"
+  thresholdMid    Int?     @default(4) // Months for "Underfunded"
+  thresholdHigh   Int?     @default(6) // Months for "Funded"
 
-  user          User              @relation(fields: [userId], references: [id], onDelete: Cascade)
-  linkedAccount Account?          @relation(fields: [linkedAccountId], references: [id], onDelete: SetNull)
+  user          User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  linkedAccount Account?           @relation(fields: [linkedAccountId], references: [id], onDelete: SetNull)
   contributions GoalContribution[]
 
   @@index([userId, status])
@@ -511,11 +512,11 @@ model SystemSetting {
 // Cron job execution log for system health monitoring
 model CronRunLog {
   id             String   @id @default(cuid())
-  key            String   // "process-recurring", "monthly-report", etc.
-  status         String   // "success" | "failed"
+  key            String // "process-recurring", "monthly-report", etc.
+  status         String // "success" | "failed"
   processedCount Int      @default(0)
   errorMessage   String?
-  duration       Int?     // milliseconds
+  duration       Int? // milliseconds
   runAt          DateTime @default(now())
 
   @@index([key, runAt])
@@ -525,32 +526,32 @@ model CronRunLog {
 // ── Invoice Models ───────────────────────────────────────
 
 model Invoice {
-  id              String        @id @default(cuid())
-  invoiceNumber   String
-  status          InvoiceStatus @default(DRAFT)
-  clientName      String
-  clientEmail     String?
-  clientAddress   String?       @db.Text
-  clientPhone     String?
-  currency        String        @default("USD")
-  issueDate       DateTime
-  dueDate         DateTime
-  subtotal        Decimal       @db.Decimal(12, 2) @default(0)
-  taxRate         Decimal?      @db.Decimal(5, 2)
-  taxAmount       Decimal       @db.Decimal(12, 2) @default(0)
-  totalAmount     Decimal       @db.Decimal(12, 2) @default(0)
-  notes           String?       @db.Text
-  paidAt          DateTime?
-  linkedIncomeId  String?       @unique
-  clientId        String?
-  userId          String
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
+  id             String        @id @default(cuid())
+  invoiceNumber  String
+  status         InvoiceStatus @default(DRAFT)
+  clientName     String
+  clientEmail    String?
+  clientAddress  String?       @db.Text
+  clientPhone    String?
+  currency       String        @default("USD")
+  issueDate      DateTime
+  dueDate        DateTime
+  subtotal       Decimal       @default(0) @db.Decimal(12, 2)
+  taxRate        Decimal?      @db.Decimal(5, 2)
+  taxAmount      Decimal       @default(0) @db.Decimal(12, 2)
+  totalAmount    Decimal       @default(0) @db.Decimal(12, 2)
+  notes          String?       @db.Text
+  paidAt         DateTime?
+  linkedIncomeId String?       @unique
+  clientId       String?
+  userId         String
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
 
-  user            User          @relation(fields: [userId], references: [id], onDelete: Cascade)
-  linkedIncome    Income?       @relation(fields: [linkedIncomeId], references: [id], onDelete: SetNull)
-  client          Client?       @relation(fields: [clientId], references: [id], onDelete: SetNull)
-  lineItems       InvoiceLineItem[]
+  user         User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  linkedIncome Income?           @relation(fields: [linkedIncomeId], references: [id], onDelete: SetNull)
+  client       Client?           @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  lineItems    InvoiceLineItem[]
 
   @@unique([userId, invoiceNumber])
   @@index([userId, status])
@@ -559,17 +560,17 @@ model Invoice {
 }
 
 model InvoiceLineItem {
-  id          String   @id @default(cuid())
+  id          String    @id @default(cuid())
   description String
-  quantity    Decimal  @db.Decimal(10, 2) @default(1)
-  unitPrice   Decimal  @db.Decimal(10, 2)
-  amount      Decimal  @db.Decimal(12, 2)
-  date         DateTime?
-  sortOrder    Int      @default(0)
-  workEntryId  String?  @unique
-  invoiceId    String
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  quantity    Decimal   @default(1) @db.Decimal(10, 2)
+  unitPrice   Decimal   @db.Decimal(10, 2)
+  amount      Decimal   @db.Decimal(12, 2)
+  date        DateTime?
+  sortOrder   Int       @default(0)
+  workEntryId String?   @unique
+  invoiceId   String
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 
   workEntry WorkEntry? @relation(fields: [workEntryId], references: [id], onDelete: SetNull)
   invoice   Invoice    @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
@@ -582,22 +583,22 @@ model InvoiceLineItem {
 // ── Client & Work Entry Models ──────────────────────────
 
 model Client {
-  id           String   @id @default(cuid())
-  name         String
-  email        String?
-  phone        String?
-  address      String?  @db.Text
-  defaultRate  Decimal? @db.Decimal(10, 2)
-  currency     String   @default("USD")
-  notes        String?  @db.Text
-  isArchived   Boolean  @default(false)
-  userId       String
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id          String   @id @default(cuid())
+  name        String
+  email       String?
+  phone       String?
+  address     String?  @db.Text
+  defaultRate Decimal? @db.Decimal(10, 2)
+  currency    String   @default("USD")
+  notes       String?  @db.Text
+  isArchived  Boolean  @default(false)
+  userId      String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
-  user         User        @relation(fields: [userId], references: [id], onDelete: Cascade)
-  workEntries  WorkEntry[]
-  invoices     Invoice[]
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  workEntries WorkEntry[]
+  invoices    Invoice[]
 
   @@unique([userId, name])
   @@index([userId])
@@ -608,7 +609,7 @@ model WorkEntry {
   id                String          @id @default(cuid())
   description       String
   date              DateTime
-  quantity          Decimal         @db.Decimal(10, 2) @default(1)
+  quantity          Decimal         @default(1) @db.Decimal(10, 2)
   unitPrice         Decimal         @db.Decimal(10, 2)
   amount            Decimal         @db.Decimal(12, 2)
   status            WorkEntryStatus @default(UNBILLED)
@@ -620,9 +621,9 @@ model WorkEntry {
   createdAt         DateTime        @default(now())
   updatedAt         DateTime        @updatedAt
 
-  client            Client          @relation(fields: [clientId], references: [id], onDelete: Restrict)
-  user              User            @relation(fields: [userId], references: [id], onDelete: Cascade)
-  linkedLineItem    InvoiceLineItem?
+  client         Client           @relation(fields: [clientId], references: [id], onDelete: Restrict)
+  user           User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  linkedLineItem InvoiceLineItem?
 
   @@index([userId, clientId, status])
   @@index([userId, date])
