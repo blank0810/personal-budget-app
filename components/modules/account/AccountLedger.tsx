@@ -244,7 +244,7 @@ export function AccountLedger({ account, transactions }: AccountLedgerProps) {
 													: ['EXPENSE', 'TRANSFER_OUT', 'PAYMENT_OUT'].includes(t.type)
 														? 'text-red-600' // Expense / transfer-out / payment-out increases debt = bad
 														: 'text-muted-foreground' // Unknown / synthetic (e.g., OPENING)
-												: ['INCOME', 'TRANSFER_IN'].includes(t.type)
+												: ['INCOME', 'TRANSFER_IN', 'PAYMENT_IN'].includes(t.type)
 													? 'text-green-600'
 													: 'text-red-600'
 										}`}
