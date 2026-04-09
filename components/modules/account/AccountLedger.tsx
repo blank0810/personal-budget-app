@@ -239,23 +239,23 @@ export function AccountLedger({ account, transactions }: AccountLedgerProps) {
 											// For liabilities: PAYMENT_IN reduces debt (good), EXPENSE increases debt (bad)
 											// For assets: INCOME/TRANSFER_IN adds money (good), EXPENSE/TRANSFER_OUT removes money (bad)
 											account.isLiability
-												? ['PAYMENT_IN'].includes(t.type)
-													? 'text-green-600' // Payment reduces debt = good
-													: ['EXPENSE'].includes(t.type)
-														? 'text-red-600' // Expense increases debt = bad
-														: 'text-muted-foreground' // Transfers = neutral
+												? ['PAYMENT_IN', 'INCOME', 'TRANSFER_IN'].includes(t.type)
+													? 'text-green-600' // Payment / income / transfer-in reduces debt = good
+													: ['EXPENSE', 'TRANSFER_OUT', 'PAYMENT_OUT'].includes(t.type)
+														? 'text-red-600' // Expense / transfer-out / payment-out increases debt = bad
+														: 'text-muted-foreground' // Unknown / synthetic (e.g., OPENING)
 												: ['INCOME', 'TRANSFER_IN'].includes(t.type)
 													? 'text-green-600'
 													: 'text-red-600'
 										}`}
 									>
-										{// Sign based on balance impact
+										{// Sign reflects balance impact, not underlying table
 										account.isLiability
-											? ['PAYMENT_IN'].includes(t.type)
-												? '-' // Payment reduces debt
-												: ['EXPENSE', 'TRANSFER_OUT'].includes(t.type)
-													? '+' // Expense/transfer increases debt
-													: '+' // Default for liability
+											? ['PAYMENT_IN', 'INCOME', 'TRANSFER_IN'].includes(t.type)
+												? '-' // Reduces debt
+												: ['EXPENSE', 'TRANSFER_OUT', 'PAYMENT_OUT'].includes(t.type)
+													? '+' // Increases debt
+													: '' // Synthetic rows like OPENING have no sign prefix
 											: ['INCOME', 'TRANSFER_IN', 'PAYMENT_IN'].includes(t.type)
 												? '+'
 												: '-'}
