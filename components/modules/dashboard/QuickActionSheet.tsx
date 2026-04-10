@@ -205,8 +205,6 @@ function IncomeQuickForm({
 		});
 	}
 
-	const assetAccounts = accounts.filter((a) => !a.isLiability);
-
 	return (
 		<Form {...form}>
 			<form
@@ -316,7 +314,7 @@ function IncomeQuickForm({
 									</SelectTrigger>
 								</FormControl>
 								<SelectContent>
-									{assetAccounts.map((account) => (
+									{accounts.map((account) => (
 										<SelectItem key={account.id} value={account.id}>
 											{account.name}{' '}
 											<span className='text-muted-foreground'>
@@ -477,7 +475,6 @@ function ExpenseQuickForm({
 
 	// Sort: spending accounts first
 	const sortedAccounts = [...accounts]
-		.filter((a) => !a.isLiability)
 		.sort((a, b) => {
 			const isASpending = ['BANK', 'CASH', 'CREDIT'].includes(a.type);
 			const isBSpending = ['BANK', 'CASH', 'CREDIT'].includes(b.type);

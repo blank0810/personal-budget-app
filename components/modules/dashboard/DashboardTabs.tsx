@@ -355,7 +355,7 @@ export function DashboardTabs({
 	defaultTab,
 }: DashboardTabsProps) {
 	const { formatCurrency } = useCurrency();
-	const resolvedDefault = defaultTab ?? (invoiceData ? 'invoices' : 'health');
+	const resolvedDefault = defaultTab ?? 'health';
 
 	return (
 		<Tabs defaultValue={resolvedDefault} className='flex flex-col'>

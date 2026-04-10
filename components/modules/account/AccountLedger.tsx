@@ -17,6 +17,7 @@ import {
 	ArrowDownLeft,
 	ArrowRightLeft,
 	Receipt,
+	CircleDot,
 } from 'lucide-react';
 import { Decimal } from '@prisma/client/runtime/library';
 import { Badge } from '@/components/ui/badge';
@@ -27,7 +28,14 @@ interface Transaction {
 	id: string;
 	date: Date;
 	amount: Decimal;
-	type: 'INCOME' | 'EXPENSE' | 'TRANSFER_IN' | 'TRANSFER_OUT' | 'PAYMENT_IN' | 'PAYMENT_OUT';
+	type:
+		| 'INCOME'
+		| 'EXPENSE'
+		| 'TRANSFER_IN'
+		| 'TRANSFER_OUT'
+		| 'PAYMENT_IN'
+		| 'PAYMENT_OUT'
+		| 'OPENING';
 	description: string | null;
 	categoryName?: string;
 	relatedAccountName?: string;
@@ -123,6 +131,15 @@ export function AccountLedger({ account, transactions }: AccountLedgerProps) {
 						DEBT PAYMENT
 					</Badge>
 				);
+			case 'OPENING':
+				return (
+					<Badge
+						variant='outline'
+						className='italic text-muted-foreground border-dashed'
+					>
+						OPENING
+					</Badge>
+				);
 		}
 	};
 
@@ -140,6 +157,8 @@ export function AccountLedger({ account, transactions }: AccountLedgerProps) {
 				return <Receipt className='h-4 w-4 text-emerald-600' />;
 			case 'PAYMENT_OUT':
 				return <Receipt className='h-4 w-4 text-purple-600' />;
+			case 'OPENING':
+				return <CircleDot className='h-4 w-4 text-muted-foreground' />;
 		}
 	};
 
@@ -235,27 +254,31 @@ export function AccountLedger({ account, transactions }: AccountLedgerProps) {
 									</TableCell>
 									<TableCell
 										className={`text-right font-bold ${
-											// Green = good for user, Red = bad for user
-											// For liabilities: PAYMENT_IN reduces debt (good), EXPENSE increases debt (bad)
-											// For assets: INCOME/TRANSFER_IN adds money (good), EXPENSE/TRANSFER_OUT removes money (bad)
-											account.isLiability
-												? ['PAYMENT_IN'].includes(t.type)
-													? 'text-green-600' // Payment reduces debt = good
-													: ['EXPENSE'].includes(t.type)
-														? 'text-red-600' // Expense increases debt = bad
-														: 'text-muted-foreground' // Transfers = neutral
-												: ['INCOME', 'TRANSFER_IN'].includes(t.type)
+											// OPENING rows are synthetic — render italic muted so users
+											// cannot confuse them with real charges/income.
+											t.type === 'OPENING'
+												? 'italic text-muted-foreground font-medium'
+												: // Green = good for user, Red = bad for user
+												// For liabilities: PAYMENT_IN reduces debt (good), EXPENSE increases debt (bad)
+												// For assets: INCOME/TRANSFER_IN adds money (good), EXPENSE/TRANSFER_OUT removes money (bad)
+												account.isLiability
+												? ['PAYMENT_IN', 'INCOME', 'TRANSFER_IN'].includes(t.type)
+													? 'text-green-600' // Payment / income / transfer-in reduces debt = good
+													: ['EXPENSE', 'TRANSFER_OUT', 'PAYMENT_OUT'].includes(t.type)
+														? 'text-red-600' // Expense / transfer-out / payment-out increases debt = bad
+														: 'text-muted-foreground' // Unknown / synthetic fallback
+												: ['INCOME', 'TRANSFER_IN', 'PAYMENT_IN'].includes(t.type)
 													? 'text-green-600'
 													: 'text-red-600'
 										}`}
 									>
-										{// Sign based on balance impact
+										{// Sign reflects balance impact, not underlying table
 										account.isLiability
-											? ['PAYMENT_IN'].includes(t.type)
-												? '-' // Payment reduces debt
-												: ['EXPENSE', 'TRANSFER_OUT'].includes(t.type)
-													? '+' // Expense/transfer increases debt
-													: '+' // Default for liability
+											? ['PAYMENT_IN', 'INCOME', 'TRANSFER_IN'].includes(t.type)
+												? '-' // Reduces debt
+												: ['EXPENSE', 'TRANSFER_OUT', 'PAYMENT_OUT'].includes(t.type)
+													? '+' // Increases debt
+													: '' // Synthetic rows like OPENING have no sign prefix
 											: ['INCOME', 'TRANSFER_IN', 'PAYMENT_IN'].includes(t.type)
 												? '+'
 												: '-'}
