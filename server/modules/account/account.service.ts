@@ -1,10 +1,13 @@
 import prisma from '@/lib/prisma';
 import {
+	AdjustBalanceInput,
 	CreateAccountInput,
 	GetAccountsInput,
 	UpdateAccountInput,
 } from './account.types';
 import { Prisma } from '@prisma/client';
+import { IncomeService } from '../income/income.service';
+import { ExpenseService } from '../expense/expense.service';
 
 export const AccountService = {
 	/**
@@ -247,6 +250,70 @@ export const AccountService = {
 			...account,
 			transactions: transactionsWithBalance,
 		};
+	},
+
+	/**
+	 * Manually adjust an account balance.
+	 *
+	 * Records the delta as a real Income or Expense row (categorized as
+	 * "Initial Balance/Adjustment") so reports and KPIs stay consistent.
+	 * Sign rules:
+	 *   - Asset:     newBalance > current → Income;  newBalance < current → Expense
+	 *   - Liability: newBalance < current → Income (debt paid down);
+	 *                newBalance > current → Expense (debt increased)
+	 */
+	async adjustBalance(userId: string, data: AdjustBalanceInput) {
+		const account = await prisma.account.findUnique({
+			where: { id: data.accountId, userId },
+			select: { id: true, balance: true, isLiability: true },
+		});
+
+		if (!account) {
+			throw new Error('Account not found');
+		}
+
+		const currentBalance = account.balance.toNumber();
+		const diff = data.newBalance - currentBalance;
+
+		if (Math.abs(diff) < 0.01) {
+			return { adjusted: false as const };
+		}
+
+		const needsIncome = account.isLiability ? diff < 0 : diff > 0;
+		const amount = Math.abs(diff);
+		const date = new Date();
+		const description = 'Manual Balance Adjustment';
+		const categoryName = 'Initial Balance/Adjustment';
+
+		// IMPORTANT: `titheEnabled` and `emergencyFundEnabled` MUST stay false
+		// here. A manual balance adjustment must not trigger tithe / EF child
+		// transfers — otherwise reconciling a single-digit rounding error
+		// would move money between unrelated accounts and goals.
+		if (needsIncome) {
+			await IncomeService.createIncome(userId, {
+				amount,
+				date,
+				description,
+				categoryName,
+				accountId: data.accountId,
+				isRecurring: false,
+				titheEnabled: false,
+				tithePercentage: 0,
+				emergencyFundEnabled: false,
+				emergencyFundPercentage: 0,
+			});
+		} else {
+			await ExpenseService.createExpense(userId, {
+				amount,
+				date,
+				description,
+				categoryName,
+				accountId: data.accountId,
+				isRecurring: false,
+			});
+		}
+
+		return { adjusted: true as const };
 	},
 
 	/**

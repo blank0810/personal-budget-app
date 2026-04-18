@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useTransition } from 'react';
+import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { adjustBalanceSchema } from '@/server/modules/account/account.types';
@@ -38,6 +39,7 @@ interface AdjustBalanceDialogProps {
 
 export function AdjustBalanceDialog({ account }: AdjustBalanceDialogProps) {
 	const { formatCurrency } = useCurrency();
+	const router = useRouter();
 	const [open, setOpen] = useState(false);
 	const [isPending, startTransition] = useTransition();
 
@@ -78,6 +80,7 @@ export function AdjustBalanceDialog({ account }: AdjustBalanceDialogProps) {
 				console.error(result.error);
 			} else {
 				setOpen(false);
+				router.refresh();
 			}
 		});
 	}
