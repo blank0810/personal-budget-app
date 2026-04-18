@@ -31,10 +31,6 @@ import {
 	Download,
 	Ban,
 	CheckCircle,
-	ArrowDownLeft,
-	ArrowUpRight,
-	ArrowRightLeft,
-	Target,
 	RotateCcw,
 	User,
 	Wallet,
@@ -45,6 +41,7 @@ import {
 	Calendar,
 	Clock,
 } from 'lucide-react';
+import { UserActivityTable } from './UserActivityTable';
 
 // --- Serialized Types ---
 
@@ -97,20 +94,6 @@ interface UserDetailPageProps {
 }
 
 // --- Icon / color maps ---
-
-const TIMELINE_ICONS = {
-	income: ArrowDownLeft,
-	expense: ArrowUpRight,
-	transfer: ArrowRightLeft,
-	goal: Target,
-};
-
-const TIMELINE_COLORS = {
-	income: 'text-green-500',
-	expense: 'text-red-500',
-	transfer: 'text-blue-500',
-	goal: 'text-purple-500',
-};
 
 const ACCOUNT_TYPE_LABELS: Record<string, string> = {
 	CHECKING: 'Checking',
@@ -535,37 +518,7 @@ export function UserDetailPage({
 					</CardTitle>
 				</CardHeader>
 				<CardContent>
-					{timeline.length > 0 ? (
-						<div className='relative'>
-							{/* Vertical line */}
-							<div className='absolute left-[15px] top-2 bottom-2 w-px bg-border' />
-							<div className='space-y-4'>
-								{timeline.map((item) => {
-									const Icon = TIMELINE_ICONS[item.type];
-									const color = TIMELINE_COLORS[item.type];
-									return (
-										<div key={item.id} className='flex items-start gap-3 pl-1'>
-											<div
-												className={`relative z-10 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-background border ${color}`}
-											>
-												<Icon className='h-4 w-4' />
-											</div>
-											<div className='flex-1 min-w-0 pt-1'>
-												<p className='text-sm leading-snug'>{item.description}</p>
-												<p className='text-xs text-muted-foreground mt-0.5'>
-													{format(new Date(item.timestamp), 'MMM d, yyyy HH:mm')}
-												</p>
-											</div>
-										</div>
-									);
-								})}
-							</div>
-						</div>
-					) : (
-						<p className='text-sm text-muted-foreground py-4 text-center'>
-							No activity yet
-						</p>
-					)}
+					<UserActivityTable items={timeline} />
 				</CardContent>
 			</Card>
 

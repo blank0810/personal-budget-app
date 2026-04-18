@@ -28,12 +28,9 @@ import {
 	Download,
 	Ban,
 	CheckCircle,
-	ArrowDownLeft,
-	ArrowUpRight,
-	ArrowRightLeft,
-	Target,
 	RotateCcw,
 } from 'lucide-react';
+import { UserActivityTable } from './UserActivityTable';
 
 interface UserDetailDrawerProps {
 	userId: string | null;
@@ -69,20 +66,6 @@ interface TimelineItem {
 	amount?: number;
 	timestamp: Date | string;
 }
-
-const TIMELINE_ICONS = {
-	income: ArrowDownLeft,
-	expense: ArrowUpRight,
-	transfer: ArrowRightLeft,
-	goal: Target,
-};
-
-const TIMELINE_COLORS = {
-	income: 'text-green-500',
-	expense: 'text-red-500',
-	transfer: 'text-blue-500',
-	goal: 'text-purple-500',
-};
 
 export function UserDetailDrawer({ userId, onClose }: UserDetailDrawerProps) {
 	const [user, setUser] = useState<UserDetail | null>(null);
@@ -483,45 +466,7 @@ export function UserDetailDrawer({ userId, onClose }: UserDetailDrawerProps) {
 							<h4 className='font-medium text-sm mb-3'>
 								Recent Activity
 							</h4>
-							{timeline.length > 0 ? (
-								<div className='space-y-3'>
-									{timeline.map((item) => {
-										const Icon =
-											TIMELINE_ICONS[item.type];
-										const color =
-											TIMELINE_COLORS[item.type];
-										return (
-											<div
-												key={item.id}
-												className='flex items-start gap-3'
-											>
-												<div
-													className={`mt-0.5 ${color}`}
-												>
-													<Icon className='h-4 w-4' />
-												</div>
-												<div className='flex-1 min-w-0'>
-													<p className='text-sm truncate'>
-														{item.description}
-													</p>
-													<p className='text-xs text-muted-foreground'>
-														{format(
-															new Date(
-																item.timestamp
-															),
-															'MMM d, yyyy HH:mm'
-														)}
-													</p>
-												</div>
-											</div>
-										);
-									})}
-								</div>
-							) : (
-								<p className='text-sm text-muted-foreground'>
-									No activity yet
-								</p>
-							)}
+							<UserActivityTable items={timeline} pageSize={5} />
 						</div>
 					</div>
 				) : (
