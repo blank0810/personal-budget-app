@@ -5,6 +5,14 @@ services:
             context: .
             dockerfile: docker/Dockerfile
         restart: on-failure
+        # Pin container UID/GID to the host's so files written by Prisma,
+        # Next.js, and TypeScript on the bind-mounted /app are owned by the
+        # host user (not root). Without this, every migration/build landed
+        # root-owned and broke host-side git pulls. Defaults to 1000:1000 —
+        # the pre-existing `node` user in node:20-alpine, which matches the
+        # typical Linux dev UID. Override via HOST_UID / HOST_GID in .env
+        # if your host UID differs.
+        user: "${HOST_UID:-1000}:${HOST_GID:-1000}"
         environment:
             # Internal connection to postgres service on port 5432
             DATABASE_URL: ${DATABASE_URL}

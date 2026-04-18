@@ -23,6 +23,20 @@ docker compose exec app npx prisma generate      # Regenerate Prisma client
 docker compose exec app npx prisma studio        # Visual database browser
 ```
 
+## Local dev gotchas
+
+### Docker host-UID pinning
+
+`docker-compose.yml` pins the `app` service to `user: "${HOST_UID:-1000}:${HOST_GID:-1000}"`. This ensures files Prisma / Next.js / TypeScript write onto the bind-mounted `./` directory are owned by the host user, not `root`. Without this, every `prisma migrate dev` and every `.tsbuildinfo` write would leave root-owned files on the host and break subsequent `git pull` operations.
+
+Defaults to UID/GID 1000 (matches the pre-existing `node` user in `node:20-alpine` and typical Linux dev boxes). If your host UID differs, export `HOST_UID` / `HOST_GID` in `.env` or your shell before `docker compose up`.
+
+If you ever hit "Permission denied" on files inside the project dir, it means something wrote as root (likely an older-config container pre-fix, or a commit from another dev with a different UID). One-shot recovery:
+
+```bash
+sudo chown -R $USER:$USER .
+```
+
 ## Architecture
 
 ### Stack
