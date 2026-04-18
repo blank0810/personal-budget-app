@@ -9,8 +9,6 @@ import {
 } from './account.types';
 import { invalidateTags } from '@/server/actions/cache';
 import { CACHE_TAGS } from '@/server/lib/cache-tags';
-import { IncomeService } from '../income/income.service';
-import { ExpenseService } from '../expense/expense.service';
 
 /**
  * Server Action: Get Accounts
@@ -123,52 +121,8 @@ export async function adjustAccountBalanceAction(data: unknown) {
 		return { error: parsed.error.issues[0]?.message || 'Validation failed' };
 	}
 
-	const { accountId, newBalance } = parsed.data;
-
 	try {
-		const account = await AccountService.getAccountWithTransactions(
-			userId,
-			accountId
-		);
-
-		if (!account) {
-			return { error: 'Account not found' };
-		}
-
-		const currentBalance = account.balance.toNumber();
-		const diff = newBalance - currentBalance;
-		const isLiability = account.isLiability;
-
-		if (Math.abs(diff) < 0.01) {
-			return { success: true as const }; // No change
-		}
-
-		const needsIncome = isLiability ? diff < 0 : diff > 0;
-
-		if (needsIncome) {
-			await IncomeService.createIncome(userId, {
-				amount: Math.abs(diff),
-				date: new Date(),
-				description: 'Manual Balance Adjustment',
-				categoryName: 'Initial Balance/Adjustment',
-				accountId: accountId,
-				isRecurring: false,
-				titheEnabled: false,
-				tithePercentage: 0,
-				emergencyFundEnabled: false,
-				emergencyFundPercentage: 0,
-			});
-		} else {
-			await ExpenseService.createExpense(userId, {
-				amount: Math.abs(diff),
-				date: new Date(),
-				description: 'Manual Balance Adjustment',
-				categoryName: 'Initial Balance/Adjustment',
-				accountId: accountId,
-				isRecurring: false,
-			});
-		}
-
+		await AccountService.adjustBalance(userId, parsed.data);
 		invalidateTags(
 			CACHE_TAGS.ACCOUNTS,
 			CACHE_TAGS.INCOMES,
@@ -177,7 +131,11 @@ export async function adjustAccountBalanceAction(data: unknown) {
 		);
 		return { success: true as const };
 	} catch (error) {
-		console.error('Failed to adjust balance:', error);
-		return { error: 'Failed to adjust balance' };
+		return {
+			error:
+				error instanceof Error
+					? error.message
+					: 'Failed to adjust balance',
+		};
 	}
 }

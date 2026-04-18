@@ -24,13 +24,22 @@ export const GoalService = {
 			userId,
 		};
 
-		// If linking to an account, capture the baseline balance
+		// If linking to an account, capture the baseline balance. Emergency
+		// Fund goals must link to an asset — the EF-contribution flow on
+		// income assumes the destination is an asset (income.service.ts:126-176),
+		// so allowing a liability destination would invert the sign math and
+		// corrupt both the account balance and the goal's currentAmount.
 		if (data.linkedAccountId) {
 			const account = await prisma.account.findUnique({
 				where: { id: data.linkedAccountId, userId },
-				select: { balance: true },
+				select: { balance: true, isLiability: true },
 			});
 			if (!account) throw new Error('Account not found');
+			if (data.isEmergencyFund && account.isLiability) {
+				throw new Error(
+					'Emergency Fund goals cannot link to liability accounts'
+				);
+			}
 
 			goalData.linkedAccountId = data.linkedAccountId;
 			goalData.baselineAmount = account.balance;

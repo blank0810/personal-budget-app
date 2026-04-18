@@ -19,8 +19,9 @@ interface TransactionPageContainerProps {
 	initialTransactions: UnifiedTransaction[];
 	initialTotal: number;
 	initialSummary: TransactionSummary;
-	categories: Array<{ id: string; name: string }>;
+	categories: Array<{ id: string; name: string; type: 'INCOME' | 'EXPENSE' }>;
 	accounts: Array<{ id: string; name: string }>;
+	enableBulk: boolean;
 }
 
 export function TransactionPageContainer({
@@ -29,6 +30,7 @@ export function TransactionPageContainer({
 	initialSummary,
 	categories,
 	accounts,
+	enableBulk,
 }: TransactionPageContainerProps) {
 	const searchParams = useSearchParams();
 	const [isPending, startTransition] = useTransition();
@@ -122,7 +124,7 @@ export function TransactionPageContainer({
 				</CardHeader>
 				<CardContent className={isPending ? 'opacity-60 transition-opacity' : ''}>
 					<TransactionFilters
-						categories={categories}
+						categories={categories.map((c) => ({ id: c.id, name: c.name }))}
 						accounts={accounts}
 					/>
 					<div className='mt-4'>
@@ -131,6 +133,8 @@ export function TransactionPageContainer({
 							total={total}
 							page={page}
 							pageSize={pageSize}
+							categories={categories}
+							enableBulk={enableBulk}
 						/>
 					</div>
 				</CardContent>

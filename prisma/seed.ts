@@ -132,6 +132,7 @@ async function main() {
 		{ key: 'invoices', enabled: true, description: 'Invoicing module (clients, entries, invoices)' },
 		{ key: 'ai_features', enabled: false, description: 'AI-powered features (coming soon)' },
 		{ key: 'bulk_pdf_export', enabled: false, description: 'Bulk PDF report export (premium)' },
+		{ key: 'bulk_actions', enabled: false, description: 'Bulk delete / categorize on the /transactions table (v1.9.12 pilot)' },
 	];
 
 	for (const flag of featureFlags) {

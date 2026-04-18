@@ -83,3 +83,34 @@ export interface PaginatedTransactions {
 	page: number;
 	pageSize: number;
 }
+
+// ---------------------------------------------------------------------------
+// Bulk operations (v1.9.12 pilot)
+// Discriminator matches UnifiedTransaction.kind values.
+// ---------------------------------------------------------------------------
+
+export const bulkTransactionItemSchema = z.discriminatedUnion('kind', [
+	z.object({ kind: z.literal('income'), id: z.string().min(1) }),
+	z.object({ kind: z.literal('expense'), id: z.string().min(1) }),
+	z.object({ kind: z.literal('transfer'), id: z.string().min(1) }),
+]);
+
+export const bulkDeleteSchema = z.object({
+	items: z.array(bulkTransactionItemSchema).min(1).max(100),
+});
+
+export const bulkCategorizeSchema = z.object({
+	items: z.array(bulkTransactionItemSchema).min(1).max(100),
+	categoryId: z.string().min(1, 'Category is required'),
+});
+
+export type BulkTransactionItem = z.infer<typeof bulkTransactionItemSchema>;
+export type BulkDeleteInput = z.infer<typeof bulkDeleteSchema>;
+export type BulkCategorizeInput = z.infer<typeof bulkCategorizeSchema>;
+
+export interface BulkOperationResult {
+	requestedCount: number;
+	processedCount: number;
+	skippedCount: number;
+	skippedReasons: Array<{ id: string; reason: string }>;
+}

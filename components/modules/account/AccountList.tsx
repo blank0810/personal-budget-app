@@ -65,6 +65,14 @@ const ACCOUNT_TYPE_ICON: Record<string, React.ElementType> = {
     TITHE: Church,
 };
 
+const getUtilizationBarColor = (utilization: number): string => {
+    if (utilization >= 0.9) return 'bg-red-600 dark:bg-red-500';
+    if (utilization >= 0.7) return 'bg-red-500 dark:bg-red-400';
+    if (utilization >= 0.5) return 'bg-orange-500 dark:bg-orange-400';
+    if (utilization >= 0.3) return 'bg-yellow-500 dark:bg-yellow-400';
+    return 'bg-green-500 dark:bg-green-400';
+};
+
 // ── AccountChips (unchanged from current) ─────────────────────────────────
 
 const TYPE_CHIPS = [
@@ -207,6 +215,15 @@ function AccountRow({
         (account.color && ACCOUNT_COLOR_MAP[account.color]) ||
         'bg-muted text-muted-foreground';
 
+    const balance = Number(account.balance);
+    const limit = account.creditLimit ? Number(account.creditLimit) : 0;
+    const showUtilization = account.type === 'CREDIT' && limit > 0;
+    const rawPct = showUtilization ? balance / limit : 0;
+    const displayPct = Math.round(rawPct * 100);
+    const fillPct = Math.min(rawPct, 1) * 100;
+    const available = limit - balance;
+    const overLimit = showUtilization && available < 0;
+
     return (
         <TableRow>
             <TableCell className='font-medium'>
@@ -230,8 +247,45 @@ function AccountRow({
                     {account.type}
                 </Badge>
             </TableCell>
-            <TableCell className='text-right font-bold tabular-nums'>
-                {formatCurrency(Number(account.balance))}
+            <TableCell className='text-right'>
+                <div className='flex flex-col items-end gap-1'>
+                    <span className='font-bold tabular-nums'>
+                        {formatCurrency(balance)}
+                    </span>
+                    {showUtilization && (
+                        <div className='w-full'>
+                            <div className='flex justify-between text-[10px] font-medium text-muted-foreground'>
+                                <span
+                                    className={cn(
+                                        overLimit &&
+                                            'text-red-600 dark:text-red-400'
+                                    )}
+                                >
+                                    {displayPct}% used
+                                </span>
+                                <span
+                                    className={cn(
+                                        overLimit &&
+                                            'font-semibold text-red-600 dark:text-red-400'
+                                    )}
+                                >
+                                    {overLimit
+                                        ? 'Over limit'
+                                        : `${formatCurrency(available)} avail.`}
+                                </span>
+                            </div>
+                            <div className='mt-1 h-1.5 w-full overflow-hidden rounded-full bg-muted'>
+                                <div
+                                    className={cn(
+                                        'h-full rounded-full transition-all',
+                                        getUtilizationBarColor(rawPct)
+                                    )}
+                                    style={{ width: `${fillPct}%` }}
+                                />
+                            </div>
+                        </div>
+                    )}
+                </div>
             </TableCell>
             <TableCell className='text-right'>
                 <div className='flex justify-end gap-1'>

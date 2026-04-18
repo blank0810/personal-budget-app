@@ -6,6 +6,7 @@ import { TransactionService } from '@/server/modules/transaction/transaction.ser
 import { AccountService } from '@/server/modules/account/account.service';
 import { CategoryService } from '@/server/modules/category/category.service';
 import { BudgetService } from '@/server/modules/budget/budget.service';
+import { FeatureFlagService } from '@/server/modules/feature-flag/feature-flag.service';
 import { QuickActionProvider } from '@/components/modules/dashboard/QuickActionSheet';
 import { TransactionPageContainer } from '@/components/modules/transactions/TransactionPageContainer';
 
@@ -45,7 +46,7 @@ export default async function TransactionsPage({
 	};
 
 	// Fetch all data in parallel
-	const [transactionsResult, summary, accounts, incomeCategories, expenseCategories, budgets] =
+	const [transactionsResult, summary, accounts, incomeCategories, expenseCategories, budgets, features] =
 		await Promise.all([
 			TransactionService.getUnifiedTransactions(userId, filters),
 			TransactionService.getTransactionSummary(userId, startDate, endDate),
@@ -53,7 +54,10 @@ export default async function TransactionsPage({
 			CategoryService.getCategories(userId, 'INCOME'),
 			CategoryService.getCategories(userId, 'EXPENSE'),
 			BudgetService.getBudgets(userId, { month: now }),
+			FeatureFlagService.getResolvedFeaturesForUser(userId),
 		]);
+
+	const enableBulk = features['bulk_actions'] === true;
 
 	// Map accounts for QuickActionProvider
 	const accountOptions = accounts.map((a) => ({
@@ -65,8 +69,8 @@ export default async function TransactionsPage({
 	}));
 
 	const categoryOptions = [
-		...incomeCategories.map((c) => ({ id: c.id, name: c.name })),
-		...expenseCategories.map((c) => ({ id: c.id, name: c.name })),
+		...incomeCategories.map((c) => ({ id: c.id, name: c.name, type: c.type })),
+		...expenseCategories.map((c) => ({ id: c.id, name: c.name, type: c.type })),
 	];
 
 	// Deduplicate categories by id for the filter panel
@@ -113,6 +117,7 @@ export default async function TransactionsPage({
 					initialSummary={summary}
 					categories={uniqueCategories}
 					accounts={accountFilterOptions}
+					enableBulk={enableBulk}
 				/>
 			</div>
 		</QuickActionProvider>

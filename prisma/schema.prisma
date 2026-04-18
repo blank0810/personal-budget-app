@@ -135,6 +135,7 @@ model User {
   clients                 Client[]
   workEntries             WorkEntry[]
   userFeatures            UserFeature[]
+  bulkOperations          BulkOperation[]
 
   @@map("users")
 }
@@ -204,23 +205,36 @@ model Account {
 
 // Transfer model (Money movement between accounts)
 model Transfer {
-  id            String   @id @default(cuid())
-  amount        Decimal  @db.Decimal(10, 2)
-  fee           Decimal  @default(0) @db.Decimal(10, 2) // Transfer/bank fee
-  date          DateTime
-  description   String?
-  fromAccountId String
-  toAccountId   String
-  userId        String
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  id             String   @id @default(cuid())
+  amount         Decimal  @db.Decimal(10, 2)
+  fee            Decimal  @default(0) @db.Decimal(10, 2) // Transfer/bank fee
+  date           DateTime
+  description    String?
+  fromAccountId  String
+  toAccountId    String
+  // FK set by IncomeService when a child transfer is auto-created from a tithe/EF allocation.
+  // SetNull (not Cascade) so deleting an income outside the service layer orphans the row instead of silently skipping balance reversal.
+  parentIncomeId String?
+  efGoalId       String?
+  // FK to the auto-created fee Expense row when fee > 0. Replaces a fragile
+  // deleteMany match on (amount, date, description) — see P0-2 in the v1.9.12
+  // bulk-actions design doc.
+  feeExpenseId   String?  @unique
+  userId         String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
   // Relations
-  fromAccount Account @relation("TransferFrom", fields: [fromAccountId], references: [id], onDelete: Restrict)
-  toAccount   Account @relation("TransferTo", fields: [toAccountId], references: [id], onDelete: Restrict)
-  user        User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  fromAccount  Account  @relation("TransferFrom", fields: [fromAccountId], references: [id], onDelete: Restrict)
+  toAccount    Account  @relation("TransferTo", fields: [toAccountId], references: [id], onDelete: Restrict)
+  parentIncome Income?  @relation("IncomeChildren", fields: [parentIncomeId], references: [id], onDelete: SetNull)
+  efGoal       Goal?    @relation("GoalEfContributions", fields: [efGoalId], references: [id], onDelete: SetNull)
+  feeExpense   Expense? @relation("TransferFee", fields: [feeExpenseId], references: [id], onDelete: SetNull)
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, date])
+  @@index([parentIncomeId])
+  @@index([efGoalId])
   @@map("transfers")
 }
 
@@ -263,10 +277,11 @@ model Income {
   updatedAt       DateTime          @updatedAt
 
   // Relations
-  category      Category @relation(fields: [categoryId], references: [id], onDelete: Restrict)
-  account       Account? @relation(fields: [accountId], references: [id], onDelete: SetNull)
-  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  linkedInvoice Invoice?
+  category       Category   @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  account        Account?   @relation(fields: [accountId], references: [id], onDelete: SetNull)
+  user           User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  linkedInvoice  Invoice?
+  childTransfers Transfer[] @relation("IncomeChildren")
 
   @@index([userId, date])
   @@index([importBatchId])
@@ -292,10 +307,11 @@ model Expense {
   updatedAt       DateTime          @updatedAt
 
   // Relations
-  category Category @relation(fields: [categoryId], references: [id], onDelete: Restrict)
-  budget   Budget?  @relation(fields: [budgetId], references: [id], onDelete: SetNull)
-  account  Account? @relation(fields: [accountId], references: [id], onDelete: SetNull)
-  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  category       Category  @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  budget         Budget?   @relation(fields: [budgetId], references: [id], onDelete: SetNull)
+  account        Account?  @relation(fields: [accountId], references: [id], onDelete: SetNull)
+  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  feeForTransfer Transfer? @relation("TransferFee")
 
   @@index([userId, date])
   @@index([budgetId])
@@ -447,9 +463,10 @@ model Goal {
   thresholdMid    Int?     @default(4) // Months for "Underfunded"
   thresholdHigh   Int?     @default(6) // Months for "Funded"
 
-  user          User               @relation(fields: [userId], references: [id], onDelete: Cascade)
-  linkedAccount Account?           @relation(fields: [linkedAccountId], references: [id], onDelete: SetNull)
-  contributions GoalContribution[]
+  user            User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  linkedAccount   Account?           @relation(fields: [linkedAccountId], references: [id], onDelete: SetNull)
+  contributions   GoalContribution[]
+  efContributions Transfer[]         @relation("GoalEfContributions")
 
   @@index([userId, status])
   @@map("goals")
@@ -507,6 +524,22 @@ model SystemSetting {
   updatedAt DateTime @updatedAt
 
   @@map("system_settings")
+}
+
+// Bulk operation audit log. One row per bulk delete / bulk categorize call.
+// Foundation for future undo; no UI reads from it on the pilot.
+model BulkOperation {
+  id         String   @id @default(cuid())
+  userId     String
+  kind       String // "DELETE" | "CATEGORIZE"
+  itemCount  Int
+  payload    Json
+  createdAt  DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@map("bulk_operations")
 }
 
 // Cron job execution log for system health monitoring

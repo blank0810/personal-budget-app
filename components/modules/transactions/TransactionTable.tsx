@@ -1,5 +1,6 @@
 'use client';
 
+import { useMemo, useState, useTransition } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { format } from 'date-fns';
 import {
@@ -10,8 +11,10 @@ import {
 	ChevronLeft,
 	ChevronRight,
 } from 'lucide-react';
+import { toast } from 'sonner';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
 	Select,
 	SelectContent,
@@ -19,16 +22,45 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from '@/components/ui/select';
+import {
+	AlertDialog,
+	AlertDialogAction,
+	AlertDialogCancel,
+	AlertDialogContent,
+	AlertDialogDescription,
+	AlertDialogFooter,
+	AlertDialogHeader,
+	AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import {
+	Dialog,
+	DialogContent,
+	DialogDescription,
+	DialogFooter,
+	DialogHeader,
+	DialogTitle,
+} from '@/components/ui/dialog';
 import { cn } from '@/lib/utils';
 import { useCurrency } from '@/lib/contexts/currency-context';
 import { TransactionRowActions } from './TransactionRowActions';
-import type { UnifiedTransaction } from '@/server/modules/transaction/transaction.types';
+import { useTableSelection } from '@/components/common/useTableSelection';
+import { BulkActionBar } from '@/components/common/BulkActionBar';
+import {
+	bulkDeleteTransactionsAction,
+	bulkCategorizeTransactionsAction,
+} from '@/server/modules/transaction/transaction.controller';
+import type {
+	UnifiedTransaction,
+	BulkTransactionItem,
+} from '@/server/modules/transaction/transaction.types';
 
 interface TransactionTableProps {
 	transactions: UnifiedTransaction[];
 	total: number;
 	page: number;
 	pageSize: number;
+	categories: Array<{ id: string; name: string; type: 'INCOME' | 'EXPENSE' }>;
+	enableBulk: boolean;
 }
 
 const TYPE_CONFIG = {
@@ -98,17 +130,47 @@ function getCategoryName(tx: UnifiedTransaction): string | null {
 	}
 }
 
+function rowKey(tx: UnifiedTransaction): string {
+	// kind+id uniquely identifies a row across tables.
+	return `${tx.kind}:${tx.id}`;
+}
+
 export function TransactionTable({
 	transactions,
 	total,
 	page,
 	pageSize,
+	categories,
+	enableBulk,
 }: TransactionTableProps) {
 	const { formatCurrency } = useCurrency();
 	const router = useRouter();
 	const searchParams = useSearchParams();
+	const selection = useTableSelection();
+	const [isPending, startTransition] = useTransition();
+
+	const [deleteOpen, setDeleteOpen] = useState(false);
+	const [categorizeOpen, setCategorizeOpen] = useState(false);
+	const [targetCategoryId, setTargetCategoryId] = useState<string>('');
 
 	const totalPages = Math.ceil(total / pageSize);
+	const visibleKeys = useMemo(
+		() => transactions.map(rowKey),
+		[transactions]
+	);
+	const selectedItems: BulkTransactionItem[] = useMemo(() => {
+		const items: BulkTransactionItem[] = [];
+		for (const tx of transactions) {
+			if (!selection.isSelected(rowKey(tx))) continue;
+			// `payment` shares the `transfer` Prisma table.
+			const kind: BulkTransactionItem['kind'] =
+				tx.kind === 'transfer' ? 'transfer' : tx.kind;
+			items.push({ kind, id: tx.id });
+		}
+		return items;
+	}, [transactions, selection]);
+
+	const headerState = enableBulk ? selection.visibleState(visibleKeys) : 'none';
 
 	const goToPage = (p: number) => {
 		const params = new URLSearchParams(searchParams.toString());
@@ -122,6 +184,84 @@ export function TransactionTable({
 		params.delete('page');
 		router.push(`?${params.toString()}`, { scroll: false });
 	};
+
+	const handleBulkDelete = () => {
+		if (selectedItems.length === 0) return;
+		startTransition(async () => {
+			const result = await bulkDeleteTransactionsAction({
+				items: selectedItems,
+			});
+			setDeleteOpen(false);
+			if ('error' in result && result.error) {
+				toast.error(result.error);
+				return;
+			}
+			if ('data' in result && result.data) {
+				const { processedCount, skippedCount } = result.data;
+				if (processedCount > 0) {
+					toast.success(
+						`Deleted ${processedCount} transaction${processedCount === 1 ? '' : 's'}` +
+							(skippedCount > 0
+								? ` (${skippedCount} skipped)`
+								: '')
+					);
+				} else if (skippedCount > 0) {
+					toast.warning(
+						`All ${skippedCount} items were skipped — delete individually`
+					);
+				}
+			}
+			selection.clear();
+			router.refresh();
+		});
+	};
+
+	const handleBulkCategorize = () => {
+		if (selectedItems.length === 0 || !targetCategoryId) return;
+		startTransition(async () => {
+			const result = await bulkCategorizeTransactionsAction({
+				items: selectedItems,
+				categoryId: targetCategoryId,
+			});
+			setCategorizeOpen(false);
+			if ('error' in result && result.error) {
+				toast.error(result.error);
+				return;
+			}
+			if ('data' in result && result.data) {
+				const { processedCount, skippedCount } = result.data;
+				if (processedCount > 0) {
+					toast.success(
+						`Recategorized ${processedCount} transaction${processedCount === 1 ? '' : 's'}` +
+							(skippedCount > 0
+								? ` (${skippedCount} skipped)`
+								: '')
+					);
+				} else if (skippedCount > 0) {
+					toast.warning(
+						`No eligible items — transfers have no category`
+					);
+				}
+			}
+			setTargetCategoryId('');
+			selection.clear();
+			router.refresh();
+		});
+	};
+
+	// Count how many selected rows would be skipped by the defense filters
+	// (tithe/EF incomes, fee-bearing transfers). Shown as an inline banner in
+	// the action bar so users know before they click Delete.
+	const skippedPreviewCount = useMemo(() => {
+		let count = 0;
+		for (const tx of transactions) {
+			if (!selection.isSelected(rowKey(tx))) continue;
+			if (tx.kind === 'transfer' && tx.fee > 0) count++;
+			// Income with tithe/EF isn't discoverable from the unified row
+			// payload today; server will report the accurate skipped count.
+		}
+		return count;
+	}, [transactions, selection]);
 
 	if (transactions.length === 0) {
 		return (
@@ -141,6 +281,23 @@ export function TransactionTable({
 				<table className='w-full'>
 					<thead>
 						<tr className='border-b text-left text-xs font-medium text-muted-foreground'>
+							{enableBulk && (
+								<th className='hidden pb-3 pr-2 sm:table-cell w-8'>
+									<Checkbox
+										aria-label='Select all visible'
+										checked={
+											headerState === 'all'
+												? true
+												: headerState === 'some'
+													? 'indeterminate'
+													: false
+										}
+										onCheckedChange={() =>
+											selection.toggleAllVisible(visibleKeys)
+										}
+									/>
+								</th>
+							)}
 							<th className='pb-3 pr-4'>Description</th>
 							<th className='pb-3 pr-4'>Type</th>
 							<th className='pb-3 pr-4 text-right'>Amount</th>
@@ -158,9 +315,30 @@ export function TransactionTable({
 							const subtitle = getSubtitle(tx);
 							const account = getAccountName(tx);
 							const category = getCategoryName(tx);
+							const rk = rowKey(tx);
+							const checked = selection.isSelected(rk);
 
 							return (
-								<tr key={`${tx.kind}-${tx.id}`} className='group'>
+								<tr
+									key={rk}
+									className={cn(
+										'group',
+										checked &&
+											'bg-primary/5 dark:bg-primary/10'
+									)}
+								>
+									{enableBulk && (
+										<td className='hidden py-3 pr-2 sm:table-cell'>
+											<Checkbox
+												aria-label={`Select ${tx.description ?? config.label}`}
+												checked={checked}
+												onCheckedChange={() =>
+													selection.toggle(rk)
+												}
+											/>
+										</td>
+									)}
+
 									{/* Description */}
 									<td className='py-3 pr-4'>
 										<div className='flex items-center gap-3'>
@@ -302,6 +480,115 @@ export function TransactionTable({
 					</div>
 				</div>
 			</div>
+
+			{enableBulk && (
+				<BulkActionBar
+					count={selection.count}
+					onClear={selection.clear}
+					statusText={
+						skippedPreviewCount > 0
+							? `${skippedPreviewCount} fee-bearing transfer${skippedPreviewCount === 1 ? '' : 's'} will be skipped`
+							: null
+					}
+					actions={[
+						{
+							label: 'Categorize',
+							variant: 'outline',
+							onClick: () => setCategorizeOpen(true),
+							disabled: isPending,
+						},
+						{
+							label: 'Delete',
+							variant: 'destructive',
+							onClick: () => setDeleteOpen(true),
+							disabled: isPending,
+						},
+					]}
+				/>
+			)}
+
+			<AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+				<AlertDialogContent>
+					<AlertDialogHeader>
+						<AlertDialogTitle>
+							Delete {selection.count} transaction
+							{selection.count === 1 ? '' : 's'}?
+						</AlertDialogTitle>
+						<AlertDialogDescription>
+							This will reverse all associated balance changes and
+							cannot be undone. Rows linked to tithe / emergency-fund
+							allocations and transfers with fees will be skipped —
+							delete those individually.
+						</AlertDialogDescription>
+					</AlertDialogHeader>
+					<AlertDialogFooter>
+						<AlertDialogCancel disabled={isPending}>
+							Cancel
+						</AlertDialogCancel>
+						<AlertDialogAction
+							onClick={(e) => {
+								e.preventDefault();
+								handleBulkDelete();
+							}}
+							disabled={isPending}
+							className='bg-destructive text-destructive-foreground hover:bg-destructive/90'
+						>
+							{isPending ? 'Deleting...' : 'Delete'}
+						</AlertDialogAction>
+					</AlertDialogFooter>
+				</AlertDialogContent>
+			</AlertDialog>
+
+			<Dialog open={categorizeOpen} onOpenChange={setCategorizeOpen}>
+				<DialogContent className='sm:max-w-[400px]'>
+					<DialogHeader>
+						<DialogTitle>
+							Recategorize {selection.count} transaction
+							{selection.count === 1 ? '' : 's'}
+						</DialogTitle>
+						<DialogDescription>
+							Pick a new category. The category type must match the
+							selected rows — mixing Income and Expense categories is
+							not allowed. Transfers will be skipped.
+						</DialogDescription>
+					</DialogHeader>
+					<div className='space-y-2 py-2'>
+						<Select
+							value={targetCategoryId}
+							onValueChange={setTargetCategoryId}
+						>
+							<SelectTrigger>
+								<SelectValue placeholder='Select a category' />
+							</SelectTrigger>
+							<SelectContent>
+								{categories.map((c) => (
+									<SelectItem key={c.id} value={c.id}>
+										{c.name}
+										<span className='ml-2 text-xs text-muted-foreground'>
+											{c.type === 'INCOME' ? 'Income' : 'Expense'}
+										</span>
+									</SelectItem>
+								))}
+							</SelectContent>
+						</Select>
+					</div>
+					<DialogFooter>
+						<Button
+							variant='ghost'
+							onClick={() => setCategorizeOpen(false)}
+							disabled={isPending}
+						>
+							Cancel
+						</Button>
+						<Button
+							onClick={handleBulkCategorize}
+							disabled={isPending || !targetCategoryId}
+						>
+							{isPending ? 'Applying...' : 'Apply'}
+						</Button>
+					</DialogFooter>
+				</DialogContent>
+			</Dialog>
 		</div>
 	);
 }
