@@ -1,4 +1,5 @@
 import prisma from '@/lib/prisma';
+import { Prisma } from '@prisma/client';
 import { CreateTransferInput, GetTransfersInput } from './transfer.types';
 import { CategoryService } from '../category/category.service';
 
@@ -25,54 +26,18 @@ export const TransferService = {
 				}),
 			]);
 
-			// 1. Create Transfer Record (including fee for audit trail)
-			const transfer = await tx.transfer.create({
-				data: {
-					amount: data.amount,
-					fee: fee,
-					date: data.date,
-					description: data.description,
-					fromAccountId: data.fromAccountId,
-					toAccountId: data.toAccountId,
-					userId,
-				},
-			});
-
-			// 2. Update Source Account
-			// - Asset: decrement (money leaves)
-			// - Liability: increment (borrowing more, debt increases)
-			await tx.account.update({
-				where: { id: data.fromAccountId, userId },
-				data: {
-					balance: fromAccount.isLiability
-						? { increment: data.amount }
-						: { decrement: data.amount },
-				},
-			});
-
-			// 3. Update Destination Account
-			// - Asset: increment (money arrives)
-			// - Liability: decrement (paying off debt, debt decreases)
-			await tx.account.update({
-				where: { id: data.toAccountId, userId },
-				data: {
-					balance: toAccount.isLiability
-						? { decrement: data.amount }
-						: { increment: data.amount },
-				},
-			});
-
-			// 4. Handle Fee (if any)
+			// 1. Create fee Expense FIRST (if fee > 0) so the Transfer row
+			// can hold the feeExpenseId FK. Prevents the ambiguous deleteMany
+			// match that P0-2 solves.
+			let feeExpenseId: string | null = null;
 			if (fee > 0) {
-				// Get/Create 'Bank Fees' category
 				const feeCategory = await CategoryService.getOrCreateCategory(
 					userId,
 					'Bank Fees',
 					'EXPENSE'
 				);
 
-				// Create Expense Record for the fee
-				await tx.expense.create({
+				const feeExpense = await tx.expense.create({
 					data: {
 						amount: fee,
 						description: `Transfer fee`,
@@ -84,10 +49,51 @@ export const TransferService = {
 						notes: `Fee for transfer of $${data.amount} to ${data.toAccountId}`,
 					},
 				});
+				feeExpenseId = feeExpense.id;
+			}
 
-				// Debit Fee from Source Account
-				// - Asset: decrement (fee deducted)
-				// - Liability: increment (fee adds to debt)
+			// 2. Create Transfer Record (with feeExpenseId FK when applicable)
+			const transfer = await tx.transfer.create({
+				data: {
+					amount: data.amount,
+					fee: fee,
+					date: data.date,
+					description: data.description,
+					fromAccountId: data.fromAccountId,
+					toAccountId: data.toAccountId,
+					feeExpenseId,
+					userId,
+				},
+			});
+
+			// 3. Update Source Account
+			// - Asset: decrement (money leaves)
+			// - Liability: increment (borrowing more, debt increases)
+			await tx.account.update({
+				where: { id: data.fromAccountId, userId },
+				data: {
+					balance: fromAccount.isLiability
+						? { increment: data.amount }
+						: { decrement: data.amount },
+				},
+			});
+
+			// 4. Update Destination Account
+			// - Asset: increment (money arrives)
+			// - Liability: decrement (paying off debt, debt decreases)
+			await tx.account.update({
+				where: { id: data.toAccountId, userId },
+				data: {
+					balance: toAccount.isLiability
+						? { decrement: data.amount }
+						: { increment: data.amount },
+				},
+			});
+
+			// 5. Debit Fee from Source Account
+			// - Asset: decrement (fee deducted)
+			// - Liability: increment (fee adds to debt)
+			if (fee > 0) {
 				await tx.account.update({
 					where: { id: data.fromAccountId, userId },
 					data: {
@@ -144,81 +150,80 @@ export const TransferService = {
 	},
 
 	/**
-	 * Delete a transfer and revert all balance changes
-	 *
-	 * Reverts:
-	 * - Source account: credits back (amount + fee)
-	 * - Destination account: debits back (amount)
-	 * - Fee expense: deleted
+	 * Delete a transfer and revert all balance changes, inside an existing
+	 * Prisma transaction. Used by the single-row `deleteTransfer` wrapper and
+	 * by `TransactionService.bulkDelete`.
 	 */
-	async deleteTransfer(userId: string, transferId: string) {
-		return await prisma.$transaction(async (tx) => {
-			const transfer = await tx.transfer.findUniqueOrThrow({
-				where: { id: transferId, userId },
-				include: {
-					fromAccount: true,
-					toAccount: true,
-				},
-			});
+	async _deleteTransferInTx(
+		tx: Prisma.TransactionClient,
+		userId: string,
+		transferId: string
+	) {
+		const transfer = await tx.transfer.findUniqueOrThrow({
+			where: { id: transferId, userId },
+			include: {
+				fromAccount: true,
+				toAccount: true,
+			},
+		});
 
-			const fee = Number(transfer.fee) || 0;
-			const amount = Number(transfer.amount);
+		// Pass Decimals straight through to increment/decrement. Prisma accepts
+		// them natively; coercing via Number() lost sub-cent precision on
+		// values with non-terminating binary representations (e.g. 0.1, 0.3).
+		const hasFee = transfer.fee.gt(0);
 
-			// 1. Revert Source Account
-			// - Asset: increment (money returns)
-			// - Liability: decrement (undo the borrowing, debt decreases)
+		// 1. Revert Source Account
+		await tx.account.update({
+			where: { id: transfer.fromAccountId, userId },
+			data: {
+				balance: transfer.fromAccount.isLiability
+					? { decrement: transfer.amount }
+					: { increment: transfer.amount },
+			},
+		});
+
+		// 2. Revert Destination Account
+		await tx.account.update({
+			where: { id: transfer.toAccountId, userId },
+			data: {
+				balance: transfer.toAccount.isLiability
+					? { increment: transfer.amount }
+					: { decrement: transfer.amount },
+			},
+		});
+
+		// 3. Revert Fee if it was charged. feeExpenseId FK points to the exact
+		// Expense row created alongside this transfer (P0-2); fall back to null
+		// for rows backfilled without a match.
+		if (hasFee) {
 			await tx.account.update({
 				where: { id: transfer.fromAccountId, userId },
 				data: {
 					balance: transfer.fromAccount.isLiability
-						? { decrement: amount }
-						: { increment: amount },
+						? { decrement: transfer.fee }
+						: { increment: transfer.fee },
 				},
 			});
 
-			// 2. Revert Destination Account
-			// - Asset: decrement (undo the credit)
-			// - Liability: increment (undo the payment, debt increases back)
-			await tx.account.update({
-				where: { id: transfer.toAccountId, userId },
-				data: {
-					balance: transfer.toAccount.isLiability
-						? { increment: amount }
-						: { decrement: amount },
-				},
-			});
-
-			// 3. Revert Fee if it was charged
-			if (fee > 0) {
-				// Credit fee back to source account
-				// - Asset: increment (fee returned)
-				// - Liability: decrement (undo fee from debt)
-				await tx.account.update({
-					where: { id: transfer.fromAccountId, userId },
-					data: {
-						balance: transfer.fromAccount.isLiability
-							? { decrement: fee }
-							: { increment: fee },
-					},
-				});
-
-				// Delete the fee expense record
-				// Note: We find by amount, date, and account to match the fee expense
-				await tx.expense.deleteMany({
-					where: {
-						userId,
-						accountId: transfer.fromAccountId,
-						amount: transfer.fee,
-						date: transfer.date,
-						description: 'Transfer fee',
-					},
+			if (transfer.feeExpenseId) {
+				await tx.expense.delete({
+					where: { id: transfer.feeExpenseId, userId },
 				});
 			}
+		}
 
-			// 4. Delete Transfer Record
-			return await tx.transfer.delete({
-				where: { id: transferId, userId },
-			});
+		// 4. Delete Transfer Record
+		return await tx.transfer.delete({
+			where: { id: transferId, userId },
 		});
+	},
+
+	/**
+	 * Delete a transfer (single-row wrapper).
+	 */
+	async deleteTransfer(userId: string, transferId: string) {
+		return await prisma.$transaction((tx) =>
+			TransferService._deleteTransferInTx(tx, userId, transferId)
+		);
 	},
 };

@@ -380,35 +380,46 @@ export const ExpenseService = {
 	},
 
 	/**
-	 * Delete an expense entry
-	 * Refunds the account balance
+	 * Delete an expense entry inside an existing Prisma transaction.
+	 * Used by the single-row `deleteExpense` wrapper and by
+	 * `TransactionService.bulkDelete`.
+	 */
+	async _deleteExpenseInTx(
+		tx: Prisma.TransactionClient,
+		userId: string,
+		expenseId: string
+	) {
+		const expense = await tx.expense.findUniqueOrThrow({
+			where: { id: expenseId, userId },
+		});
+
+		if (expense.accountId) {
+			const account = await tx.account.findUnique({
+				where: { id: expense.accountId, userId },
+				select: { isLiability: true },
+			});
+
+			await tx.account.update({
+				where: { id: expense.accountId, userId },
+				data: {
+					balance: account?.isLiability
+						? { decrement: expense.amount } // Liability: delete expense = reduce debt
+						: { increment: expense.amount }, // Asset: delete expense = refund
+				},
+			});
+		}
+
+		return await tx.expense.delete({
+			where: { id: expenseId, userId },
+		});
+	},
+
+	/**
+	 * Delete an expense entry (single-row wrapper).
 	 */
 	async deleteExpense(userId: string, expenseId: string) {
-		return await prisma.$transaction(async (tx) => {
-			const expense = await tx.expense.findUniqueOrThrow({
-				where: { id: expenseId, userId },
-			});
-
-			if (expense.accountId) {
-				// Check if liability account
-				const account = await tx.account.findUnique({
-					where: { id: expense.accountId, userId },
-					select: { isLiability: true },
-				});
-
-				await tx.account.update({
-					where: { id: expense.accountId, userId },
-					data: {
-						balance: account?.isLiability
-							? { decrement: expense.amount } // Liability: delete expense = reduce debt
-							: { increment: expense.amount }, // Asset: delete expense = refund
-					},
-				});
-			}
-
-			return await tx.expense.delete({
-				where: { id: expenseId, userId },
-			});
-		});
+		return await prisma.$transaction((tx) =>
+			ExpenseService._deleteExpenseInTx(tx, userId, expenseId)
+		);
 	},
 };

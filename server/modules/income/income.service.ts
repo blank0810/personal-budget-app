@@ -104,6 +104,7 @@ export const IncomeService = {
 							}`,
 							fromAccountId: data.accountId,
 							toAccountId: titheAccount.id,
+							parentIncomeId: created.id,
 							userId,
 						},
 					});
@@ -151,6 +152,8 @@ export const IncomeService = {
 								description: `Emergency Fund contribution for ${data.description || 'Income'}`,
 								fromAccountId: data.accountId,
 								toAccountId: efGoal.linkedAccountId,
+								parentIncomeId: created.id,
+								efGoalId: efGoal.id,
 								userId,
 							},
 						});
@@ -485,36 +488,73 @@ export const IncomeService = {
 	},
 
 	/**
-	 * Delete an income entry
-	 * Reverts the account balance
+	 * Delete an income entry inside an existing Prisma transaction.
+	 * Reverses the main account balance AND any auto-created child transfers
+	 * (tithe / emergency-fund). Used by the single-row `deleteIncome` wrapper
+	 * and by `TransactionService.bulkDelete`.
 	 */
-	async deleteIncome(userId: string, incomeId: string) {
-		return await prisma.$transaction(async (tx) => {
-			const income = await tx.income.findUniqueOrThrow({
-				where: { id: incomeId, userId },
+	async _deleteIncomeInTx(
+		tx: Prisma.TransactionClient,
+		userId: string,
+		incomeId: string
+	) {
+		const income = await tx.income.findUniqueOrThrow({
+			where: { id: incomeId, userId },
+			include: {
+				childTransfers: true,
+			},
+		});
+
+		// Reverse child transfers (tithe, emergency fund) first.
+		// Each child moved money fromAccount -> toAccount; reversing means
+		// crediting fromAccount and debiting toAccount, plus decrementing any
+		// linked EF goal's currentAmount, then deleting the Transfer row.
+		for (const child of income.childTransfers) {
+			await tx.account.update({
+				where: { id: child.fromAccountId, userId },
+				data: { balance: { increment: child.amount } },
 			});
-
-			if (income.accountId) {
-				// Check if liability account
-				const account = await tx.account.findUnique({
-					where: { id: income.accountId, userId },
-					select: { isLiability: true },
-				});
-
-				await tx.account.update({
-					where: { id: income.accountId, userId },
-					data: {
-						balance: account?.isLiability
-							? { increment: income.amount } // Liability: delete income = add back debt
-							: { decrement: income.amount }, // Asset: delete income = subtract
-					},
+			await tx.account.update({
+				where: { id: child.toAccountId, userId },
+				data: { balance: { decrement: child.amount } },
+			});
+			if (child.efGoalId) {
+				await tx.goal.update({
+					where: { id: child.efGoalId },
+					data: { currentAmount: { decrement: child.amount } },
 				});
 			}
+			await tx.transfer.delete({ where: { id: child.id } });
+		}
 
-			return await tx.income.delete({
-				where: { id: incomeId, userId },
+		if (income.accountId) {
+			const account = await tx.account.findUnique({
+				where: { id: income.accountId, userId },
+				select: { isLiability: true },
 			});
+
+			await tx.account.update({
+				where: { id: income.accountId, userId },
+				data: {
+					balance: account?.isLiability
+						? { increment: income.amount } // Liability: delete income = add back debt
+						: { decrement: income.amount }, // Asset: delete income = subtract
+				},
+			});
+		}
+
+		return await tx.income.delete({
+			where: { id: incomeId, userId },
 		});
+	},
+
+	/**
+	 * Delete an income entry (single-row wrapper).
+	 */
+	async deleteIncome(userId: string, incomeId: string) {
+		return await prisma.$transaction((tx) =>
+			IncomeService._deleteIncomeInTx(tx, userId, incomeId)
+		);
 	},
 
 	/**
