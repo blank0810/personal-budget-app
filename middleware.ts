@@ -17,7 +17,11 @@ export default auth(async function middleware(req: NextRequest & { auth: Session
 		pathname.startsWith('/reset-password');
 
 	const isPublicPage =
-		isAuthPage || pathname.startsWith('/changelog') || pathname === '/';
+		isAuthPage ||
+		pathname.startsWith('/changelog') ||
+		pathname === '/' ||
+		pathname.startsWith('/opengraph-image') ||
+		pathname.startsWith('/twitter-image');
 	const isOnboardingPage = pathname.startsWith('/onboarding');
 	const isAdminPage = pathname.startsWith('/admin');
 
