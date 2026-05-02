@@ -170,19 +170,41 @@ export async function adminExportUserDataAction(userId: string) {
 
 // --- Content Management Actions ---
 
+const FEATURE_REQUEST_SORT_BY = ['title', 'category', 'email', 'createdAt', 'status'] as const;
+const FEATURE_REQUEST_SORT_ORDER = ['asc', 'desc'] as const;
+type FeatureRequestSortBy = (typeof FEATURE_REQUEST_SORT_BY)[number];
+type FeatureRequestSortOrder = (typeof FEATURE_REQUEST_SORT_ORDER)[number];
+
 export async function adminGetFeatureRequestsAction(
 	page: number = 1,
 	status?: string,
-	category?: string
+	category?: string,
+	search?: string,
+	sortBy: FeatureRequestSortBy = 'createdAt',
+	sortOrder: FeatureRequestSortOrder = 'desc'
 ) {
 	const { error } = await requireAdminSession();
 	if (error) return { error };
+
+	// Validate sort fields against the allowlist — defends against arbitrary
+	// column injection via a hand-crafted action call.
+	const safeSortBy: FeatureRequestSortBy = FEATURE_REQUEST_SORT_BY.includes(sortBy)
+		? sortBy
+		: 'createdAt';
+	const safeSortOrder: FeatureRequestSortOrder = FEATURE_REQUEST_SORT_ORDER.includes(
+		sortOrder
+	)
+		? sortOrder
+		: 'desc';
 
 	try {
 		const result = await AdminContentService.getFeatureRequests(
 			page,
 			status,
-			category
+			category,
+			search,
+			safeSortBy,
+			safeSortOrder
 		);
 		return { success: true as const, data: result };
 	} catch (err) {

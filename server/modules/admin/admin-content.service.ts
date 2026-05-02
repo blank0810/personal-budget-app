@@ -3,21 +3,39 @@ import type { Prisma } from '@prisma/client';
 
 const PAGE_SIZE = 20;
 
+export type FeatureRequestSortBy = 'title' | 'category' | 'email' | 'createdAt' | 'status';
+export type FeatureRequestSortOrder = 'asc' | 'desc';
+
 export const AdminContentService = {
 	// --- Feature Requests ---
 	async getFeatureRequests(
 		page: number = 1,
 		status?: string,
-		category?: string
+		category?: string,
+		search?: string,
+		sortBy: FeatureRequestSortBy = 'createdAt',
+		sortOrder: FeatureRequestSortOrder = 'desc'
 	) {
 		const where: Prisma.FeatureRequestWhereInput = {};
 		if (status) where.status = status;
 		if (category) where.category = category as Prisma.EnumRequestCategoryFilter;
 
+		// Free-text search: case-insensitive contains on title OR email.
+		if (search && search.trim().length > 0) {
+			where.OR = [
+				{ title: { contains: search, mode: 'insensitive' } },
+				{ email: { contains: search, mode: 'insensitive' } },
+			];
+		}
+
+		const orderBy: Prisma.FeatureRequestOrderByWithRelationInput = {
+			[sortBy]: sortOrder,
+		};
+
 		const [requests, total] = await Promise.all([
 			prisma.featureRequest.findMany({
 				where,
-				orderBy: { createdAt: 'desc' },
+				orderBy,
 				skip: (page - 1) * PAGE_SIZE,
 				take: PAGE_SIZE,
 			}),
