@@ -395,92 +395,213 @@ export const IncomeService = {
 	},
 
 	/**
-	 * Update an income entry
-	 * Handles balance adjustments if amount or account changes
+	 * Update an income entry.
+	 *
+	 * The strategy is "fully reverse, then re-apply":
+	 *   1. Reverse all child transfers (tithe / EF) — credit fromAccount,
+	 *      debit toAccount, decrement any linked EF goal, delete the row.
+	 *   2. Reverse the parent income's effect on its old account.
+	 *   3. Apply the income row update.
+	 *   4. Re-apply the parent income's effect on the new (or same) account.
+	 *   5. Recreate child transfers if tithe / EF are still enabled, sized
+	 *      against the new amount.
+	 *
+	 * This is symmetric to `_deleteIncomeInTx` followed by `createIncome`
+	 * collapsed into one transaction. It guarantees Account.balance and the
+	 * walked transaction trail stay in sync — without it, child transfers
+	 * keep their original amount even when the parent changes, which would
+	 * silently desync the global ledger tripwire.
 	 */
 	async updateIncome(userId: string, data: UpdateIncomeInput) {
 		const { id, ...updateData } = data;
 
 		return await prisma.$transaction(async (tx) => {
-			// 1. Get the old income to calculate balance difference
 			const oldIncome = await tx.income.findUniqueOrThrow({
 				where: { id, userId },
+				include: { childTransfers: true },
 			});
 
-			// 2. Update the income
-			const updatedIncome = await tx.income.update({
-				where: { id, userId },
-				data: updateData,
-			});
-
-			// 3. Handle Balance Updates
-			// Case A: Account didn't change, but amount might have
-			if (
-				!updateData.accountId ||
-				updateData.accountId === oldIncome.accountId
-			) {
-				if (
-					oldIncome.accountId &&
-					updateData.amount &&
-					updateData.amount !== oldIncome.amount.toNumber()
-				) {
-					const difference =
-						updateData.amount - oldIncome.amount.toNumber();
-
-					// Check if liability account
-					const account = await tx.account.findUnique({
-						where: { id: oldIncome.accountId, userId },
-						select: { isLiability: true },
-					});
-
-					// For assets: more income = more balance (increment)
-					// For liabilities: more income/payment = less debt (decrement)
-					await tx.account.update({
-						where: { id: oldIncome.accountId, userId },
-						data: {
-							balance: account?.isLiability
-								? { decrement: difference }
-								: { increment: difference },
-						},
+			// 1. Reverse existing child transfers symmetric to delete path.
+			for (const child of oldIncome.childTransfers) {
+				await tx.account.update({
+					where: { id: child.fromAccountId, userId },
+					data: { balance: { increment: child.amount } },
+				});
+				await tx.account.update({
+					where: { id: child.toAccountId, userId },
+					data: { balance: { decrement: child.amount } },
+				});
+				if (child.efGoalId) {
+					await tx.goal.update({
+						where: { id: child.efGoalId },
+						data: { currentAmount: { decrement: child.amount } },
 					});
 				}
+				await tx.transfer.delete({ where: { id: child.id } });
 			}
-			// Case B: Account changed
-			else if (
-				updateData.accountId &&
-				updateData.accountId !== oldIncome.accountId
-			) {
-				// Revert old account balance
-				if (oldIncome.accountId) {
-					const oldAccount = await tx.account.findUnique({
-						where: { id: oldIncome.accountId, userId },
-						select: { isLiability: true },
-					});
 
-					await tx.account.update({
-						where: { id: oldIncome.accountId, userId },
-						data: {
-							balance: oldAccount?.isLiability
-								? { increment: oldIncome.amount } // Liability: revert = add back debt
-								: { decrement: oldIncome.amount }, // Asset: revert = subtract
-						},
-					});
-				}
-
-				// Add to new account balance
-				const newAccount = await tx.account.findUnique({
-					where: { id: updateData.accountId, userId },
+			// 2. Reverse the parent income's effect on its old account.
+			if (oldIncome.accountId) {
+				const oldAccount = await tx.account.findUnique({
+					where: { id: oldIncome.accountId, userId },
 					select: { isLiability: true },
 				});
-
 				await tx.account.update({
-					where: { id: updateData.accountId, userId },
+					where: { id: oldIncome.accountId, userId },
 					data: {
-						balance: newAccount?.isLiability
-							? { decrement: updateData.amount ?? oldIncome.amount } // Liability: income = reduce debt
-							: { increment: updateData.amount ?? oldIncome.amount }, // Asset: income = add
+						balance: oldAccount?.isLiability
+							? { increment: oldIncome.amount } // liability: revert = add back debt
+							: { decrement: oldIncome.amount }, // asset: revert = subtract
 					},
 				});
+			}
+
+			// 3. Apply the row update (amount, accountId, description, …).
+			//    Child-transfer fields (titheEnabled etc.) aren't stored on
+			//    Income — they're inferred from the existence of children —
+			//    but they ARE in the input payload, so strip them off the
+			//    Prisma data shape.
+			const {
+				titheEnabled: _t,
+				tithePercentage: _tp,
+				emergencyFundEnabled: _ef,
+				emergencyFundPercentage: _efp,
+				categoryName: _cn,
+				...prismaUpdate
+			} = updateData;
+			const updatedIncome = await tx.income.update({
+				where: { id, userId },
+				data: prismaUpdate,
+			});
+
+			const newAccountId = updatedIncome.accountId;
+			const newAmount = updatedIncome.amount.toNumber();
+			const newDate = updatedIncome.date;
+			const newDescription = updatedIncome.description;
+
+			// 4. Re-apply the parent income on the (possibly new) account.
+			if (newAccountId) {
+				const newAccount = await tx.account.findUnique({
+					where: { id: newAccountId, userId },
+					select: { isLiability: true },
+				});
+				await tx.account.update({
+					where: { id: newAccountId, userId },
+					data: {
+						balance: newAccount?.isLiability
+							? { decrement: newAmount } // liability: income/payment reduces debt
+							: { increment: newAmount }, // asset: income raises balance
+					},
+				});
+
+				// 5. Recreate child transfers if still enabled (asset accounts
+				//    only — tithe/EF on liability income wouldn't make sense).
+				const isLiability = newAccount?.isLiability ?? false;
+				const titheEnabled = updateData.titheEnabled ?? false;
+				const tithePercentage = updateData.tithePercentage;
+
+				if (
+					titheEnabled &&
+					tithePercentage &&
+					tithePercentage > 0 &&
+					!isLiability
+				) {
+					const titheAmount = newAmount * (tithePercentage / 100);
+
+					// Find or create Tithes account (mirror createIncome).
+					let titheAccount = await tx.account.findFirst({
+						where: { userId, type: AccountType.TITHE },
+					});
+					if (!titheAccount) {
+						titheAccount = await tx.account.findFirst({
+							where: { userId, name: 'Tithes' },
+						});
+					}
+					if (!titheAccount) {
+						titheAccount = await tx.account.create({
+							data: {
+								userId,
+								name: 'Tithes',
+								type: AccountType.TITHE,
+								balance: 0,
+								currency: 'USD',
+							},
+						});
+					}
+
+					await tx.transfer.create({
+						data: {
+							amount: titheAmount,
+							date: newDate,
+							description: `Tithe for ${newDescription || 'Income'}`,
+							fromAccountId: newAccountId,
+							toAccountId: titheAccount.id,
+							parentIncomeId: updatedIncome.id,
+							userId,
+						},
+					});
+
+					await tx.account.update({
+						where: { id: newAccountId, userId },
+						data: { balance: { decrement: titheAmount } },
+					});
+					await tx.account.update({
+						where: { id: titheAccount.id, userId },
+						data: { balance: { increment: titheAmount } },
+					});
+				}
+
+				const efEnabled = updateData.emergencyFundEnabled ?? false;
+				const efPercentage = updateData.emergencyFundPercentage;
+
+				if (
+					efEnabled &&
+					efPercentage &&
+					efPercentage > 0 &&
+					!isLiability
+				) {
+					const efAmount = newAmount * (efPercentage / 100);
+
+					const efGoal = await tx.goal.findFirst({
+						where: {
+							userId,
+							isEmergencyFund: true,
+							status: 'ACTIVE',
+							linkedAccountId: { not: null },
+						},
+						select: { id: true, linkedAccountId: true },
+					});
+
+					if (efGoal?.linkedAccountId) {
+						await tx.transfer.create({
+							data: {
+								amount: efAmount,
+								date: newDate,
+								description: `Emergency Fund contribution for ${
+									newDescription || 'Income'
+								}`,
+								fromAccountId: newAccountId,
+								toAccountId: efGoal.linkedAccountId,
+								parentIncomeId: updatedIncome.id,
+								efGoalId: efGoal.id,
+								userId,
+							},
+						});
+
+						await tx.account.update({
+							where: { id: newAccountId, userId },
+							data: { balance: { decrement: efAmount } },
+						});
+						await tx.account.update({
+							where: { id: efGoal.linkedAccountId, userId },
+							data: { balance: { increment: efAmount } },
+						});
+						await tx.goal.update({
+							where: { id: efGoal.id },
+							data: { currentAmount: { increment: efAmount } },
+						});
+					}
+				}
 			}
 
 			return updatedIncome;
