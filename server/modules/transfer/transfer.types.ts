@@ -15,6 +15,16 @@ export const createTransferSchema = z
 		path: ['toAccountId'],
 	});
 
+// Reserved for future row-level transfer editing. There is currently no
+// `updateTransferAction` controller, no `TransferService.updateTransfer`
+// method, and no UI caller — the schema is here only as a starting point.
+//
+// When edit ships, mirror the reverse-then-reapply pattern from
+// `IncomeService.updateIncome` and the symmetry of
+// `TransferService._deleteTransferInTx` + `createTransfer`. Specifically:
+// reverse both account legs, reverse the linked fee Expense, update the row,
+// re-apply both legs against the new shape, recreate the fee Expense if
+// still present. Run `money-feature-review` before merging.
 export const updateTransferSchema = createTransferSchema.partial().extend({
 	id: z.string().min(1, 'ID is required'),
 });
