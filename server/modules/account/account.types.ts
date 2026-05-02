@@ -12,9 +12,16 @@ export const createAccountSchema = z.object({
 	color: z.string().optional().nullable(),
 });
 
-export const updateAccountSchema = createAccountSchema.partial().extend({
-	id: z.string().min(1, 'ID is required'),
-});
+// Update payload deliberately omits `balance` and `openingBalance` — those
+// are derived from the Income/Expense/Transfer trail and must only mutate
+// through their respective services. A direct write here would desync the
+// global ledger tripwire (Σ running totals != Σ Account.balance).
+export const updateAccountSchema = createAccountSchema
+	.omit({ balance: true })
+	.partial()
+	.extend({
+		id: z.string().min(1, 'ID is required'),
+	});
 
 export type CreateAccountInput = z.infer<typeof createAccountSchema>;
 export type UpdateAccountInput = z.infer<typeof updateAccountSchema>;

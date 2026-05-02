@@ -19,11 +19,18 @@ export const AccountService = {
 	 * This keeps opening balances out of reports, KPIs, and budget aggregates.
 	 */
 	async createAccount(userId: string, data: CreateAccountInput) {
-		const balance = data.balance || 0;
+		// `openingBalance` is derived here from `balance`, so a caller-supplied
+		// value would be ignored anyway. Stripping it explicitly matches the
+		// updateAccount guard and prevents the spread from ever leaking a
+		// hand-crafted openingBalance into Prisma.
+		const { openingBalance: _o, ...rest } = data as CreateAccountInput & {
+			openingBalance?: unknown;
+		};
+		const balance = rest.balance || 0;
 
 		return await prisma.account.create({
 			data: {
-				...data,
+				...rest,
 				userId,
 				openingBalance:
 					balance > 0 ? new Prisma.Decimal(balance) : null,
@@ -318,9 +325,16 @@ export const AccountService = {
 
 	/**
 	 * Update an account
+	 *
+	 * `balance` and `openingBalance` are stripped here as a defense-in-depth
+	 * guard: those fields are derived from the Income/Expense/Transfer trail
+	 * and must only mutate through their respective services. A direct write
+	 * would desync the global ledger tripwire.
 	 */
 	async updateAccount(userId: string, data: UpdateAccountInput) {
-		const { id, ...updateData } = data;
+		const { id, ...rest } = data;
+		const { balance: _b, openingBalance: _o, ...updateData } = rest as
+			typeof rest & { balance?: unknown; openingBalance?: unknown };
 		return await prisma.account.update({
 			where: { id, userId },
 			data: updateData,

@@ -16,6 +16,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
+	metadataBase: new URL(
+		process.env.NEXT_PUBLIC_APP_URL ?? 'https://budgetplanner.app',
+	),
 	title: 'Personal Budget App',
 	description: 'Track your income, expenses, and net worth.',
 };

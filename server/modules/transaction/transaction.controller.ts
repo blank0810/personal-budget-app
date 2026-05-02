@@ -69,7 +69,8 @@ export async function bulkDeleteTransactionsAction(data: unknown) {
 			CACHE_TAGS.DASHBOARD,
 			CACHE_TAGS.TRANSACTIONS,
 			CACHE_TAGS.GOALS, // EF goal currentAmount decrements on reversal
-			CACHE_TAGS.BUDGETS // expense rows with budgetId affect budget totals
+			CACHE_TAGS.BUDGETS, // expense rows with budgetId affect budget totals
+			CACHE_TAGS.LEDGER
 		);
 		console.log(
 			JSON.stringify({
@@ -125,7 +126,8 @@ export async function bulkCategorizeTransactionsAction(data: unknown) {
 			CACHE_TAGS.EXPENSES,
 			CACHE_TAGS.TRANSACTIONS,
 			CACHE_TAGS.DASHBOARD,
-			CACHE_TAGS.BUDGETS // expense category changes affect budget linkage
+			CACHE_TAGS.BUDGETS, // expense category changes affect budget linkage
+			CACHE_TAGS.LEDGER // ledger row category names need refresh
 		);
 		console.log(
 			JSON.stringify({

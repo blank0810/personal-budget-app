@@ -220,6 +220,67 @@ export async function adminUpdateFeatureRequestAction(
 	}
 }
 
+const FEATURE_REQUEST_STATUSES = [
+	'NEW',
+	'REVIEWING',
+	'PLANNED',
+	'COMPLETED',
+	'DECLINED',
+] as const;
+const BULK_MAX = 100;
+
+export async function adminBulkUpdateFeatureRequestStatusAction(
+	ids: string[],
+	status: string
+) {
+	const { error } = await requireAdminSession();
+	if (error) return { error };
+
+	if (!Array.isArray(ids) || ids.length === 0)
+		return { error: 'No requests selected' };
+	if (ids.length > BULK_MAX)
+		return { error: `Cannot update more than ${BULK_MAX} at once` };
+	if (!FEATURE_REQUEST_STATUSES.includes(status as typeof FEATURE_REQUEST_STATUSES[number]))
+		return { error: 'Invalid status' };
+
+	try {
+		const result = await AdminContentService.bulkUpdateFeatureRequestStatus(
+			ids,
+			status
+		);
+		return { success: true as const, data: result };
+	} catch (err) {
+		return {
+			error:
+				err instanceof Error
+					? err.message
+					: 'Failed to bulk update feature requests',
+		};
+	}
+}
+
+export async function adminBulkDeleteFeatureRequestsAction(ids: string[]) {
+	const { error } = await requireAdminSession();
+	if (error) return { error };
+
+	if (!Array.isArray(ids) || ids.length === 0)
+		return { error: 'No requests selected' };
+	if (ids.length > BULK_MAX)
+		return { error: `Cannot delete more than ${BULK_MAX} at once` };
+
+	try {
+		const result = await AdminContentService.bulkDeleteFeatureRequests(ids);
+		return { success: true as const, data: result };
+	} catch (err) {
+		return {
+			error:
+				err instanceof Error
+					? err.message
+					: 'Failed to bulk delete feature requests',
+		};
+	}
+}
+
 export async function adminGetFeatureFlagsAction() {
 	const { error } = await requireAdminSession();
 	if (error) return { error };

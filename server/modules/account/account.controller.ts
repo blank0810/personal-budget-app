@@ -43,7 +43,7 @@ export async function createAccountAction(data: unknown) {
 
 	try {
 		await AccountService.createAccount(userId, parsed.data);
-		invalidateTags(CACHE_TAGS.ACCOUNTS, CACHE_TAGS.DASHBOARD);
+		invalidateTags(CACHE_TAGS.ACCOUNTS, CACHE_TAGS.DASHBOARD, CACHE_TAGS.LEDGER);
 		return { success: true as const };
 	} catch (error) {
 		console.error('Failed to create account:', error);
@@ -69,7 +69,7 @@ export async function updateAccountAction(data: unknown) {
 
 	try {
 		await AccountService.updateAccount(userId, parsed.data);
-		invalidateTags(CACHE_TAGS.ACCOUNTS, CACHE_TAGS.DASHBOARD);
+		invalidateTags(CACHE_TAGS.ACCOUNTS, CACHE_TAGS.DASHBOARD, CACHE_TAGS.LEDGER);
 		return { success: true as const };
 	} catch (error) {
 		console.error('Failed to update account:', error);
@@ -85,7 +85,7 @@ export async function deleteAccountAction(accountId: string) {
 
 	try {
 		await AccountService.deleteAccount(userId, accountId);
-		invalidateTags(CACHE_TAGS.ACCOUNTS, CACHE_TAGS.DASHBOARD);
+		invalidateTags(CACHE_TAGS.ACCOUNTS, CACHE_TAGS.DASHBOARD, CACHE_TAGS.LEDGER);
 		return { success: true as const };
 	} catch (error) {
 		console.error('Failed to delete account:', error);
@@ -127,7 +127,8 @@ export async function adjustAccountBalanceAction(data: unknown) {
 			CACHE_TAGS.ACCOUNTS,
 			CACHE_TAGS.INCOMES,
 			CACHE_TAGS.EXPENSES,
-			CACHE_TAGS.DASHBOARD
+			CACHE_TAGS.DASHBOARD,
+			CACHE_TAGS.LEDGER
 		);
 		return { success: true as const };
 	} catch (error) {

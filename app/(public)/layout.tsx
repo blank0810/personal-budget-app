@@ -8,8 +8,9 @@ export const metadata: Metadata = {
 	openGraph: {
 		title: 'Budget Planner — Simple Personal Finance Tracking',
 		description: 'Track income, expenses, and budgets. Free to use.',
-		images: ['/og-image.png'],
 		type: 'website',
+		url: '/',
+		siteName: 'Budget Planner',
 	},
 	twitter: {
 		card: 'summary_large_image',

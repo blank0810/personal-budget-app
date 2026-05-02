@@ -43,6 +43,21 @@ export const AdminContentService = {
 		});
 	},
 
+	async bulkUpdateFeatureRequestStatus(ids: string[], status: string) {
+		const result = await prisma.featureRequest.updateMany({
+			where: { id: { in: ids } },
+			data: { status },
+		});
+		return { count: result.count };
+	},
+
+	async bulkDeleteFeatureRequests(ids: string[]) {
+		const result = await prisma.featureRequest.deleteMany({
+			where: { id: { in: ids } },
+		});
+		return { count: result.count };
+	},
+
 	// --- Feature Flags ---
 	async getFeatureFlags() {
 		const flags = await prisma.featureFlag.findMany({

@@ -69,7 +69,6 @@ export function EditAccountDialog({ account }: EditAccountDialogProps) {
 			id: account.id,
 			name: account.name,
 			type: account.type,
-			balance: Number(account.balance),
 			isLiability: account.isLiability,
 			creditLimit: account.creditLimit
 				? Number(account.creditLimit)
