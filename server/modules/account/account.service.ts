@@ -318,9 +318,16 @@ export const AccountService = {
 
 	/**
 	 * Update an account
+	 *
+	 * `balance` and `openingBalance` are stripped here as a defense-in-depth
+	 * guard: those fields are derived from the Income/Expense/Transfer trail
+	 * and must only mutate through their respective services. A direct write
+	 * would desync the global ledger tripwire.
 	 */
 	async updateAccount(userId: string, data: UpdateAccountInput) {
-		const { id, ...updateData } = data;
+		const { id, ...rest } = data;
+		const { balance: _b, openingBalance: _o, ...updateData } = rest as
+			typeof rest & { balance?: unknown; openingBalance?: unknown };
 		return await prisma.account.update({
 			where: { id, userId },
 			data: updateData,
