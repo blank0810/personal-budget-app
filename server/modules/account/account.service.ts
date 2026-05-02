@@ -19,11 +19,18 @@ export const AccountService = {
 	 * This keeps opening balances out of reports, KPIs, and budget aggregates.
 	 */
 	async createAccount(userId: string, data: CreateAccountInput) {
-		const balance = data.balance || 0;
+		// `openingBalance` is derived here from `balance`, so a caller-supplied
+		// value would be ignored anyway. Stripping it explicitly matches the
+		// updateAccount guard and prevents the spread from ever leaking a
+		// hand-crafted openingBalance into Prisma.
+		const { openingBalance: _o, ...rest } = data as CreateAccountInput & {
+			openingBalance?: unknown;
+		};
+		const balance = rest.balance || 0;
 
 		return await prisma.account.create({
 			data: {
-				...data,
+				...rest,
 				userId,
 				openingBalance:
 					balance > 0 ? new Prisma.Decimal(balance) : null,
