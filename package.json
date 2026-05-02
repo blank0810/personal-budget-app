@@ -7,6 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "postinstall": "prisma generate",
     "build:prod": "npm install && prisma migrate deploy && next build",
     "deploy:fresh": "npm install && prisma migrate reset --force && prisma db seed && next build",
@@ -70,5 +72,9 @@
   },
   "prisma": {
     "seed": "npx tsx prisma/seed.ts"
+  },
+  "devDependencies": {
+    "@vitest/ui": "^4.1.5",
+    "vitest": "^4.1.5"
   }
 }
