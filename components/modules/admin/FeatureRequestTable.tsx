@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
 	Table,
 	TableBody,
@@ -47,7 +47,17 @@ import {
 } from '@/server/modules/admin/admin.controller';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
-import { ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
+import {
+	ArrowUpDown,
+	ArrowUp,
+	ArrowDown,
+	ChevronLeft,
+	ChevronRight,
+	Loader2,
+	Search,
+	X,
+} from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 interface FeatureRequest {
 	id: string;
@@ -72,6 +82,64 @@ const STATUS_COLORS: Record<string, 'default' | 'secondary' | 'destructive' | 'o
 
 const CATEGORY_OPTIONS = ['BUG', 'ENHANCEMENT', 'NEW_FEATURE', 'UI_UX'];
 
+type SortBy = 'title' | 'category' | 'email' | 'createdAt' | 'status';
+type SortOrder = 'asc' | 'desc';
+
+function SortIcon({
+	column,
+	activeColumn,
+	order,
+}: {
+	column: SortBy;
+	activeColumn: SortBy;
+	order: SortOrder;
+}) {
+	if (column !== activeColumn) {
+		return <ArrowUpDown className='ml-1 h-3 w-3 opacity-40' />;
+	}
+	return order === 'asc' ? (
+		<ArrowUp className='ml-1 h-3 w-3' />
+	) : (
+		<ArrowDown className='ml-1 h-3 w-3' />
+	);
+}
+
+function SortableHead({
+	column,
+	activeColumn,
+	order,
+	onSort,
+	className,
+	children,
+}: {
+	column: SortBy;
+	activeColumn: SortBy;
+	order: SortOrder;
+	onSort: (column: SortBy) => void;
+	className?: string;
+	children: React.ReactNode;
+}) {
+	return (
+		<TableHead className={className}>
+			<button
+				type='button'
+				onClick={() => onSort(column)}
+				className={cn(
+					'inline-flex items-center font-medium text-xs uppercase tracking-wide transition-colors hover:text-foreground',
+					column === activeColumn ? 'text-foreground' : 'text-muted-foreground'
+				)}
+			>
+				{children}
+				<SortIcon
+					column={column}
+					activeColumn={activeColumn}
+					order={order}
+				/>
+			</button>
+		</TableHead>
+	);
+}
+
 interface FeatureRequestTableProps {
 	initialRequests: FeatureRequest[];
 	initialTotal: number;
@@ -89,6 +157,9 @@ export function FeatureRequestTable({
 	const [page, setPage] = useState(1);
 	const [statusFilter, setStatusFilter] = useState('');
 	const [categoryFilter, setCategoryFilter] = useState('');
+	const [search, setSearch] = useState('');
+	const [sortBy, setSortBy] = useState<SortBy>('createdAt');
+	const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
 	const [loading, setLoading] = useState(false);
 	const [editing, setEditing] = useState<FeatureRequest | null>(null);
 	const [editStatus, setEditStatus] = useState('');
@@ -135,17 +206,30 @@ export function FeatureRequestTable({
 		setSelected(new Set());
 	}
 
-	async function fetchRequests(
-		p: number,
-		status?: string,
-		category?: string
-	) {
+	async function fetchRequests(opts: {
+		page?: number;
+		status?: string;
+		category?: string;
+		search?: string;
+		sortBy?: SortBy;
+		sortOrder?: SortOrder;
+	} = {}) {
+		const p = opts.page ?? page;
+		const s = opts.status ?? statusFilter;
+		const c = opts.category ?? categoryFilter;
+		const q = opts.search ?? search;
+		const sb = opts.sortBy ?? sortBy;
+		const so = opts.sortOrder ?? sortOrder;
+
 		setLoading(true);
 		clearSelection();
 		const result = await adminGetFeatureRequestsAction(
 			p,
-			status || undefined,
-			category || undefined
+			s || undefined,
+			c || undefined,
+			q || undefined,
+			sb,
+			so
 		);
 		setLoading(false);
 
@@ -162,6 +246,40 @@ export function FeatureRequestTable({
 		}
 	}
 
+	// Debounce the search input — 300ms after the user stops typing.
+	const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+	useEffect(() => {
+		if (searchDebounceRef.current) {
+			clearTimeout(searchDebounceRef.current);
+		}
+		searchDebounceRef.current = setTimeout(() => {
+			fetchRequests({ page: 1, search });
+		}, 300);
+		return () => {
+			if (searchDebounceRef.current) {
+				clearTimeout(searchDebounceRef.current);
+			}
+		};
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [search]);
+
+	function handleSort(column: SortBy) {
+		// Click same column → toggle order. Click new column → asc default
+		// (createdAt remains desc-first since "newest first" is the natural
+		// expectation for date columns).
+		const isSame = sortBy === column;
+		const nextOrder: SortOrder = isSame
+			? sortOrder === 'asc'
+				? 'desc'
+				: 'asc'
+			: column === 'createdAt'
+				? 'desc'
+				: 'asc';
+		setSortBy(column);
+		setSortOrder(nextOrder);
+		fetchRequests({ page: 1, sortBy: column, sortOrder: nextOrder });
+	}
+
 	async function handleBulkStatus() {
 		if (selected.size === 0) return;
 		setBulkPending(true);
@@ -174,7 +292,7 @@ export function FeatureRequestTable({
 
 		if ('success' in result && result.data) {
 			toast.success(`Updated ${result.data.count} requests`);
-			fetchRequests(page, statusFilter, categoryFilter);
+			fetchRequests();
 		} else {
 			toast.error(result.error || 'Failed to update');
 		}
@@ -191,7 +309,7 @@ export function FeatureRequestTable({
 
 		if ('success' in result && result.data) {
 			toast.success(`Deleted ${result.data.count} requests`);
-			fetchRequests(page, statusFilter, categoryFilter);
+			fetchRequests();
 		} else {
 			toast.error(result.error || 'Failed to delete');
 		}
@@ -216,7 +334,7 @@ export function FeatureRequestTable({
 		if (result.success) {
 			toast.success('Updated');
 			setEditing(null);
-			fetchRequests(page, statusFilter, categoryFilter);
+			fetchRequests();
 		} else {
 			toast.error(result.error || 'Failed');
 		}
@@ -224,13 +342,32 @@ export function FeatureRequestTable({
 
 	return (
 		<div className='space-y-4'>
-			<div className='flex gap-3'>
+			<div className='flex flex-wrap gap-3'>
+				<div className='relative flex-1 min-w-[220px] max-w-[320px]'>
+					<Search className='absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground' />
+					<Input
+						placeholder='Search title or email…'
+						value={search}
+						onChange={(e) => setSearch(e.target.value)}
+						className='pl-8 pr-8'
+					/>
+					{search && (
+						<button
+							type='button'
+							onClick={() => setSearch('')}
+							className='absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground'
+							aria-label='Clear search'
+						>
+							<X className='h-4 w-4' />
+						</button>
+					)}
+				</div>
 				<Select
 					value={statusFilter}
 					onValueChange={(v) => {
 						const val = v === '__all__' ? '' : v;
 						setStatusFilter(val);
-						fetchRequests(1, val, categoryFilter);
+						fetchRequests({ page: 1, status: val });
 					}}
 				>
 					<SelectTrigger className='w-[150px]'>
@@ -250,7 +387,7 @@ export function FeatureRequestTable({
 					onValueChange={(v) => {
 						const val = v === '__all__' ? '' : v;
 						setCategoryFilter(val);
-						fetchRequests(1, statusFilter, val);
+						fetchRequests({ page: 1, category: val });
 					}}
 				>
 					<SelectTrigger className='w-[150px]'>
@@ -294,13 +431,47 @@ export function FeatureRequestTable({
 										disabled={visibleIds.length === 0}
 									/>
 								</TableHead>
-								<TableHead>Title</TableHead>
-								<TableHead>Category</TableHead>
-								<TableHead>Email</TableHead>
-								<TableHead className='hidden md:table-cell'>
+								<SortableHead
+									column='title'
+									activeColumn={sortBy}
+									order={sortOrder}
+									onSort={handleSort}
+								>
+									Title
+								</SortableHead>
+								<SortableHead
+									column='category'
+									activeColumn={sortBy}
+									order={sortOrder}
+									onSort={handleSort}
+								>
+									Category
+								</SortableHead>
+								<SortableHead
+									column='email'
+									activeColumn={sortBy}
+									order={sortOrder}
+									onSort={handleSort}
+								>
+									Email
+								</SortableHead>
+								<SortableHead
+									column='createdAt'
+									activeColumn={sortBy}
+									order={sortOrder}
+									onSort={handleSort}
+									className='hidden md:table-cell'
+								>
 									Date
-								</TableHead>
-								<TableHead>Status</TableHead>
+								</SortableHead>
+								<SortableHead
+									column='status'
+									activeColumn={sortBy}
+									order={sortOrder}
+									onSort={handleSort}
+								>
+									Status
+								</SortableHead>
 								<TableHead className='w-20'></TableHead>
 							</TableRow>
 						</TableHeader>
@@ -389,13 +560,7 @@ export function FeatureRequestTable({
 							variant='outline'
 							size='sm'
 							disabled={page <= 1}
-							onClick={() =>
-								fetchRequests(
-									page - 1,
-									statusFilter,
-									categoryFilter
-								)
-							}
+							onClick={() => fetchRequests({ page: page - 1 })}
 						>
 							<ChevronLeft className='h-4 w-4' />
 						</Button>
@@ -403,13 +568,7 @@ export function FeatureRequestTable({
 							variant='outline'
 							size='sm'
 							disabled={page >= pages}
-							onClick={() =>
-								fetchRequests(
-									page + 1,
-									statusFilter,
-									categoryFilter
-								)
-							}
+							onClick={() => fetchRequests({ page: page + 1 })}
 						>
 							<ChevronRight className='h-4 w-4' />
 						</Button>
