@@ -7,6 +7,7 @@ import {
 	ArrowRightLeft,
 	PieChart,
 	BarChart3,
+	BookOpen,
 	Sparkles,
 	Wallet,
 	Shield,
@@ -49,6 +50,11 @@ const navItems: NavItem[] = [
 		title: 'Accounts',
 		url: '/accounts',
 		icon: CreditCard,
+	},
+	{
+		title: 'Ledger',
+		url: '/ledger',
+		icon: BookOpen,
 	},
 	{
 		title: 'Transactions',
