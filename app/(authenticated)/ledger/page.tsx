@@ -1,6 +1,6 @@
 import { auth } from '@/auth';
 import { redirect } from 'next/navigation';
-import { AccountService } from '@/server/modules/account/account.service';
+import { getAccountsAction } from '@/server/modules/account/account.controller';
 import { getLedgerPageAction, getLedgerKpiAction } from '@/server/modules/ledger/ledger.controller';
 import { LedgerPage } from '@/components/modules/ledger/LedgerPage';
 import { serialize } from '@/lib/serialization';
@@ -41,17 +41,20 @@ export default async function LedgerPageRoute({
 		pageSize,
 	};
 
-	// Fetch ledger page + KPI + accounts in parallel
-	const [ledgerResult, kpiResult, accounts] = await Promise.all([
+	// Fetch ledger page + KPI + accounts in parallel — all via controller
+	// actions so auth and validation flow through a single boundary.
+	const [ledgerResult, kpiResult, accountsResult] = await Promise.all([
 		getLedgerPageAction(filter),
 		getLedgerKpiAction(filter),
-		AccountService.getAccounts(session.user.id),
+		getAccountsAction(),
 	]);
 
 	const initialPage =
 		'data' in ledgerResult && ledgerResult.data ? ledgerResult.data : null;
 	const initialKpi =
 		'data' in kpiResult && kpiResult.data ? kpiResult.data : null;
+	const accounts =
+		'data' in accountsResult && accountsResult.data ? accountsResult.data : [];
 
 	const accountOptions = accounts.map((a) => ({
 		id: a.id,
