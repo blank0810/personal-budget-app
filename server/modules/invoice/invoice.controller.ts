@@ -63,9 +63,9 @@ export async function markAsSentAction(invoiceId: string) {
 	const userId = await getAuthenticatedUser();
 
 	try {
-		await InvoiceService.markAsSent(userId, invoiceId);
+		const { emailedTo } = await InvoiceService.markAsSent(userId, invoiceId);
 		invalidateTags(CACHE_TAGS.INVOICES);
-		return { success: true as const };
+		return { success: true as const, emailedTo };
 	} catch (error) {
 		return {
 			error:

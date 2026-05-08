@@ -9,6 +9,9 @@ import {
 	InvoiceSummary,
 } from './invoice.types';
 import { UserService } from '@/server/modules/user/user.service';
+import { EmailService } from '@/server/modules/email/email.service';
+import { renderInvoicePDF } from './invoice.templates';
+import { formatCurrency } from '@/lib/formatters';
 import { InvoiceStatus } from '@prisma/client';
 
 /**
@@ -377,21 +380,88 @@ export const InvoiceService = {
 	},
 
 	/**
-	 * Transition invoice from DRAFT to SENT
+	 * Transition invoice from DRAFT to SENT.
+	 * If the invoice has a clientEmail on file, also email the rendered PDF to
+	 * the client. Returns the updated invoice plus the recipient when emailed.
 	 */
 	async markAsSent(userId: string, invoiceId: string) {
-		const invoice = await prisma.invoice.findUniqueOrThrow({
+		const invoice = await prisma.invoice.findUnique({
 			where: { id: invoiceId, userId },
+			include: {
+				lineItems: { orderBy: { sortOrder: 'asc' } },
+				user: { select: { name: true, email: true } },
+			},
 		});
+
+		if (!invoice) {
+			throw new Error('Invoice not found');
+		}
 
 		if (invoice.status !== InvoiceStatus.DRAFT) {
 			throw new Error('Only DRAFT invoices can be marked as sent');
 		}
 
-		return await prisma.invoice.update({
+		let emailedTo: string | null = null;
+
+		if (invoice.clientEmail) {
+			const currency =
+				invoice.currency || (await UserService.getCurrency(userId));
+
+			const pdfBuffer = await renderInvoicePDF(
+				{
+					id: invoice.id,
+					invoiceNumber: invoice.invoiceNumber,
+					status: invoice.status,
+					userName: invoice.user?.name ?? null,
+					userEmail: invoice.user?.email ?? null,
+					clientName: invoice.clientName,
+					clientEmail: invoice.clientEmail,
+					clientAddress: invoice.clientAddress,
+					clientPhone: invoice.clientPhone,
+					issueDate: invoice.issueDate,
+					dueDate: invoice.dueDate,
+					subtotal: Number(invoice.subtotal),
+					taxRate: invoice.taxRate ? Number(invoice.taxRate) : null,
+					taxAmount: Number(invoice.taxAmount),
+					totalAmount: Number(invoice.totalAmount),
+					notes: invoice.notes,
+					paidAt: invoice.paidAt,
+					lineItems: invoice.lineItems.map((li) => ({
+						id: li.id,
+						description: li.description,
+						quantity: Number(li.quantity),
+						unitPrice: Number(li.unitPrice),
+						amount: Number(li.amount),
+						date: li.date,
+						sortOrder: li.sortOrder,
+					})),
+				},
+				currency
+			);
+
+			await EmailService.sendInvoice({
+				to: invoice.clientEmail,
+				invoiceNumber: invoice.invoiceNumber,
+				fromName: invoice.user?.name ?? null,
+				fromEmail: invoice.user?.email ?? null,
+				clientName: invoice.clientName,
+				totalFormatted: formatCurrency(Number(invoice.totalAmount), {
+					currency,
+				}),
+				dueDate: invoice.dueDate,
+				notes: invoice.notes,
+				pdfBuffer,
+			});
+
+			emailedTo = invoice.clientEmail;
+		}
+
+		const updated = await prisma.invoice.update({
 			where: { id: invoiceId, userId },
 			data: { status: InvoiceStatus.SENT },
 		});
+
+		return { invoice: updated, emailedTo };
 	},
 
 	/**

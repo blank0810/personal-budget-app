@@ -82,6 +82,65 @@ export class EmailService {
 	}
 
 	/**
+	 * Send an invoice to a client with the rendered PDF attached.
+	 */
+	static async sendInvoice({
+		to,
+		invoiceNumber,
+		fromName,
+		fromEmail,
+		clientName,
+		totalFormatted,
+		dueDate,
+		notes,
+		pdfBuffer,
+	}: {
+		to: string;
+		invoiceNumber: string;
+		fromName: string | null;
+		fromEmail: string | null;
+		clientName: string;
+		totalFormatted: string;
+		dueDate: Date;
+		notes: string | null;
+		pdfBuffer: Buffer;
+	}) {
+		const dueLabel = dueDate.toLocaleDateString('en-US', {
+			year: 'numeric',
+			month: 'long',
+			day: 'numeric',
+		});
+		const senderLine = fromName ?? fromEmail ?? 'Your service provider';
+		const replyLine = fromEmail
+			? `If you have any questions, simply reply to this email or contact ${fromEmail}.`
+			: 'If you have any questions, simply reply to this email.';
+
+		const html = `
+			<div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; color: #111111;">
+				<h2 style="font-family: serif; font-size: 24px; margin-bottom: 16px;">Invoice ${invoiceNumber}</h2>
+				<p>Hi ${clientName},</p>
+				<p>Please find attached invoice <strong>${invoiceNumber}</strong> for <strong>${totalFormatted}</strong>, due on <strong>${dueLabel}</strong>.</p>
+				${notes ? `<p style="background-color: #f5f5f5; padding: 12px; border-radius: 6px; white-space: pre-line;">${notes}</p>` : ''}
+				<p>${replyLine}</p>
+				<p>Thank you,<br/>${senderLine}</p>
+			</div>
+		`;
+
+		return this.sendWithAttachment({
+			to,
+			subject: `Invoice ${invoiceNumber} from ${senderLine}`,
+			html,
+			attachments: [
+				{
+					filename: `${invoiceNumber}.pdf`,
+					content: pdfBuffer,
+					contentType: 'application/pdf',
+				},
+			],
+		});
+	}
+
+	/**
 	 * Send a password reset email
 	 */
 	static async sendPasswordReset({

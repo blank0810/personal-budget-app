@@ -397,7 +397,11 @@ export function InvoiceDetail({ invoice }: InvoiceDetailProps) {
 			if (result?.error) {
 				toast.error(result.error);
 			} else {
-				toast.success('Invoice marked as sent');
+				toast.success(
+					result.emailedTo
+						? `Invoice sent to ${result.emailedTo}`
+						: 'Invoice marked as sent'
+				);
 				router.refresh();
 			}
 		});
@@ -469,7 +473,9 @@ export function InvoiceDetail({ invoice }: InvoiceDetailProps) {
 								) : (
 									<Send className="mr-2 h-4 w-4" />
 								)}
-								Record as Sent
+								{invoice.clientEmail
+									? 'Send to Client'
+									: 'Record as Sent'}
 							</Button>
 							<Button variant="outline" asChild>
 								<Link href={`/invoices/${invoice.id}/edit`}>
