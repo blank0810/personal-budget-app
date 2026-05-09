@@ -13,6 +13,7 @@ import {
 	markAsSentAction,
 	cancelInvoiceAction,
 	deleteInvoiceAction,
+	resendInvoiceEmailAction,
 } from '@/server/modules/invoice/invoice.controller';
 import { toast } from 'sonner';
 import {
@@ -24,6 +25,7 @@ import {
 	Send,
 	CheckCircle,
 	ArrowLeft,
+	Mail,
 } from 'lucide-react';
 import { InvoiceStatus } from '@prisma/client';
 
@@ -419,6 +421,21 @@ export function InvoiceDetail({ invoice }: InvoiceDetailProps) {
 		});
 	}
 
+	function handleResend() {
+		startTransition(async () => {
+			const result = await resendInvoiceEmailAction(invoice.id);
+			if (result?.error) {
+				toast.error(result.error);
+			} else {
+				toast.success(
+					result.emailedTo
+						? `Invoice resent to ${result.emailedTo}`
+						: 'Invoice resent'
+				);
+			}
+		});
+	}
+
 	function handleDelete() {
 		startTransition(async () => {
 			const result = await deleteInvoiceAction(invoice.id);
@@ -511,6 +528,20 @@ export function InvoiceDetail({ invoice }: InvoiceDetailProps) {
 								<CheckCircle className="mr-2 h-4 w-4" />
 								Mark as Paid
 							</Button>
+							{invoice.clientEmail && (
+								<Button
+									variant="outline"
+									onClick={handleResend}
+									disabled={isPending}
+								>
+									{isPending ? (
+										<Loader2 className="mr-2 h-4 w-4 animate-spin" />
+									) : (
+										<Mail className="mr-2 h-4 w-4" />
+									)}
+									Resend Email
+								</Button>
+							)}
 							<Button variant="outline" asChild>
 								<a
 									href={`/api/invoices/${invoice.id}/pdf`}
@@ -532,8 +563,36 @@ export function InvoiceDetail({ invoice }: InvoiceDetailProps) {
 						</>
 					)}
 
-					{(invoice.status === 'PAID' ||
-						invoice.status === 'CANCELLED') && (
+					{invoice.status === 'PAID' && (
+						<>
+							{invoice.clientEmail && (
+								<Button
+									variant="outline"
+									onClick={handleResend}
+									disabled={isPending}
+								>
+									{isPending ? (
+										<Loader2 className="mr-2 h-4 w-4 animate-spin" />
+									) : (
+										<Mail className="mr-2 h-4 w-4" />
+									)}
+									Resend Receipt
+								</Button>
+							)}
+							<Button variant="outline" asChild>
+								<a
+									href={`/api/invoices/${invoice.id}/pdf`}
+									target="_blank"
+									rel="noopener noreferrer"
+								>
+									<Download className="mr-2 h-4 w-4" />
+									Download PDF
+								</a>
+							</Button>
+						</>
+					)}
+
+					{invoice.status === 'CANCELLED' && (
 						<Button variant="outline" asChild>
 							<a
 								href={`/api/invoices/${invoice.id}/pdf`}

@@ -106,6 +106,22 @@ export async function markAsPaidAction(data: unknown) {
 	}
 }
 
+export async function resendInvoiceEmailAction(invoiceId: string) {
+	const userId = await getAuthenticatedUser();
+
+	try {
+		const emailedTo = await InvoiceService.resendEmail(userId, invoiceId);
+		return { success: true as const, emailedTo };
+	} catch (error) {
+		return {
+			error:
+				error instanceof Error
+					? error.message
+					: 'Failed to resend invoice email',
+		};
+	}
+}
+
 export async function cancelInvoiceAction(invoiceId: string) {
 	const userId = await getAuthenticatedUser();
 
