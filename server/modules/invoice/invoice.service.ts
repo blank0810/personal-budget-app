@@ -574,6 +574,51 @@ export const InvoiceService = {
 	},
 
 	/**
+	 * Resend the invoice email to the client without changing status.
+	 * Renders the PDF with the invoice's current status stamp:
+	 * - SENT / OVERDUE → standard invoice email
+	 * - PAID → PAID receipt email (uses stored paidAt)
+	 *
+	 * Disallowed for DRAFT (use markAsSent) and CANCELLED.
+	 */
+	async resendEmail(userId: string, invoiceId: string): Promise<string> {
+		const invoice = await prisma.invoice.findUnique({
+			where: { id: invoiceId, userId },
+			include: {
+				lineItems: { orderBy: { sortOrder: 'asc' } },
+				user: { select: { name: true, email: true } },
+			},
+		});
+
+		if (!invoice) {
+			throw new Error('Invoice not found');
+		}
+
+		if (!invoice.clientEmail) {
+			throw new Error('No client email on file for this invoice');
+		}
+
+		if (
+			invoice.status !== InvoiceStatus.SENT &&
+			invoice.status !== InvoiceStatus.OVERDUE &&
+			invoice.status !== InvoiceStatus.PAID
+		) {
+			throw new Error(
+				'Only SENT, OVERDUE, or PAID invoices can be resent'
+			);
+		}
+
+		const currency =
+			invoice.currency || (await UserService.getCurrency(userId));
+
+		return await emailInvoiceToClient(invoice, currency, {
+			status: invoice.status,
+			paidAt: invoice.paidAt,
+			variant: invoice.status === InvoiceStatus.PAID ? 'receipt' : 'invoice',
+		});
+	},
+
+	/**
 	 * Cancel an invoice (DRAFT, SENT, or OVERDUE).
 	 * Reverts any linked work entries back to UNBILLED and unlinks them
 	 * from the cancelled invoice's line items.
