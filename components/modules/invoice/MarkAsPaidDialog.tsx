@@ -10,12 +10,14 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Checkbox } from '@/components/ui/checkbox';
 import { markAsPaidAction } from '@/server/modules/invoice/invoice.controller';
 import { toast } from 'sonner';
 import { Loader2 } from 'lucide-react';
 
 interface MarkAsPaidDialogProps {
 	invoiceId: string;
+	clientEmail?: string | null;
 	open: boolean;
 	onSuccess: () => void;
 	onClose: () => void;
@@ -23,6 +25,7 @@ interface MarkAsPaidDialogProps {
 
 export function MarkAsPaidDialog({
 	invoiceId,
+	clientEmail,
 	open,
 	onSuccess,
 	onClose,
@@ -31,6 +34,7 @@ export function MarkAsPaidDialog({
 	const [paymentDate, setPaymentDate] = useState(
 		new Date().toISOString().slice(0, 10)
 	);
+	const [sendEmail, setSendEmail] = useState(Boolean(clientEmail));
 
 	function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
 		e.preventDefault();
@@ -39,12 +43,17 @@ export function MarkAsPaidDialog({
 			const result = await markAsPaidAction({
 				invoiceId,
 				date: new Date(paymentDate),
+				sendEmail: sendEmail && Boolean(clientEmail),
 			});
 
 			if (result?.error) {
 				toast.error(result.error);
 			} else {
-				toast.success('Invoice marked as paid');
+				toast.success(
+					result.emailedTo
+						? `Invoice marked as paid — receipt sent to ${result.emailedTo}`
+						: 'Invoice marked as paid'
+				);
 				onSuccess();
 				onClose();
 			}
@@ -67,6 +76,28 @@ export function MarkAsPaidDialog({
 							onChange={(e) => setPaymentDate(e.target.value)}
 						/>
 					</div>
+
+					{clientEmail && (
+						<div className='flex items-start gap-2'>
+							<Checkbox
+								id='send-paid-email'
+								checked={sendEmail}
+								onCheckedChange={(v) => setSendEmail(v === true)}
+								className='mt-0.5'
+							/>
+							<div className='flex-1'>
+								<Label
+									htmlFor='send-paid-email'
+									className='cursor-pointer text-sm font-normal'
+								>
+									Email PAID receipt to {clientEmail}
+								</Label>
+								<p className='text-xs text-muted-foreground'>
+									Sends the invoice with the PAID stamp attached as PDF.
+								</p>
+							</div>
+						</div>
+					)}
 
 					<div className='flex gap-3'>
 						<Button

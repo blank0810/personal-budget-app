@@ -87,7 +87,7 @@ export async function markAsPaidAction(data: unknown) {
 	}
 
 	try {
-		await InvoiceService.markAsPaid(userId, parsed.data);
+		const { emailedTo } = await InvoiceService.markAsPaid(userId, parsed.data);
 		// markAsPaid creates an Income record, so also invalidate income/account/dashboard
 		invalidateTags(
 			CACHE_TAGS.INVOICES,
@@ -95,7 +95,7 @@ export async function markAsPaidAction(data: unknown) {
 			CACHE_TAGS.ACCOUNTS,
 			CACHE_TAGS.DASHBOARD
 		);
-		return { success: true as const };
+		return { success: true as const, emailedTo };
 	} catch (error) {
 		return {
 			error:

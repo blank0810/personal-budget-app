@@ -27,6 +27,97 @@ function computeInvoiceTotals(
 	return { subtotal, taxAmount, totalAmount };
 }
 
+import type { Prisma } from '@prisma/client';
+
+type InvoiceForEmail = Prisma.InvoiceGetPayload<{
+	include: {
+		lineItems: true;
+		user: { select: { name: true; email: true } };
+	};
+}>;
+
+/**
+ * Render an invoice PDF and email it to the client.
+ * Caller decides which `status` is stamped on the rendered PDF (DRAFT / SENT /
+ * PAID / OVERDUE / CANCELLED) so the watermark matches what the client receives.
+ */
+async function emailInvoiceToClient(
+	invoice: InvoiceForEmail,
+	currency: string,
+	options: {
+		status: InvoiceStatus;
+		paidAt: Date | null;
+		variant: 'invoice' | 'receipt';
+	}
+): Promise<string> {
+	if (!invoice.clientEmail) {
+		throw new Error('Cannot email invoice without a client email');
+	}
+
+	const pdfBuffer = await renderInvoicePDF(
+		{
+			id: invoice.id,
+			invoiceNumber: invoice.invoiceNumber,
+			status: options.status,
+			userName: invoice.user?.name ?? null,
+			userEmail: invoice.user?.email ?? null,
+			clientName: invoice.clientName,
+			clientEmail: invoice.clientEmail,
+			clientAddress: invoice.clientAddress,
+			clientPhone: invoice.clientPhone,
+			issueDate: invoice.issueDate,
+			dueDate: invoice.dueDate,
+			subtotal: Number(invoice.subtotal),
+			taxRate: invoice.taxRate ? Number(invoice.taxRate) : null,
+			taxAmount: Number(invoice.taxAmount),
+			totalAmount: Number(invoice.totalAmount),
+			notes: invoice.notes,
+			paidAt: options.paidAt,
+			lineItems: invoice.lineItems.map((li) => ({
+				id: li.id,
+				description: li.description,
+				quantity: Number(li.quantity),
+				unitPrice: Number(li.unitPrice),
+				amount: Number(li.amount),
+				date: li.date,
+				sortOrder: li.sortOrder,
+			})),
+		},
+		currency
+	);
+
+	const totalFormatted = formatCurrency(Number(invoice.totalAmount), {
+		currency,
+	});
+
+	if (options.variant === 'receipt') {
+		await EmailService.sendInvoiceReceipt({
+			to: invoice.clientEmail,
+			invoiceNumber: invoice.invoiceNumber,
+			fromName: invoice.user?.name ?? null,
+			fromEmail: invoice.user?.email ?? null,
+			clientName: invoice.clientName,
+			totalFormatted,
+			paidAt: options.paidAt ?? new Date(),
+			pdfBuffer,
+		});
+	} else {
+		await EmailService.sendInvoice({
+			to: invoice.clientEmail,
+			invoiceNumber: invoice.invoiceNumber,
+			fromName: invoice.user?.name ?? null,
+			fromEmail: invoice.user?.email ?? null,
+			clientName: invoice.clientName,
+			totalFormatted,
+			dueDate: invoice.dueDate,
+			notes: invoice.notes,
+			pdfBuffer,
+		});
+	}
+
+	return invoice.clientEmail;
+}
+
 /**
  * Revert linked work entries back to UNBILLED when an invoice is cancelled or deleted.
  * Also nulls out workEntryId on the line items to release the unique constraint,
@@ -407,53 +498,11 @@ export const InvoiceService = {
 			const currency =
 				invoice.currency || (await UserService.getCurrency(userId));
 
-			const pdfBuffer = await renderInvoicePDF(
-				{
-					id: invoice.id,
-					invoiceNumber: invoice.invoiceNumber,
-					status: invoice.status,
-					userName: invoice.user?.name ?? null,
-					userEmail: invoice.user?.email ?? null,
-					clientName: invoice.clientName,
-					clientEmail: invoice.clientEmail,
-					clientAddress: invoice.clientAddress,
-					clientPhone: invoice.clientPhone,
-					issueDate: invoice.issueDate,
-					dueDate: invoice.dueDate,
-					subtotal: Number(invoice.subtotal),
-					taxRate: invoice.taxRate ? Number(invoice.taxRate) : null,
-					taxAmount: Number(invoice.taxAmount),
-					totalAmount: Number(invoice.totalAmount),
-					notes: invoice.notes,
-					paidAt: invoice.paidAt,
-					lineItems: invoice.lineItems.map((li) => ({
-						id: li.id,
-						description: li.description,
-						quantity: Number(li.quantity),
-						unitPrice: Number(li.unitPrice),
-						amount: Number(li.amount),
-						date: li.date,
-						sortOrder: li.sortOrder,
-					})),
-				},
-				currency
-			);
-
-			await EmailService.sendInvoice({
-				to: invoice.clientEmail,
-				invoiceNumber: invoice.invoiceNumber,
-				fromName: invoice.user?.name ?? null,
-				fromEmail: invoice.user?.email ?? null,
-				clientName: invoice.clientName,
-				totalFormatted: formatCurrency(Number(invoice.totalAmount), {
-					currency,
-				}),
-				dueDate: invoice.dueDate,
-				notes: invoice.notes,
-				pdfBuffer,
+			emailedTo = await emailInvoiceToClient(invoice, currency, {
+				status: InvoiceStatus.SENT,
+				paidAt: null,
+				variant: 'invoice',
 			});
-
-			emailedTo = invoice.clientEmail;
 		}
 
 		const updated = await prisma.invoice.update({
@@ -465,14 +514,28 @@ export const InvoiceService = {
 	},
 
 	/**
-	 * Mark invoice as PAID — just updates status and paidAt.
-	 * Does NOT create an income record (currency conversion between
-	 * invoice currency and account currency is not yet supported).
+	 * Mark invoice as PAID — updates status and paidAt.
+	 * If `sendEmail` is true and the invoice has a clientEmail, also emails a
+	 * PAID-stamped PDF receipt to the client.
+	 *
+	 * Does NOT create an income record (currency conversion between invoice
+	 * currency and account currency is not yet supported).
 	 */
 	async markAsPaid(userId: string, data: MarkAsPaidInput) {
-		const invoice = await prisma.invoice.findUniqueOrThrow({
+		const invoice = await prisma.invoice.findUnique({
 			where: { id: data.invoiceId, userId },
+			include: {
+				lineItems: { orderBy: { sortOrder: 'asc' } },
+				user: { select: { name: true, email: true } },
+				linkedIncome: {
+					include: { account: { select: { name: true } } },
+				},
+			},
 		});
+
+		if (!invoice) {
+			throw new Error('Invoice not found');
+		}
 
 		if (
 			invoice.status !== InvoiceStatus.SENT &&
@@ -481,13 +544,33 @@ export const InvoiceService = {
 			throw new Error('Only SENT or OVERDUE invoices can be marked as paid');
 		}
 
-		return await prisma.invoice.update({
+		const paidAt = data.date ?? new Date();
+		let emailedTo: string | null = null;
+
+		if (data.sendEmail && invoice.clientEmail) {
+			const currency =
+				invoice.currency || (await UserService.getCurrency(userId));
+
+			emailedTo = await emailInvoiceToClient(
+				{ ...invoice, paidAt },
+				currency,
+				{
+					status: InvoiceStatus.PAID,
+					paidAt,
+					variant: 'receipt',
+				}
+			);
+		}
+
+		const updated = await prisma.invoice.update({
 			where: { id: data.invoiceId, userId },
 			data: {
 				status: InvoiceStatus.PAID,
-				paidAt: data.date ?? new Date(),
+				paidAt,
 			},
 		});
+
+		return { invoice: updated, emailedTo };
 	},
 
 	/**
