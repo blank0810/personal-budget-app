@@ -556,6 +556,7 @@ export function InvoiceDetail({ invoice }: InvoiceDetailProps) {
 
 			<MarkAsPaidDialog
 				invoiceId={invoice.id}
+				clientEmail={invoice.clientEmail}
 				open={paidDialogOpen}
 				onSuccess={() => router.refresh()}
 				onClose={() => setPaidDialogOpen(false)}

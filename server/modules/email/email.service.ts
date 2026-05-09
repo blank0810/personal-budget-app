@@ -141,6 +141,63 @@ export class EmailService {
 	}
 
 	/**
+	 * Send a paid-invoice receipt to a client with the PAID-stamped PDF attached.
+	 */
+	static async sendInvoiceReceipt({
+		to,
+		invoiceNumber,
+		fromName,
+		fromEmail,
+		clientName,
+		totalFormatted,
+		paidAt,
+		pdfBuffer,
+	}: {
+		to: string;
+		invoiceNumber: string;
+		fromName: string | null;
+		fromEmail: string | null;
+		clientName: string;
+		totalFormatted: string;
+		paidAt: Date;
+		pdfBuffer: Buffer;
+	}) {
+		const paidLabel = paidAt.toLocaleDateString('en-US', {
+			year: 'numeric',
+			month: 'long',
+			day: 'numeric',
+		});
+		const senderLine = fromName ?? fromEmail ?? 'Your service provider';
+		const replyLine = fromEmail
+			? `If you have any questions, simply reply to this email or contact ${fromEmail}.`
+			: 'If you have any questions, simply reply to this email.';
+
+		const html = `
+			<div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; color: #111111;">
+				<h2 style="font-family: serif; font-size: 24px; margin-bottom: 16px;">Payment Received</h2>
+				<p>Hi ${clientName},</p>
+				<p>Thank you — we've recorded payment of <strong>${totalFormatted}</strong> against invoice <strong>${invoiceNumber}</strong> on <strong>${paidLabel}</strong>.</p>
+				<p>A PAID copy of the invoice is attached for your records.</p>
+				<p>${replyLine}</p>
+				<p>Thank you,<br/>${senderLine}</p>
+			</div>
+		`;
+
+		return this.sendWithAttachment({
+			to,
+			subject: `Receipt — Invoice ${invoiceNumber} paid`,
+			html,
+			attachments: [
+				{
+					filename: `${invoiceNumber}-paid.pdf`,
+					content: pdfBuffer,
+					contentType: 'application/pdf',
+				},
+			],
+		});
+	}
+
+	/**
 	 * Send a password reset email
 	 */
 	static async sendPasswordReset({

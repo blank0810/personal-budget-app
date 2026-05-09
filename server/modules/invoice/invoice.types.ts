@@ -34,6 +34,7 @@ export const updateInvoiceSchema = createInvoiceSchema
 export const markAsPaidSchema = z.object({
 	invoiceId: z.string(),
 	date: z.coerce.date().optional(),
+	sendEmail: z.boolean().optional(),
 });
 
 export type CreateInvoiceInput = z.infer<typeof createInvoiceSchema>;
