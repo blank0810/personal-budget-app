@@ -3,7 +3,7 @@ import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 
 export const runtime = 'nodejs';
-export const alt = 'Budget Planner — Track income, expenses, and budgets';
+export const alt = 'Budget Planner: money and invoicing for freelancers';
 export const size = { width: 1200, height: 630 };
 export const contentType = 'image/png';
 
@@ -68,8 +68,8 @@ export default async function Image() {
 							flexDirection: 'column',
 						}}
 					>
-						<span>Stop guessing</span>
-						<span style={{ color: 'rgba(255,255,255,0.7)' }}>where your money goes.</span>
+						<span>Your money, finally</span>
+						<span style={{ color: 'rgba(255,255,255,0.7)' }}>with a brain.</span>
 					</div>
 
 					<div
@@ -79,7 +79,7 @@ export default async function Image() {
 							lineHeight: 1.4,
 						}}
 					>
-						Track income, expenses, and budgets — all in one free app.
+						Budgeting and invoicing for freelancers, all in one free app.
 					</div>
 
 					<div style={{ display: 'flex', gap: '10px', marginTop: '8px' }}>
@@ -94,7 +94,7 @@ export default async function Image() {
 								color: 'rgba(255,255,255,0.85)',
 							}}
 						>
-							Free to use
+							Free to start
 						</div>
 						<div
 							style={{
