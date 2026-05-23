@@ -37,12 +37,32 @@ Font.register({
 	],
 });
 
+// Currency-symbol fallback. DM Sans has no glyph for several currency signs
+// (₱ peso, ₩ won, ฿ baht), which causes the symbol to render with zero advance
+// width and collide with the first digit of the amount. This subset font (built
+// from DejaVu Sans, Currency Symbols block + ฿) supplies only those glyphs.
+// react-pdf resolves a fontFamily array as a per-glyph fallback, so DM Sans
+// still renders everything it covers and only the missing signs fall through.
+// Registered across weights so bold amounts don't lose the fallback.
+const CURRENCY_FALLBACK = 'Currency Fallback';
+Font.register({
+	family: CURRENCY_FALLBACK,
+	fonts: [
+		{ src: path.join(fontsDir, 'CurrencyFallback.ttf'), fontWeight: 400 },
+		{ src: path.join(fontsDir, 'CurrencyFallback.ttf'), fontWeight: 500 },
+		{ src: path.join(fontsDir, 'CurrencyFallback.ttf'), fontWeight: 700 },
+	],
+});
+
+const BODY_FONT = ['DM Sans', CURRENCY_FALLBACK];
+
 // Colors — clean black and white palette
 const TEXT_PRIMARY = '#111111';
 const TEXT_MUTED = '#6b7280';
 const TEXT_SECONDARY = '#4b5563';
 const BORDER = '#e5e5e5';
 const TABLE_HEADER_BG = '#f5f5f5';
+const PAYMENT_BG = '#f9fafb';
 const WHITE = '#ffffff';
 const GREEN = '#16a34a';
 const RED = '#dc2626';
@@ -50,7 +70,7 @@ const GRAY_STAMP = '#9ca3af';
 
 const styles = StyleSheet.create({
 	page: {
-		fontFamily: 'DM Sans',
+		fontFamily: BODY_FONT,
 		fontSize: 10,
 		color: TEXT_PRIMARY,
 		paddingTop: 48,
@@ -58,12 +78,30 @@ const styles = StyleSheet.create({
 		paddingHorizontal: 48,
 		backgroundColor: WHITE,
 	},
-	// --- Header ---
+	// --- Header / Masthead ---
 	header: {
 		flexDirection: 'row',
 		justifyContent: 'space-between',
 		alignItems: 'flex-start',
 		marginBottom: 32,
+	},
+	brandCol: {
+		flex: 1,
+		paddingRight: 24,
+	},
+	eyebrow: {
+		fontSize: 8,
+		fontWeight: 700,
+		color: TEXT_MUTED,
+		textTransform: 'uppercase',
+		letterSpacing: 2,
+		marginBottom: 5,
+	},
+	wordmark: {
+		fontFamily: 'DM Serif Display',
+		fontSize: 24,
+		color: TEXT_PRIMARY,
+		lineHeight: 1.1,
 	},
 	invoiceTitle: {
 		fontFamily: 'DM Serif Display',
@@ -105,6 +143,7 @@ const styles = StyleSheet.create({
 	},
 	partyCol: {
 		flex: 1,
+		paddingRight: 16,
 	},
 	partyLabel: {
 		fontSize: 8,
@@ -125,6 +164,11 @@ const styles = StyleSheet.create({
 		color: TEXT_SECONDARY,
 		lineHeight: 1.6,
 	},
+	taxIdText: {
+		fontSize: 9,
+		color: TEXT_SECONDARY,
+		marginTop: 3,
+	},
 	// --- Line Items Table ---
 	table: {
 		marginBottom: 28,
@@ -134,13 +178,15 @@ const styles = StyleSheet.create({
 		backgroundColor: TABLE_HEADER_BG,
 		paddingVertical: 7,
 		paddingHorizontal: 10,
+		borderTopWidth: 1,
+		borderTopColor: TEXT_PRIMARY,
 		borderBottomWidth: 1,
-		borderBottomColor: BORDER,
+		borderBottomColor: TEXT_PRIMARY,
 	},
 	tableHeaderText: {
 		fontSize: 8,
 		fontWeight: 700,
-		color: TEXT_SECONDARY,
+		color: TEXT_PRIMARY,
 		textTransform: 'uppercase',
 		letterSpacing: 0.3,
 	},
@@ -148,8 +194,8 @@ const styles = StyleSheet.create({
 		flexDirection: 'row',
 		paddingVertical: 8,
 		paddingHorizontal: 10,
-		borderBottomWidth: 1,
-		borderBottomColor: BORDER,
+		borderBottomWidth: 0.5,
+		borderBottomColor: TEXT_PRIMARY,
 	},
 	colDate: { width: 75, textAlign: 'left' },
 	colDesc: { flex: 1 },
@@ -165,10 +211,37 @@ const styles = StyleSheet.create({
 		fontWeight: 700,
 		color: TEXT_PRIMARY,
 	},
-	// --- Totals ---
-	totalsContainer: {
-		alignItems: 'flex-end',
-		marginBottom: 28,
+	// --- Summary row: payment block (left) + totals (right) ---
+	summaryRow: {
+		flexDirection: 'row',
+		justifyContent: 'space-between',
+		alignItems: 'flex-start',
+		marginBottom: 24,
+	},
+	paymentCol: {
+		flex: 1,
+		paddingRight: 24,
+	},
+	paymentBox: {
+		backgroundColor: PAYMENT_BG,
+		borderWidth: 1,
+		borderColor: BORDER,
+		borderRadius: 4,
+		paddingVertical: 12,
+		paddingHorizontal: 14,
+	},
+	sectionLabel: {
+		fontSize: 8,
+		fontWeight: 700,
+		color: TEXT_MUTED,
+		textTransform: 'uppercase',
+		letterSpacing: 0.8,
+		marginBottom: 6,
+	},
+	paymentText: {
+		fontSize: 9,
+		color: TEXT_SECONDARY,
+		lineHeight: 1.6,
 	},
 	totalsBox: {
 		width: 220,
@@ -208,6 +281,12 @@ const styles = StyleSheet.create({
 		fontWeight: 700,
 		color: TEXT_PRIMARY,
 	},
+	balanceDivider: {
+		borderBottomWidth: 1,
+		borderBottomColor: BORDER,
+		marginTop: 4,
+		marginBottom: 4,
+	},
 	// --- Notes ---
 	notesSection: {
 		marginBottom: 16,
@@ -235,7 +314,7 @@ const styles = StyleSheet.create({
 		borderTopColor: BORDER,
 		paddingTop: 8,
 		flexDirection: 'row',
-		justifyContent: 'flex-end',
+		justifyContent: 'space-between',
 	},
 	footerText: {
 		fontSize: 7,
@@ -265,13 +344,10 @@ const styles = StyleSheet.create({
 		fontWeight: 700,
 		letterSpacing: 8,
 	},
-	// Draft watermark
+	// Draft watermark — centered like the other stamps, just borderless + fainter
 	draftWatermark: {
-		position: 'absolute',
-		top: 320,
-		left: 80,
-		transform: 'rotate(-35deg)',
-		opacity: 0.05,
+		transform: 'rotate(-12deg)',
+		opacity: 0.06,
 	},
 	draftWatermarkText: {
 		fontFamily: 'DM Sans',
@@ -300,6 +376,11 @@ interface InvoicePDFData {
 	status: string;
 	userName: string | null;
 	userEmail: string | null;
+	userPhone: string | null;
+	businessName: string | null;
+	businessAddress: string | null;
+	businessTaxId: string | null;
+	paymentInstructions: string | null;
 	clientName: string;
 	clientEmail: string | null;
 	clientAddress: string | null;
@@ -325,7 +406,13 @@ function createCurrencyFormatter(currencyCode: string) {
 			currency: currencyCode,
 			minimumFractionDigits: 2,
 			maximumFractionDigits: 2,
-		}).format(val);
+		})
+			.format(val)
+			// ja-JP emits the fullwidth yen sign (￥, U+FFE5), a CJK-block glyph
+			// absent from DM Sans and the fallback. Normalize to the standard
+			// half-width ¥ (U+00A5), which DM Sans renders and which reads better
+			// in a Latin-typeset document.
+			.replace(/￥/g, '¥');
 }
 
 function formatDate(date: Date): string {
@@ -336,12 +423,44 @@ function formatDate(date: Date): string {
 	});
 }
 
+/** Render multi-line text (split on newlines) as stacked Text rows. */
+function MultiLineText({
+	text,
+	style,
+}: {
+	text: string;
+	style: (typeof styles)[keyof typeof styles];
+}) {
+	return (
+		<>
+			{text.split('\n').map((line, i) => (
+				<Text key={i} style={style}>
+					{line}
+				</Text>
+			))}
+		</>
+	);
+}
+
 // --- Section Components ---
 
 function HeaderSection({ invoice }: { invoice: InvoicePDFData }) {
+	const hasBrand = !!invoice.businessName;
+
 	return (
 		<View style={styles.header}>
-			<Text style={styles.invoiceTitle}>INVOICE</Text>
+			<View style={styles.brandCol}>
+				{hasBrand ? (
+					<>
+						<Text style={styles.eyebrow}>Invoice</Text>
+						<Text style={styles.wordmark}>
+							{invoice.businessName}
+						</Text>
+					</>
+				) : (
+					<Text style={styles.invoiceTitle}>INVOICE</Text>
+				)}
+			</View>
 			<View style={styles.metaStack}>
 				<View style={styles.metaRow}>
 					<Text style={styles.metaLabel}>Invoice #</Text>
@@ -369,8 +488,10 @@ function HeaderSection({ invoice }: { invoice: InvoicePDFData }) {
 function StatusStamp({ status }: { status: string }) {
 	if (status === 'DRAFT') {
 		return (
-			<View style={styles.draftWatermark}>
-				<Text style={styles.draftWatermarkText}>DRAFT</Text>
+			<View style={styles.stampContainer}>
+				<View style={styles.draftWatermark}>
+					<Text style={styles.draftWatermarkText}>DRAFT</Text>
+				</View>
 			</View>
 		);
 	}
@@ -425,16 +546,35 @@ function StatusStamp({ status }: { status: string }) {
 }
 
 function FromBillToSection({ invoice }: { invoice: InvoicePDFData }) {
+	// Business name carries the masthead wordmark; the From block is the
+	// sender's contact card. Lead with the person, fall back to business name
+	// when no person name is set.
+	const senderName = invoice.userName ?? invoice.businessName;
+
 	return (
 		<View style={styles.partyRow}>
 			{/* From */}
 			<View style={styles.partyCol}>
 				<Text style={styles.partyLabel}>From</Text>
-				{invoice.userName ? (
-					<Text style={styles.clientName}>{invoice.userName}</Text>
+				{senderName ? (
+					<Text style={styles.clientName}>{senderName}</Text>
 				) : null}
 				{invoice.userEmail ? (
 					<Text style={styles.clientDetail}>{invoice.userEmail}</Text>
+				) : null}
+				{invoice.userPhone ? (
+					<Text style={styles.clientDetail}>{invoice.userPhone}</Text>
+				) : null}
+				{invoice.businessAddress ? (
+					<MultiLineText
+						text={invoice.businessAddress}
+						style={styles.clientDetail}
+					/>
+				) : null}
+				{invoice.businessTaxId ? (
+					<Text style={styles.taxIdText}>
+						Tax ID: {invoice.businessTaxId}
+					</Text>
 				) : null}
 			</View>
 			{/* Bill To */}
@@ -448,9 +588,10 @@ function FromBillToSection({ invoice }: { invoice: InvoicePDFData }) {
 					<Text style={styles.clientDetail}>{invoice.clientPhone}</Text>
 				) : null}
 				{invoice.clientAddress ? (
-					<Text style={styles.clientDetail}>
-						{invoice.clientAddress}
-					</Text>
+					<MultiLineText
+						text={invoice.clientAddress}
+						style={styles.clientDetail}
+					/>
 				) : null}
 			</View>
 		</View>
@@ -523,7 +664,7 @@ function LineItemsTable({
 	);
 }
 
-function TotalsSection({
+function TotalsBox({
 	invoice,
 	fmt,
 }: {
@@ -531,60 +672,93 @@ function TotalsSection({
 	fmt: (val: number) => string;
 }) {
 	return (
-		<View style={styles.totalsContainer}>
-			<View style={styles.totalsBox}>
+		<View style={styles.totalsBox}>
+			<View style={styles.totalRow}>
+				<Text style={styles.totalLabel}>Subtotal</Text>
+				<Text style={styles.totalValue}>{fmt(invoice.subtotal)}</Text>
+			</View>
+			{invoice.taxRate != null && invoice.taxRate > 0 && (
 				<View style={styles.totalRow}>
-					<Text style={styles.totalLabel}>Subtotal</Text>
+					<Text style={styles.totalLabel}>
+						Tax ({invoice.taxRate}%)
+					</Text>
 					<Text style={styles.totalValue}>
-						{fmt(invoice.subtotal)}
+						{fmt(invoice.taxAmount)}
 					</Text>
 				</View>
-				{invoice.taxRate != null && invoice.taxRate > 0 && (
+			)}
+			<View style={styles.grandTotalDivider} />
+			<View style={styles.grandTotalRow}>
+				<Text style={styles.grandTotalLabel}>Total</Text>
+				<Text style={styles.grandTotalValue}>
+					{fmt(invoice.totalAmount)}
+				</Text>
+			</View>
+			{invoice.status === 'PAID' && (
+				<>
 					<View style={styles.totalRow}>
-						<Text style={styles.totalLabel}>
-							Tax ({invoice.taxRate}%)
+						<Text style={{ ...styles.totalLabel, color: GREEN }}>
+							Paid
 						</Text>
-						<Text style={styles.totalValue}>
-							{fmt(invoice.taxAmount)}
+						<Text style={{ ...styles.totalValue, color: GREEN }}>
+							-{fmt(invoice.totalAmount)}
 						</Text>
 					</View>
-				)}
-				<View style={styles.grandTotalDivider} />
-				<View style={styles.grandTotalRow}>
-					<Text style={styles.grandTotalLabel}>Total</Text>
-					<Text style={styles.grandTotalValue}>
-						{fmt(invoice.totalAmount)}
-					</Text>
-				</View>
-				{invoice.status === 'PAID' && (
-					<>
-						<View style={styles.totalRow}>
-							<Text style={{ ...styles.totalLabel, color: '#16a34a' }}>Paid</Text>
-							<Text style={{ ...styles.totalValue, color: '#16a34a' }}>
-								-{fmt(invoice.totalAmount)}
-							</Text>
-						</View>
-						<View style={{ borderBottomWidth: 1, borderBottomColor: '#e5e5e5', marginTop: 4, marginBottom: 4 }} />
-						<View style={styles.grandTotalRow}>
-							<Text style={{ ...styles.grandTotalLabel, fontSize: 11 }}>Balance Due</Text>
-							<Text style={{ ...styles.grandTotalValue, fontSize: 11, color: '#16a34a' }}>
-								{fmt(0)}
-							</Text>
-						</View>
-					</>
-				)}
-				{invoice.status !== 'PAID' && invoice.status !== 'CANCELLED' && (
-					<>
-						<View style={{ borderBottomWidth: 1, borderBottomColor: '#e5e5e5', marginTop: 6, marginBottom: 4 }} />
-						<View style={styles.grandTotalRow}>
-							<Text style={{ ...styles.grandTotalLabel, fontSize: 11 }}>Balance Due</Text>
-							<Text style={{ ...styles.grandTotalValue, fontSize: 11 }}>
-								{fmt(invoice.totalAmount)}
-							</Text>
-						</View>
-					</>
-				)}
+					<View style={styles.balanceDivider} />
+					<View style={styles.grandTotalRow}>
+						<Text style={{ ...styles.grandTotalLabel, fontSize: 11 }}>
+							Balance Due
+						</Text>
+						<Text
+							style={{
+								...styles.grandTotalValue,
+								fontSize: 11,
+								color: GREEN,
+							}}
+						>
+							{fmt(0)}
+						</Text>
+					</View>
+				</>
+			)}
+			{invoice.status !== 'PAID' && invoice.status !== 'CANCELLED' && (
+				<>
+					<View style={styles.balanceDivider} />
+					<View style={styles.grandTotalRow}>
+						<Text style={{ ...styles.grandTotalLabel, fontSize: 11 }}>
+							Balance Due
+						</Text>
+						<Text style={{ ...styles.grandTotalValue, fontSize: 11 }}>
+							{fmt(invoice.totalAmount)}
+						</Text>
+					</View>
+				</>
+			)}
+		</View>
+	);
+}
+
+function SummarySection({
+	invoice,
+	fmt,
+}: {
+	invoice: InvoicePDFData;
+	fmt: (val: number) => string;
+}) {
+	return (
+		<View style={styles.summaryRow}>
+			<View style={styles.paymentCol}>
+				{invoice.paymentInstructions ? (
+					<View style={styles.paymentBox}>
+						<Text style={styles.sectionLabel}>How to Pay</Text>
+						<MultiLineText
+							text={invoice.paymentInstructions}
+							style={styles.paymentText}
+						/>
+					</View>
+				) : null}
 			</View>
+			<TotalsBox invoice={invoice} fmt={fmt} />
 		</View>
 	);
 }
@@ -593,14 +767,15 @@ function NotesSection({ notes }: { notes: string }) {
 	return (
 		<View style={styles.notesSection}>
 			<Text style={styles.notesLabel}>Notes</Text>
-			<Text style={styles.notesText}>{notes}</Text>
+			<MultiLineText text={notes} style={styles.notesText} />
 		</View>
 	);
 }
 
-function FooterSection() {
+function FooterSection({ invoiceNumber }: { invoiceNumber: string }) {
 	return (
 		<View style={styles.footer} fixed>
+			<Text style={styles.footerText}>Invoice {invoiceNumber}</Text>
 			<Text
 				style={styles.footerText}
 				render={({ pageNumber, totalPages }) =>
@@ -630,9 +805,9 @@ function InvoiceDocument({
 				<View style={styles.separator} />
 				<FromBillToSection invoice={invoice} />
 				<LineItemsTable lineItems={invoice.lineItems} fmt={fmt} />
-				<TotalsSection invoice={invoice} fmt={fmt} />
+				<SummarySection invoice={invoice} fmt={fmt} />
 				{invoice.notes && <NotesSection notes={invoice.notes} />}
-				<FooterSection />
+				<FooterSection invoiceNumber={invoice.invoiceNumber} />
 			</Page>
 		</Document>
 	);
