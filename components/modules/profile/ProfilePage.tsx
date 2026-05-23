@@ -23,10 +23,12 @@ import {
 	Download,
 	Trash2,
 	CheckCircle2,
+	Building2,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
@@ -53,6 +55,7 @@ import {
 	updateNotificationPreferenceAction,
 	updatePhoneNumberAction,
 	sendTestSmsAction,
+	updateBusinessProfileAction,
 } from '@/server/modules/notification/notification.controller';
 import {
 	exportMyDataAction,
@@ -71,6 +74,10 @@ interface ProfilePageProps {
 		hasPassword: boolean;
 		createdAt: string;
 		providers: string[];
+		businessName: string | null;
+		businessAddress: string | null;
+		businessTaxId: string | null;
+		paymentInstructions: string | null;
 	};
 	preferences: MergedPreference[];
 }
@@ -137,6 +144,12 @@ export function ProfilePage({ user, preferences }: ProfilePageProps) {
 					email={user.email}
 					phoneNumber={phoneNumber}
 					onPhoneNumberChange={setPhoneNumber}
+				/>
+				<BusinessProfileCard
+					businessName={user.businessName}
+					businessAddress={user.businessAddress}
+					businessTaxId={user.businessTaxId}
+					paymentInstructions={user.paymentInstructions}
 				/>
 				<SecurityCard hasPassword={user.hasPassword} />
 				<LinkedAccountsCard
@@ -375,7 +388,192 @@ function PersonalInfoCard({
 	);
 }
 
-// --- Card 2: Security ---
+// --- Card 2: Business & Invoice Details ---
+
+function BusinessProfileCard({
+	businessName,
+	businessAddress,
+	businessTaxId,
+	paymentInstructions,
+}: {
+	businessName: string | null;
+	businessAddress: string | null;
+	businessTaxId: string | null;
+	paymentInstructions: string | null;
+}) {
+	const [editing, setEditing] = useState(false);
+	const [nameValue, setNameValue] = useState(businessName || '');
+	const [addressValue, setAddressValue] = useState(businessAddress || '');
+	const [taxIdValue, setTaxIdValue] = useState(businessTaxId || '');
+	const [paymentValue, setPaymentValue] = useState(paymentInstructions || '');
+	const [isPending, startTransition] = useTransition();
+
+	function handleSave() {
+		startTransition(async () => {
+			const result = await updateBusinessProfileAction({
+				businessName: nameValue.trim() || null,
+				businessAddress: addressValue.trim() || null,
+				businessTaxId: taxIdValue.trim() || null,
+				paymentInstructions: paymentValue.trim() || null,
+			});
+			if (result.error) {
+				toast.error(result.error);
+			} else {
+				toast.success('Business details updated');
+				setEditing(false);
+			}
+		});
+	}
+
+	function handleCancel() {
+		setNameValue(businessName || '');
+		setAddressValue(businessAddress || '');
+		setTaxIdValue(businessTaxId || '');
+		setPaymentValue(paymentInstructions || '');
+		setEditing(false);
+	}
+
+	return (
+		<Card className="hover:shadow-md transition-shadow">
+			<CardHeader className="flex flex-row items-center justify-between">
+				<div className="space-y-1">
+					<CardTitle className="flex items-center gap-2 text-lg">
+						<Building2 className="h-5 w-5" />
+						Business &amp; Invoice Details
+					</CardTitle>
+					<p className="text-sm text-muted-foreground">
+						These details appear on invoices you generate.
+					</p>
+				</div>
+				{!editing && (
+					<Button
+						variant="ghost"
+						size="icon"
+						onClick={() => setEditing(true)}
+					>
+						<Pencil className="h-4 w-4" />
+					</Button>
+				)}
+			</CardHeader>
+			<CardContent className="space-y-4">
+				<div className="space-y-2">
+					<Label htmlFor="businessName">Business Name</Label>
+					{editing ? (
+						<div className="space-y-1">
+							<Input
+								id="businessName"
+								value={nameValue}
+								onChange={(e) => setNameValue(e.target.value)}
+								placeholder="Your business or trading name"
+								disabled={isPending}
+							/>
+							<p className="text-xs text-muted-foreground">
+								Appears as the heading on your invoices.
+							</p>
+						</div>
+					) : (
+						<p className="text-sm font-medium py-2 px-3 rounded-md bg-muted/50">
+							{businessName || (
+								<span className="text-muted-foreground">Not set</span>
+							)}
+						</p>
+					)}
+				</div>
+				<div className="space-y-2">
+					<Label htmlFor="businessTaxId">Tax ID</Label>
+					{editing ? (
+						<div className="space-y-1">
+							<Input
+								id="businessTaxId"
+								value={taxIdValue}
+								onChange={(e) => setTaxIdValue(e.target.value)}
+								placeholder="e.g. TIN, VAT, ABN"
+								disabled={isPending}
+							/>
+							<p className="text-xs text-muted-foreground">
+								e.g. TIN, VAT, ABN
+							</p>
+						</div>
+					) : (
+						<p className="text-sm font-medium py-2 px-3 rounded-md bg-muted/50">
+							{businessTaxId || (
+								<span className="text-muted-foreground">Not set</span>
+							)}
+						</p>
+					)}
+				</div>
+				<div className="space-y-2">
+					<Label htmlFor="businessAddress">Business Address</Label>
+					{editing ? (
+						<Textarea
+							id="businessAddress"
+							value={addressValue}
+							onChange={(e) => setAddressValue(e.target.value)}
+							placeholder="Street, city, province, postal code"
+							disabled={isPending}
+							rows={3}
+						/>
+					) : (
+						<p className="text-sm font-medium py-2 px-3 rounded-md bg-muted/50 whitespace-pre-wrap">
+							{businessAddress || (
+								<span className="text-muted-foreground">Not set</span>
+							)}
+						</p>
+					)}
+				</div>
+				<div className="space-y-2">
+					<Label htmlFor="paymentInstructions">Payment Instructions</Label>
+					{editing ? (
+						<div className="space-y-1">
+							<Textarea
+								id="paymentInstructions"
+								value={paymentValue}
+								onChange={(e) => setPaymentValue(e.target.value)}
+								placeholder="Bank details, GCash, PayPal, etc."
+								disabled={isPending}
+								rows={4}
+							/>
+							<p className="text-xs text-muted-foreground">
+								How clients pay you (bank details, GCash, PayPal). Shown in the &quot;How to Pay&quot; block on the invoice.
+							</p>
+						</div>
+					) : (
+						<p className="text-sm font-medium py-2 px-3 rounded-md bg-muted/50 whitespace-pre-wrap">
+							{paymentInstructions || (
+								<span className="text-muted-foreground">Not set</span>
+							)}
+						</p>
+					)}
+				</div>
+				{editing && (
+					<div className="flex gap-2 pt-2">
+						<Button
+							size="sm"
+							onClick={handleSave}
+							disabled={isPending}
+						>
+							{isPending ? (
+								<Loader2 className="h-4 w-4 animate-spin mr-1" />
+							) : null}
+							Save
+						</Button>
+						<Button
+							size="sm"
+							variant="outline"
+							onClick={handleCancel}
+							disabled={isPending}
+						>
+							<X className="h-4 w-4 mr-1" />
+							Cancel
+						</Button>
+					</div>
+				)}
+			</CardContent>
+		</Card>
+	);
+}
+
+// --- Card 3: Security ---
 
 function PasswordStrengthBar({ password }: { password: string }) {
 	const getStrength = (pw: string) => {
@@ -573,7 +771,7 @@ function SecurityCard({ hasPassword }: { hasPassword: boolean }) {
 	);
 }
 
-// --- Card 3: Linked Accounts ---
+// --- Card 4: Linked Accounts ---
 
 function LinkedAccountsCard({
 	providers,
@@ -704,7 +902,7 @@ function LinkedAccountsCard({
 	);
 }
 
-// --- Card 4: Notification Preferences (Dual Email/SMS Toggles) ---
+// --- Card 5: Notification Preferences (Dual Email/SMS Toggles) ---
 
 function NotificationPreferencesCard({
 	preferences,
@@ -878,7 +1076,7 @@ function NotificationPreferencesCard({
 	);
 }
 
-// --- Card 5: Danger Zone ---
+// --- Card 6: Danger Zone ---
 
 type ResetTier = 'transactions' | 'full';
 

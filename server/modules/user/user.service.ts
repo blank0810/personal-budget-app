@@ -57,6 +57,10 @@ export const UserService = {
 				email: true,
 				password: true,
 				phoneNumber: true,
+				businessName: true,
+				businessAddress: true,
+				businessTaxId: true,
+				paymentInstructions: true,
 				createdAt: true,
 				authAccounts: {
 					select: {
@@ -194,6 +198,29 @@ export const UserService = {
 		await prisma.user.update({
 			where: { id: userId },
 			data: { name },
+		});
+	},
+
+	/**
+	 * Update user's business / freelancer profile (invoice sender identity).
+	 */
+	async updateBusinessProfile(
+		userId: string,
+		data: {
+			businessName: string | null;
+			businessAddress: string | null;
+			businessTaxId: string | null;
+			paymentInstructions: string | null;
+		}
+	): Promise<void> {
+		await prisma.user.update({
+			where: { id: userId },
+			data: {
+				businessName: data.businessName,
+				businessAddress: data.businessAddress,
+				businessTaxId: data.businessTaxId,
+				paymentInstructions: data.paymentInstructions,
+			},
 		});
 	},
 

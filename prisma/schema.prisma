@@ -106,6 +106,12 @@ model User {
 
   phoneNumber String?
 
+  // Business / freelancer profile (for invoice sender identity)
+  businessName        String?
+  businessAddress     String? @db.Text
+  businessTaxId       String?
+  paymentInstructions String? @db.Text
+
   // SaaS fields
   role                  UserRole  @default(USER)
   plan                  UserPlan  @default(FREE)
