@@ -35,13 +35,18 @@ export function NavMain({
 }) {
 	const pathname = usePathname();
 
+	// A nav item is active when the route matches its url exactly or is a
+	// sub-route of it (e.g. /accounts stays highlighted on /accounts/123).
+	const isActive = (url: string) =>
+		pathname === url || pathname.startsWith(`${url}/`);
+
 	return (
 		<SidebarGroup className='px-3 py-4'>
 			<SidebarMenu className='gap-1.5'>
 				{items.map((item) => {
 					// Auto-open collapsible groups when on a sub-page
 					const isGroupActive = item.items
-						? item.items.some((sub) => pathname.startsWith(sub.url))
+						? item.items.some((sub) => isActive(sub.url))
 						: false;
 
 					return item.items ? (
@@ -55,6 +60,7 @@ export function NavMain({
 								<CollapsibleTrigger asChild>
 									<SidebarMenuButton
 										tooltip={item.title}
+										isActive={isGroupActive}
 										className='h-10 px-3 text-[0.9rem]'
 									>
 										{item.icon && <item.icon className='size-[1.125rem]' />}
@@ -68,6 +74,7 @@ export function NavMain({
 											<SidebarMenuSubItem key={subItem.title}>
 												<SidebarMenuSubButton
 													asChild
+													isActive={isActive(subItem.url)}
 													className='h-9 px-3 text-[0.85rem]'
 												>
 													<a href={subItem.url}>
@@ -85,6 +92,7 @@ export function NavMain({
 							<SidebarMenuButton
 								tooltip={item.title}
 								asChild
+								isActive={isActive(item.url)}
 								className='h-10 px-3 text-[0.9rem]'
 							>
 								<a href={item.url}>
