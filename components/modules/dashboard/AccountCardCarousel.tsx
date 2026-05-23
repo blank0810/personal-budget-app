@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { ArrowDownLeft, ArrowUpRight, ArrowLeftRight, CreditCard } from 'lucide-react';
 import { AccountCard, type AccountCardAccount } from './AccountCard';
@@ -67,41 +67,69 @@ function sortAccountsByClass(
 	return ACCOUNT_CLASS_ORDER.flatMap((cls) => groups[cls]);
 }
 
+// Position of a card in the shuffling stack, by its slot relative to the
+// selected card: 0 = front (face up), 1 = peeking behind, n-1 = the card that
+// just left the front (dealt up and off the top), deeper = hidden in the deck.
+function cardSlotStyle(
+	slot: number,
+	n: number
+): { transform: string; opacity: number; zIndex: number } {
+	if (slot === 0)
+		return {
+			transform: 'perspective(800px) rotateY(-8deg) translateX(0px) translateY(0px) scale(1)',
+			opacity: 1,
+			zIndex: 30,
+		};
+	if (slot === 1)
+		return {
+			transform: 'perspective(800px) rotateY(6deg) translateX(22px) translateY(12px) scale(0.94)',
+			opacity: 0.45,
+			zIndex: 20,
+		};
+	if (slot === n - 1)
+		return {
+			transform: 'perspective(800px) rotateY(-16deg) translateX(-24px) translateY(-38px) scale(0.92)',
+			opacity: 0,
+			zIndex: 10,
+		};
+	return {
+		transform: 'perspective(800px) rotateY(8deg) translateX(34px) translateY(20px) scale(0.9)',
+		opacity: 0,
+		zIndex: 5,
+	};
+}
+
 export function AccountCardCarousel({ accounts, totalBalance }: AccountCardCarouselProps) {
 	const { formatCurrency, currency } = useCurrency();
 	const sorted = sortAccountsByClass(accounts);
 	const [selectedIndex, setSelectedIndex] = useState(0);
-	const [isTransitioning, setIsTransitioning] = useState(false);
-	const timerRef = useRef<NodeJS.Timeout | null>(null);
+	const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
 	const selected = sorted[selectedIndex] ?? sorted[0] ?? null;
+	const count = sorted.length;
 
-	// Go to next card with transition animation
-	const goToNext = useCallback(() => {
-		if (sorted.length <= 1) return;
-		setIsTransitioning(true);
-		setTimeout(() => {
-			setSelectedIndex((prev) => (prev + 1) % sorted.length);
-			setIsTransitioning(false);
-		}, 600);
-	}, [sorted.length]);
+	// Advance to the next card. The stack animates purely via CSS transitions on
+	// each card's slot transform, so advancing is just an index bump — no timed
+	// fade-out-then-swap (that gap was the ~1s "freeze" before the next card rose).
+	const advance = () =>
+		setSelectedIndex((prev) => (count <= 1 ? prev : (prev + 1) % count));
 
-	// Click card to advance to next
-	const handleCardClick = useCallback(() => {
-		// Reset auto-rotate timer on manual click
+	// Click the card to advance + restart the auto-rotate timer.
+	const handleCardClick = () => {
 		if (timerRef.current) clearInterval(timerRef.current);
-		goToNext();
-		timerRef.current = setInterval(goToNext, AUTO_ROTATE_MS);
-	}, [goToNext]);
+		advance();
+		if (count > 1) timerRef.current = setInterval(advance, AUTO_ROTATE_MS);
+	};
 
-	// Auto-rotate every 10s
+	// Auto-rotate every 10s.
 	useEffect(() => {
-		if (sorted.length <= 1) return;
-		timerRef.current = setInterval(goToNext, AUTO_ROTATE_MS);
-		return () => {
-			if (timerRef.current) clearInterval(timerRef.current);
-		};
-	}, [sorted.length, goToNext]);
+		if (count <= 1) return;
+		const id = setInterval(() => {
+			setSelectedIndex((prev) => (prev + 1) % count);
+		}, AUTO_ROTATE_MS);
+		timerRef.current = id;
+		return () => clearInterval(id);
+	}, [count]);
 
 	if (accounts.length === 0) {
 		return (
@@ -119,58 +147,46 @@ export function AccountCardCarousel({ accounts, totalBalance }: AccountCardCarou
 
 	const accountLabel = selected ? selected.name : '';
 
-	// Get next card for the "peeking behind" effect
-	const nextIndex = (selectedIndex + 1) % sorted.length;
-	const nextAccount = sorted.length > 1 ? sorted[nextIndex] : null;
-
 	return (
 		<div className='animate-fade-up w-full overflow-hidden rounded-2xl bg-gradient-to-br from-slate-100 via-slate-200 to-orange-100 p-5 shadow-xl dark:from-zinc-800 dark:via-zinc-900 dark:to-orange-950 sm:p-6'>
 			<div className='flex flex-col gap-4 sm:flex-row sm:items-start'>
-				{/* LEFT: Stacked card display */}
+				{/* LEFT: Shuffling card stack — every account is a stable, keyed
+				    element that animates between deck slots, so advancing slides the
+				    next card up as the current is dealt off (no fade-out/swap freeze). */}
 				{selected && (
-					<div
-						className='relative shrink-0 cursor-pointer'
-						style={{ width: '100%', maxWidth: 320, height: 220 }}
-						onClick={handleCardClick}
-					>
-						{/* Back card - next card peeking behind */}
-						{nextAccount && (
-							<div
-								className='absolute'
-								style={{
-									transform: 'perspective(800px) rotateY(5deg) translateX(20px) translateY(10px)',
-									zIndex: 0,
-									opacity: isTransitioning ? 0.8 : 0.4,
-									transition: 'opacity 600ms cubic-bezier(0.22, 1, 0.36, 1)',
-								}}
-							>
-								<AccountCard
-									account={nextAccount}
-									isSelected={false}
-									onClick={() => {}}
-								/>
-							</div>
-						)}
-
-						{/* Front card (selected, tilted) */}
+					<>
+						<style>{`
+							@media (prefers-reduced-motion: reduce) {
+								.acct-shuffle-card { transition: none !important; }
+							}
+						`}</style>
 						<div
-							className='relative'
-							style={{
-								transition: 'transform 600ms cubic-bezier(0.22, 1, 0.36, 1), opacity 600ms cubic-bezier(0.22, 1, 0.36, 1)',
-								transform: isTransitioning
-									? 'perspective(800px) rotateY(-20deg) translateX(-40px) scale(0.93)'
-									: 'perspective(800px) rotateY(-8deg)',
-								opacity: isTransitioning ? 0 : 1,
-								zIndex: 1,
-							}}
+							className='relative shrink-0 cursor-pointer'
+							style={{ width: '100%', maxWidth: 320, height: 220 }}
+							onClick={handleCardClick}
 						>
-							<AccountCard
-								account={selected}
-								isSelected={false}
-								onClick={() => {}}
-							/>
+							{sorted.map((account, i) => {
+								const slot = (i - selectedIndex + sorted.length) % sorted.length;
+								const s = cardSlotStyle(slot, sorted.length);
+								return (
+									<div
+										key={account.id}
+										className='acct-shuffle-card absolute left-0 top-0'
+										style={{
+											transform: s.transform,
+											opacity: s.opacity,
+											zIndex: s.zIndex,
+											pointerEvents: slot === 0 ? 'auto' : 'none',
+											transition:
+												'transform 520ms cubic-bezier(0.22, 1, 0.36, 1), opacity 520ms cubic-bezier(0.22, 1, 0.36, 1)',
+										}}
+									>
+										<AccountCard account={account} isSelected={false} onClick={() => {}} />
+									</div>
+								);
+							})}
 						</div>
-					</div>
+					</>
 				)}
 
 				{/* RIGHT: Account info + balance + actions */}
