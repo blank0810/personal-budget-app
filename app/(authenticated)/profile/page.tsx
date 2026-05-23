@@ -26,6 +26,10 @@ export default async function ProfileRoute() {
 				hasPassword: !!user.password,
 				createdAt: user.createdAt.toISOString(),
 				providers: user.authAccounts.map((a) => a.provider),
+				businessName: user.businessName,
+				businessAddress: user.businessAddress,
+				businessTaxId: user.businessTaxId,
+				paymentInstructions: user.paymentInstructions,
 			}}
 			preferences={preferences}
 		/>

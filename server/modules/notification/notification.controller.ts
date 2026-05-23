@@ -111,6 +111,29 @@ const updateProfileSchema = z.object({
 	name: z.string().min(2, 'Name must be at least 2 characters'),
 });
 
+/**
+ * Trim a string and coerce empty/whitespace-only values to null.
+ * Used for optional business-profile text fields.
+ */
+const optionalTrimmedText = (max: number, label: string) =>
+	z
+		.string()
+		.nullish()
+		.transform((value) => {
+			const trimmed = value?.trim() ?? '';
+			return trimmed === '' ? null : trimmed;
+		})
+		.refine((value) => value === null || value.length <= max, {
+			message: `${label} must be at most ${max} characters`,
+		});
+
+const updateBusinessProfileSchema = z.object({
+	businessName: optionalTrimmedText(200, 'Business name'),
+	businessAddress: optionalTrimmedText(1000, 'Business address'),
+	businessTaxId: optionalTrimmedText(100, 'Tax ID'),
+	paymentInstructions: optionalTrimmedText(2000, 'Payment instructions'),
+});
+
 const updatePasswordSchema = z
 	.object({
 		currentPassword: z.string().optional(),
@@ -140,6 +163,32 @@ export async function updateProfileAction(data: { name: string }) {
 	} catch (error) {
 		console.error('Failed to update profile:', error);
 		return { error: 'Failed to update profile' };
+	}
+}
+
+/**
+ * Server Action: Update user business / freelancer profile (invoice sender identity)
+ */
+export async function updateBusinessProfileAction(data: {
+	businessName: string | null;
+	businessAddress: string | null;
+	businessTaxId: string | null;
+	paymentInstructions: string | null;
+}) {
+	const userId = await getAuthenticatedUser();
+
+	const validated = updateBusinessProfileSchema.safeParse(data);
+	if (!validated.success) {
+		return { error: validated.error.issues[0].message };
+	}
+
+	try {
+		await UserService.updateBusinessProfile(userId, validated.data);
+		invalidateTags(CACHE_TAGS.PROFILE);
+		return { success: true as const };
+	} catch (error) {
+		console.error('Failed to update business profile:', error);
+		return { error: 'Failed to update business profile' };
 	}
 }
 

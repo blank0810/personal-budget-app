@@ -16,10 +16,22 @@ export default auth(async function middleware(req: NextRequest & { auth: Session
 		pathname.startsWith('/forgot-password') ||
 		pathname.startsWith('/reset-password');
 
+	// Public marketing routes (the (public) route group). MUST be reachable
+	// by anonymous visitors AND search crawlers — without this the multi-page
+	// landing 307-redirects logged-out users (and Googlebot) to /login.
+	const isPublicMarketingPage = [
+		'/features',
+		'/how-it-works',
+		'/ai-advisor',
+		'/pricing',
+		'/faq',
+	].some((p) => pathname === p || pathname.startsWith(`${p}/`));
+
 	const isPublicPage =
 		isAuthPage ||
 		pathname.startsWith('/changelog') ||
 		pathname === '/' ||
+		isPublicMarketingPage ||
 		pathname.startsWith('/opengraph-image') ||
 		pathname.startsWith('/twitter-image');
 	const isOnboardingPage = pathname.startsWith('/onboarding');

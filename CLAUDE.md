@@ -2,6 +2,8 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+> **Maintainer:** a solo developer. **Do NOT embed the maintainer's personal info (real name, "Ehnand", "Adam", personal email) as placeholder, sample, greeting, demo, or marketing content anywhere in the product.** Use neutral generics ("there", "Demo User", sample brands like "Acme Co") or the signed-in user's own data. Greetings/profile already render the actual logged-in user's name dynamically.
+
 ## Commands
 
 ```bash
@@ -152,6 +154,7 @@ Services handle: business logic, Prisma queries/transactions, balance updates.
 | **code-simplifier** | Simplifies and refines code for clarity, consistency, and maintainability while preserving all functionality. |
 | **ai-engineer** | AI/ML implementation specialist. LLM integration, recommendation systems, prompt engineering, computer vision, and intelligent automation. |
 | **hiring-closer** | Hiring manager and deal-closing expert. Reviews CVs, portfolios, LinkedIn profiles, and developer credentials. Evaluates market relevance, trust signals, positioning, and gives hire/pass verdicts with actionable fixes. |
+| **seo-engineer** | Technical, content, and AI-era SEO specialist. Crawlability/indexing, metadata, JSON-LD structured data, Core Web Vitals, sitemaps/robots, on-page optimization, SEO audits, and Generative/Answer Engine Optimization (citations in AI Overviews, ChatGPT, Perplexity, Claude). |
 
 ### Project Agents (specific to this budget app)
 | Agent | Purpose |
@@ -161,3 +164,4 @@ Services handle: business logic, Prisma queries/transactions, balance updates.
 | **budget-devops** | DevOps specialist for this app. Docker configuration, deployment, CI/CD, server setup, database backups, Redis/BullMQ infrastructure, and production environment management. |
 | **accountant** | Financial domain expert. Validates financial calculations, reviews balance logic, designs budget features, audits transaction flows, reviews report accuracy, and advises on money-related behavior from an accounting perspective. |
 | **founder** | Product founder and visionary. Product decisions, feature prioritization, user experience from a business perspective, roadmap planning, competitor positioning, and deciding what to build next and why. |
+| **budget-seo** | SEO specialist for this app. Owns the public surface (landing page, changelog), metadata, JSON-LD, sitemap/robots, Core Web Vitals on marketing routes, and GEO/AEO for the freelancer / AI-native positioning. Defers to global **seo-engineer** for general technique. |

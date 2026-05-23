@@ -32,7 +32,17 @@ import type { Prisma } from '@prisma/client';
 type InvoiceForEmail = Prisma.InvoiceGetPayload<{
 	include: {
 		lineItems: true;
-		user: { select: { name: true; email: true } };
+		user: {
+			select: {
+				name: true;
+				email: true;
+				phoneNumber: true;
+				businessName: true;
+				businessAddress: true;
+				businessTaxId: true;
+				paymentInstructions: true;
+			};
+		};
 	};
 }>;
 
@@ -61,6 +71,11 @@ async function emailInvoiceToClient(
 			status: options.status,
 			userName: invoice.user?.name ?? null,
 			userEmail: invoice.user?.email ?? null,
+			userPhone: invoice.user?.phoneNumber ?? null,
+			businessName: invoice.user?.businessName ?? null,
+			businessAddress: invoice.user?.businessAddress ?? null,
+			businessTaxId: invoice.user?.businessTaxId ?? null,
+			paymentInstructions: invoice.user?.paymentInstructions ?? null,
 			clientName: invoice.clientName,
 			clientEmail: invoice.clientEmail,
 			clientAddress: invoice.clientAddress,
@@ -480,7 +495,17 @@ export const InvoiceService = {
 			where: { id: invoiceId, userId },
 			include: {
 				lineItems: { orderBy: { sortOrder: 'asc' } },
-				user: { select: { name: true, email: true } },
+				user: {
+					select: {
+						name: true,
+						email: true,
+						phoneNumber: true,
+						businessName: true,
+						businessAddress: true,
+						businessTaxId: true,
+						paymentInstructions: true,
+					},
+				},
 			},
 		});
 
@@ -526,7 +551,17 @@ export const InvoiceService = {
 			where: { id: data.invoiceId, userId },
 			include: {
 				lineItems: { orderBy: { sortOrder: 'asc' } },
-				user: { select: { name: true, email: true } },
+				user: {
+					select: {
+						name: true,
+						email: true,
+						phoneNumber: true,
+						businessName: true,
+						businessAddress: true,
+						businessTaxId: true,
+						paymentInstructions: true,
+					},
+				},
 				linkedIncome: {
 					include: { account: { select: { name: true } } },
 				},
@@ -586,7 +621,17 @@ export const InvoiceService = {
 			where: { id: invoiceId, userId },
 			include: {
 				lineItems: { orderBy: { sortOrder: 'asc' } },
-				user: { select: { name: true, email: true } },
+				user: {
+					select: {
+						name: true,
+						email: true,
+						phoneNumber: true,
+						businessName: true,
+						businessAddress: true,
+						businessTaxId: true,
+						paymentInstructions: true,
+					},
+				},
 			},
 		});
 
@@ -711,7 +756,15 @@ export const InvoiceService = {
 					},
 				},
 				user: {
-					select: { name: true, email: true },
+					select: {
+						name: true,
+						email: true,
+						phoneNumber: true,
+						businessName: true,
+						businessAddress: true,
+						businessTaxId: true,
+						paymentInstructions: true,
+					},
 				},
 			},
 		});

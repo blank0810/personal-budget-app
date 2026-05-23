@@ -43,6 +43,31 @@
   --radius-xl: calc(var(--radius) + 4px);
 }
 
+/* Landing-scope color tokens (public marketing page only).
+ * Declared here, not in (public)/landing.css, because Tailwind v4 only
+ * generates utilities from @theme in the stylesheet that imports
+ * tailwindcss. Usage is landing-only — do not use these bg-l-* / text-l-*
+ * utilities in authenticated routes. */
+@theme {
+  /* Linear × Ramp DARK theme — near-black cool base, off-white text,
+   * emerald accent (brightened for dark). Drives all l-* utilities. */
+  --color-l-bg: oklch(0.155 0.012 264);
+  --color-l-surface-1: oklch(0.198 0.013 264);
+  --color-l-surface-2: oklch(0.238 0.014 264);
+  --color-l-surface-3: oklch(0.285 0.015 264);
+  --color-l-border: oklch(1 0 0 / 9%);
+  --color-l-border-mid: oklch(1 0 0 / 16%);
+  --color-l-text-1: oklch(0.97 0.005 264);
+  --color-l-text-2: oklch(0.795 0.012 264);
+  --color-l-text-3: oklch(0.64 0.014 264);
+  --color-l-text-4: oklch(0.52 0.014 264);
+  --color-l-accent: oklch(0.72 0.17 155);
+  --color-l-accent-dim: oklch(0.72 0.17 155 / 15%);
+  --color-l-mesh-violet: oklch(0.62 0.18 290);
+  --color-l-mesh-sky: oklch(0.65 0.15 230);
+  --color-l-mesh-emerald: oklch(0.7 0.16 155);
+}
+
 :root {
   --radius: 0.625rem;
   --background: oklch(1 0 0);

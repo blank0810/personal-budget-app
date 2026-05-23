@@ -18,6 +18,10 @@ export type UserProfile = {
 	email: string;
 	password: string | null;
 	phoneNumber: string | null;
+	businessName: string | null;
+	businessAddress: string | null;
+	businessTaxId: string | null;
+	paymentInstructions: string | null;
 	createdAt: Date;
 	authAccounts: {
 		provider: string;
