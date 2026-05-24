@@ -4,7 +4,12 @@ import { getAuthenticatedUser } from '@/server/lib/auth-guard';
 import { NotificationChannel } from '@prisma/client';
 import { NotificationService } from './notification.service';
 import { SmsService } from './sms.service';
-import { updatePreferenceSchema, updatePhoneNumberSchema } from './notification.types';
+import {
+	updatePreferenceSchema,
+	updatePhoneNumberSchema,
+	updateEmailNotificationsEnabledSchema,
+	updateNotificationEmailSchema,
+} from './notification.types';
 import { invalidateTags } from '@/server/actions/cache';
 import { CACHE_TAGS } from '@/server/lib/cache-tags';
 import { UserService } from '@/server/modules/user/user.service';
@@ -75,6 +80,48 @@ export async function updatePhoneNumberAction(phoneNumber: string | null) {
 	} catch (error) {
 		console.error('Failed to update phone number:', error);
 		return { error: 'Failed to update phone number' };
+	}
+}
+
+/**
+ * Server Action: Update the master email-notifications toggle
+ */
+export async function updateEmailNotificationsEnabledAction(enabled: boolean) {
+	const userId = await getAuthenticatedUser();
+
+	const validated = updateEmailNotificationsEnabledSchema.safeParse({ enabled });
+	if (!validated.success) {
+		return { error: validated.error.issues[0].message };
+	}
+
+	try {
+		await UserService.setEmailNotificationsEnabled(userId, validated.data.enabled);
+		invalidateTags(CACHE_TAGS.PROFILE);
+		return { success: true as const };
+	} catch (error) {
+		console.error('Failed to update email notifications setting:', error);
+		return { error: 'Failed to update email notifications setting' };
+	}
+}
+
+/**
+ * Server Action: Update the notification delivery email (null = account email)
+ */
+export async function updateNotificationEmailAction(email: string | null) {
+	const userId = await getAuthenticatedUser();
+
+	const validated = updateNotificationEmailSchema.safeParse({ email });
+	if (!validated.success) {
+		return { error: validated.error.issues[0].message };
+	}
+
+	try {
+		await UserService.setNotificationEmail(userId, validated.data.email);
+		invalidateTags(CACHE_TAGS.PROFILE);
+		return { success: true as const };
+	} catch (error) {
+		console.error('Failed to update notification email:', error);
+		return { error: 'Failed to update notification email' };
 	}
 }
 

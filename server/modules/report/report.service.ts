@@ -1066,24 +1066,30 @@ export const ReportService = {
 			},
 		});
 
-		// 5. Send email with PDF attachment
+		// 5. Send email with PDF attachment.
+		// Resolve the delivery recipient separately from the digest. A null
+		// recipient (master gate off) skips ONLY the email send — the report
+		// record, blob, and SMS summary below still run.
 		const { score } = digest.sections.healthScore;
 		const monthLabel = digest.month;
 
-		const emailHtml = buildReportEmailHtml(digest);
+		const to = await UserService.resolveNotificationRecipient(userId);
+		if (to) {
+			const emailHtml = buildReportEmailHtml(digest);
 
-		await EmailService.sendWithAttachment({
-			to: digest.userEmail,
-			subject: `Your ${monthLabel} Financial Report — Score: ${score}/100`,
-			html: emailHtml,
-			attachments: [
-				{
-					filename: fileName,
-					content: Buffer.from(pdfBuffer),
-					contentType: 'application/pdf',
-				},
-			],
-		});
+			await EmailService.sendWithAttachment({
+				to,
+				subject: `Your ${monthLabel} Financial Report — Score: ${score}/100`,
+				html: emailHtml,
+				attachments: [
+					{
+						filename: fileName,
+						content: Buffer.from(pdfBuffer),
+						contentType: 'application/pdf',
+					},
+				],
+			});
+		}
 
 		// 6. Queue SMS summary (if enabled)
 		const netAmount = digest.sections.incomeExpense?.netResult ?? 0;

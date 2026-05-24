@@ -57,6 +57,8 @@ export const UserService = {
 				email: true,
 				password: true,
 				phoneNumber: true,
+				emailNotificationsEnabled: true,
+				notificationEmail: true,
 				businessName: true,
 				businessAddress: true,
 				businessTaxId: true,
@@ -189,6 +191,78 @@ export const UserService = {
 			where: { id: userId },
 			data: { phoneNumber },
 		});
+	},
+
+	// ─── Email notification controls ──────────────────────────────────
+
+	/**
+	 * Master gate: whether the user wants any notification email at all.
+	 * Throws if user not found.
+	 */
+	async getEmailNotificationsEnabled(userId: string): Promise<boolean> {
+		const row = await prisma.user.findUniqueOrThrow({
+			where: { id: userId },
+			select: { emailNotificationsEnabled: true },
+		});
+		return row.emailNotificationsEnabled;
+	},
+
+	/**
+	 * Flip the master email-notifications gate.
+	 */
+	async setEmailNotificationsEnabled(
+		userId: string,
+		enabled: boolean
+	): Promise<void> {
+		await prisma.user.update({
+			where: { id: userId },
+			data: { emailNotificationsEnabled: enabled },
+		});
+	},
+
+	/**
+	 * Set the delivery email override. If the value equals the account
+	 * email (case-insensitive, trimmed), store null instead so the field
+	 * keeps "follows account email" behavior.
+	 */
+	async setNotificationEmail(
+		userId: string,
+		email: string | null
+	): Promise<void> {
+		let value = email;
+		if (value !== null) {
+			const account = await prisma.user.findUniqueOrThrow({
+				where: { id: userId },
+				select: { email: true },
+			});
+			if (value.trim().toLowerCase() === account.email.trim().toLowerCase()) {
+				value = null;
+			}
+		}
+
+		await prisma.user.update({
+			where: { id: userId },
+			data: { notificationEmail: value },
+		});
+	},
+
+	/**
+	 * Single choke-point: resolve where a notification email should go.
+	 * Returns null when the master gate is off (suppress email); otherwise
+	 * the delivery override or, falling back, the account email.
+	 * Throws if user not found.
+	 */
+	async resolveNotificationRecipient(userId: string): Promise<string | null> {
+		const u = await prisma.user.findUniqueOrThrow({
+			where: { id: userId },
+			select: {
+				email: true,
+				emailNotificationsEnabled: true,
+				notificationEmail: true,
+			},
+		});
+		if (!u.emailNotificationsEnabled) return null;
+		return u.notificationEmail ?? u.email;
 	},
 
 	/**

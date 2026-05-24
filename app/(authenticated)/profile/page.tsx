@@ -26,6 +26,8 @@ export default async function ProfileRoute() {
 				hasPassword: !!user.password,
 				createdAt: user.createdAt.toISOString(),
 				providers: user.authAccounts.map((a) => a.provider),
+				emailNotificationsEnabled: user.emailNotificationsEnabled,
+				notificationEmail: user.notificationEmail,
 				businessName: user.businessName,
 				businessAddress: user.businessAddress,
 				businessTaxId: user.businessTaxId,
