@@ -106,6 +106,10 @@ model User {
 
   phoneNumber String?
 
+  // Notification delivery controls
+  emailNotificationsEnabled Boolean @default(true) // master gate for all notification email
+  notificationEmail         String? // delivery override; null => account email
+
   // Business / freelancer profile (for invoice sender identity)
   businessName        String?
   businessAddress     String? @db.Text

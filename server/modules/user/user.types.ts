@@ -18,6 +18,8 @@ export type UserProfile = {
 	email: string;
 	password: string | null;
 	phoneNumber: string | null;
+	emailNotificationsEnabled: boolean;
+	notificationEmail: string | null;
 	businessName: string | null;
 	businessAddress: string | null;
 	businessTaxId: string | null;

@@ -24,6 +24,7 @@ import {
 	Trash2,
 	CheckCircle2,
 	Building2,
+	AlertCircle,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -56,6 +57,8 @@ import {
 	updatePhoneNumberAction,
 	sendTestSmsAction,
 	updateBusinessProfileAction,
+	updateEmailNotificationsEnabledAction,
+	updateNotificationEmailAction,
 } from '@/server/modules/notification/notification.controller';
 import {
 	exportMyDataAction,
@@ -74,6 +77,8 @@ interface ProfilePageProps {
 		hasPassword: boolean;
 		createdAt: string;
 		providers: string[];
+		emailNotificationsEnabled: boolean;
+		notificationEmail: string | null;
 		businessName: string | null;
 		businessAddress: string | null;
 		businessTaxId: string | null;
@@ -159,6 +164,9 @@ export function ProfilePage({ user, preferences }: ProfilePageProps) {
 				<NotificationPreferencesCard
 					preferences={preferences}
 					hasPhoneNumber={!!phoneNumber}
+					emailNotificationsEnabled={user.emailNotificationsEnabled}
+					notificationEmail={user.notificationEmail}
+					accountEmail={user.email}
 				/>
 				<DangerZoneCard hasPassword={user.hasPassword} />
 			</div>
@@ -907,12 +915,35 @@ function LinkedAccountsCard({
 function NotificationPreferencesCard({
 	preferences,
 	hasPhoneNumber,
+	emailNotificationsEnabled,
+	notificationEmail,
+	accountEmail,
 }: {
 	preferences: MergedPreference[];
 	hasPhoneNumber: boolean;
+	emailNotificationsEnabled: boolean;
+	notificationEmail: string | null;
+	accountEmail: string;
 }) {
 	const [localPrefs, setLocalPrefs] = useState(preferences);
 	const [shakingKey, setShakingKey] = useState<string | null>(null);
+
+	// Master email toggle state
+	const [masterEnabled, setMasterEnabled] = useState(emailNotificationsEnabled);
+	const [shakingMaster, setShakingMaster] = useState(false);
+
+	// Delivery email state
+	const [deliveryEmail, setDeliveryEmail] = useState<string | null>(notificationEmail);
+	const [editingDelivery, setEditingDelivery] = useState(false);
+	const [deliveryEmailValue, setDeliveryEmailValue] = useState(
+		notificationEmail ?? accountEmail
+	);
+	const [deliveryEmailError, setDeliveryEmailError] = useState<string | null>(null);
+	const [isDeliveryPending, startDeliveryTransition] = useTransition();
+
+	const displayDeliveryEmail = deliveryEmail ?? accountEmail;
+	const deliveryDiffersFromAccount =
+		deliveryEmail !== null && deliveryEmail !== accountEmail;
 
 	// Group by category
 	const grouped = localPrefs.reduce(
@@ -929,6 +960,46 @@ function NotificationPreferencesCard({
 		alerts: 'Alerts',
 		activity: 'Activity',
 	};
+
+	async function handleMasterToggle(checked: boolean) {
+		// Optimistic flip
+		setMasterEnabled(checked);
+		const result = await updateEmailNotificationsEnabledAction(checked);
+		if (result.error) {
+			setMasterEnabled(!checked);
+			setShakingMaster(true);
+			setTimeout(() => setShakingMaster(false), 500);
+			toast.error(result.error);
+		}
+	}
+
+	function handleDeliveryEdit() {
+		setDeliveryEmailValue(deliveryEmail ?? accountEmail);
+		setDeliveryEmailError(null);
+		setEditingDelivery(true);
+	}
+
+	function handleDeliveryCancel() {
+		setDeliveryEmailError(null);
+		setEditingDelivery(false);
+	}
+
+	function handleDeliverySave() {
+		startDeliveryTransition(async () => {
+			const trimmed = deliveryEmailValue.trim();
+			const payload = trimmed === '' ? null : trimmed;
+			const result = await updateNotificationEmailAction(payload);
+			if (result.error) {
+				setDeliveryEmailError(result.error);
+			} else {
+				// Backend normalises "same as account email" → null; reflect locally
+				setDeliveryEmail(payload === accountEmail ? null : payload);
+				setDeliveryEmailError(null);
+				setEditingDelivery(false);
+				toast.success('Delivery email updated');
+			}
+		});
+	}
 
 	async function handleToggle(
 		key: string,
@@ -991,15 +1062,110 @@ function NotificationPreferencesCard({
 						</div>
 					)}
 
+					{/* Master email toggle */}
+					<div
+						className={`flex items-center justify-between py-2 ${
+							shakingMaster ? 'animate-shake' : ''
+						}`}
+					>
+						<div className="space-y-0.5 pr-4 flex-1">
+							<p className="text-sm font-medium">Email Notifications</p>
+							<p className="text-xs text-muted-foreground">
+								Master switch for all notification emails
+							</p>
+						</div>
+						<Switch
+							checked={masterEnabled}
+							onCheckedChange={handleMasterToggle}
+						/>
+					</div>
+
+					{/* Delivery email row — only visible when master is ON */}
+					{masterEnabled && (
+						<div className="space-y-2 pl-1">
+							{!editingDelivery ? (
+								<div className="flex flex-col sm:flex-row sm:items-center gap-1.5 sm:gap-3">
+									<p className="text-xs text-muted-foreground flex-1">
+										Sending to:{' '}
+										<span className="font-medium text-foreground">
+											{displayDeliveryEmail}
+										</span>
+									</p>
+									<div className="flex items-center gap-2">
+										{deliveryDiffersFromAccount && (
+											<span className="flex items-center gap-1 text-xs text-amber-600 dark:text-amber-500">
+												<AlertCircle className="h-3 w-3 shrink-0" />
+												Different from your account email
+											</span>
+										)}
+										<Button
+											variant="ghost"
+											size="sm"
+											className="h-7 px-2 text-xs"
+											onClick={handleDeliveryEdit}
+										>
+											<Pencil className="h-3 w-3 mr-1" />
+											Edit
+										</Button>
+									</div>
+								</div>
+							) : (
+								<div className="space-y-2">
+									<div className="flex flex-col sm:flex-row gap-2">
+										<Input
+											value={deliveryEmailValue}
+											onChange={(e) =>
+												setDeliveryEmailValue(e.target.value)
+											}
+											placeholder={accountEmail}
+											disabled={isDeliveryPending}
+											className="flex-1 h-8 text-sm"
+										/>
+										<div className="flex gap-2 shrink-0">
+											<Button
+												size="sm"
+												className="h-8"
+												onClick={handleDeliverySave}
+												disabled={isDeliveryPending}
+											>
+												{isDeliveryPending ? (
+													<Loader2 className="h-3 w-3 animate-spin mr-1" />
+												) : null}
+												Save
+											</Button>
+											<Button
+												size="sm"
+												variant="ghost"
+												className="h-8"
+												onClick={handleDeliveryCancel}
+												disabled={isDeliveryPending}
+											>
+												Cancel
+											</Button>
+										</div>
+									</div>
+									{deliveryEmailError && (
+										<p className="text-xs text-destructive">
+											{deliveryEmailError}
+										</p>
+									)}
+								</div>
+							)}
+						</div>
+					)}
+
+					{/* Divider */}
+					<div className="border-t" />
+
 					{/* Column headers */}
 					<div className="flex items-center justify-end gap-6 pr-1">
 						<div className="flex items-center gap-1 text-xs font-medium text-muted-foreground">
 							<Mail className="h-3.5 w-3.5" />
-							Email
+							<span className="hidden sm:inline">Email</span>
 						</div>
 						<div className="flex items-center gap-1 text-xs font-medium text-muted-foreground">
 							<MessageSquare className="h-3.5 w-3.5" />
-							SMS
+							<span className="hidden sm:inline">SMS</span>
 						</div>
 					</div>
 
@@ -1026,18 +1192,35 @@ function NotificationPreferencesCard({
 										</p>
 									</div>
 									<div className="flex items-center gap-6">
-										{/* Email toggle */}
-										<Switch
-											checked={pref.emailEnabled}
-											onCheckedChange={(checked) =>
-												handleToggle(
-													pref.key,
-													'EMAIL',
-													checked
-												)
-											}
-										/>
-										{/* SMS toggle */}
+										{/* Email toggle — gated by master */}
+										{masterEnabled ? (
+											<Switch
+												checked={pref.emailEnabled}
+												onCheckedChange={(checked) =>
+													handleToggle(
+														pref.key,
+														'EMAIL',
+														checked
+													)
+												}
+											/>
+										) : (
+											<Tooltip>
+												<TooltipTrigger asChild>
+													<div>
+														<Switch
+															checked={pref.emailEnabled}
+															disabled
+															className="opacity-40"
+														/>
+													</div>
+												</TooltipTrigger>
+												<TooltipContent>
+													<p>Turn on Email Notifications above to enable</p>
+												</TooltipContent>
+											</Tooltip>
+										)}
+										{/* SMS toggle — always independent */}
 										{hasPhoneNumber ? (
 											<Switch
 												checked={pref.smsEnabled}

@@ -86,6 +86,14 @@ export const NotificationService = {
 		key: string,
 		channel: NotificationChannel = 'EMAIL'
 	): Promise<boolean> {
+		// Master gate: EMAIL channel is fully suppressed when the user has
+		// turned off email notifications. SMS is unaffected. Single source
+		// of truth so no caller can forget it.
+		if (channel === 'EMAIL') {
+			const master = await UserService.getEmailNotificationsEnabled(userId);
+			if (!master) return false;
+		}
+
 		const type = await prisma.notificationType.findUnique({
 			where: { key },
 			include: {
@@ -143,7 +151,10 @@ export const NotificationService = {
 
 		// --- Email path ---
 		const emailEnabled = await this.isEnabled(userId, 'budget_alerts', 'EMAIL');
-		if (emailEnabled) {
+		const to = emailEnabled
+			? await UserService.resolveNotificationRecipient(userId)
+			: null;
+		if (emailEnabled && to) {
 			const user = await UserService.getEmailAndName(userId);
 
 			const html = `
@@ -189,7 +200,7 @@ export const NotificationService = {
 				</div>
 			`;
 
-			await EmailService.send({ to: user.email, subject, html });
+			await EmailService.send({ to, subject, html });
 		}
 
 		// --- SMS path ---
@@ -226,7 +237,10 @@ export const NotificationService = {
 
 		// --- Email path ---
 		const emailEnabled = await this.isEnabled(userId, 'income_notifications', 'EMAIL');
-		if (emailEnabled) {
+		const to = emailEnabled
+			? await UserService.resolveNotificationRecipient(userId)
+			: null;
+		if (emailEnabled && to) {
 			const user = await UserService.getEmailAndName(userId);
 
 			const subject = `Income Received: ${formatCurrency(income.amount, { currency })}`;
@@ -294,7 +308,7 @@ export const NotificationService = {
 				</div>
 			`;
 
-			await EmailService.send({ to: user.email, subject, html });
+			await EmailService.send({ to, subject, html });
 		}
 
 		// --- SMS path ---

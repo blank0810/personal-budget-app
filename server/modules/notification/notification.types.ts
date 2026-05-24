@@ -15,6 +15,14 @@ export const updatePhoneNumberSchema = z.object({
 		.nullable(),
 });
 
+export const updateEmailNotificationsEnabledSchema = z.object({
+	enabled: z.boolean(),
+});
+
+export const updateNotificationEmailSchema = z.object({
+	email: z.string().email('Must be a valid email address').nullable(),
+});
+
 export type MergedPreference = {
 	key: string;
 	label: string;
