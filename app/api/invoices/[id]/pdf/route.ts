@@ -3,6 +3,7 @@ import { auth } from '@/auth';
 import { InvoiceService } from '@/server/modules/invoice/invoice.service';
 import { renderInvoicePDF } from '@/server/modules/invoice/invoice.templates';
 import { UserService } from '@/server/modules/user/user.service';
+import { urlToQrDataUri } from '@/lib/qr';
 
 export async function GET(
 	req: NextRequest,
@@ -31,9 +32,16 @@ export async function GET(
 			currency = await UserService.getCurrency(session.user.id);
 		}
 
+		// Build a single QR from the invoice's own payment link
+		const paymentQr = await urlToQrDataUri(invoice.paymentLink);
+
 		// Convert Decimals to numbers for the template
+		const isReceipt = invoice.status === 'PAID';
 		const pdfData = {
 			...invoice,
+			variant: (isReceipt ? 'receipt' : 'invoice') as 'invoice' | 'receipt',
+			paymentLink: invoice.paymentLink,
+			paymentQr,
 			userName: invoice.user?.name ?? null,
 			userEmail: invoice.user?.email ?? null,
 			userPhone: invoice.user?.phoneNumber ?? null,

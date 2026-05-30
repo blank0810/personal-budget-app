@@ -6,6 +6,7 @@ import {
 	View,
 	StyleSheet,
 	Font,
+	Image,
 	renderToBuffer,
 } from '@react-pdf/renderer';
 import { getCurrencyConfig } from '@/lib/currency';
@@ -304,6 +305,25 @@ const styles = StyleSheet.create({
 		color: TEXT_SECONDARY,
 		lineHeight: 1.6,
 	},
+	// --- Payment link ---
+	paymentBlock: {
+		marginTop: 8,
+		flexDirection: 'row',
+		alignItems: 'flex-start',
+	},
+	paymentDetails: {
+		flex: 1,
+	},
+	paymentLinkText: {
+		fontSize: 8,
+		color: TEXT_SECONDARY,
+		lineHeight: 1.5,
+	},
+	paymentQrImage: {
+		width: 64,
+		height: 64,
+		marginLeft: 8,
+	},
 	// --- Footer ---
 	footer: {
 		position: 'absolute',
@@ -374,6 +394,7 @@ interface InvoicePDFData {
 	id: string;
 	invoiceNumber: string;
 	status: string;
+	variant?: 'invoice' | 'receipt';
 	userName: string | null;
 	userEmail: string | null;
 	userPhone: string | null;
@@ -381,6 +402,8 @@ interface InvoicePDFData {
 	businessAddress: string | null;
 	businessTaxId: string | null;
 	paymentInstructions: string | null;
+	paymentLink?: string | null;
+	paymentQr?: string | null;
 	clientName: string;
 	clientEmail: string | null;
 	clientAddress: string | null;
@@ -738,6 +761,20 @@ function TotalsBox({
 	);
 }
 
+function PaymentLinkBlock({ invoice }: { invoice: InvoicePDFData }) {
+	if (!invoice.paymentLink) return null;
+	return (
+		<View style={styles.paymentBlock}>
+			<View style={styles.paymentDetails}>
+				<Text style={styles.paymentLinkText}>{invoice.paymentLink}</Text>
+			</View>
+			{invoice.paymentQr ? (
+				<Image src={invoice.paymentQr} style={styles.paymentQrImage} />
+			) : null}
+		</View>
+	);
+}
+
 function SummarySection({
 	invoice,
 	fmt,
@@ -745,16 +782,26 @@ function SummarySection({
 	invoice: InvoicePDFData;
 	fmt: (val: number) => string;
 }) {
+	const isReceipt = invoice.variant === 'receipt';
+	const hasPaymentLink = !isReceipt && !!invoice.paymentLink;
+	const hasInstructions = !isReceipt && !!invoice.paymentInstructions;
+	const showPaymentBox = hasPaymentLink || hasInstructions;
+
 	return (
 		<View style={styles.summaryRow}>
 			<View style={styles.paymentCol}>
-				{invoice.paymentInstructions ? (
+				{showPaymentBox ? (
 					<View style={styles.paymentBox}>
-						<Text style={styles.sectionLabel}>How to Pay</Text>
-						<MultiLineText
-							text={invoice.paymentInstructions}
-							style={styles.paymentText}
-						/>
+						<Text style={styles.sectionLabel}>Pay this invoice</Text>
+						{hasPaymentLink ? (
+							<PaymentLinkBlock invoice={invoice} />
+						) : null}
+						{hasInstructions ? (
+							<MultiLineText
+								text={invoice.paymentInstructions!}
+								style={styles.paymentText}
+							/>
+						) : null}
 					</View>
 				) : null}
 			</View>

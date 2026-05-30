@@ -530,19 +530,19 @@ function BusinessProfileCard({
 					)}
 				</div>
 				<div className="space-y-2">
-					<Label htmlFor="paymentInstructions">Payment Instructions</Label>
+					<Label htmlFor="paymentInstructions">Payment instructions (optional)</Label>
 					{editing ? (
 						<div className="space-y-1">
 							<Textarea
 								id="paymentInstructions"
 								value={paymentValue}
 								onChange={(e) => setPaymentValue(e.target.value)}
-								placeholder="Bank details, GCash, PayPal, etc."
+								placeholder="Any extra instructions for clients (e.g. reference number format)."
 								disabled={isPending}
 								rows={4}
 							/>
 							<p className="text-xs text-muted-foreground">
-								How clients pay you (bank details, GCash, PayPal). Shown in the &quot;How to Pay&quot; block on the invoice.
+								Free-form notes shown in the payment section of the invoice.
 							</p>
 						</div>
 					) : (

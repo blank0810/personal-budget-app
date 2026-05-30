@@ -4,6 +4,7 @@ import { InvoiceService } from '@/server/modules/invoice/invoice.service';
 import { InvoiceDetail } from '@/components/modules/invoice/InvoiceDetail';
 import type { InvoiceWithDetails } from '@/components/modules/invoice/InvoiceDetail';
 import { serialize } from '@/lib/serialization';
+import { urlToQrDataUri } from '@/lib/qr';
 
 interface InvoiceDetailPageProps {
 	params: Promise<{ id: string }>;
@@ -31,9 +32,12 @@ export default async function InvoiceDetailPage({
 		userEmail: user?.email ?? null,
 	};
 
+	// Build a single QR from the invoice's own payment link
+	const paymentQr = await urlToQrDataUri(invoice.paymentLink);
+
 	return (
 		<div className='container mx-auto py-6 md:py-10'>
-			<InvoiceDetail invoice={invoiceWithDetails} />
+			<InvoiceDetail invoice={invoiceWithDetails} paymentQr={paymentQr} />
 		</div>
 	);
 }
