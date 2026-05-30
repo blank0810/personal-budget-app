@@ -26,6 +26,7 @@ import {
 	CheckCircle,
 	ArrowLeft,
 	Mail,
+	ExternalLink,
 } from 'lucide-react';
 import { InvoiceStatus } from '@prisma/client';
 
@@ -56,6 +57,7 @@ export interface InvoiceWithDetails {
 	taxAmount: number;
 	totalAmount: number;
 	notes: string | null;
+	paymentLink?: string | null;
 	status: InvoiceStatus;
 	lineItems: LineItem[];
 	linkedIncome: {
@@ -67,6 +69,7 @@ export interface InvoiceWithDetails {
 
 interface InvoiceDetailProps {
 	invoice: InvoiceWithDetails;
+	paymentQr?: string | null;
 }
 
 // --- Invoice Preview Status Stamp ---
@@ -138,9 +141,11 @@ function InvoicePreviewStatusStamp({ status }: { status: InvoiceStatus }) {
 function InvoicePreview({
 	invoice,
 	formatCurrency,
+	paymentQr,
 }: {
 	invoice: InvoiceWithDetails;
 	formatCurrency: (value: number) => string;
+	paymentQr?: string | null;
 }) {
 	return (
 		<div className="mx-auto w-full max-w-[800px]">
@@ -290,6 +295,41 @@ function InvoicePreview({
 							})()}
 						</div>
 
+						{/* Payment link */}
+						{invoice.paymentLink &&
+							(invoice.status === 'SENT' ||
+								invoice.status === 'OVERDUE') && (
+								<div className='mb-7 rounded-md border border-[#e5e5e5] bg-[#f9fafb] p-4'>
+									<p className='text-[11px] font-bold uppercase tracking-wider text-[#6b7280] mb-2'>
+										Pay this invoice
+									</p>
+									<div className='flex items-start justify-between gap-4'>
+										<div className='min-w-0 flex-1 space-y-2'>
+											<a
+												href={invoice.paymentLink}
+												target='_blank'
+												rel='noopener noreferrer'
+												className='inline-flex items-center gap-1.5 text-sm font-medium text-[#111111] underline underline-offset-2 break-all'
+											>
+												<ExternalLink className='h-3.5 w-3.5 shrink-0' />
+												Open payment link
+											</a>
+											<p className='text-xs text-[#4b5563] break-all'>
+												{invoice.paymentLink}
+											</p>
+										</div>
+										{paymentQr && (
+											<img
+												src={paymentQr}
+												role='img'
+												aria-label='Payment link QR code'
+												className='h-20 w-20 shrink-0 rounded border border-[#e5e5e5] bg-white'
+											/>
+										)}
+									</div>
+								</div>
+							)}
+
 						{/* Totals */}
 						<div className="flex justify-end mb-7">
 							<div className="w-56 space-y-1">
@@ -381,7 +421,7 @@ function InvoicePreview({
 
 // --- Main Component ---
 
-export function InvoiceDetail({ invoice }: InvoiceDetailProps) {
+export function InvoiceDetail({ invoice, paymentQr }: InvoiceDetailProps) {
 	const router = useRouter();
 	const [isPending, startTransition] = useTransition();
 	const [paidDialogOpen, setPaidDialogOpen] = useState(false);
@@ -611,6 +651,7 @@ export function InvoiceDetail({ invoice }: InvoiceDetailProps) {
 			<InvoicePreview
 				invoice={invoice}
 				formatCurrency={formatCurrency}
+				paymentQr={paymentQr}
 			/>
 
 			<MarkAsPaidDialog

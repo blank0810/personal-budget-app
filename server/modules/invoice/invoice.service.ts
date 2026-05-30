@@ -11,6 +11,7 @@ import {
 import { UserService } from '@/server/modules/user/user.service';
 import { EmailService } from '@/server/modules/email/email.service';
 import { renderInvoicePDF } from './invoice.templates';
+import { urlToQrDataUri } from '@/lib/qr';
 import { formatCurrency } from '@/lib/formatters';
 import { InvoiceStatus } from '@prisma/client';
 
@@ -64,11 +65,16 @@ async function emailInvoiceToClient(
 		throw new Error('Cannot email invoice without a client email');
 	}
 
+	const paymentQr = await urlToQrDataUri(invoice.paymentLink);
+
 	const pdfBuffer = await renderInvoicePDF(
 		{
 			id: invoice.id,
 			invoiceNumber: invoice.invoiceNumber,
 			status: options.status,
+			variant: options.variant,
+			paymentLink: invoice.paymentLink,
+			paymentQr,
 			userName: invoice.user?.name ?? null,
 			userEmail: invoice.user?.email ?? null,
 			userPhone: invoice.user?.phoneNumber ?? null,
@@ -228,6 +234,7 @@ export const InvoiceService = {
 				taxAmount,
 				totalAmount,
 				notes: data.notes,
+				paymentLink: data.paymentLink || null,
 				userId,
 				lineItems: {
 					create: lineItems,
@@ -472,6 +479,9 @@ export const InvoiceService = {
 					...(updateData.notes !== undefined && {
 						notes: updateData.notes,
 					}),
+					...(updateData.paymentLink !== undefined && {
+						paymentLink: updateData.paymentLink || null,
+					}),
 					...(subtotal !== undefined && { subtotal }),
 					...(taxAmount !== undefined && { taxAmount }),
 					...(totalAmount !== undefined && { totalAmount }),
@@ -532,7 +542,9 @@ export const InvoiceService = {
 
 		const updated = await prisma.invoice.update({
 			where: { id: invoiceId, userId },
-			data: { status: InvoiceStatus.SENT },
+			data: {
+				status: InvoiceStatus.SENT,
+			},
 		});
 
 		return { invoice: updated, emailedTo };

@@ -21,6 +21,14 @@ export const createInvoiceSchema = z.object({
 	dueDate: z.coerce.date(),
 	taxRate: z.number().min(0).max(100).optional(),
 	notes: z.string().optional(),
+	paymentLink: z
+		.string()
+		.trim()
+		.url()
+		.startsWith('https://', 'Link must start with https://')
+		.max(500)
+		.optional()
+		.or(z.literal('')),
 	lineItems: z.array(lineItemSchema).min(1, 'At least one line item is required'),
 });
 

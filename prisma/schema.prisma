@@ -539,12 +539,12 @@ model SystemSetting {
 // Bulk operation audit log. One row per bulk delete / bulk categorize call.
 // Foundation for future undo; no UI reads from it on the pilot.
 model BulkOperation {
-  id         String   @id @default(cuid())
-  userId     String
-  kind       String // "DELETE" | "CATEGORIZE"
-  itemCount  Int
-  payload    Json
-  createdAt  DateTime @default(now())
+  id        String   @id @default(cuid())
+  userId    String
+  kind      String // "DELETE" | "CATEGORIZE"
+  itemCount Int
+  payload   Json
+  createdAt DateTime @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -585,6 +585,7 @@ model Invoice {
   totalAmount    Decimal       @default(0) @db.Decimal(12, 2)
   notes          String?       @db.Text
   paidAt         DateTime?
+  paymentLink    String? // optional per-invoice pay URL (any provider/gateway)
   linkedIncomeId String?       @unique
   clientId       String?
   userId         String

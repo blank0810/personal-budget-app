@@ -50,6 +50,7 @@ const invoiceFormSchema = z.object({
 	dueDate: z.string().min(1, 'Due date is required'),
 	taxRate: z.number().min(0).max(100).optional(),
 	notes: z.string().optional(),
+	paymentLink: z.string().optional(),
 	lineItems: z.array(lineItemSchema).min(1, 'At least one line item is required'),
 });
 
@@ -65,6 +66,7 @@ export interface ExistingInvoice {
 	dueDate: string | Date;
 	taxRate: number | null;
 	notes: string | null;
+	paymentLink: string | null;
 	lineItems: {
 		description: string;
 		quantity: number;
@@ -102,6 +104,7 @@ export function InvoiceForm({ mode, invoice }: InvoiceFormProps) {
 						dueDate: formatDateInput(invoice.dueDate),
 						taxRate: invoice.taxRate ?? undefined,
 						notes: invoice.notes ?? '',
+						paymentLink: invoice.paymentLink ?? '',
 						lineItems: invoice.lineItems.map((li) => ({
 							description: li.description,
 							quantity: li.quantity,
@@ -121,6 +124,7 @@ export function InvoiceForm({ mode, invoice }: InvoiceFormProps) {
 						dueDate: '',
 						taxRate: undefined,
 						notes: '',
+						paymentLink: '',
 						lineItems: [{ description: '', quantity: 1, unitPrice: 0 }],
 					},
 	});
@@ -157,6 +161,7 @@ export function InvoiceForm({ mode, invoice }: InvoiceFormProps) {
 				issueDate: new Date(values.issueDate),
 				dueDate: new Date(values.dueDate),
 				taxRate: values.taxRate ?? undefined,
+				paymentLink: values.paymentLink?.trim() ?? '',
 				lineItems: values.lineItems.map((li) => ({
 					description: li.description,
 					quantity: Number(li.quantity),
@@ -475,12 +480,12 @@ export function InvoiceForm({ mode, invoice }: InvoiceFormProps) {
 					</CardContent>
 				</Card>
 
-				{/* Notes */}
+				{/* Notes & Payment */}
 				<Card>
 					<CardHeader>
-						<CardTitle className='text-base'>Notes</CardTitle>
+						<CardTitle className='text-base'>Notes &amp; Payment</CardTitle>
 					</CardHeader>
-					<CardContent>
+					<CardContent className='space-y-4'>
 						<FormField
 							control={form.control}
 							name='notes'
@@ -494,6 +499,28 @@ export function InvoiceForm({ mode, invoice }: InvoiceFormProps) {
 											{...field}
 										/>
 									</FormControl>
+									<FormMessage />
+								</FormItem>
+							)}
+						/>
+						<FormField
+							control={form.control}
+							name='paymentLink'
+							render={({ field }) => (
+								<FormItem>
+									<FormLabel>Payment link (optional)</FormLabel>
+									<FormControl>
+										<Input
+											type='url'
+											placeholder='https://...'
+											{...field}
+										/>
+									</FormControl>
+									<p className='text-xs text-muted-foreground'>
+										Optional. Paste a payment link (Wise, PayPal,
+										GCash, any gateway) — clients can click or scan
+										it on the invoice.
+									</p>
 									<FormMessage />
 								</FormItem>
 							)}
