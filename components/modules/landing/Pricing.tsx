@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { Check, Sparkles } from 'lucide-react';
 import { m, useReducedMotion, type Variants } from 'motion/react';
+import { useMounted } from './ui/use-mounted';
 import { SectionIndex } from './ui/SectionIndex';
 
 /**
@@ -22,7 +23,7 @@ import { SectionIndex } from './ui/SectionIndex';
  * viewport once.
  */
 const FREE_FEATURES = [
-	'Every peso in and out, in one clear view',
+	'Every transaction in and out, in one clear view',
 	'The full story of every account',
 	'Budgets that show what is safe to spend',
 	'Savings goals that track themselves',
@@ -34,9 +35,10 @@ const FREE_FEATURES = [
 
 export function Pricing({ lead = false }: { lead?: boolean }) {
 	const prefersReduced = useReducedMotion();
+	const mounted = useMounted();
 	const Heading = lead ? 'h1' : 'h2';
 
-	const fromLeft: Variants = prefersReduced
+	const fromLeft: Variants = (mounted && prefersReduced)
 		? {
 				hidden: { opacity: 0 },
 				visible: { opacity: 1, transition: { duration: 0.3 } },
@@ -50,7 +52,7 @@ export function Pricing({ lead = false }: { lead?: boolean }) {
 				},
 		  };
 
-	const card: Variants = prefersReduced
+	const card: Variants = (mounted && prefersReduced)
 		? {
 				hidden: { opacity: 0 },
 				visible: { opacity: 1, transition: { duration: 0.3 } },

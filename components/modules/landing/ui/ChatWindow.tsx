@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Bot, ArrowUp } from 'lucide-react';
 import { m, useReducedMotion } from 'motion/react';
 import { cn } from '@/lib/utils';
+import { useMounted } from './use-mounted';
 
 /**
  * ChatWindow — the AI Advisor INTERACTIVE labelled-preview chat
@@ -85,6 +86,7 @@ const TYPE_SPEED = 22; // per character
 
 export function ChatWindow() {
 	const prefersReduced = useReducedMotion();
+	const mounted = useMounted();
 
 	const [turns, setTurns] = useState<ChatTurn[]>([GREETING]);
 	const [thinking, setThinking] = useState(false);
@@ -142,7 +144,7 @@ export function ChatWindow() {
 		};
 
 		// Reduced motion: no thinking delay, no typewriter — show it at once.
-		if (prefersReduced) {
+		if (mounted && prefersReduced) {
 			setTurns((prev) => [...prev, replyTurn]);
 			setBusy(false);
 			return;
@@ -202,7 +204,7 @@ export function ChatWindow() {
 			>
 				{turns.map((turn) => {
 					const isTyping =
-						!prefersReduced && typing?.id === turn.id;
+						!(mounted && prefersReduced) && typing?.id === turn.id;
 					const shown = isTyping
 						? turn.text.slice(0, typing.chars)
 						: turn.text;
@@ -214,7 +216,7 @@ export function ChatWindow() {
 							role={turn.role}
 							text={shown}
 							showCaret={showCaret}
-							prefersReduced={!!prefersReduced}
+							prefersReduced={!!(mounted && prefersReduced)}
 						/>
 					);
 				})}

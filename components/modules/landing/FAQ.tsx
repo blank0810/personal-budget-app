@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { ArrowRight } from 'lucide-react';
 import { m, useReducedMotion, type Variants } from 'motion/react';
+import { useMounted } from './ui/use-mounted';
 import { SectionEyebrow } from './ui/SectionEyebrow';
 import {
 	Accordion,
@@ -31,9 +32,10 @@ import { FAQ_ITEMS } from './faq-data';
  */
 export function FAQ({ lead = false }: { lead?: boolean }) {
 	const prefersReduced = useReducedMotion();
+	const mounted = useMounted();
 	const Heading = lead ? 'h1' : 'h2';
 
-	const reveal: Variants = prefersReduced
+	const reveal: Variants = (mounted && prefersReduced)
 		? {
 				hidden: { opacity: 0 },
 				visible: { opacity: 1, transition: { duration: 0.3 } },

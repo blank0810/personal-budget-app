@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { Sparkles } from 'lucide-react';
 import { m, useReducedMotion, type Variants } from 'motion/react';
+import { useMounted } from './ui/use-mounted';
 import { ChatWindow } from './ui/ChatWindow';
 
 /**
@@ -30,9 +31,10 @@ import { ChatWindow } from './ui/ChatWindow';
  */
 export function AIAdvisorSpotlight({ lead = false }: { lead?: boolean }) {
 	const prefersReduced = useReducedMotion();
+	const mounted = useMounted();
 	const Heading = lead ? 'h1' : 'h2';
 
-	const fromLeft: Variants = prefersReduced
+	const fromLeft: Variants = (mounted && prefersReduced)
 		? {
 				hidden: { opacity: 0 },
 				visible: { opacity: 1, transition: { duration: 0.3 } },
@@ -46,7 +48,7 @@ export function AIAdvisorSpotlight({ lead = false }: { lead?: boolean }) {
 				},
 		  };
 
-	const fromRight: Variants = prefersReduced
+	const fromRight: Variants = (mounted && prefersReduced)
 		? {
 				hidden: { opacity: 0 },
 				visible: { opacity: 1, transition: { duration: 0.3 } },

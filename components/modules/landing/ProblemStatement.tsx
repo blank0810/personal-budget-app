@@ -4,6 +4,7 @@ import { useRef } from 'react';
 import { useGSAP } from '@gsap/react';
 import { Wallet, FileText, Table2, X } from 'lucide-react';
 import { m, useReducedMotion, type Variants } from 'motion/react';
+import { useMounted } from './ui/use-mounted';
 import { SectionIndex } from './ui/SectionIndex';
 import { cn } from '@/lib/utils';
 
@@ -83,10 +84,11 @@ const TOOLS: Tool[] = [
 
 export function ProblemStatement({ lead = false }: { lead?: boolean }) {
 	const prefersReduced = useReducedMotion();
+	const mounted = useMounted();
 	const rootRef = useRef<HTMLDivElement>(null);
 	const Heading = lead ? 'h1' : 'h2';
 
-	const heading: Variants = prefersReduced
+	const heading: Variants = (mounted && prefersReduced)
 		? {
 				hidden: { opacity: 0 },
 				visible: { opacity: 1, transition: { duration: 0.3 } },

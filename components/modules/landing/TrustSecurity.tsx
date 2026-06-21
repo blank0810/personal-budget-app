@@ -3,6 +3,7 @@
 import { Lock, ShieldOff, DownloadCloud, GitBranch } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { m, useReducedMotion, type Variants } from 'motion/react';
+import { useMounted } from './ui/use-mounted';
 import { SectionIndex } from './ui/SectionIndex';
 
 /**
@@ -45,8 +46,9 @@ const TRUST_ROWS: {
 
 export function TrustSecurity() {
 	const prefersReduced = useReducedMotion();
+	const mounted = useMounted();
 
-	const fromLeft: Variants = prefersReduced
+	const fromLeft: Variants = (mounted && prefersReduced)
 		? {
 				hidden: { opacity: 0 },
 				visible: { opacity: 1, transition: { duration: 0.3 } },
@@ -63,11 +65,11 @@ export function TrustSecurity() {
 	const stagger: Variants = {
 		hidden: {},
 		visible: {
-			transition: { staggerChildren: prefersReduced ? 0 : 0.1 },
+			transition: { staggerChildren: (mounted && prefersReduced) ? 0 : 0.1 },
 		},
 	};
 
-	const row: Variants = prefersReduced
+	const row: Variants = (mounted && prefersReduced)
 		? {
 				hidden: { opacity: 0 },
 				visible: { opacity: 1, transition: { duration: 0.3 } },
