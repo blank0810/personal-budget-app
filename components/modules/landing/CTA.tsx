@@ -2,105 +2,85 @@
 
 import Link from 'next/link';
 import { ArrowRight } from 'lucide-react';
-import { m, useReducedMotion, type Variants } from 'motion/react';
-import { GradientMeshBg } from './ui/GradientMeshBg';
+import { MotionReveal } from './ui/MotionReveal';
+import { IncomeTimeline } from './ui/IncomeTimeline';
 
 /**
  * FinalCTA (master IA §12).
  *
- * COMPOSITION (distinct, anti-uniformity): the dark CLOSING BOOKEND. It pairs
- * with the AI spotlight as the page's other deep-dark glowing moment: a
- * full-bleed `.l-section-dark` panel with a soft emerald glow field and a
- * single oversized `.l-h2` statement centered over it. One restated line of
- * the closed loop, a primary "Start free" pill (idle `.l-cta-pulse` ring,
- * disabled under reduced motion in landing.css) and a ghost route link.
+ * Raw dark surface. No GradientMeshBg, no blobs, no pill buttons.
+ * Heading is huge (clamp 56→108px), left-aligned. Mini income timeline
+ * anchors the bottom-left; underline-style CTA action is on the right.
  *
- * LINK FIX: the ghost link used to point at the same-page anchor
- * `#ai-advisor`, which no longer resolves on most routes (the AI section now
- * lives at its own route). It is now a real Next <Link> to `/ai-advisor`.
- *
- * HONESTY (PRODUCT.md): "Start free", AI framed as future. No em dashes.
- *
- * Motion: the block scales/rises in once on view; single useReducedMotion()
- * gate collapses to a plain fade. viewport once.
+ * HONESTY: no AI mention, no invoicing mention. Headline is plain SSR
+ * (inside MotionReveal — not LCP, so wrapping is safe).
  */
 export function FinalCTA() {
-	const prefersReduced = useReducedMotion();
-
-	const reveal: Variants = prefersReduced
-		? {
-				hidden: { opacity: 0 },
-				visible: { opacity: 1, transition: { duration: 0.3 } },
-		  }
-		: {
-				hidden: { opacity: 0, scale: 0.96 },
-				visible: {
-					opacity: 1,
-					scale: 1,
-					transition: { duration: 0.6, ease: [0.16, 1, 0.3, 1] },
-				},
-		  };
-
 	return (
-		<section className='l-section-dark relative overflow-hidden py-28 sm:py-32'>
-			<GradientMeshBg variant='cta' />
+		<section
+			className='relative overflow-hidden py-24 sm:py-28'
+			style={{ backgroundColor: 'oklch(0.13 0.014 264)' }}
+		>
+			{/* Noise grain, same as hero */}
+			<div className='l-noise-overlay' aria-hidden='true' />
 
-			{/* Emerald glow + hairline top edge so the bookend reads deliberate,
-			 * matching the AI spotlight's dark treatment. Decorative only. */}
-			<div
-				aria-hidden='true'
-				className='pointer-events-none absolute inset-0'
-				style={{
-					background:
-						'radial-gradient(ellipse 55% 65% at 50% 55%, oklch(0.82 0.13 155 / 16%), transparent 70%)',
-				}}
-			/>
+			{/* Very faint hairline top rule */}
 			<div
 				aria-hidden='true'
 				className='pointer-events-none absolute inset-x-0 top-0 h-px'
-				style={{
-					background:
-						'linear-gradient(90deg, transparent, oklch(0.82 0.13 155 / 35%), transparent)',
-				}}
+				style={{ background: 'oklch(1 0 0 / 8%)' }}
 			/>
 
-			<m.div
-				variants={reveal}
-				initial='hidden'
-				whileInView='visible'
-				viewport={{ once: true, amount: 0.4 }}
-				className='relative mx-auto max-w-3xl px-6 text-center md:px-10'
-			>
-				<h2 className='l-h2'>
-					Start free today.
-					<br className='hidden sm:block' /> Be first to the AI.
-				</h2>
-				<p className='mx-auto mt-6 max-w-xl text-base leading-relaxed text-l-text-2 sm:text-lg'>
-					Invoice your clients, watch that income flow into your
-					budget, and reach your goals. All in one place, with an AI
-					advisor on the way.
-				</p>
+			<div className='relative mx-auto max-w-[1184px] px-6 md:px-10 xl:px-12'>
 
-				<div className='mt-10 flex flex-col items-stretch justify-center gap-3 sm:flex-row sm:items-center'>
-					<Link
-						href='/register'
-						className='l-cta-pulse inline-flex items-center justify-center rounded-full bg-l-accent px-8 py-3.5 text-base font-medium text-white shadow-sm transition-colors hover:bg-l-accent/90'
+				{/* Oversized heading — left-aligned, near-full-width */}
+				<MotionReveal>
+					<h2
+						className='font-bold leading-[0.95] tracking-[-0.04em] text-l-text-1'
+						style={{ fontSize: 'clamp(56px, 8vw, 108px)' }}
 					>
-						Start free
-					</Link>
-					<Link
-						href='/ai-advisor'
-						className='group inline-flex items-center justify-center gap-2 rounded-full border border-l-border bg-l-surface-1 px-6 py-3.5 text-base font-medium text-l-text-2 transition-colors hover:border-l-border-mid hover:text-l-text-1'
-					>
-						See what&apos;s coming
-						<ArrowRight className='h-4 w-4 transition-transform group-hover:translate-x-0.5' />
-					</Link>
+						Start free.
+						<br />
+						<span className='text-l-accent'>
+							Know exactly
+						</span>
+						<br />
+						where your money goes.
+					</h2>
+				</MotionReveal>
+
+				{/* Two-col: timeline left, CTA right */}
+				<div className='mt-14 grid grid-cols-1 gap-10 lg:grid-cols-2 lg:items-end lg:gap-16'>
+
+					{/* Left: mini timeline as brand anchor */}
+					<div>
+						<p className='mb-3 text-[11px] font-semibold uppercase tracking-[0.1em] text-l-text-4'>
+							The budgeting app is here now. No waitlist, no card.
+						</p>
+						<IncomeTimeline compact />
+					</div>
+
+					{/* Right: action block */}
+					<div className='flex flex-col items-start gap-6'>
+						<Link
+							href='/register'
+							className='group inline-flex items-center gap-3 rounded-none border-b-2 border-l-accent pb-1 text-[22px] font-bold text-l-accent transition-all hover:gap-5 sm:text-[28px]'
+						>
+							Start free
+							<ArrowRight className='h-6 w-6 transition-transform group-hover:translate-x-1' aria-hidden='true' />
+						</Link>
+						<p className='text-sm text-l-text-4'>
+							Free to start · No credit card · Your data is yours
+						</p>
+						<Link
+							href='/features'
+							className='text-sm text-l-text-4 underline underline-offset-4 transition-colors hover:text-l-text-2'
+						>
+							See everything that ships today
+						</Link>
+					</div>
 				</div>
-
-				<p className='mt-6 text-sm text-l-text-4'>
-					Free to start. No credit card required.
-				</p>
-			</m.div>
+			</div>
 		</section>
 	);
 }

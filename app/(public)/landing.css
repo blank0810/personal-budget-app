@@ -36,6 +36,8 @@
 	--l-accent: oklch(0.72 0.17 155); /* emerald — brightened for dark */
 	--l-accent-dim: oklch(0.72 0.17 155 / 15%); /* tinted surface */
 	--l-accent-ring: oklch(0.72 0.17 155 / 35%); /* focus ring */
+	/* Amber warning — >80%-spent budget states, landing-scope only */
+	--l-accent-amber: oklch(0.82 0.14 75);
 
 	/* Gradient mesh stops */
 	--l-mesh-violet: oklch(0.75 0.1 290); /* muted violet */
@@ -281,6 +283,31 @@ html:has(.landing) {
  * Reduced-motion overrides (design-system §6 / master §4)
  * Disable decorative motion; keep functional motion intact.
  * ------------------------------------------------------------------- */
+/* ---------------------------------------------------------------------
+ * Income timeline bar rise animation (preview only — landing-scoped).
+ * GPU-only: scaleY on a transform-origin: bottom element. Gated below.
+ * ------------------------------------------------------------------- */
+@keyframes l-bar-rise {
+	from { transform: scaleY(0); }
+	to   { transform: scaleY(1); }
+}
+
+/* Noise grain texture for the preview hero — reusable anywhere in .landing.
+ * Opacity 0.055 so the texture registers at real scale (fix #6). */
+.l-noise-overlay {
+	position: absolute;
+	inset: 0;
+	pointer-events: none;
+	opacity: 0.055;
+	background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23n)' opacity='1'/%3E%3C/svg%3E");
+	background-repeat: repeat;
+	background-size: 180px 180px;
+}
+
+/* ---------------------------------------------------------------------
+ * Reduced-motion overrides (design-system §6 / master §4)
+ * Disable decorative motion; keep functional motion intact.
+ * ------------------------------------------------------------------- */
 @media (prefers-reduced-motion: reduce) {
 	.landing .l-blob,
 	.landing .l-aurora {
@@ -291,6 +318,10 @@ html:has(.landing) {
 	}
 	.landing [data-l-marquee] {
 		animation: none !important;
+	}
+	.landing [style*='l-bar-rise'] {
+		animation: none !important;
+		transform: scaleY(1) !important;
 	}
 	html:has(.landing) {
 		scroll-behavior: auto;
