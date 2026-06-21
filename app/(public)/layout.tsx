@@ -6,7 +6,7 @@ import { LandingFooter } from '@/components/modules/landing/Footer';
 import './landing.css';
 
 const BASE_DESCRIPTION =
-	'Budgeting and invoicing for freelancers and solo operators. See every peso in and out, send invoices and get paid faster, hit your savings goals, and know your financial health at a glance. Free to start, with an AI advisor on the way.';
+	'Personal budgeting and expense tracking app. Track income and expenses, set budgets for every category, reach savings goals, and send client invoices. Free to start. An AI financial advisor is in development.';
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://budgetplanner.app';
 
@@ -50,7 +50,7 @@ const SITEWIDE_JSON_LD = {
 				price: '0',
 			},
 			description:
-				'Budgeting and invoicing for freelancers and solo operators. Track income, expenses, and budgets, set savings goals, automate recurring transactions, and send invoices. An AI financial advisor is in development.',
+				'Personal budgeting and expense tracking app. Track income and expenses, set budgets for every category, reach savings goals, and send client invoices. Free to start. An AI financial advisor is in development.',
 			featureList: [
 				'Income and expense tracking',
 				'Envelope budgets',
@@ -68,7 +68,7 @@ const SITEWIDE_JSON_LD = {
 
 export const metadata: Metadata = {
 	title: {
-		default: 'Budget Planner: Money and Invoicing for Freelancers',
+		default: 'Budget Planner — Budgeting, expense tracking & client invoicing',
 		template: '%s · Budget Planner',
 	},
 	description: BASE_DESCRIPTION,
@@ -86,9 +86,9 @@ export const metadata: Metadata = {
 		},
 	},
 	openGraph: {
-		title: 'Budget Planner: Money and Invoicing for Freelancers',
+		title: 'Budget Planner — Budgeting, expense tracking & client invoicing',
 		description:
-			'See every peso in and out, send invoices, and hit your savings goals. Free to start.',
+			'Track income and expenses, set budgets for every category, reach savings goals, and send client invoices. Free to start.',
 		type: 'website',
 		url: '/',
 		siteName: 'Budget Planner',
@@ -98,7 +98,7 @@ export const metadata: Metadata = {
 		card: 'summary_large_image',
 		title: 'Budget Planner',
 		description:
-			'Money and invoicing for freelancers and solo operators. Free to start.',
+			'Budgeting, expense tracking, and client invoicing. Free to start.',
 	},
 };
 

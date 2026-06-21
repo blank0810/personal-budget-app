@@ -6,7 +6,7 @@ import { FinalCTA } from '@/components/modules/landing/CTA';
 export const metadata: Metadata = {
 	title: 'How it works',
 	description:
-		'From invoice to income to budget. See how one app keeps the money you earn and the money you plan in the same place.',
+		'Set budgets, track every transaction, and reach your savings goals. Also send client invoices and log income — all in one app, no switching between tools.',
 	alternates: {
 		canonical: '/how-it-works',
 	},

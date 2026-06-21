@@ -20,8 +20,8 @@ export const FAQ_ITEMS = [
 		a: 'Everything you can see today is free to start: your money in and out, accounts, budgets, goals, invoicing, importing your bank history, reports, and the dashboard. The AI Advisor is still being built, and it may become a paid add-on later. We will be upfront about pricing before anything changes.',
 	},
 	{
-		q: 'Do I have to be a freelancer to use it?',
-		a: 'No. The product is built with freelancers and solo operators in mind (variable income, client invoicing), but it works just as well for everyday personal budgeting. If you want to track spending, set budgets, and hit savings goals, you are in the right place.',
+		q: 'Do I have to be a specific type of person to use it?',
+		a: 'No. Budget Planner works for anyone who wants to track spending, set budgets, and hit savings goals — whether you have a fixed salary, variable income, or a mix of both. If you want a clear picture of your money, you are in the right place.',
 	},
 	{
 		q: 'Can I import my bank transactions?',
@@ -29,7 +29,7 @@ export const FAQ_ITEMS = [
 	},
 	{
 		q: 'Can I send real invoices?',
-		a: 'Yes, and this is live today. Set up your business details, then send polished invoices to clients by email straight from the app and get paid faster. When a client pays, that income flows into the same budget you are already planning against.',
+		a: 'Yes, and this is live today. Set up your business details, then send polished invoices to clients by email straight from the app and get paid faster. When a client pays, you log the income in the same app where you track your budget, so your billing and your finances stay in one place instead of two separate tools.',
 	},
 	{
 		q: 'Who builds this?',

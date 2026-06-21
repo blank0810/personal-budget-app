@@ -1,13 +1,12 @@
 import type { Metadata } from 'next';
 import { FeaturesBento } from '@/components/modules/landing/FeaturesBento';
-import { LoopReveal } from '@/components/modules/landing/LoopReveal';
 import { TrustSecurity } from '@/components/modules/landing/TrustSecurity';
 import { FinalCTA } from '@/components/modules/landing/CTA';
 
 export const metadata: Metadata = {
 	title: 'Features',
 	description:
-		'Send invoices and get paid faster, see every peso in and out, set budgets that show what is safe to spend, and reach your savings goals. One app for freelancers and solo operators.',
+		'Track every transaction in and out, set budgets that show what is safe to spend, reach your savings goals, and send polished invoices to clients. One app for managing your money.',
 	alternates: {
 		canonical: '/features',
 	},
@@ -22,7 +21,6 @@ export default function FeaturesPage() {
 	return (
 		<>
 			<FeaturesBento lead />
-			<LoopReveal />
 			<TrustSecurity />
 			<FinalCTA />
 		</>

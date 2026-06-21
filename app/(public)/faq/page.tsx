@@ -6,7 +6,7 @@ import { FinalCTA } from '@/components/modules/landing/CTA';
 export const metadata: Metadata = {
 	title: 'FAQ',
 	description:
-		'Straight answers about pricing, your data, the AI advisor on the way, and how the app fits freelancers and solo operators.',
+		'Straight answers about pricing, your data, the AI advisor on the way, and how the app fits the way you manage money.',
 	alternates: {
 		canonical: '/faq',
 	},
