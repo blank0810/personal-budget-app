@@ -21,6 +21,7 @@ export default auth(async function middleware(req: NextRequest & { auth: Session
 	// landing 307-redirects logged-out users (and Googlebot) to /login.
 	const isPublicMarketingPage = [
 		'/features',
+		'/invoicing',
 		'/how-it-works',
 		'/ai-advisor',
 		'/pricing',

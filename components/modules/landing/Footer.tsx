@@ -13,6 +13,7 @@ import { Wallet } from 'lucide-react';
  */
 const PRODUCT_LINKS = [
 	{ label: 'Features', href: '/#features' },
+	{ label: 'Invoicing', href: '/invoicing' },
 	{ label: 'How it works', href: '/#how-it-works' },
 	{ label: 'AI Advisor', href: '/#ai-advisor' },
 	{ label: 'Pricing', href: '/#pricing' },
@@ -75,8 +76,8 @@ export function LandingFooter() {
 							</span>
 						</div>
 						<p className='mt-4 max-w-xs text-sm leading-relaxed text-l-text-2'>
-							Budgeting and invoicing for freelancers and solo
-							operators, with an AI advisor on the way.
+							Personal budgeting and money tracking. No bank
+							linking; you log it, you own it.
 						</p>
 					</div>
 
