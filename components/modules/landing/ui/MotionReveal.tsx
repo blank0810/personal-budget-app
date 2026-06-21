@@ -2,6 +2,7 @@
 
 import { m, useReducedMotion, type Variants } from 'motion/react';
 import { cn } from '@/lib/utils';
+import { useMounted } from './use-mounted';
 
 /**
  * MotionReveal — reusable scroll-in reveal (design-system §7).
@@ -28,8 +29,11 @@ export function MotionReveal({
 	as?: 'div' | 'span' | 'li' | 'section';
 }) {
 	const prefersReduced = useReducedMotion();
-
-	const variants: Variants = prefersReduced
+	const mounted = useMounted();
+	// Gate the reduced-motion branch behind mount so SSR === first client render.
+	// Otherwise the `hidden` transform (translateY) differs under
+	// prefers-reduced-motion and React logs a hydration mismatch.
+	const variants: Variants = mounted && prefersReduced
 		? {
 				hidden: { opacity: 0 },
 				visible: { opacity: 1, transition: { duration: 0.2, delay } },

@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { m, useReducedMotion, type Variants } from 'motion/react';
+import { useMounted } from './ui/use-mounted';
 import { SectionIndex } from './ui/SectionIndex';
 
 /**
@@ -23,8 +24,8 @@ import { SectionIndex } from './ui/SectionIndex';
  *    on the page canvas, this reads as a contained "operating manual" panel.
  *  - The four steps run as a single STEPPED DIAGONAL spine (each step nudged
  *    progressively lower on lg), not a flat 4-up row. A GSAP scroll-scrubbed
- *    connector draws along that spine, so the closed loop literally assembles
- *    as you read down it.
+ *    connector draws along that spine as you scroll,
+ *    assembling as you read down it.
  *  - Giant faint numerals anchor each step; the heading is the maximalist
  *    .l-h2 with generous negative space around it.
  *
@@ -57,13 +58,13 @@ const STEPS: {
 		icon: CircleDollarSign,
 		num: '02',
 		title: 'Get paid, income lands',
-		body: 'When the client pays, you log it once. The income lands in the right account, and every account stays up to date on its own.',
+		body: 'When the client pays, you log it once. The income lands in the right account, and every account balance stays up to date.',
 	},
 	{
 		icon: PiggyBank,
 		num: '03',
-		title: 'Budgets and goals update automatically',
-		body: 'That income flows into your budgets and any linked savings goals move closer, with no second tool to keep in sync.',
+		title: 'Budgets and goals reflect what you logged',
+		body: 'You log the payment; your budget reflects what you logged. Any linked savings goals move closer, with no second tool to keep in sync.',
 	},
 	{
 		icon: LayoutDashboard,
@@ -75,9 +76,10 @@ const STEPS: {
 
 export function HowItWorks() {
 	const prefersReduced = useReducedMotion();
+	const mounted = useMounted();
 	const rootRef = useRef<HTMLElement>(null);
 
-	const heading: Variants = prefersReduced
+	const heading: Variants = (mounted && prefersReduced)
 		? {
 				hidden: { opacity: 0 },
 				visible: { opacity: 1, transition: { duration: 0.3 } },
@@ -170,11 +172,17 @@ export function HowItWorks() {
 				>
 					<SectionIndex index='02' label='How it works' tone='dark' />
 					<h2 className='l-h2 mt-6 text-balance'>
-						From invoice to budget, in one flow.
+						Invoice, log, budget — all in one app.
 					</h2>
 					<p className='mt-6 max-w-xl text-base leading-relaxed text-l-text-2 sm:text-lg'>
-						The money you earn and the money you plan never leave the
-						same app. Here is the loop, end to end.
+						The money you earn and the money you plan, managed in the
+						same app. No switching between tools.{' '}
+						<a
+							href='/invoicing'
+							className='underline underline-offset-2 hover:text-l-text-1'
+						>
+							See how invoicing works →
+						</a>
 					</p>
 				</m.div>
 

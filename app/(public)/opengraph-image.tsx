@@ -3,7 +3,7 @@ import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 
 export const runtime = 'nodejs';
-export const alt = 'Budget Planner: money and invoicing for freelancers';
+export const alt = 'Budget Planner: budgeting, expense tracking, and client invoicing';
 export const size = { width: 1200, height: 630 };
 export const contentType = 'image/png';
 
@@ -79,7 +79,7 @@ export default async function Image() {
 							lineHeight: 1.4,
 						}}
 					>
-						Budgeting and invoicing for freelancers, all in one free app.
+						Budgeting, expense tracking, and invoicing. Free to start.
 					</div>
 
 					<div style={{ display: 'flex', gap: '10px', marginTop: '8px' }}>

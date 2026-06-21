@@ -3,6 +3,7 @@
 import { m, useReducedMotion } from 'motion/react';
 import type { LucideIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useMounted } from './use-mounted';
 
 /**
  * BentoCell — one tile in the FeaturesBento grid (design-system §4.4).
@@ -42,11 +43,12 @@ export function BentoCell({
 	className?: string;
 }) {
 	const prefersReduced = useReducedMotion();
+	const mounted = useMounted();
 
 	return (
 		<m.div
 			data-bento-cell
-			whileHover={prefersReduced ? undefined : { y: -3 }}
+			whileHover={(mounted && prefersReduced) ? undefined : { y: -3 }}
 			transition={{ duration: 0.2 }}
 			className={cn(
 				'group relative flex flex-col overflow-hidden rounded-2xl border border-l-border bg-l-bg p-6 transition-colors',

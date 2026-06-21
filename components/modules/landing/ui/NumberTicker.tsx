@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useReducedMotion } from 'motion/react';
+import { useMounted } from './use-mounted';
 
 /**
  * NumberTicker — counts from 0 to `value` once, when it scrolls into view
@@ -22,12 +23,13 @@ export function NumberTicker({
 	className?: string;
 }) {
 	const prefersReduced = useReducedMotion();
+	const mounted = useMounted();
 	const ref = useRef<HTMLSpanElement>(null);
 	const started = useRef(false);
 	const [display, setDisplay] = useState(0);
 
 	useEffect(() => {
-		if (prefersReduced) {
+		if (mounted && prefersReduced) {
 			setDisplay(value);
 			return;
 		}
@@ -53,7 +55,7 @@ export function NumberTicker({
 		);
 		io.observe(el);
 		return () => io.disconnect();
-	}, [value, durationMs, prefersReduced]);
+	}, [value, durationMs, prefersReduced, mounted]);
 
 	return (
 		<span ref={ref} className={className}>

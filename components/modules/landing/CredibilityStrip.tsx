@@ -2,6 +2,7 @@
 
 import { GitBranch, ShieldOff, MessagesSquare, Gift } from 'lucide-react';
 import { m, useReducedMotion, type Variants } from 'motion/react';
+import { useMounted } from './ui/use-mounted';
 
 /**
  * CredibilityStrip — master IA §3.
@@ -22,15 +23,16 @@ const SIGNALS = [
 
 export function CredibilityStrip() {
 	const prefersReduced = useReducedMotion();
+	const mounted = useMounted();
 
 	const container: Variants = {
 		hidden: {},
 		visible: {
-			transition: { staggerChildren: prefersReduced ? 0 : 0.08 },
+			transition: { staggerChildren: (mounted && prefersReduced) ? 0 : 0.08 },
 		},
 	};
 
-	const chip: Variants = prefersReduced
+	const chip: Variants = (mounted && prefersReduced)
 		? {
 				hidden: { opacity: 0 },
 				visible: { opacity: 1, transition: { duration: 0.25 } },

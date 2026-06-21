@@ -3,7 +3,7 @@
 Product + honesty context for AI-assisted work (loaded by the `impeccable` skill). The honesty rules below are **hard constraints**, especially for any public/marketing surface.
 
 ## What it is
-**Budget Planner** — a personal budget web app. Evolving to serve **freelancers / solo operators** first (variable income, client invoicing, no finance team), with personal budgeters as a strong secondary audience; corporate/teams later.
+**Budget Planner** — a personal budgeting & money-tracking web app. Positioned **feature-first with no single audience wedge** (corrected 2026-06-21): it serves anyone managing their own money — freelancers / self-employed are served but **not** the marketed target ("just tracking and budgeting"). Invoicing is a real but **secondary** feature; corporate/teams later.
 
 **Maintainer:** a solo developer. **Do NOT embed the maintainer's personal info (real name, "Ehnand", "Adam", personal email) in product or marketing copy.** Use neutral generics ("there", "Demo User", "Acme Co") or the signed-in user's own data; greetings/profile render the actual user's name dynamically. Sample financial data uses PHP (₱) and a neutral demo persona with no real name.
 
@@ -22,7 +22,7 @@ Unified transactions (income / expense / transfer / payment), accounts + per-acc
 6. **"Free to start"**, not blanket "Free forever" (future AI may be paid).
 
 ## Honest differentiators to lean on
-Built in the open by a solo founder (no personal name in copy); public changelog + feature-request board; the closed loop (invoice → income → budget) that pure budgeting apps (YNAB/Monarch/Copilot) and pure invoicing tools (FreshBooks/Wave) don't have; real product screenshots/mockups over invented ones.
+Built in the open by a solo founder (no personal name in copy); public changelog + feature-request board; **invoicing AND budgeting in one app** — bill a client and track your money in the same place without a second tool (you log the payment yourself; the two are **not** auto-synced), which pure budgeting apps (YNAB/Monarch/Copilot) and pure invoicing tools (FreshBooks/Wave) don't combine; **no bank linking — you log it, you own it** (privacy/ownership, vs Plaid-based aggregators); real product screenshots/mockups over invented ones.
 
 ## Anti-references (what NOT to look like)
 Generic "AI startup template" slop: purple gradients, dead-center hero + announcement badge, identical icon-topped cards, fabricated trust-stat banners. See `docs/plans/2026-05-23-landing-build-methodology.md`.
