@@ -34,8 +34,8 @@ export default function HomePage() {
 			{/* 5. Pricing — ₱0 free tier, Pro coming soon (no fake trial) */}
 			<LagoonPricing />
 
-			{/* 6. Final CTA — teal panel, free registration */}
-			<LagoonCTA />
+			{/* 6. Final CTA — teal panel; distinct heading so it doesn't duplicate the hero <h1> */}
+			<LagoonCTA heading='Take control of your money — start free.' />
 		</>
 	);
 }

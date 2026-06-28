@@ -3,8 +3,7 @@ import { InvoicingHero } from '@/components/modules/landing/lagoon/invoicing/Inv
 import { InvoicingFeatures } from '@/components/modules/landing/lagoon/invoicing/InvoicingFeatures';
 import { InvoicingWorkflow } from '@/components/modules/landing/lagoon/invoicing/InvoicingWorkflow';
 import { LagoonCTA } from '@/components/modules/landing/lagoon/LagoonCTA';
-
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://budgetplanner.app';
+import { APP_URL } from '@/lib/url';
 
 export const metadata: Metadata = {
 	title: 'Client Invoicing — Send & Track Invoices',

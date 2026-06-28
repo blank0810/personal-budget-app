@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from 'next/font/google';
 import { Analytics } from '@vercel/analytics/react';
 import { Toaster } from 'sonner';
 import { ThemeProvider } from 'next-themes';
+import { APP_URL } from '@/lib/url';
 import './globals.css';
 
 const geistSans = Geist({
@@ -16,9 +17,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-	metadataBase: new URL(
-		process.env.NEXT_PUBLIC_APP_URL ?? 'https://budgetplanner.app',
-	),
+	metadataBase: new URL(APP_URL),
 	title: 'Personal Budget App',
 	description: 'Track your income, expenses, and net worth.',
 };

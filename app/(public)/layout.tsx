@@ -5,6 +5,7 @@ import { LandingSessionProvider } from '@/components/modules/landing/ui/LandingS
 import { LagoonNav } from '@/components/modules/landing/lagoon/LagoonNav';
 import { LagoonFooter } from '@/components/modules/landing/lagoon/LagoonFooter';
 import '@/components/modules/landing/lagoon/lagoon.css';
+import { APP_URL } from '@/lib/url';
 
 /**
  * Display heading font — Plus Jakarta Sans (700, 800).
@@ -27,8 +28,6 @@ const inter = Inter({
 
 const BASE_DESCRIPTION =
 	'Personal budgeting and expense tracking app. Track income and expenses, set budgets, reach savings goals, and send invoices. Free to start.';
-
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://budgetplanner.app';
 
 /**
  * Sitewide structured data — WebApplication + Organization @graph.

@@ -3,8 +3,7 @@ import { PricingHero } from '@/components/modules/landing/lagoon/pricing/Pricing
 import { PricingPlans } from '@/components/modules/landing/lagoon/pricing/PricingPlans';
 import { PricingFAQ } from '@/components/modules/landing/lagoon/pricing/PricingFAQ';
 import { LagoonCTA } from '@/components/modules/landing/lagoon/LagoonCTA';
-
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://budgetplanner.app';
+import { APP_URL } from '@/lib/url';
 
 export const metadata: Metadata = {
 	title: 'Free Budget Planner — No Bank Sync',

@@ -8,8 +8,7 @@ import { FeatureRowImport } from '@/components/modules/landing/lagoon/features/F
 import { FeatureRowReports } from '@/components/modules/landing/lagoon/features/FeatureRowReports';
 import { FeatureRowAI } from '@/components/modules/landing/lagoon/features/FeatureRowAI';
 import { LagoonCTA } from '@/components/modules/landing/lagoon/LagoonCTA';
-
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://budgetplanner.app';
+import { APP_URL } from '@/lib/url';
 
 export const metadata: Metadata = {
 	title: 'Budgeting App Features',

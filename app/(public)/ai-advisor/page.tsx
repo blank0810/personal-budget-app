@@ -3,8 +3,7 @@ import { AIAdvisorHero } from '@/components/modules/landing/lagoon/ai-advisor/AI
 import { AIAdvisorVision } from '@/components/modules/landing/lagoon/ai-advisor/AIAdvisorVision';
 import { AIAdvisorPreview } from '@/components/modules/landing/lagoon/ai-advisor/AIAdvisorPreview';
 import { LagoonCTA } from '@/components/modules/landing/lagoon/LagoonCTA';
-
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://budgetplanner.app';
+import { APP_URL } from '@/lib/url';
 
 /**
  * /ai-advisor — marketing page for the planned AI Budget Advisor.
