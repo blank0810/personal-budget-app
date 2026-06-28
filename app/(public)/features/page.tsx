@@ -1,28 +1,59 @@
 import type { Metadata } from 'next';
-import { FeaturesBento } from '@/components/modules/landing/FeaturesBento';
-import { TrustSecurity } from '@/components/modules/landing/TrustSecurity';
-import { FinalCTA } from '@/components/modules/landing/CTA';
+import { FeaturesHero } from '@/components/modules/landing/lagoon/features/FeaturesHero';
+import { FeatureRowBudgets } from '@/components/modules/landing/lagoon/features/FeatureRowBudgets';
+import { FeatureRowTransactions } from '@/components/modules/landing/lagoon/features/FeatureRowTransactions';
+import { FeatureRowGoals } from '@/components/modules/landing/lagoon/features/FeatureRowGoals';
+import { FeatureRowRecurring } from '@/components/modules/landing/lagoon/features/FeatureRowRecurring';
+import { FeatureRowImport } from '@/components/modules/landing/lagoon/features/FeatureRowImport';
+import { FeatureRowReports } from '@/components/modules/landing/lagoon/features/FeatureRowReports';
+import { FeatureRowAI } from '@/components/modules/landing/lagoon/features/FeatureRowAI';
+import { LagoonCTA } from '@/components/modules/landing/lagoon/LagoonCTA';
+
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://budgetplanner.app';
 
 export const metadata: Metadata = {
-	title: 'Features',
+	title: 'Budgeting App Features',
 	description:
-		'Track every transaction in and out, set budgets that show what is safe to spend, reach your savings goals, and send polished invoices to clients. One app for managing your money.',
+		'Track every transaction, set budgets that show safe-to-spend, reach savings goals, and send polished invoices — one free app for managing your money.',
 	alternates: {
 		canonical: '/features',
+	},
+	openGraph: {
+		title: 'Budgeting App Features · Budget Planner',
+		description:
+			'Track every transaction, set budgets that show safe-to-spend, reach savings goals, and send polished invoices — one free app for managing your money.',
+		url: `${APP_URL}/features`,
+		type: 'website',
+		siteName: 'Budget Planner',
+		locale: 'en_US',
+	},
+	twitter: {
+		card: 'summary_large_image',
+		title: 'Budgeting App Features · Budget Planner',
+		description:
+			'Track every transaction, set budgets that show safe-to-spend, reach savings goals, and send polished invoices — one free app for managing your money.',
 	},
 };
 
 /**
- * /features — STATIC. The FeaturesBento lead section carries the page's
- * single <h1> (its own bold eyebrow + maximalist heading lead the page);
- * every section below it uses <h2>, so heading order stays valid.
+ * /features — STATIC, Lagoon design. The FeaturesHero carries the page's
+ * single <h1>; every FeatureRow below uses <h2>, so heading order stays valid.
+ *
+ * Section order: hero → budgets → transactions → goals → recurring → import →
+ * reports → AI (future-tense teaser) → shared CTA.
  */
 export default function FeaturesPage() {
 	return (
 		<>
-			<FeaturesBento lead />
-			<TrustSecurity />
-			<FinalCTA />
+			<FeaturesHero />
+			<FeatureRowBudgets />
+			<FeatureRowTransactions />
+			<FeatureRowGoals />
+			<FeatureRowRecurring />
+			<FeatureRowImport />
+			<FeatureRowReports />
+			<FeatureRowAI />
+			<LagoonCTA heading='Everything you need — without the subscription.' />
 		</>
 	);
 }

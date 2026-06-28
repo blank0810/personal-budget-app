@@ -33,6 +33,8 @@ export default auth(async function middleware(req: NextRequest & { auth: Session
 		pathname.startsWith('/changelog') ||
 		pathname === '/' ||
 		isPublicMarketingPage ||
+		pathname === '/sitemap.xml' ||
+		pathname === '/robots.txt' ||
 		pathname.startsWith('/opengraph-image') ||
 		pathname.startsWith('/twitter-image');
 	const isOnboardingPage = pathname.startsWith('/onboarding');

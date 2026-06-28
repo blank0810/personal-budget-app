@@ -1,39 +1,41 @@
-import { LandingHero } from '@/components/modules/landing/Hero';
-import { CredibilityStrip } from '@/components/modules/landing/CredibilityStrip';
-import { BudgetDemo } from '@/components/modules/landing/BudgetDemo';
-import { FeaturesBento } from '@/components/modules/landing/FeaturesBento';
-import { FinalCTA } from '@/components/modules/landing/CTA';
-import Link from 'next/link';
+import { LagoonHero } from '@/components/modules/landing/lagoon/LagoonHero';
+import { LagoonStats } from '@/components/modules/landing/lagoon/LagoonStats';
+import { LagoonFeatureGrid } from '@/components/modules/landing/lagoon/LagoonFeatureGrid';
+import { LagoonHowItWorks } from '@/components/modules/landing/lagoon/LagoonHowItWorks';
+import { LagoonPricing } from '@/components/modules/landing/lagoon/LagoonPricing';
+import { LagoonCTA } from '@/components/modules/landing/lagoon/LagoonCTA';
 
 /**
- * Home (/) — lean overview, STATIC server component.
+ * Home (/) — Lagoon design, STATIC server component.
  *
- * The shared header + footer live in app/(public)/layout.tsx. Composition:
- * the Hero (which carries the page's single <h1>), the honest CredibilityStrip,
- * the BudgetDemo centerpiece, the budgeting FeaturesBento, and the closing CTA.
- * Invoicing is NOT pitched here — it lives on its own /invoicing page, reached
- * via the nav/footer and a single contextual link below the bento.
+ * The shared LagoonNav + LagoonFooter live in app/(public)/layout.tsx; this
+ * page renders only the body sections. The LagoonHero carries the page's
+ * single <h1> (SSR-visible, never animated for LCP); every section below uses
+ * <h2>, so heading order stays valid.
  *
- * No PageHeader here — the Hero is the h1. No auth() — kept static for SEO.
+ * No page-level metadata export — inherits the layout default (home title +
+ * canonical '/'). No auth() — kept static for SEO.
  */
 export default function HomePage() {
 	return (
 		<>
-			<LandingHero />
-			<CredibilityStrip />
-			<BudgetDemo />
-			<FeaturesBento />
-			{/* Single contextual link to the standalone invoicing page (off the home flow) */}
-			<section className='mx-auto max-w-[1184px] px-6 pb-10 md:px-10 xl:px-12'>
-				<Link
-					href='/invoicing'
-					className='inline-flex items-center gap-1.5 text-sm text-l-text-3 transition-colors hover:text-l-text-1'
-				>
-					Need to send client invoices? Budget Planner includes a standalone invoicing module.
-					<span aria-hidden='true'>→</span>
-				</Link>
-			</section>
-			<FinalCTA />
+			{/* 1. Hero — h1 SSR-visible, staged entrance for everything else */}
+			<LagoonHero />
+
+			{/* 2. Honest KPI stats with scroll-triggered count-up */}
+			<LagoonStats />
+
+			{/* 3. 6-feature grid — hover lift + scroll reveal */}
+			<LagoonFeatureGrid />
+
+			{/* 4. How it works — 3 numbered steps + step connectors */}
+			<LagoonHowItWorks />
+
+			{/* 5. Pricing — ₱0 free tier, Pro coming soon (no fake trial) */}
+			<LagoonPricing />
+
+			{/* 6. Final CTA — teal panel, free registration */}
+			<LagoonCTA />
 		</>
 	);
 }
