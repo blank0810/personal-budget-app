@@ -3,8 +3,7 @@ import { HowItWorksHero } from '@/components/modules/landing/lagoon/how-it-works
 import { HowItWorksSteps } from '@/components/modules/landing/lagoon/how-it-works/HowItWorksSteps';
 import { HowItWorksWhyManual } from '@/components/modules/landing/lagoon/how-it-works/HowItWorksWhyManual';
 import { LagoonCTA } from '@/components/modules/landing/lagoon/LagoonCTA';
-
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://budgetplanner.app';
+import { APP_URL } from '@/lib/url';
 
 export const metadata: Metadata = {
 	title: 'How Budget Planner Works — Manual Tracking',

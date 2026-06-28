@@ -1,8 +1,7 @@
 import type { MetadataRoute } from 'next';
+import { absoluteUrl } from '@/lib/url';
 
 export default function robots(): MetadataRoute.Robots {
-	const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://budgetplanner.app';
-
 	return {
 		rules: [
 			{
@@ -11,6 +10,6 @@ export default function robots(): MetadataRoute.Robots {
 				disallow: ['/dashboard', '/admin', '/api/', '/onboarding'],
 			},
 		],
-		sitemap: `${baseUrl}/sitemap.xml`,
+		sitemap: absoluteUrl('/sitemap.xml'),
 	};
 }
