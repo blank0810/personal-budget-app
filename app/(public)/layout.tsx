@@ -53,6 +53,12 @@ const SITEWIDE_JSON_LD = {
 			name: 'Budget Planner',
 			url: `${APP_URL}/`,
 			description: 'Free personal budgeting and expense tracking app.',
+			logo: {
+				'@type': 'ImageObject',
+				url: `${APP_URL}/logo.svg`,
+				width: 512,
+				height: 512,
+			},
 		},
 		{
 			'@type': 'WebApplication',

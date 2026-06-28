@@ -35,6 +35,7 @@ export default auth(async function middleware(req: NextRequest & { auth: Session
 		isPublicMarketingPage ||
 		pathname === '/sitemap.xml' ||
 		pathname === '/robots.txt' ||
+		pathname === '/logo.svg' ||
 		pathname.startsWith('/opengraph-image') ||
 		pathname.startsWith('/twitter-image');
 	const isOnboardingPage = pathname.startsWith('/onboarding');
