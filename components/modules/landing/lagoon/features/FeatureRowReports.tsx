@@ -143,7 +143,7 @@ export function FeatureRowReports() {
 												strokeLinecap='round'
 											/>
 										</svg>
-										<span className='truncate text-[11px] text-[var(--lagoon-muted)]'>budgetplanner.app/reports</span>
+										<span className='truncate text-[11px] text-[var(--lagoon-muted)]'>budget.umbra.build/reports</span>
 									</div>
 								</div>
 							</div>

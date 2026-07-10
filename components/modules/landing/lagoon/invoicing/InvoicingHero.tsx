@@ -82,7 +82,7 @@ function InvoiceBrowserMock() {
 							/>
 						</svg>
 						<span className='truncate text-[11px]' style={{ color: 'var(--lagoon-muted)' }}>
-							budgetplanner.app/invoices
+							budget.umbra.build/invoices
 						</span>
 					</div>
 				</div>

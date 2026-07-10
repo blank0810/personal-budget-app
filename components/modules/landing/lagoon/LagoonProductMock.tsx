@@ -233,7 +233,7 @@ export function LagoonProductMock() {
 							/>
 						</svg>
 						<span className='truncate text-[11px]' style={{ color: 'var(--lagoon-muted)' }}>
-							budgetplanner.app/dashboard
+							budget.umbra.build/dashboard
 						</span>
 					</div>
 				</div>

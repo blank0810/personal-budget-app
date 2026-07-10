@@ -114,7 +114,7 @@ export function FeatureRowImport() {
 												strokeLinecap='round'
 											/>
 										</svg>
-										<span className='truncate text-[11px] text-[var(--lagoon-muted)]'>budgetplanner.app/import</span>
+										<span className='truncate text-[11px] text-[var(--lagoon-muted)]'>budget.umbra.build/import</span>
 									</div>
 								</div>
 							</div>

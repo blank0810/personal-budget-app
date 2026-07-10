@@ -149,7 +149,7 @@ export function FeatureRowGoals() {
 												strokeLinecap='round'
 											/>
 										</svg>
-										<span className='truncate text-[11px] text-[var(--lagoon-muted)]'>budgetplanner.app/goals</span>
+										<span className='truncate text-[11px] text-[var(--lagoon-muted)]'>budget.umbra.build/goals</span>
 									</div>
 								</div>
 							</div>

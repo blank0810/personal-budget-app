@@ -102,7 +102,7 @@ export function FeatureRowBudgets() {
 											/>
 										</svg>
 										<span className='truncate text-[11px] text-[var(--lagoon-muted)]'>
-											budgetplanner.app/budgets
+											budget.umbra.build/budgets
 										</span>
 									</div>
 								</div>

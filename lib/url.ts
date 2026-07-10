@@ -12,7 +12,7 @@
  * HID the defect — so always build absolute SEO URLs through here.
  */
 export const APP_URL = (
-	process.env.NEXT_PUBLIC_APP_URL ?? 'https://budgetplanner.app'
+	process.env.NEXT_PUBLIC_APP_URL ?? 'https://budget.umbra.build'
 ).replace(/\/+$/, '');
 
 /** Build an absolute URL from a path — slash-safe regardless of leading/trailing slashes. */

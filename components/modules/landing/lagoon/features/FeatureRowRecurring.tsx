@@ -90,7 +90,7 @@ export function FeatureRowRecurring() {
 											/>
 										</svg>
 										<span className='truncate text-[11px] text-[var(--lagoon-muted)]'>
-											budgetplanner.app/recurring
+											budget.umbra.build/recurring
 										</span>
 									</div>
 								</div>

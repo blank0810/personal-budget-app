@@ -131,7 +131,7 @@ export default async function Image() {
 								fontWeight: 500,
 							}}
 						>
-							budgetplanner.app
+							budget.umbra.build
 						</div>
 					</div>
 				</div>
