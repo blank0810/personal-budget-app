@@ -121,28 +121,23 @@ export const AccountResetService = {
 					where: { userId },
 				});
 
-				// 6. RecurringTransaction (FK -> Category:Restrict, Account:SetNull)
-				await tx.recurringTransaction.deleteMany({
-					where: { userId },
-				});
-
-				// 7. MonthlyReport (standalone)
+				// 6. MonthlyReport (standalone)
 				await tx.monthlyReport.deleteMany({
 					where: { userId },
 				});
 
 				if (tier === 'full') {
-					// 8. Goal (FK -> Account:SetNull)
+					// 7. Goal (FK -> Account:SetNull)
 					await tx.goal.deleteMany({
 						where: { userId },
 					});
 
-					// 9. Account
+					// 8. Account
 					await tx.account.deleteMany({
 						where: { userId },
 					});
 
-					// 10. Category
+					// 9. Category
 					await tx.category.deleteMany({
 						where: { userId },
 					});

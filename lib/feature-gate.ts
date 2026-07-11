@@ -7,7 +7,7 @@ import { FeatureFlagService } from '@/server/modules/feature-flag/feature-flag.s
  * Redirects to /dashboard if the feature is disabled for the current user.
  *
  * Usage:
- *   await requireFeature('recurring_transactions');
+ *   await requireFeature('csv_import');
  */
 export async function requireFeature(featureKey: string) {
 	const userId = await getAuthenticatedUser();

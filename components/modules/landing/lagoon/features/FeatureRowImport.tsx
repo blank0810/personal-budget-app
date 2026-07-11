@@ -55,7 +55,7 @@ export function FeatureRowImport() {
 					{/* Text side */}
 					<LagoonReveal>
 						<p className='mb-3 text-[12px] font-semibold uppercase tracking-[0.12em] text-[var(--lagoon-accent)]'>
-							Feature 05
+							Feature 04
 						</p>
 						<h2
 							className='lagoon-section-title mb-5 text-[var(--lagoon-ink)]'

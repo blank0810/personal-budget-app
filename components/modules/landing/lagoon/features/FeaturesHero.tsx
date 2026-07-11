@@ -20,7 +20,7 @@ export function FeaturesHero() {
 						One tool. Every piece of your budget covered.
 					</h1>
 					<p className='text-[18px] leading-[1.75] text-[var(--lagoon-body)]'>
-						From envelope budgets to recurring entries, savings goals to monthly
+						From envelope budgets and savings goals to CSV imports and monthly
 						reports — here is every feature you get from day one, free.
 					</p>
 				</div>

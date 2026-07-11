@@ -34,7 +34,7 @@ export const FAQ_GROUPS: FaqGroupData[] = [
 			},
 			{
 				q: 'Is it really free?',
-				a: 'Yes. Everything available today — accounts, budgets, savings goals, recurring entries, CSV import, reports, and the dashboard — is free. A Pro tier may come later for advanced features. If that changes, it will be announced on the public changelog before anything locks.',
+				a: 'Yes. Everything available today — accounts, budgets, savings goals, CSV import, reports, and the dashboard — is free. A Pro tier may come later for advanced features. If that changes, it will be announced on the public changelog before anything locks.',
 			},
 		],
 	},
@@ -61,10 +61,6 @@ export const FAQ_GROUPS: FaqGroupData[] = [
 			{
 				q: 'Can I import a CSV?',
 				a: 'Yes. The import wizard accepts standard CSV files, detects likely duplicates before they land, and lets you map columns to your existing categories. If something looks off after import, a one-click batch undo rolls the whole import back.',
-			},
-			{
-				q: 'Does it handle recurring transactions?',
-				a: 'Yes. Set up any recurring income or expense — salary, rent, subscriptions — and choose how often it repeats. The app logs them automatically so you never have to enter the same transaction twice.',
 			},
 			{
 				q: 'How does Budget Planner calculate my financial health score?',

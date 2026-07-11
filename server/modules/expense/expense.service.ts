@@ -52,8 +52,6 @@ export const ExpenseService = {
 					categoryId,
 					accountId: data.accountId,
 					budgetId: data.budgetId,
-					isRecurring: data.isRecurring,
-					recurringPeriod: data.recurringPeriod,
 					userId,
 				},
 			});

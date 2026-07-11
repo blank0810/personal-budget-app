@@ -2,7 +2,6 @@ import { z } from 'zod';
 
 // All known feature flag keys -- single source of truth
 export const FEATURE_KEYS = {
-	RECURRING_TRANSACTIONS: 'recurring_transactions',
 	CSV_IMPORT: 'csv_import',
 	GOALS: 'goals',
 	INVOICES: 'invoices',
@@ -46,10 +45,6 @@ export const FEATURE_ROUTE_MAP: Record<
 	string,
 	{ routes: string[]; sidebarKeys: string[] }
 > = {
-	[FEATURE_KEYS.RECURRING_TRANSACTIONS]: {
-		routes: ['/recurring'],
-		sidebarKeys: ['Recurring'],
-	},
 	[FEATURE_KEYS.CSV_IMPORT]: {
 		routes: ['/import'],
 		sidebarKeys: ['Import'],

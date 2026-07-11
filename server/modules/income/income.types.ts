@@ -13,8 +13,6 @@ export const createIncomeSchema = z
 		accountId: z
 			.string({ message: 'Please select an account' })
 			.min(1, { message: 'Please select an account' }),
-		isRecurring: z.boolean().optional().default(false),
-		recurringPeriod: z.enum(['MONTHLY', 'WEEKLY', 'YEARLY']).optional(),
 		titheEnabled: z.boolean().optional().default(true),
 		tithePercentage: z
 			.number()

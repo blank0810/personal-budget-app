@@ -110,18 +110,14 @@ export const AdminAnalyticsService = {
 				totalUsers: 0,
 				budgets: 0,
 				goals: 0,
-				recurring: 0,
 				imports: 0,
 			};
 		}
 
-		const [budgetUsers, goalUsers, recurringUsers, importUsers] =
+		const [budgetUsers, goalUsers, importUsers] =
 			await Promise.all([
 				prisma.budget.groupBy({ by: ['userId'] }).then((r) => r.length),
 				prisma.goal.groupBy({ by: ['userId'] }).then((r) => r.length),
-				prisma.recurringTransaction
-					.groupBy({ by: ['userId'] })
-					.then((r) => r.length),
 				prisma.income
 					.groupBy({
 						by: ['userId'],
@@ -134,7 +130,6 @@ export const AdminAnalyticsService = {
 			totalUsers,
 			budgets: Math.round((budgetUsers / totalUsers) * 100),
 			goals: Math.round((goalUsers / totalUsers) * 100),
-			recurring: Math.round((recurringUsers / totalUsers) * 100),
 			imports: Math.round((importUsers / totalUsers) * 100),
 		};
 	},

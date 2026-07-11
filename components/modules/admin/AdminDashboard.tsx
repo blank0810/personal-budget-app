@@ -30,7 +30,6 @@ interface FeatureAdoption {
 	totalUsers: number;
 	budgets: number;
 	goals: number;
-	recurring: number;
 	imports: number;
 }
 
@@ -201,10 +200,6 @@ export function AdminDashboard({
 								{
 									name: 'Goals',
 									value: adoption.goals,
-								},
-								{
-									name: 'Recurring',
-									value: adoption.recurring,
 								},
 								{
 									name: 'CSV Import',

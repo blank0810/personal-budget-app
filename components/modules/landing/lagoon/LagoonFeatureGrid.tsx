@@ -44,11 +44,12 @@ const FEATURES = [
 		),
 	},
 	{
-		title: 'Recurring automation',
-		desc: 'Set once, run on autopilot. Rent, subscriptions, salary — recurring entries are created automatically each cycle.',
+		title: 'Multiple accounts',
+		desc: 'Track cash, bank, savings, credit, and loan accounts together. Each account keeps its own clear transaction ledger.',
 		icon: (
 			<svg viewBox='0 0 24 24' fill='none' className='h-6 w-6' aria-hidden='true'>
-				<path d='M4 12a8 8 0 0 1 14.93-4M4 12H2l2-2 2 2M20 12a8 8 0 0 1-14.93 4M20 12h2l-2 2-2-2' stroke='currentColor' strokeWidth='1.5' strokeLinecap='round' strokeLinejoin='round' />
+				<rect x='3' y='5' width='18' height='14' rx='2' stroke='currentColor' strokeWidth='1.5' />
+				<path d='M3 9h18M7 14h4' stroke='currentColor' strokeWidth='1.5' strokeLinecap='round' />
 			</svg>
 		),
 	},

@@ -365,7 +365,7 @@ const STEPS = [
 	{
 		number: '01',
 		title: 'Log a transaction — or import a CSV',
-		desc: 'Add income and expenses as they happen. Got a month of bank history? Import it as a CSV in one go. Recurring bills can run on autopilot. No bank linking, ever.',
+		desc: 'Add income and expenses as they happen. Got a month of bank history? Import it as a CSV in one go. No bank linking, ever.',
 	},
 	{
 		number: '02',

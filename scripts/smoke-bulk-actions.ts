@@ -83,7 +83,7 @@ async function makeExpense(userId: string, accountId: string, categoryId: string
       data: {
         userId, accountId, categoryId,
         amount, description: 'smoke expense',
-        date: new Date(), isRecurring: false,
+        date: new Date(),
       },
     });
     await tx.account.update({
@@ -262,7 +262,7 @@ async function case5_bulkDeleteSkipsFeeTransfer(userId: string) {
   // Create transfer with fee via service
   const transfer = await prisma.$transaction(async (tx) => {
     const feeExp = await tx.expense.create({
-      data: { userId, accountId: fromAcc.id, categoryId: expenseCat.id, amount: 25, description: 'Transfer fee', date: new Date(), isRecurring: false },
+      data: { userId, accountId: fromAcc.id, categoryId: expenseCat.id, amount: 25, description: 'Transfer fee', date: new Date() },
     });
     const t = await tx.transfer.create({
       data: { userId, fromAccountId: fromAcc.id, toAccountId: toAcc.id, amount: 500, fee: 25, date: new Date(), feeExpenseId: feeExp.id },

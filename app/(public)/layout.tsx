@@ -83,7 +83,6 @@ const SITEWIDE_JSON_LD = {
 				'Financial reports and PDF export',
 				'Envelope budgets',
 				'Savings goals',
-				'Recurring transaction automation',
 				'CSV import with duplicate detection',
 				'Client invoicing and PDF export',
 			],

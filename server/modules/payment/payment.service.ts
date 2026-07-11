@@ -80,7 +80,6 @@ export const PaymentService = {
 						categoryId: feeCategory.id,
 						accountId: data.fromAccountId,
 						userId,
-						isRecurring: false,
 						notes: `Fee for payment of $${data.amount} to ${toLiability.name}`,
 					},
 				});

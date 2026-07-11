@@ -45,7 +45,6 @@ export const TransferService = {
 						categoryId: feeCategory.id,
 						accountId: data.fromAccountId,
 						userId,
-						isRecurring: false,
 						notes: `Fee for transfer of $${data.amount} to ${data.toAccountId}`,
 					},
 				});

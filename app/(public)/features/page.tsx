@@ -3,7 +3,6 @@ import { FeaturesHero } from '@/components/modules/landing/lagoon/features/Featu
 import { FeatureRowBudgets } from '@/components/modules/landing/lagoon/features/FeatureRowBudgets';
 import { FeatureRowTransactions } from '@/components/modules/landing/lagoon/features/FeatureRowTransactions';
 import { FeatureRowGoals } from '@/components/modules/landing/lagoon/features/FeatureRowGoals';
-import { FeatureRowRecurring } from '@/components/modules/landing/lagoon/features/FeatureRowRecurring';
 import { FeatureRowImport } from '@/components/modules/landing/lagoon/features/FeatureRowImport';
 import { FeatureRowReports } from '@/components/modules/landing/lagoon/features/FeatureRowReports';
 import { FeatureRowAI } from '@/components/modules/landing/lagoon/features/FeatureRowAI';
@@ -38,8 +37,8 @@ export const metadata: Metadata = {
  * /features — STATIC, Lagoon design. The FeaturesHero carries the page's
  * single <h1>; every FeatureRow below uses <h2>, so heading order stays valid.
  *
- * Section order: hero → budgets → transactions → goals → recurring → import →
- * reports → AI (future-tense teaser) → shared CTA.
+ * Section order: hero → budgets → transactions → goals → import → reports →
+ * AI (future-tense teaser) → shared CTA.
  */
 export default function FeaturesPage() {
 	return (
@@ -48,7 +47,6 @@ export default function FeaturesPage() {
 			<FeatureRowBudgets />
 			<FeatureRowTransactions />
 			<FeatureRowGoals />
-			<FeatureRowRecurring />
 			<FeatureRowImport />
 			<FeatureRowReports />
 			<FeatureRowAI />

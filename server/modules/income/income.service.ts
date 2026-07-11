@@ -41,8 +41,6 @@ export const IncomeService = {
 					date: data.date,
 					categoryId,
 					accountId: data.accountId,
-					isRecurring: data.isRecurring,
-					recurringPeriod: data.recurringPeriod,
 					userId,
 				},
 			});

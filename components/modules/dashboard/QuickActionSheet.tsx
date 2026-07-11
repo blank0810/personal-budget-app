@@ -184,7 +184,6 @@ function IncomeQuickForm({
 			categoryId: undefined,
 			categoryName: '',
 			accountId: accounts.length === 1 ? accounts[0].id : undefined,
-			isRecurring: false,
 			titheEnabled: true,
 			tithePercentage: 10,
 			emergencyFundEnabled: false,
@@ -494,7 +493,6 @@ function ExpenseQuickForm({
 			accountId: undefined,
 			budgetId: undefined,
 			notes: undefined,
-			isRecurring: false,
 		},
 	});
 

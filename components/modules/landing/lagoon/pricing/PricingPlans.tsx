@@ -7,7 +7,6 @@ const FREE_FEATURES = [
 	'Savings goals with progress tracking',
 	'Monthly reports & PDF export',
 	'CSV import with duplicate detection',
-	'Recurring transactions',
 	'Multiple accounts',
 	'Dashboard with spending overview',
 ] as const;

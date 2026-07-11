@@ -11,7 +11,7 @@ import { LagoonReveal } from '../LagoonReveal';
 const FAQ_ITEMS = [
 	{
 		q: 'Is it really free?',
-		a: 'Yes. All core budgeting features -- transactions, budgets, savings goals, recurring transactions, monthly reports, PDF export, and CSV import -- are free forever for personal use. There is no expiry date, no trial period, and no feature gate behind a paywall.',
+		a: 'Yes. All core budgeting features -- transactions, budgets, savings goals, monthly reports, PDF export, and CSV import -- are free forever for personal use. There is no expiry date, no trial period, and no feature gate behind a paywall.',
 	},
 	{
 		q: "What's the catch?",

@@ -3,7 +3,6 @@ import { Queue } from 'bullmq';
 import { getRedisConnection } from '@/lib/redis';
 
 const CRON_SCHEDULES: Record<string, number> = {
-	'process-recurring': 24 * 60, // daily, in minutes
 	'monthly-report': 30 * 24 * 60, // monthly
 	'process-reports': 5, // every 5 minutes
 	'process-sms': 5, // every 5 minutes

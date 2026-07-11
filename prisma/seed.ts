@@ -126,7 +126,6 @@ async function main() {
 
 	// Seed default feature flags
 	const featureFlags = [
-		{ key: 'recurring_transactions', enabled: true, description: 'Recurring transaction automation' },
 		{ key: 'csv_import', enabled: true, description: 'CSV transaction import' },
 		{ key: 'goals', enabled: true, description: 'Savings goals' },
 		{ key: 'invoices', enabled: true, description: 'Invoicing module (clients, entries, invoices)' },
@@ -185,38 +184,13 @@ async function main() {
 	}
 	console.log('Seeded system settings');
 
-	// Seed sample recurring transaction
+	// Seed sample goals
 	const seededUser = await prisma.user.findUnique({
 		where: { email },
-		include: { categories: true, accounts: true },
+		include: { accounts: true },
 	});
 
 	if (seededUser) {
-		const salaryCategory = seededUser.categories.find((c) => c.name === 'Salary');
-		const mainBank = seededUser.accounts.find((a) => a.name === 'Main Bank');
-
-		if (salaryCategory && mainBank) {
-			await prisma.recurringTransaction.upsert({
-				where: { id: 'seed_recurring_salary' },
-				update: {},
-				create: {
-					id: 'seed_recurring_salary',
-					name: 'Monthly Salary',
-					type: 'INCOME',
-					amount: 5000,
-					frequency: 'MONTHLY',
-					startDate: new Date('2026-01-01'),
-					nextRunDate: new Date('2026-04-01'),
-					isActive: true,
-					categoryId: salaryCategory.id,
-					accountId: mainBank.id,
-					userId: seededUser.id,
-				},
-			});
-			console.log('Seeded recurring transaction');
-		}
-
-		// Seed sample goals
 		const emergencySavings = seededUser.accounts.find((a) => a.name === 'Emergency Savings');
 
 		if (emergencySavings) {

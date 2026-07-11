@@ -70,7 +70,7 @@ app/
 ├── changelog/           # Public changelog & feature requests
 └── api/
     ├── auth/            # NextAuth route handler
-    ├── cron/            # Cron jobs (process-recurring, monthly-report, process-reports, process-sms)
+    ├── cron/            # Cron jobs (monthly-report, process-reports, process-sms)
     └── unsubscribe/     # HMAC-signed email unsubscribe
 
 server/
@@ -84,7 +84,6 @@ server/
     ├── transfer/        # Account transfers (includes payments to liabilities)
     ├── category/        # Categories (income/expense)
     ├── report/          # Monthly reports, PDF generation, email digest
-    ├── recurring/       # Recurring transaction automation
     ├── import/          # CSV import with batch undo
     ├── goal/            # Savings goals with linked account tracking
     ├── admin/           # Admin analytics, user management, content, system health
@@ -127,7 +126,7 @@ Services handle: business logic, Prisma queries/transactions, balance updates.
 - Transfers update both source and destination account balances
 - Budgets are scoped to category + month (first day of month)
 - Church tithe percentage supported on income (default 10%)
-- TransactionSource enum (MANUAL/IMPORT/RECURRING) + importBatchId for audit trail
+- TransactionSource enum (MANUAL/IMPORT) + importBatchId for audit trail
 - Currency locked after onboarding — immutable once financial data exists
 - CronRunLog tracks all cron job executions for system health monitoring
 
@@ -162,7 +161,7 @@ Services handle: business logic, Prisma queries/transactions, balance updates.
 | Agent | Kind | Purpose |
 |-------|------|---------|
 | **budget-frontend** | development | Frontend specialist for this app. UI components, dashboards, data tables, charts, the CSV import wizard, and all client-side work in this project. |
-| **budget-backend** | development | Backend specialist for this app. Server actions, services, Prisma queries, balance updates, recurring transactions, cron jobs, BullMQ queue workers, and server-side business logic. |
+| **budget-backend** | development | Backend specialist for this app. Server actions, services, Prisma queries, balance updates, cron jobs, BullMQ queue workers, and server-side business logic. |
 | **budget-devops** | development | DevOps specialist for this app. Docker configuration, deployment, CI/CD, server setup, database backups, Redis/BullMQ infrastructure, and production environment management. |
 | **accountant** | advisory | Financial domain expert. Validates financial calculations, reviews balance logic, designs budget features, audits transaction flows, reviews report accuracy, and advises on money-related behavior from an accounting perspective. |
 | **founder** | advisory | Product founder and visionary. Product decisions, feature prioritization, user experience from a business perspective, roadmap planning, competitor positioning, and deciding what to build next and why. |

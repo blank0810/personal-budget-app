@@ -8,7 +8,7 @@ Product + honesty context for AI-assisted work (loaded by the `impeccable` skill
 **Maintainer:** a solo developer. **Do NOT embed the maintainer's personal info (real name, "Ehnand", "Adam", personal email) in product or marketing copy.** Use neutral generics ("there", "Demo User", "Acme Co") or the signed-in user's own data; greetings/profile render the actual user's name dynamically. Sample financial data uses PHP (₱) and a neutral demo persona with no real name.
 
 ## Shipped today (safe to present as live)
-Unified transactions (income / expense / transfer / payment), accounts + per-account ledger, envelope budgets (category × month), savings goals (linked-account tracking), CSV import wizard (mapping, dup detection, undo), reports + PDF export + emailed monthly digest, recurring transactions (cron), multi-currency (locked after onboarding), **invoicing** (business identity + PDF invoices + email send), dashboard with 5-pillar health score + charts.
+Unified transactions (income / expense / transfer / payment), accounts + per-account ledger, envelope budgets (category × month), savings goals (linked-account tracking), CSV import wizard (mapping, dup detection, undo), reports + PDF export + emailed monthly digest, multi-currency (locked after onboarding), **invoicing** (business identity + PDF invoices + email send), dashboard with 5-pillar health score + charts.
 
 ## NOT shipped — must be framed as coming soon / early access
 - **AI Advisor** — conversational agent that will read transactions/budgets/invoices and advise. Currently a **non-interactive looping mock** (`components/modules/dashboard/AiAdvisorTeaser.tsx`). It is the flagship vision, NOT a live feature.

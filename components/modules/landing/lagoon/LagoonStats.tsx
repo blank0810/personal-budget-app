@@ -5,8 +5,8 @@ import { LagoonReveal } from './LagoonReveal';
  * LagoonStats — three KPI figures that count up on scroll.
  *
  * Every stat is factual about the product:
- *  - 7    — distinct feature areas in the real app
- *           (transactions, budgets, goals, accounts, reports, recurring, CSV import)
+ *  - 6    — distinct feature areas in the real app
+ *           (transactions, budgets, goals, accounts, reports, CSV import)
  *  - 3    — steps to get your first budget working
  *           (set up accounts → log transactions → read reports)
  *  - ₱0   — cost to start (free tier)
@@ -15,7 +15,7 @@ export function LagoonStats() {
 	const stats = [
 		{
 			prefix: '',
-			value: 7,
+			value: 6,
 			suffix: '+',
 			label: 'Built-in features',
 			sub: 'Budgets, goals, reports & more',

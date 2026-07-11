@@ -55,19 +55,6 @@ enum UserPlan {
   PREMIUM
 }
 
-enum RecurringFrequency {
-  DAILY
-  WEEKLY
-  BIWEEKLY
-  MONTHLY
-  YEARLY
-}
-
-enum RecurringType {
-  INCOME
-  EXPENSE
-}
-
 enum GoalStatus {
   ACTIVE
   COMPLETED
@@ -77,7 +64,6 @@ enum GoalStatus {
 enum TransactionSource {
   MANUAL
   IMPORT
-  RECURRING
 }
 
 enum InvoiceStatus {
@@ -139,7 +125,6 @@ model User {
   monthlyReports          MonthlyReport[]
   notificationPreferences UserNotificationPreference[]
   featureRequests         FeatureRequest[]
-  recurringTransactions   RecurringTransaction[]
   goals                   Goal[]
   invoices                Invoice[]
   clients                 Client[]
@@ -205,7 +190,6 @@ model Account {
   expenses              Expense[]
   transfersFrom         Transfer[]             @relation("TransferFrom")
   transfersTo           Transfer[]             @relation("TransferTo")
-  recurringTransactions RecurringTransaction[]
   goals                 Goal[]
 
   @@unique([userId, name])
@@ -264,7 +248,6 @@ model Category {
   incomes               Income[]
   expenses              Expense[]
   budgets               Budget[]
-  recurringTransactions RecurringTransaction[]
 
   @@unique([userId, name, type])
   @@map("categories")
@@ -276,8 +259,6 @@ model Income {
   amount          Decimal           @db.Decimal(10, 2)
   description     String?
   date            DateTime
-  isRecurring     Boolean           @default(false)
-  recurringPeriod String? // "MONTHLY", "WEEKLY", "YEARLY"
   source          TransactionSource @default(MANUAL)
   importBatchId   String?
   categoryId      String
@@ -305,8 +286,6 @@ model Expense {
   description     String?
   date            DateTime
   notes           String?           @db.Text
-  isRecurring     Boolean           @default(false)
-  recurringPeriod String? // "MONTHLY", "WEEKLY", "YEARLY"
   source          TransactionSource @default(MANUAL)
   importBatchId   String?
   categoryId      String
@@ -342,10 +321,9 @@ model Budget {
   updatedAt  DateTime @updatedAt
 
   // Relations
-  category              Category               @relation(fields: [categoryId], references: [id], onDelete: Restrict)
-  user                  User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
-  expenses              Expense[] // Track expenses under this budget
-  recurringTransactions RecurringTransaction[] // Recurring transactions linked to this budget
+  category Category  @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expenses Expense[] // Track expenses under this budget
 
   @@unique([userId, name, month]) // Unique by name+month (allows multiple per category)
   @@index([userId, month])
@@ -418,37 +396,6 @@ model FeatureRequest {
 }
 
 // ── New v1.9 Models ────────────────────────────────────
-
-// Recurring Transaction template
-model RecurringTransaction {
-  id          String             @id @default(cuid())
-  name        String
-  type        RecurringType
-  amount      Decimal            @db.Decimal(10, 2)
-  description String?
-  frequency   RecurringFrequency
-  startDate   DateTime
-  endDate     DateTime?
-  nextRunDate DateTime
-  lastRunDate DateTime?
-  isActive    Boolean            @default(true)
-  categoryId  String
-  accountId   String
-  budgetId    String?
-  userId      String
-  createdAt   DateTime           @default(now())
-  updatedAt   DateTime           @updatedAt
-
-  category Category @relation(fields: [categoryId], references: [id], onDelete: Restrict)
-  account  Account  @relation(fields: [accountId], references: [id], onDelete: Restrict)
-  budget   Budget?  @relation(fields: [budgetId], references: [id], onDelete: SetNull)
-  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@index([userId, isActive])
-  @@index([nextRunDate, isActive])
-  @@index([budgetId])
-  @@map("recurring_transactions")
-}
 
 // Savings Goal
 model Goal {
@@ -555,7 +502,7 @@ model BulkOperation {
 // Cron job execution log for system health monitoring
 model CronRunLog {
   id             String   @id @default(cuid())
-  key            String // "process-recurring", "monthly-report", etc.
+  key            String // "monthly-report", "process-reports", etc.
   status         String // "success" | "failed"
   processedCount Int      @default(0)
   errorMessage   String?

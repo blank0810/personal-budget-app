@@ -13,7 +13,6 @@ export const CACHE_TAGS = {
 	PAYMENTS: 'payments',
 	GOALS: 'goals',
 	DASHBOARD: 'dashboard',
-	RECURRING: 'recurring',
 	CLIENTS: 'clients',
 	WORK_ENTRIES: 'work-entries',
 	INVOICES: 'invoices',

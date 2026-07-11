@@ -1454,11 +1454,9 @@ function DangerZoneCard({ hasPassword }: { hasPassword: boolean }) {
 												Transaction Reset
 											</p>
 											<p className="text-xs text-muted-foreground mt-1">
-												Delete all transactions,
-												budgets, recurring rules, and
-												reports. Accounts are kept but
-												zeroed. Categories and goals
-												remain.
+												Delete all transactions, budgets,
+												and reports. Accounts are kept but
+												zeroed. Categories and goals remain.
 											</p>
 										</button>
 										<button
@@ -1633,7 +1631,7 @@ function DangerZoneCard({ hasPassword }: { hasPassword: boolean }) {
 											<AlertDescription>
 												{tier === 'full'
 													? 'This will permanently delete ALL your financial data including accounts, categories, and goals. You will need to re-complete onboarding.'
-													: 'This will permanently delete all transactions, budgets, recurring rules, and reports. Account balances will be reset to zero.'}
+													: 'This will permanently delete all transactions, budgets, and reports. Account balances will be reset to zero.'}
 											</AlertDescription>
 										</Alert>
 										<div className="space-y-2">

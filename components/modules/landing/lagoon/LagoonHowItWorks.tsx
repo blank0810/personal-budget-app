@@ -10,7 +10,7 @@ const STEPS = [
 	{
 		number: '02',
 		title: 'Log your spending',
-		desc: 'Add transactions as they happen, import a CSV from your bank, or let recurring entries run on autopilot.',
+		desc: 'Add transactions as they happen, or import a CSV from your bank to bring in your history at once.',
 	},
 	{
 		number: '03',

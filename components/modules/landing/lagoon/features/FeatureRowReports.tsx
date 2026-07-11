@@ -84,7 +84,7 @@ export function FeatureRowReports() {
 					{/* Text side — first in DOM (mobile), right column on desktop */}
 					<LagoonReveal className='lg:order-2'>
 						<p className='mb-3 text-[12px] font-semibold uppercase tracking-[0.12em] text-[var(--lagoon-accent)]'>
-							Feature 06
+							Feature 05
 						</p>
 						<h2
 							className='lagoon-section-title mb-5 text-[var(--lagoon-ink)]'

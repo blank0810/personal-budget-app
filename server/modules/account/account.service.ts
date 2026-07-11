@@ -303,7 +303,6 @@ export const AccountService = {
 				description,
 				categoryName,
 				accountId: data.accountId,
-				isRecurring: false,
 				titheEnabled: false,
 				tithePercentage: 0,
 				emergencyFundEnabled: false,
@@ -316,7 +315,6 @@ export const AccountService = {
 				description,
 				categoryName,
 				accountId: data.accountId,
-				isRecurring: false,
 			});
 		}
 

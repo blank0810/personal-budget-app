@@ -15,8 +15,6 @@ export const createExpenseSchema = z
 			.string({ message: 'Please select an account' })
 			.min(1, { message: 'Please select an account' }),
 		budgetId: z.string().optional(), // Link to a budget
-		isRecurring: z.boolean().optional().default(false),
-		recurringPeriod: z.enum(['MONTHLY', 'WEEKLY', 'YEARLY']).optional(),
 	})
 	.refine((data) => data.categoryId || data.categoryName, {
 		message: 'Please select a category',

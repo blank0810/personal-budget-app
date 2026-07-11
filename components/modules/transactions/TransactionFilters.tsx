@@ -53,7 +53,6 @@ const SOURCE_OPTIONS = [
 	{ value: ALL_VALUE, label: 'All Sources' },
 	{ value: 'MANUAL', label: 'Manual' },
 	{ value: 'IMPORT', label: 'Imported' },
-	{ value: 'RECURRING', label: 'Recurring' },
 ] as const;
 
 interface TransactionFiltersProps {
