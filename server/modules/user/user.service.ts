@@ -4,7 +4,6 @@ import type {
 	UserProfile,
 	UserEmailAndCreatedAt,
 	UserEmailAndName,
-	UserPhoneAndName,
 	UserNameEmailCurrency,
 } from './user.types';
 
@@ -101,7 +100,7 @@ export const UserService = {
 	},
 
 	/**
-	 * Phone number only, used for SMS notification dispatch.
+	 * Phone number only, retained for the future SMS notification integration.
 	 * Throws if user not found.
 	 */
 	async getPhoneNumber(userId: string): Promise<string | null> {
@@ -110,16 +109,6 @@ export const UserService = {
 			select: { phoneNumber: true },
 		});
 		return row.phoneNumber;
-	},
-
-	/**
-	 * Phone number and name, used for test SMS action.
-	 */
-	async getPhoneAndName(userId: string): Promise<UserPhoneAndName> {
-		return prisma.user.findUniqueOrThrow({
-			where: { id: userId },
-			select: { phoneNumber: true, name: true },
-		});
 	},
 
 	/**

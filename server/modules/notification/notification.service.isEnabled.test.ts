@@ -17,7 +17,6 @@ vi.mock('@/server/modules/user/user.service', () => ({
 		// notification.service.ts at module load / in other methods.
 		getCurrency: vi.fn(),
 		getEmailAndName: vi.fn(),
-		getPhoneNumber: vi.fn(),
 		resolveNotificationRecipient: vi.fn(),
 	},
 }));
@@ -34,8 +33,6 @@ vi.mock('@/lib/prisma', () => ({
 	},
 }));
 
-// Stub BullMQ queue so no real Redis connection is opened
-vi.mock('./sms.queue', () => ({ addSmsJob: vi.fn() }));
 vi.mock('@/server/modules/email/email.service', () => ({
 	EmailService: { send: vi.fn(), sendWithAttachment: vi.fn() },
 }));

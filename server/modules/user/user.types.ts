@@ -48,14 +48,6 @@ export type UserEmailAndName = {
 };
 
 /**
- * Return type for UserService.getPhoneAndName()
- */
-export type UserPhoneAndName = {
-	phoneNumber: string | null;
-	name: string | null;
-};
-
-/**
  * Return type for UserService.getNameEmailCurrency()
  */
 export type UserNameEmailCurrency = {

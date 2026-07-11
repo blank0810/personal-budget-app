@@ -55,7 +55,6 @@ import {
 	disconnectProviderAction,
 	updateNotificationPreferenceAction,
 	updatePhoneNumberAction,
-	sendTestSmsAction,
 	updateBusinessProfileAction,
 	updateEmailNotificationsEnabledAction,
 	updateNotificationEmailAction,
@@ -194,7 +193,6 @@ function PersonalInfoCard({
 	const [editingPhone, setEditingPhone] = useState(false);
 	const [phoneValue, setPhoneValue] = useState(phoneNumber || '');
 	const [isPhonePending, startPhoneTransition] = useTransition();
-	const [isTestSmsPending, startTestSmsTransition] = useTransition();
 
 	const isValidPhone = /^\+639\d{9}$/.test(phoneValue);
 
@@ -232,17 +230,6 @@ function PersonalInfoCard({
 	function handlePhoneCancel() {
 		setPhoneValue(phoneNumber || '');
 		setEditingPhone(false);
-	}
-
-	function handleTestSms() {
-		startTestSmsTransition(async () => {
-			const result = await sendTestSmsAction();
-			if (result.error) {
-				toast.error(result.error);
-			} else {
-				toast.success('Test SMS sent! Check your phone.');
-			}
-		});
 	}
 
 	return (
@@ -343,29 +330,11 @@ function PersonalInfoCard({
 							</div>
 						</div>
 					) : (
-						<div className="flex items-center gap-2">
-							<p className="text-sm font-medium py-2 px-3 rounded-md bg-muted/50 flex-1">
-								{phoneNumber || (
-									<span className="text-muted-foreground">Not set</span>
-								)}
-							</p>
-							{phoneNumber && (
-								<Button
-									variant="outline"
-									size="sm"
-									className="shrink-0 text-xs"
-									onClick={handleTestSms}
-									disabled={isTestSmsPending}
-								>
-									{isTestSmsPending ? (
-										<Loader2 className="h-3 w-3 animate-spin mr-1" />
-									) : (
-										<MessageSquare className="h-3 w-3 mr-1" />
-									)}
-									Test SMS
-								</Button>
+						<p className="text-sm font-medium py-2 px-3 rounded-md bg-muted/50">
+							{phoneNumber || (
+								<span className="text-muted-foreground">Not set</span>
 							)}
-						</div>
+						</p>
 					)}
 				</div>
 				{editing && (
@@ -1051,12 +1020,10 @@ function NotificationPreferencesCard({
 						<div className="flex items-start gap-3 p-3 rounded-md bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-900">
 							<Smartphone className="h-5 w-5 text-blue-600 dark:text-blue-400 mt-0.5 shrink-0" />
 							<div className="text-sm text-blue-800 dark:text-blue-300">
-								<p className="font-medium">
-									SMS notifications available
-								</p>
+								<p className="font-medium">Add a phone number</p>
 								<p className="text-blue-600 dark:text-blue-400">
-									Add your mobile number in Personal Info above
-									to unlock SMS notifications.
+									Save your mobile number now so you are ready when
+									SMS notifications launch.
 								</p>
 							</div>
 						</div>
@@ -1168,6 +1135,9 @@ function NotificationPreferencesCard({
 							<span className="hidden sm:inline">SMS</span>
 						</div>
 					</div>
+					<p className="text-right text-xs text-muted-foreground">
+						SMS notifications coming soon
+					</p>
 
 					{Object.entries(grouped).map(([category, prefs]) => (
 						<div key={category} className="space-y-3">

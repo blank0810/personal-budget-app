@@ -30,7 +30,6 @@ import { BudgetService } from '@/server/modules/budget/budget.service';
 import { renderMonthlyReportPDF } from './report.templates';
 import { put } from '@vercel/blob';
 import { EmailService } from '@/server/modules/email/email.service';
-import { NotificationService } from '@/server/modules/notification/notification.service';
 import { UserService } from '@/server/modules/user/user.service';
 
 export const ReportService = {
@@ -1068,8 +1067,8 @@ export const ReportService = {
 
 		// 5. Send email with PDF attachment.
 		// Resolve the delivery recipient separately from the digest. A null
-		// recipient (master gate off) skips ONLY the email send — the report
-		// record, blob, and SMS summary below still run.
+		// recipient (master gate off) skips only the email send; the report
+		// record and blob remain available.
 		const { score } = digest.sections.healthScore;
 		const monthLabel = digest.month;
 
@@ -1090,15 +1089,6 @@ export const ReportService = {
 				],
 			});
 		}
-
-		// 6. Queue SMS summary (if enabled)
-		const netAmount = digest.sections.incomeExpense?.netResult ?? 0;
-		await NotificationService.sendMonthlyReportSms(
-			userId,
-			monthLabel,
-			score,
-			netAmount
-		);
 	},
 };
 

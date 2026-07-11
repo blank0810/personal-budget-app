@@ -5,7 +5,6 @@ import { getRedisConnection } from '@/lib/redis';
 const CRON_SCHEDULES: Record<string, number> = {
 	'monthly-report': 30 * 24 * 60, // monthly
 	'process-reports': 5, // every 5 minutes
-	'process-sms': 5, // every 5 minutes
 };
 
 export const AdminSystemService = {
@@ -53,7 +52,7 @@ export const AdminSystemService = {
 	},
 
 	async getQueueHealth() {
-		const queueNames = ['monthly-reports', 'sms-notifications'];
+		const queueNames = ['monthly-reports'];
 		const results: Array<{
 			name: string;
 			waiting: number;

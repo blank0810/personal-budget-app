@@ -49,7 +49,7 @@ sudo chown -R $USER:$USER .
 - **Auth:** NextAuth.js 5 (JWT strategy, credentials + Google OAuth)
 - **Database:** PostgreSQL
 - **Analytics:** Vercel Analytics
-- **Queue:** BullMQ with Redis (monthly-reports, sms-notifications)
+- **Queue:** BullMQ with Redis (monthly-reports)
 
 ### Project Structure
 ```
@@ -70,7 +70,7 @@ app/
 ├── changelog/           # Public changelog & feature requests
 └── api/
     ├── auth/            # NextAuth route handler
-    ├── cron/            # Cron jobs (monthly-report, process-reports, process-sms)
+    ├── cron/            # Cron jobs (monthly-report, process-reports)
     └── unsubscribe/     # HMAC-signed email unsubscribe
 
 server/

@@ -3,7 +3,6 @@
 import { getAuthenticatedUser } from '@/server/lib/auth-guard';
 import { NotificationChannel } from '@prisma/client';
 import { NotificationService } from './notification.service';
-import { SmsService } from './sms.service';
 import {
 	updatePreferenceSchema,
 	updatePhoneNumberSchema,
@@ -122,33 +121,6 @@ export async function updateNotificationEmailAction(email: string | null) {
 	} catch (error) {
 		console.error('Failed to update notification email:', error);
 		return { error: 'Failed to update notification email' };
-	}
-}
-
-/**
- * Server Action: Send a test SMS to the user's phone number (direct, not queued)
- */
-export async function sendTestSmsAction() {
-	const userId = await getAuthenticatedUser();
-
-	try {
-		const user = await UserService.getPhoneAndName(userId);
-
-		if (!user.phoneNumber) {
-			return { error: 'No phone number set' };
-		}
-
-		const message = `[Budget Planner] SMS test passed! Notifications are live for ${user.name || 'User'}. Stay on budget!`;
-
-		const success = await SmsService.send(user.phoneNumber, message);
-		if (!success) {
-			return { error: 'SMS delivery failed. Check your API key and number.' };
-		}
-
-		return { success: true as const };
-	} catch (error) {
-		console.error('Failed to send test SMS:', error);
-		return { error: 'Failed to send test SMS' };
 	}
 }
 

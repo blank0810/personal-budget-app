@@ -3,13 +3,7 @@ import { NotificationChannel } from '@prisma/client';
 import { EmailService } from '@/server/modules/email/email.service';
 import { UserService } from '@/server/modules/user/user.service';
 import { formatCurrency } from '@/lib/formatters';
-import { addSmsJob } from './sms.queue';
-import {
-	MergedPreference,
-	getBudgetRoastSms,
-	getIncomeRoastSms,
-	getReportRoastSms,
-} from './notification.types';
+import { MergedPreference } from './notification.types';
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
 
@@ -114,7 +108,7 @@ export const NotificationService = {
 	},
 
 	/**
-	 * Send a budget alert when threshold is crossed (email + SMS)
+	 * Send a budget alert email when threshold is crossed
 	 */
 	async sendBudgetAlert(
 		userId: string,
@@ -202,26 +196,10 @@ export const NotificationService = {
 
 			await EmailService.send({ to, subject, html });
 		}
-
-		// --- SMS path ---
-		const smsEnabled = await this.isEnabled(userId, 'budget_alerts', 'SMS');
-		if (smsEnabled) {
-			const phoneNumber = await UserService.getPhoneNumber(userId);
-
-			if (phoneNumber) {
-				const smsMessage = getBudgetRoastSms(
-					budget.name,
-					newPercentage,
-					spent,
-					budget.amount
-				);
-				await addSmsJob(phoneNumber, smsMessage);
-			}
-		}
 	},
 
 	/**
-	 * Send an income notification (email + SMS)
+	 * Send an income notification email
 	 */
 	async sendIncomeNotification(
 		userId: string,
@@ -310,41 +288,5 @@ export const NotificationService = {
 
 			await EmailService.send({ to, subject, html });
 		}
-
-		// --- SMS path ---
-		const smsEnabled = await this.isEnabled(userId, 'income_notifications', 'SMS');
-		if (smsEnabled) {
-			const phoneNumber = await UserService.getPhoneNumber(userId);
-
-			if (phoneNumber) {
-				const smsMessage = getIncomeRoastSms(
-					income.amount,
-					income.categoryName,
-					account?.name ?? null,
-					account?.newBalance ?? null
-				);
-				await addSmsJob(phoneNumber, smsMessage);
-			}
-		}
-	},
-
-	/**
-	 * Send a monthly report SMS summary (called after email delivery)
-	 */
-	async sendMonthlyReportSms(
-		userId: string,
-		month: string,
-		healthScore: number,
-		netAmount: number
-	): Promise<void> {
-		const smsEnabled = await this.isEnabled(userId, 'monthly_report', 'SMS');
-		if (!smsEnabled) return;
-
-		const phoneNumber = await UserService.getPhoneNumber(userId);
-
-		if (!phoneNumber) return;
-
-		const smsMessage = getReportRoastSms(month, healthScore, netAmount);
-		await addSmsJob(phoneNumber, smsMessage);
 	},
 };
