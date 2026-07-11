@@ -4,6 +4,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 > **Maintainer:** a solo developer. **Do NOT embed the maintainer's personal info (real name, "Ehnand", "Adam", personal email) as placeholder, sample, greeting, demo, or marketing content anywhere in the product.** Use neutral generics ("there", "Demo User", sample brands like "Acme Co") or the signed-in user's own data. Greetings/profile already render the actual logged-in user's name dynamically.
 
+> **Git workflow — solo project, commit straight to `main` (CRITICAL).** There is one developer here. For changes of any size, **do NOT create a feature branch and do NOT open a PR** — stage, commit directly on `main`, and push. Ship/merge immediately; review happens at commit time, not through a PR gate. This overrides the global "branch first / feature branches → PRs → main" convention for this repo. (Non-negotiable safety still holds: never force-push `main`, never rewrite already-pushed history, never run destructive DB commands without explicit confirmation.)
+
 ## Commands
 
 ```bash
@@ -157,11 +159,33 @@ Services handle: business logic, Prisma queries/transactions, balance updates.
 | **seo-engineer** | Technical, content, and AI-era SEO specialist. Crawlability/indexing, metadata, JSON-LD structured data, Core Web Vitals, sitemaps/robots, on-page optimization, SEO audits, and Generative/Answer Engine Optimization (citations in AI Overviews, ChatGPT, Perplexity, Claude). |
 
 ### Project Agents (specific to this budget app)
-| Agent | Purpose |
-|-------|---------|
-| **budget-frontend** | Frontend specialist for this app. UI components, dashboards, data tables, charts, the CSV import wizard, and all client-side work in this project. |
-| **budget-backend** | Backend specialist for this app. Server actions, services, Prisma queries, balance updates, recurring transactions, cron jobs, BullMQ queue workers, and server-side business logic. |
-| **budget-devops** | DevOps specialist for this app. Docker configuration, deployment, CI/CD, server setup, database backups, Redis/BullMQ infrastructure, and production environment management. |
-| **accountant** | Financial domain expert. Validates financial calculations, reviews balance logic, designs budget features, audits transaction flows, reviews report accuracy, and advises on money-related behavior from an accounting perspective. |
-| **founder** | Product founder and visionary. Product decisions, feature prioritization, user experience from a business perspective, roadmap planning, competitor positioning, and deciding what to build next and why. |
-| **budget-seo** | SEO specialist for this app. Owns the public surface (landing page, changelog), metadata, JSON-LD, sitemap/robots, Core Web Vitals on marketing routes, and GEO/AEO for the freelancer / AI-native positioning. Defers to global **seo-engineer** for general technique. |
+| Agent | Kind | Purpose |
+|-------|------|---------|
+| **budget-frontend** | development | Frontend specialist for this app. UI components, dashboards, data tables, charts, the CSV import wizard, and all client-side work in this project. |
+| **budget-backend** | development | Backend specialist for this app. Server actions, services, Prisma queries, balance updates, recurring transactions, cron jobs, BullMQ queue workers, and server-side business logic. |
+| **budget-devops** | development | DevOps specialist for this app. Docker configuration, deployment, CI/CD, server setup, database backups, Redis/BullMQ infrastructure, and production environment management. |
+| **accountant** | advisory | Financial domain expert. Validates financial calculations, reviews balance logic, designs budget features, audits transaction flows, reviews report accuracy, and advises on money-related behavior from an accounting perspective. |
+| **founder** | advisory | Product founder and visionary. Product decisions, feature prioritization, user experience from a business perspective, roadmap planning, competitor positioning, and deciding what to build next and why. |
+| **budget-seo** | advisory | SEO specialist for this app. Owns the public surface (landing page, changelog), metadata, JSON-LD, sitemap/robots, Core Web Vitals on marketing routes, and GEO/AEO for the freelancer / AI-native positioning. Defers to global **seo-engineer** for general technique. |
+
+**Two kinds of agent.** *Development* agents produce code, so they follow the delegation doctrine below (Claude plans → Codex implements → Claude reviews). *Advisory* agents produce judgment — an analysis, a verdict, a recommendation — and their deliverable **is** the written answer. Never hand an advisory agent's output to Codex. But note the doctrine is scoped to the *act of writing code*, not the kind of agent: the moment an advisory agent would touch code (the accountant patching a Decimal rounding bug, budget-seo editing a JSON-LD block), the handoff applies. Every agent file in `.claude/agents/` carries the doctrine for exactly this reason.
+
+### Implementation handoff to Codex (IMPORTANT)
+
+Mirrors `~/.claude/CLAUDE.md` → "Implementation handoff to Codex", which remains the canonical source. **Planning and review always stay with the Claude council agents. The *implementation* step is handed to Codex when it is available.** When a council run reaches the point of actually writing or editing code in this repo:
+
+1. **Probe for Codex first:** `command -v codex` (or `codex --version`). If it is NOT installed, fall back to the Claude implementation agents (`budget-frontend`, `budget-backend`, `budget-devops`) exactly as before — nothing else changes.
+2. **If Codex IS available, hand the implementation instruction to it** via Bash. **Pin neither the model nor the reasoning effort** — pass neither `-m` nor `model_reasoning_effort`, so Codex selects both itself:
+
+   ```bash
+   codex exec --sandbox workspace-write -c 'approval_policy="never"' "<full, self-contained implementation instruction>" < /dev/null
+   ```
+
+   - **Redirect stdin from `/dev/null`.** An open stdin makes `codex exec` hang at 0% CPU, writing nothing.
+   - **Do NOT pass `-m`.** Model and effort are resolved by the Codex CLI *before* the prompt is sent, so asking Codex in the prompt to "use its latest model" is a no-op. Omitting the flag is the only way to let Codex choose its own default (verify with `codex doctor` → `model`). A hard-pinned `-m` silently *downgrades* it.
+   - `--sandbox workspace-write` + `approval_policy="never"` lets Codex edit repo files without hanging on approval prompts. The repo must be trusted in `~/.codex/config.toml`. Never use `--dangerously-bypass-approvals-and-sandbox`.
+   - The prompt must be **self-contained** — Codex does not share the conversation's context. Include the plan, exact file paths, acceptance criteria, and the conventions it must follow: the controller → service → Prisma data flow, `Decimal` (never float) for money, `getAuthenticatedUser()` + Zod validation in controllers, and `invalidateTags()` for cache revalidation.
+   - **Not fire-and-forget:** you may go back and forth with Codex mid-task for clarification, and Codex may use its own harness/skills (or you may direct it to a specific approach). Codex leaves the work **uncommitted** — you review and commit.
+3. **Claude reviews Codex's output.** The relevant council agents review the diff for correctness and convention adherence. Money-touching diffs still go through the `money-feature-review` skill and the **accountant** before merge — the Codex handoff does not bypass that gate.
+
+The division is fixed: **Claude plans → Codex implements (if present) → Claude reviews.** If the maintainer explicitly says to implement with the Claude agents instead, honor that and skip the Codex handoff.
