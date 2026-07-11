@@ -1,0 +1,36 @@
+name: Hourly automation scheduler
+
+# Gives the DB-driven automation scheduler an hourly tick (Vercel Hobby crons are
+# capped at once/day; vercel.json keeps a daily tick as a reliable baseline).
+# runDue() self-gates each job on its stored cadence and is idempotent + overlap-
+# locked, so being hit by both this workflow and the Vercel cron is safe.
+#
+# REQUIRES a repo secret `CRON_SECRET` matching the value set in Vercel prod env.
+
+on:
+  schedule:
+    - cron: '0 * * * *' # top of every hour (UTC); GitHub may delay under load
+  workflow_dispatch: {} # allow manual runs from the Actions tab
+
+jobs:
+  tick:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger /api/cron/scheduler
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          if [ -z "$CRON_SECRET" ]; then
+            echo "::error::CRON_SECRET repo secret is not set — add it in Settings → Secrets → Actions."
+            exit 1
+          fi
+          code=$(curl -sS -o /tmp/scheduler_body -w "%{http_code}" \
+            -X GET "https://budget.umbra.build/api/cron/scheduler" \
+            -H "Authorization: Bearer ${CRON_SECRET}")
+          echo "HTTP ${code}"
+          cat /tmp/scheduler_body || true
+          echo
+          if [ "${code}" != "200" ]; then
+            echo "::error::Scheduler returned HTTP ${code} (expected 200)"
+            exit 1
+          fi
