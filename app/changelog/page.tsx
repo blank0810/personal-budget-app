@@ -1,4 +1,26 @@
+import type { Metadata } from 'next';
+import { absoluteUrl } from '@/lib/url';
+
 export const dynamic = 'force-dynamic';
+
+export const metadata: Metadata = {
+	title: 'Product Updates & Feature Requests · Budget Planner',
+	description:
+		'See what\'s new in Budget Planner — release notes, shipped features, and the community feature-request board where you can vote on what comes next.',
+	alternates: { canonical: absoluteUrl('/changelog') },
+	openGraph: {
+		title: 'Product Updates & Feature Requests · Budget Planner',
+		description: 'Release notes and the community feature-request board for Budget Planner.',
+		url: absoluteUrl('/changelog'),
+		siteName: 'Budget Planner',
+		type: 'website',
+	},
+	twitter: {
+		card: 'summary_large_image',
+		title: 'Product Updates & Feature Requests · Budget Planner',
+		description: 'Release notes and the community feature-request board for Budget Planner.',
+	},
+};
 
 import { auth } from '@/auth';
 import { Rocket, Wallet, ArrowLeft, MessageSquarePlus, Lightbulb } from 'lucide-react';

@@ -12,11 +12,11 @@ import { LagoonReveal } from './LagoonReveal';
  * Server component.
  */
 interface LagoonCTAProps {
-	/** Override the default h2. Defaults to "Know exactly where your money goes." */
+	/** Override the default h2. Defaults to "Get your real financial health score." */
 	heading?: string;
 }
 
-export function LagoonCTA({ heading = 'Know exactly where your money goes.' }: LagoonCTAProps) {
+export function LagoonCTA({ heading = 'Get your real financial health score.' }: LagoonCTAProps) {
 	return (
 		<section
 			aria-label='Get started'

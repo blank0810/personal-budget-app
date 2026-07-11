@@ -4,6 +4,7 @@ import { LagoonReveal } from '@/components/modules/landing/lagoon/LagoonReveal';
 import { LagoonCTA } from '@/components/modules/landing/lagoon/LagoonCTA';
 import { LagoonFaqAccordion } from '@/components/modules/landing/lagoon/faq/LagoonFaqAccordion';
 import { FAQ_GROUPS } from '@/components/modules/landing/lagoon/faq/faq-data';
+import { absoluteUrl } from '@/lib/url';
 
 export const metadata: Metadata = {
 	title: 'Budgeting App FAQ',
@@ -16,7 +17,7 @@ export const metadata: Metadata = {
 		title: 'Budgeting App FAQ',
 		description:
 			'Straight answers about pricing, your data, the AI advisor on the way, and how the app fits the way you manage money.',
-		url: '/faq',
+		url: absoluteUrl('/faq'),
 		siteName: 'Budget Planner',
 		// og:image comes from the route-level opengraph-image.tsx (file convention).
 	},
@@ -167,7 +168,7 @@ export default function FAQPage() {
 			</section>
 
 			{/* ── 4. CTA ─────────────────────────────────────────────────────── */}
-			<LagoonCTA />
+			<LagoonCTA heading='Get your real financial health score.' />
 		</>
 	);
 }

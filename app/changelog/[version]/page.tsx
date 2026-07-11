@@ -25,24 +25,24 @@ export async function generateMetadata({
 	const version = ChangelogService.getBySlug(slug);
 
 	if (!version) {
-		return { title: 'Release not found' };
+		return { title: 'Release not found · Budget Planner' };
 	}
 
-	const title = `${version.title} (${version.version})`;
+	const pageTitle = `${version.title} (${version.version})`;
 	const description = normalizeDescription(version.description);
 
 	return {
-		title,
+		title: `${pageTitle} · Budget Planner`,
 		description,
 		alternates: {
 			canonical: absoluteUrl(`/changelog/${version.version}`),
 		},
 		openGraph: {
-			title,
+			title: pageTitle,
 			description,
 		},
 		twitter: {
-			title,
+			title: pageTitle,
 			description,
 		},
 	};

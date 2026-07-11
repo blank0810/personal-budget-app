@@ -280,7 +280,7 @@ Notes:
 ## 7. Sitemap / robots audit
 
 **`app/sitemap.ts`:** the landing (`baseUrl` = `/`) is present with `priority: 1` — good. Recommendations:
-- Keep `/`, `/register` (0.8), `/changelog` (0.6). **Reconsider `/login` (0.5):** login pages have near-zero SEO value; harmless to keep but candidate for removal. Low priority.
+- Keep `/`, `/changelog` (0.6). (`/register` intentionally excluded — thin auth form, no indexable value.) **Reconsider `/login` (0.5):** login pages have near-zero SEO value; harmless to keep but candidate for removal. Low priority.
 - If the redesign adds anchor-only sections (e.g., `#features`, `#faq`) they do NOT need sitemap entries (fragments aren't separate URLs). If it spins out real routes (`/features`, `/pricing`) later, add them.
 
 **`app/robots.ts`:** `allow: '/'`, disallows `/dashboard`, `/admin`, `/api/`, `/onboarding` — correct; the landing is crawlable. Recommendations:

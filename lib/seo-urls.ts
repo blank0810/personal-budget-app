@@ -7,8 +7,8 @@ export type SeoUrl = {
 	priority: number;
 };
 
-// The public marketing site was last redesigned in changelog v2.1. Bump this only when the marketing pages' content actually changes.
-export const MARKETING_LAST_MODIFIED = new Date('2026-06-28');
+// Bump when the marketing pages' content changes. Last: v2.1 redesign (2026-06-28); financial-health repositioning (2026-07-11).
+export const MARKETING_LAST_MODIFIED = new Date('2026-07-11');
 
 export function getSeoUrls(): SeoUrl[] {
 	const marketingUrls: SeoUrl[] = [

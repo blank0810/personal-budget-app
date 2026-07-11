@@ -3,7 +3,7 @@ import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 
 export const runtime = 'nodejs';
-export const alt = 'Budget Planner — Know exactly where your money goes';
+export const alt = 'Budget Planner — Know your real financial health score';
 export const size = { width: 1200, height: 630 };
 export const contentType = 'image/png';
 
@@ -17,8 +17,8 @@ export const contentType = 'image/png';
  *   muted   #64748b  (--lagoon-body light)
  *   border  #e2e8f0  (--lagoon-border light)
  *
- * Headline matches the home page <h1> verbatim ("Know exactly where your
- * money goes.") so the share card reinforces the LCP candidate copy.
+ * Headline matches the home page <h1> ("Know your real financial health
+ * score.") so the share card reinforces the LCP copy.
  *
  * Honesty: no AI mention, no fabricated stats, no personal name/email.
  */
@@ -87,9 +87,9 @@ export default async function Image() {
 							color: '#0f172a',
 						}}
 					>
-						<span>Know exactly</span>
-						<span>where your</span>
-						<span style={{ color: '#0d9488' }}>money goes.</span>
+						<span>Know your real</span>
+						<span style={{ color: '#0d9488' }}>financial health</span>
+						<span>score.</span>
 					</div>
 
 					{/* Subline */}
@@ -100,7 +100,7 @@ export default async function Image() {
 							lineHeight: 1.4,
 						}}
 					>
-						Free personal budgeting and expense tracking.
+						Log your money and get a financial health score.
 					</div>
 
 					{/* Badges */}
