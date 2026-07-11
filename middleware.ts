@@ -36,6 +36,12 @@ export default auth(async function middleware(req: NextRequest & { auth: Session
 		pathname === '/sitemap.xml' ||
 		pathname === '/robots.txt' ||
 		pathname === '/logo.svg' ||
+		// Static ownership / verification files served from public/. These
+		// MUST be reachable by anonymous verification bots - otherwise the
+		// middleware 307s them to /login and the crawler reads the login
+		// page HTML instead of the file (Google reports 'wrong content').
+		(pathname.startsWith('/google') && pathname.endsWith('.html')) ||
+		pathname === '/67cb763152894d8e93074285c12e6099.txt' ||
 		pathname.startsWith('/opengraph-image') ||
 		pathname.startsWith('/twitter-image');
 	const isOnboardingPage = pathname.startsWith('/onboarding');
