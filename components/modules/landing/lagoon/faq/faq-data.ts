@@ -67,6 +67,14 @@ export const FAQ_GROUPS: FaqGroupData[] = [
 				a: 'Yes. Set up any recurring income or expense — salary, rent, subscriptions — and choose how often it repeats. The app logs them automatically so you never have to enter the same transaction twice.',
 			},
 			{
+				q: 'How does Budget Planner calculate my financial health score?',
+				a: 'It scores five pillars of your finances — Solvency, Liquidity, Savings, Debt Management, and Cash Flow — from the accounts and transactions you log, then combines them into a single score out of 100 with an A–F grade on each pillar. Nothing is estimated from a bank feed; the score reflects exactly what you record, and it sharpens as you log more.',
+			},
+			{
+				q: 'Do I need to link my bank to see my financial health?',
+				a: 'No. Your financial health score is computed entirely from what you log yourself — no bank connection and no credentials. Log your income, expenses, and account balances, and the score updates immediately.',
+			},
+			{
 				q: 'Is there an AI advisor?',
 				a: 'Not yet, but it is the next major feature in active development. The AI Advisor will analyse your transaction history and surface patterns, anomalies, and budget insights in plain language. You can see a preview on your dashboard today — the working version is coming.',
 			},

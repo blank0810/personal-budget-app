@@ -472,18 +472,26 @@ export function LagoonProductMock() {
 							>
 								{/* Header + tab pills */}
 								<div className='px-3 pt-2.5 pb-2'>
-									<div className='mb-2 flex items-center justify-between'>
-										<p
-											className='text-[11px] font-semibold'
-											style={{ color: 'var(--lagoon-ink)' }}
-										>
-											Overview
-										</p>
+									<div className='mb-2'>
+										<div className='flex items-center justify-between'>
+											<p
+												className='text-[11px] font-semibold'
+												style={{ color: 'var(--lagoon-ink)' }}
+											>
+												Overview
+											</p>
+											<span
+												className='text-[9px]'
+												style={{ color: 'var(--lagoon-accent)' }}
+											>
+												Show more →
+											</span>
+										</div>
 										<span
-											className='text-[9px]'
-											style={{ color: 'var(--lagoon-accent)' }}
+											className='mt-1 inline-block rounded-full px-2.5 py-0.5 text-[10px] font-bold'
+											style={{ background: 'var(--lagoon-accent-bg)', color: 'var(--lagoon-accent)' }}
 										>
-											Show more →
+											87 / 100 &middot; Excellent
 										</span>
 									</div>
 

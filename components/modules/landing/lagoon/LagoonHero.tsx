@@ -71,7 +71,7 @@ export function LagoonHero() {
 						className='h-1.5 w-1.5 rounded-full'
 						style={{ background: 'var(--lagoon-accent)' }}
 					/>
-					Personal budgeting &middot; Expense tracking &middot; Savings goals
+					Financial health score &middot; Budgeting &middot; No bank linking
 				</m.div>
 
 				{/* LCP h1 — plain SSR, never animated */}
@@ -82,8 +82,8 @@ export function LagoonHero() {
 						fontFamily: 'var(--lagoon-font-heading, inherit)',
 					}}
 				>
-					Know exactly where{' '}
-					<span style={{ color: 'var(--lagoon-accent)' }}>your money</span> goes.
+					Know your real{' '}
+					<span style={{ color: 'var(--lagoon-accent)' }}>financial health</span> score.
 				</h1>
 
 				{/* Subhead */}
@@ -94,8 +94,8 @@ export function LagoonHero() {
 					className='mx-auto mt-6 max-w-[52ch] text-[17px] leading-[1.7] md:mt-7'
 					style={{ color: 'var(--lagoon-body)' }}
 				>
-					Set a budget for every category, log every transaction, and track your
-					savings goals — with clear monthly reports that actually make sense.
+					Log your income and expenses — Budget Planner grades your finances across five
+					pillars and hands you a financial health score out of 100. No bank linking. No sugar-coating.
 				</m.p>
 
 				{/* CTAs */}
@@ -156,7 +156,7 @@ export function LagoonHero() {
 					className='mt-5 text-[13px]'
 					style={{ color: 'var(--lagoon-muted)' }}
 				>
-					No bank linking&ensp;&middot;&ensp;Free forever&ensp;&middot;&ensp;Your data, your control
+					No bank linking&ensp;&middot;&ensp;Free forever&ensp;&middot;&ensp;Your first score in minutes
 				</m.p>
 
 				{/* Product mock — floats up with gentle delay */}

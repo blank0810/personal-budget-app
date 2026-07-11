@@ -2,6 +2,10 @@ import { LagoonReveal } from '../LagoonReveal';
 
 const REASONS = [
 	{
+		title: 'Your score writes itself',
+		desc: 'Every entry you log instantly recomputes your financial health score, savings rate, and net worth — no spreadsheets, no manual math. The work you put in comes straight back as insight.',
+	},
+	{
 		title: 'You catch every peso',
 		desc: 'Logging triggers a mental check-in. That tiny friction is how awareness habits form — and why budgets actually stick.',
 	},
@@ -49,7 +53,7 @@ export function HowItWorksWhyManual() {
 				</LagoonReveal>
 
 				{/* Three-column reason cards */}
-				<div className='mt-12 grid grid-cols-1 gap-5 sm:grid-cols-3'>
+				<div className='mt-12 grid grid-cols-1 gap-5 sm:grid-cols-2'>
 					{REASONS.map((r, i) => (
 						<LagoonReveal key={r.title} delay={i * 0.08}>
 							<div className='h-full rounded-2xl border border-[var(--lagoon-border)] bg-[var(--lagoon-surface)] p-7'>
