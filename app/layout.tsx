@@ -20,6 +20,9 @@ export const metadata: Metadata = {
 	metadataBase: new URL(APP_URL),
 	title: 'Personal Budget App',
 	description: 'Track your income, expenses, and net worth.',
+	verification: {
+		google: 'tk8aPfinR7x5MLciNPIEezfOOoyEV-r2Qf0qnsvi2eo',
+	},
 };
 
 export default function RootLayout({
