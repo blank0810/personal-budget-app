@@ -1,28 +1,36 @@
+import type { AutomationFrequency } from '@prisma/client';
 import prisma from '@/lib/prisma';
 import { Queue } from 'bullmq';
 import { getRedisConnection } from '@/lib/redis';
 
-const CRON_SCHEDULES: Record<string, number> = {
-	'monthly-report': 30 * 24 * 60, // monthly
-	'process-reports': 5, // every 5 minutes
+const EXPECTED_INTERVAL_MINUTES: Record<AutomationFrequency, number> = {
+	HOURLY: 60,
+	DAILY: 24 * 60,
+	WEEKLY: 7 * 24 * 60,
+	MONTHLY: 30 * 24 * 60,
 };
 
 export const AdminSystemService = {
 	async getCronStatus() {
+		const schedules = await prisma.automationSchedule.findMany({
+			where: { userId: null },
+			orderBy: { jobKey: 'asc' },
+		});
+
 		// Get the latest log entry for each cron key
-		const keys = Object.keys(CRON_SCHEDULES);
 		const latestLogs = await Promise.all(
-			keys.map((key) =>
+			schedules.map((schedule) =>
 				prisma.cronRunLog.findFirst({
-					where: { key },
+					where: { key: schedule.jobKey },
 					orderBy: { runAt: 'desc' },
 				})
 			)
 		);
 
-		return keys.map((key, i) => {
+		return schedules.map((schedule, i) => {
 			const log = latestLogs[i];
-			const scheduleMins = CRON_SCHEDULES[key];
+			const scheduleMins =
+				EXPECTED_INTERVAL_MINUTES[schedule.frequency];
 
 			let health: 'green' | 'yellow' | 'red' = 'green';
 			if (!log) {
@@ -40,7 +48,7 @@ export const AdminSystemService = {
 			}
 
 			return {
-				key,
+				key: schedule.jobKey,
 				lastRunAt: log?.runAt || null,
 				status: log?.status || 'never',
 				processedCount: log?.processedCount || 0,

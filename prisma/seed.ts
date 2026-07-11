@@ -1,5 +1,7 @@
 import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
+import { computeNextRunAt } from '../server/modules/automation/automation.service';
+import { AUTOMATION_JOBS } from '../server/modules/automation/registry';
 
 const prisma = new PrismaClient();
 
@@ -183,6 +185,39 @@ async function main() {
 		});
 	}
 	console.log('Seeded system settings');
+
+	// Seed system-wide automation schedules. PostgreSQL permits duplicate NULLs
+	// in a compound unique index, and Prisma cannot pass null through the
+	// generated jobKey_userId unique input. Resolve the nullable compound key
+	// first, then use a stable id for a genuinely idempotent Prisma upsert.
+	const automationSeededAt = new Date();
+	for (const job of AUTOMATION_JOBS) {
+		const existing = await prisma.automationSchedule.findFirst({
+			where: { jobKey: job.jobKey, userId: null },
+			select: { id: true },
+		});
+
+		const nextRunAt = computeNextRunAt(
+			job.defaultCadence,
+			automationSeededAt
+		);
+
+		await prisma.automationSchedule.upsert({
+			where: {
+				id: existing?.id ?? `system-${job.jobKey}`,
+			},
+			// Preserve any cadence or enabled-state changes made by an admin.
+			update: {},
+			create: {
+				id: `system-${job.jobKey}`,
+				jobKey: job.jobKey,
+				userId: null,
+				...job.defaultCadence,
+				nextRunAt,
+			},
+		});
+	}
+	console.log('Seeded automation schedules');
 
 	// Seed sample goals
 	const seededUser = await prisma.user.findUnique({

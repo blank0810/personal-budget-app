@@ -79,6 +79,13 @@ enum WorkEntryStatus {
   BILLED
 }
 
+enum AutomationFrequency {
+  HOURLY
+  DAILY
+  WEEKLY
+  MONTHLY
+}
+
 // ── Models ─────────────────────────────────────────────
 
 // User model
@@ -511,6 +518,29 @@ model CronRunLog {
 
   @@index([key, runAt])
   @@map("cron_run_logs")
+}
+
+// Admin-controlled cadence for background automation jobs.
+// A null userId represents the system-wide schedule; per-user rows can be
+// added later without changing the table shape.
+model AutomationSchedule {
+  id         String              @id @default(cuid())
+  jobKey     String
+  userId     String?
+  frequency  AutomationFrequency
+  atMinute   Int?
+  atHour     Int?
+  dayOfWeek  Int?
+  dayOfMonth Int?
+  enabled    Boolean             @default(true)
+  lastRunAt  DateTime?
+  nextRunAt  DateTime?
+  lastStatus String?
+  createdAt  DateTime            @default(now())
+  updatedAt  DateTime            @updatedAt
+
+  @@unique([jobKey, userId])
+  @@map("automation_schedules")
 }
 
 // ── Invoice Models ───────────────────────────────────────
