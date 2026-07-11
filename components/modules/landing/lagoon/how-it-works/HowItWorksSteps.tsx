@@ -353,10 +353,10 @@ function Step4Mock() {
 // ── Mock dispatcher ───────────────────────────────────────────────────────────
 
 function StepMock({ index, shouldAnimate }: { index: number; shouldAnimate: boolean }) {
-	if (index === 0) return <Step1Mock />;
-	if (index === 1) return <Step2Mock />;
-	if (index === 2) return <Step3Mock shouldAnimate={shouldAnimate} />;
-	return <Step4Mock />;
+	if (index === 0) return <Step2Mock />;                       // 01 Log → transactions
+	if (index === 1) return <Step4Mock />;                       // 02 Score → dashboard + 87/100 badge
+	if (index === 2) return <Step1Mock />;                       // 03 Budgets → Set Budget form
+	return <Step3Mock shouldAnimate={shouldAnimate} />;          // 04 Together → live budget/goal bars
 }
 
 // ── Steps metadata ────────────────────────────────────────────────────────────
@@ -364,23 +364,23 @@ function StepMock({ index, shouldAnimate }: { index: number; shouldAnimate: bool
 const STEPS = [
 	{
 		number: '01',
-		title: 'Set up your categories and budgets',
-		desc: 'Create budget envelopes for food, transport, utilities, rent — anything that fits your life. Name them however you think. Takes about two minutes.',
+		title: 'Log a transaction — or import a CSV',
+		desc: 'Add income and expenses as they happen. Got a month of bank history? Import it as a CSV in one go. Recurring bills can run on autopilot. No bank linking, ever.',
 	},
 	{
 		number: '02',
-		title: 'Log transactions — or import a CSV',
-		desc: 'Add each transaction as it happens. Got a month of bank history? Import it as a CSV in one go. Recurring bills can run on autopilot.',
+		title: 'Get your financial health score',
+		desc: 'The moment you log, the app grades your finances across five pillars — Solvency, Liquidity, Savings, Debt, and Cash Flow — into one honest score out of 100. It sharpens as you log more.',
 	},
 	{
 		number: '03',
-		title: 'Watch budgets and savings update in real time',
-		desc: 'Every entry instantly updates your budget bars and savings goals. You always know how much headroom you have before the month ends.',
+		title: 'Set budgets and savings goals',
+		desc: 'Want more control? Create budget envelopes and savings goals. Every transaction you log updates them in real time, so you always know your headroom before the month ends.',
 	},
 	{
 		number: '04',
-		title: 'See where you stand',
-		desc: 'The dashboard gives you a clear monthly breakdown — by category, by account, by goal. Monthly reports land in your inbox automatically.',
+		title: 'Watch it all come together',
+		desc: 'Your dashboard and monthly reports turn everything you logged into a clear picture — by category, by account, by goal — and land in your inbox automatically.',
 	},
 ] as const;
 

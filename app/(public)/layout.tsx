@@ -27,7 +27,7 @@ const inter = Inter({
 });
 
 const BASE_DESCRIPTION =
-	'Personal budgeting and expense tracking app. Track income and expenses, set budgets, reach savings goals, and send invoices. Free to start.';
+	'Log your income, expenses, transfers, and payments — Budget Planner turns that into a live financial health score, net worth trend, budgets, and reports. Free to start. No bank linking required.';
 
 /**
  * Sitewide structured data — WebApplication + Organization @graph.
@@ -76,16 +76,16 @@ const SITEWIDE_JSON_LD = {
 				priceCurrency: 'PHP',
 			},
 			description:
-				'Personal budgeting and expense tracking app. Track income and expenses, set budgets for every category, reach savings goals, and send client invoices. Free to start. An AI financial advisor is in development.',
+				'Personal budgeting and expense-tracking app that scores your financial health. Log income, expenses, transfers, and payments, and Budget Planner computes a financial health score across five pillars, plus budgets, savings goals, and reports. Free to start. An AI financial advisor is in development.',
 			featureList: [
+				'Financial health score across five pillars',
 				'Income and expense tracking',
+				'Financial reports and PDF export',
 				'Envelope budgets',
 				'Savings goals',
 				'Recurring transaction automation',
-				'Client invoicing and PDF export',
 				'CSV import with duplicate detection',
-				'Financial reports and PDF export',
-				'Dashboard with financial health score',
+				'Client invoicing and PDF export',
 			],
 			// NO aggregateRating / review -- see honesty comment above
 		},
@@ -98,7 +98,7 @@ export const viewport: Viewport = {
 
 export const metadata: Metadata = {
 	title: {
-		default: 'Budget Planner — Budgeting, expense tracking & invoicing',
+		default: 'Budget Planner — See your real financial health score',
 		template: '%s · Budget Planner',
 	},
 	description: BASE_DESCRIPTION,
@@ -116,9 +116,9 @@ export const metadata: Metadata = {
 		},
 	},
 	openGraph: {
-		title: 'Budget Planner — Budgeting, expense tracking & invoicing',
+		title: 'Budget Planner — See your real financial health score',
 		description:
-			'Track income and expenses, set budgets, reach savings goals, and send invoices. Free to start.',
+			'Log your income and expenses and get a financial health score out of 100 — plus budgets, savings goals, and monthly reports. Free to start. No bank linking.',
 		type: 'website',
 		url: '/',
 		siteName: 'Budget Planner',
@@ -126,9 +126,9 @@ export const metadata: Metadata = {
 	},
 	twitter: {
 		card: 'summary_large_image',
-		title: 'Budget Planner — Budgeting, expense tracking & invoicing',
+		title: 'Budget Planner — See your real financial health score',
 		description:
-			'Track income and expenses, set budgets, reach savings goals, and send invoices. Free to start.',
+			'Log your income and expenses and get a financial health score out of 100 — plus budgets, savings goals, and monthly reports. Free to start. No bank linking.',
 	},
 };
 
