@@ -29,6 +29,31 @@ export class ChangelogService {
 		return latest;
 	}
 
+	static getSitemapEntries(): { version: string; date: Date }[] {
+		const files = fs.readdirSync(CHANGELOG_DIR).filter((f) => f.endsWith('.md'));
+		const entries: { version: string; date: Date }[] = [];
+
+		for (const file of files) {
+			const raw = fs.readFileSync(path.join(CHANGELOG_DIR, file), 'utf-8');
+			const { data } = matter(raw);
+			const date = data.date instanceof Date ? data.date : new Date(String(data.date));
+
+			if (typeof data.version === 'string' && !isNaN(date.getTime())) {
+				entries.push({ version: data.version, date });
+			}
+		}
+
+		return entries;
+	}
+
+	static getAllSlugs(): string[] {
+		return this.getAllVersions().map((version) => version.version);
+	}
+
+	static getBySlug(slug: string): Version | null {
+		return this.getAllVersions().find((version) => version.version === slug) ?? null;
+	}
+
 	static getAllVersions(): Version[] {
 		const files = fs.readdirSync(CHANGELOG_DIR).filter((f) => f.endsWith('.md'));
 

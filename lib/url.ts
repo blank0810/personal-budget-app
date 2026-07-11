@@ -16,5 +16,8 @@ export const APP_URL = (
 ).replace(/\/+$/, '');
 
 /** Build an absolute URL from a path — slash-safe regardless of leading/trailing slashes. */
-export const absoluteUrl = (path = ''): string =>
-	path ? `${APP_URL}/${path.replace(/^\/+/, '')}` : APP_URL;
+export const absoluteUrl = (path = ''): string => {
+	const normalizedPath = path.replace(/^\/+/, '');
+
+	return normalizedPath ? `${APP_URL}/${normalizedPath}` : APP_URL;
+};
