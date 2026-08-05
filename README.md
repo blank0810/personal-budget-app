@@ -8,8 +8,8 @@ Built with **Next.js 15**, **PostgreSQL**, and **Prisma**, this application appl
 
 ## 📚 Documentation
 
--   **[Feature Walkthrough](WALKTHROUGH.md)**: A detailed user guide for every module (Dashboard, Accounts, Reports, etc.) and the financial logic behind them.
--   **[Implementation Plan](IMPLEMENTATION_PLAN.md)**: Technical architectural decisions and database schema design.
+-   **[Feature Walkthrough](docs/guides/WALKTHROUGH.md)**: A detailed user guide for every module (Dashboard, Accounts, Reports, etc.) and the financial logic behind them.
+-   **[Design Docs](docs/plans/)**: Dated design and implementation plans covering architectural decisions and database schema changes.
 
 ---
 
