@@ -7,10 +7,10 @@ import { format } from 'date-fns';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { InvoiceStatusBadge } from './InvoiceStatusBadge';
+import { MarkAsSentDialog } from './MarkAsSentDialog';
 import { MarkAsPaidDialog } from './MarkAsPaidDialog';
 import { formatCurrency as formatCurrencyUtil } from '@/lib/formatters';
 import {
-	markAsSentAction,
 	cancelInvoiceAction,
 	deleteInvoiceAction,
 	resendInvoiceEmailAction,
@@ -424,6 +424,7 @@ function InvoicePreview({
 export function InvoiceDetail({ invoice, paymentQr }: InvoiceDetailProps) {
 	const router = useRouter();
 	const [isPending, startTransition] = useTransition();
+	const [sentDialogOpen, setSentDialogOpen] = useState(false);
 	const [paidDialogOpen, setPaidDialogOpen] = useState(false);
 
 	// Use the invoice's own currency for formatting, falling back to USD
@@ -432,22 +433,6 @@ export function InvoiceDetail({ invoice, paymentQr }: InvoiceDetailProps) {
 			formatCurrencyUtil(value, { currency: invoice.currency ?? 'USD' }),
 		[invoice.currency]
 	);
-
-	function handleMarkAsSent() {
-		startTransition(async () => {
-			const result = await markAsSentAction(invoice.id);
-			if (result?.error) {
-				toast.error(result.error);
-			} else {
-				toast.success(
-					result.emailedTo
-						? `Invoice sent to ${result.emailedTo}`
-						: 'Invoice marked as sent'
-				);
-				router.refresh();
-			}
-		});
-	}
 
 	function handleCancel() {
 		startTransition(async () => {
@@ -522,17 +507,11 @@ export function InvoiceDetail({ invoice, paymentQr }: InvoiceDetailProps) {
 					{invoice.status === 'DRAFT' && (
 						<>
 							<Button
-								onClick={handleMarkAsSent}
+								onClick={() => setSentDialogOpen(true)}
 								disabled={isPending}
 							>
-								{isPending ? (
-									<Loader2 className="mr-2 h-4 w-4 animate-spin" />
-								) : (
-									<Send className="mr-2 h-4 w-4" />
-								)}
-								{invoice.clientEmail
-									? 'Send to Client'
-									: 'Record as Sent'}
+								<Send className="mr-2 h-4 w-4" />
+								Mark as Sent
 							</Button>
 							<Button variant="outline" asChild>
 								<Link href={`/invoices/${invoice.id}/edit`}>
@@ -652,6 +631,14 @@ export function InvoiceDetail({ invoice, paymentQr }: InvoiceDetailProps) {
 				invoice={invoice}
 				formatCurrency={formatCurrency}
 				paymentQr={paymentQr}
+			/>
+
+			<MarkAsSentDialog
+				invoiceId={invoice.id}
+				clientEmail={invoice.clientEmail}
+				open={sentDialogOpen}
+				onSuccess={() => router.refresh()}
+				onClose={() => setSentDialogOpen(false)}
 			/>
 
 			<MarkAsPaidDialog
