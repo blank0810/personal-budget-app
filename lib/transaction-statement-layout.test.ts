@@ -47,7 +47,7 @@ describe('TransactionStatement table layout', () => {
 		expect(markup).toContain('Closing Balance');
 	});
 
-	it('places Category immediately after Date in the header and transaction rows', () => {
+	it('preserves the statement reading order across the header and transaction rows', () => {
 		const markup = renderToStaticMarkup(
 			createElement(TransactionStatement, {
 				data: statement,
@@ -60,10 +60,22 @@ describe('TransactionStatement table layout', () => {
 			markup.match(/<tr[^>]*><td[^>]*>Aug 15<\/td>[\s\S]*?<\/tr>/)?.[0] ?? '';
 
 		expect(header).toMatch(
-			/<th[^>]*>Date<\/th><th[^>]*>Category<\/th><th[^>]*>Description<\/th>/,
+			/<th[^>]*>Date<\/th><th[^>]*>Description<\/th><th[^>]*>Category<\/th>/,
 		);
 		expect(transactionRow).toMatch(
-			/<td[^>]*><div[^>]*>Groceries<\/div><\/td><td[^>]*>Monthly groceries<\/td>/,
+			/<td[^>]*>Monthly groceries<\/td><td[^>]*><div[^>]*>Groceries<\/div><\/td>/,
 		);
+	});
+
+	it('distributes all six statement columns across equal-width tracks', () => {
+		const markup = renderToStaticMarkup(
+			createElement(TransactionStatement, {
+				data: statement,
+				accountName: 'All Accounts',
+				userName: 'Demo User',
+			}),
+		);
+
+		expect(markup.match(/<col class="w-1\/6"\/>/g) ?? []).toHaveLength(6);
 	});
 });

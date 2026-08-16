@@ -116,21 +116,21 @@ export function TransactionStatement({
 
 						<Table
 							containerClassName='max-h-[400px] overflow-auto'
-							className='min-w-[980px] table-fixed'
+							className='min-w-[1080px] table-fixed'
 						>
 							<colgroup>
-								<col className='w-[100px]' />
-								<col className='w-[170px]' />
-								<col />
-								<col className='w-[190px]' />
-								<col className='w-[160px]' />
-								<col className='w-[160px]' />
+								<col className='w-1/6' />
+								<col className='w-1/6' />
+								<col className='w-1/6' />
+								<col className='w-1/6' />
+								<col className='w-1/6' />
+								<col className='w-1/6' />
 							</colgroup>
 							<TableHeader className='sticky top-0 z-10 bg-background'>
 								<TableRow>
 									<TableHead>Date</TableHead>
-									<TableHead className='text-left'>Category</TableHead>
 									<TableHead>Description</TableHead>
+									<TableHead className='text-left'>Category</TableHead>
 									<TableHead>Budget Status</TableHead>
 									<TableHead className='text-right'>Amount</TableHead>
 									<TableHead className='text-right'>Balance</TableHead>
@@ -156,13 +156,13 @@ export function TransactionStatement({
 										<TableCell className='text-muted-foreground'>
 											{format(new Date(tx.date), 'MMM d')}
 										</TableCell>
+										<TableCell className='whitespace-normal break-words'>
+											{tx.description || '-'}
+										</TableCell>
 										<TableCell className='text-left'>
 											<Badge variant='outline' className='text-left text-xs'>
 												{tx.categoryName}
 											</Badge>
-										</TableCell>
-										<TableCell className='whitespace-normal break-words'>
-											{tx.description || '-'}
 										</TableCell>
 										<TableCell>
 											{tx.type === 'EXPENSE' ? (
