@@ -5,6 +5,7 @@ import { InvoiceService } from './invoice.service';
 import {
 	createInvoiceSchema,
 	updateInvoiceSchema,
+	markAsSentSchema,
 	markAsPaidSchema,
 	generateFromEntriesSchema,
 } from './invoice.types';
@@ -59,13 +60,23 @@ export async function updateInvoiceAction(data: unknown) {
 	}
 }
 
-export async function markAsSentAction(invoiceId: string) {
+export async function markAsSentAction(data: unknown) {
 	const userId = await getAuthenticatedUser();
+	const parsed = markAsSentSchema.safeParse(data);
+
+	if (!parsed.success) {
+		return {
+			error: parsed.error.issues[0]?.message || 'Validation failed',
+		};
+	}
 
 	try {
-		const { emailedTo } = await InvoiceService.markAsSent(userId, invoiceId);
+		const { emailedTo, emailWarning } = await InvoiceService.markAsSent(
+			userId,
+			parsed.data
+		);
 		invalidateTags(CACHE_TAGS.INVOICES);
-		return { success: true as const, emailedTo };
+		return { success: true as const, emailedTo, emailWarning };
 	} catch (error) {
 		return {
 			error:
@@ -87,15 +98,12 @@ export async function markAsPaidAction(data: unknown) {
 	}
 
 	try {
-		const { emailedTo } = await InvoiceService.markAsPaid(userId, parsed.data);
-		// markAsPaid creates an Income record, so also invalidate income/account/dashboard
-		invalidateTags(
-			CACHE_TAGS.INVOICES,
-			CACHE_TAGS.INCOMES,
-			CACHE_TAGS.ACCOUNTS,
-			CACHE_TAGS.DASHBOARD
+		const { emailedTo, emailWarning } = await InvoiceService.markAsPaid(
+			userId,
+			parsed.data
 		);
-		return { success: true as const, emailedTo };
+		invalidateTags(CACHE_TAGS.INVOICES);
+		return { success: true as const, emailedTo, emailWarning };
 	} catch (error) {
 		return {
 			error:
