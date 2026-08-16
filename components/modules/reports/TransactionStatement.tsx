@@ -130,7 +130,7 @@ export function TransactionStatement({
 								<TableRow>
 									<TableHead>Date</TableHead>
 									<TableHead>Description</TableHead>
-									<TableHead>Category</TableHead>
+									<TableHead className='text-left'>Category</TableHead>
 									<TableHead>Budget Status</TableHead>
 									<TableHead className='text-right'>Amount</TableHead>
 									<TableHead className='text-right'>Balance</TableHead>
@@ -159,8 +159,8 @@ export function TransactionStatement({
 										<TableCell className='whitespace-normal break-words'>
 											{tx.description || '-'}
 										</TableCell>
-										<TableCell>
-											<Badge variant='outline' className='text-xs'>
+										<TableCell className='text-left'>
+											<Badge variant='outline' className='text-left text-xs'>
 												{tx.categoryName}
 											</Badge>
 										</TableCell>

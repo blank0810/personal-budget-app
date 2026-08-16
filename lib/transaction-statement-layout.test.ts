@@ -45,5 +45,8 @@ describe('TransactionStatement table layout', () => {
 		expect(markup).toContain('Category');
 		expect(markup).toContain('Budget Status');
 		expect(markup).toContain('Closing Balance');
+		expect(markup).toMatch(
+			/<td[^>]*class="[^"]*text-left[^"]*"[^>]*><div[^>]*>Groceries<\/div><\/td>/,
+		);
 	});
 });
