@@ -77,7 +77,12 @@ services:
     bull-board:
         image: deadly0/bull-board
         container_name: budget-planner-bull-board
-        restart: on-failure
+        # `no`, not `on-failure`: bull-board exits 1 when it can't resolve the
+        # `redis` hostname. On a dev box the daemon restores on-failure
+        # containers at boot without honoring depends_on, so it came back
+        # alone, with no redis, and crash-looped forever. Start it manually
+        # with the rest of the stack instead.
+        restart: "no"
         environment:
             REDIS_HOST: redis
             REDIS_PORT: 6379
