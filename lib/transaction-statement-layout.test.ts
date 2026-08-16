@@ -45,8 +45,25 @@ describe('TransactionStatement table layout', () => {
 		expect(markup).toContain('Category');
 		expect(markup).toContain('Budget Status');
 		expect(markup).toContain('Closing Balance');
-		expect(markup).toMatch(
-			/<td[^>]*class="[^"]*text-left[^"]*"[^>]*><div[^>]*>Groceries<\/div><\/td>/,
+	});
+
+	it('places Category immediately after Date in the header and transaction rows', () => {
+		const markup = renderToStaticMarkup(
+			createElement(TransactionStatement, {
+				data: statement,
+				accountName: 'All Accounts',
+				userName: 'Demo User',
+			}),
+		);
+		const header = markup.match(/<thead[\s\S]*?<\/thead>/)?.[0] ?? '';
+		const transactionRow =
+			markup.match(/<tr[^>]*><td[^>]*>Aug 15<\/td>[\s\S]*?<\/tr>/)?.[0] ?? '';
+
+		expect(header).toMatch(
+			/<th[^>]*>Date<\/th><th[^>]*>Category<\/th><th[^>]*>Description<\/th>/,
+		);
+		expect(transactionRow).toMatch(
+			/<td[^>]*><div[^>]*>Groceries<\/div><\/td><td[^>]*>Monthly groceries<\/td>/,
 		);
 	});
 });

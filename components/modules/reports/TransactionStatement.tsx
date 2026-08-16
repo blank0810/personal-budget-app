@@ -120,8 +120,8 @@ export function TransactionStatement({
 						>
 							<colgroup>
 								<col className='w-[100px]' />
-								<col />
 								<col className='w-[170px]' />
+								<col />
 								<col className='w-[190px]' />
 								<col className='w-[160px]' />
 								<col className='w-[160px]' />
@@ -129,8 +129,8 @@ export function TransactionStatement({
 							<TableHeader className='sticky top-0 z-10 bg-background'>
 								<TableRow>
 									<TableHead>Date</TableHead>
-									<TableHead>Description</TableHead>
 									<TableHead className='text-left'>Category</TableHead>
+									<TableHead>Description</TableHead>
 									<TableHead>Budget Status</TableHead>
 									<TableHead className='text-right'>Amount</TableHead>
 									<TableHead className='text-right'>Balance</TableHead>
@@ -156,13 +156,13 @@ export function TransactionStatement({
 										<TableCell className='text-muted-foreground'>
 											{format(new Date(tx.date), 'MMM d')}
 										</TableCell>
-										<TableCell className='whitespace-normal break-words'>
-											{tx.description || '-'}
-										</TableCell>
 										<TableCell className='text-left'>
 											<Badge variant='outline' className='text-left text-xs'>
 												{tx.categoryName}
 											</Badge>
+										</TableCell>
+										<TableCell className='whitespace-normal break-words'>
+											{tx.description || '-'}
 										</TableCell>
 										<TableCell>
 											{tx.type === 'EXPENSE' ? (
