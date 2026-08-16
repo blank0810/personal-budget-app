@@ -55,3 +55,8 @@ next-env.d.ts
 
 # playwright mcp
 .playwright-mcp/
+
+# Impeccable transient working files
+/.impeccable/questions/
+/.impeccable/mocks/**/*.prompt.txt
+/.impeccable/*-options.json
