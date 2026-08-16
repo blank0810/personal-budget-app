@@ -16,6 +16,11 @@ import {
 	Lightbulb,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import {
+	getHealthLabelDescription,
+	getPillarQuestion,
+	orderHealthPillars,
+} from '@/lib/financial-health-copy';
 
 // ─── Types ──────────────────────────────────────────
 
@@ -49,14 +54,6 @@ const PILLAR_ICONS: Record<string, typeof Shield> = {
 	'Cash Flow': ArrowLeftRight,
 };
 
-const PILLAR_ONE_LINERS: Record<string, string> = {
-	Solvency: 'Can you cover what you owe?',
-	Liquidity: 'Can you survive an emergency?',
-	Savings: 'Are you keeping enough of what you earn?',
-	'Debt Management': 'Is your debt under control?',
-	'Cash Flow': 'Is more coming in than going out?',
-};
-
 // ─── Color Utilities ────────────────────────────────
 
 function getScoreColor(score: number) {
@@ -83,17 +80,6 @@ function getProgressColor(score: number) {
 	if (score >= 60) return 'bg-yellow-500';
 	if (score >= 40) return 'bg-orange-500';
 	return 'bg-red-500';
-}
-
-function getLabelDescription(label: string) {
-	switch (label) {
-		case 'Excellent': return 'Absolutely elite. Your finances are tighter than a NASA launch checklist. Banks wish they had your discipline.';
-		case 'Good': return 'You\'re doing well — genuinely. Most people would kill for this position. A couple of tweaks and you\'re untouchable.';
-		case 'Fair': return 'Not terrible, not great. You\'re the financial equivalent of a C+ student — passing, but nobody\'s putting you on the fridge.';
-		case 'Needs Attention': return 'Your finances are held together with duct tape and denial. This isn\'t a warning, it\'s an intervention.';
-		case 'Critical': return 'Financially deceased. If your bank account was a patient, we\'d be calling time of death. Fix this or start a GoFundMe.';
-		default: return '';
-	}
 }
 
 // ─── Score Ring ─────────────────────────────────────
@@ -173,7 +159,7 @@ function HealthBadge({ data }: { data: FinancialHealthScoreData }) {
 						{data.overallLabel}
 					</p>
 					<p className='text-xs text-muted-foreground mt-1 line-clamp-2'>
-						{getLabelDescription(data.overallLabel)}
+						{getHealthLabelDescription(data.overallLabel)}
 					</p>
 				</div>
 			</CardContent>
@@ -214,11 +200,11 @@ function PillarsOnlyCard({ data }: { data: FinancialHealthScoreData }) {
 				</CardHeader>
 				<CollapsibleContent>
 					<CardContent className='space-y-2'>
-						{data.pillars.map((pillar, index) => {
+						{orderHealthPillars(data.pillars).map((pillar, index) => {
 					const Icon = PILLAR_ICONS[pillar.name] || Shield;
 					const isExpanded = expandedPillar === pillar.name;
 					const isWeakest = topRecommendation?.name === pillar.name;
-					const oneLiner = PILLAR_ONE_LINERS[pillar.name];
+					const oneLiner = getPillarQuestion(pillar.name);
 
 					return (
 						<div
@@ -339,7 +325,7 @@ function FullHealthCheck({ data }: { data: FinancialHealthScoreData }) {
 							{data.overallLabel}
 						</p>
 						<p className='text-sm text-muted-foreground mt-1'>
-							{getLabelDescription(data.overallLabel)}
+							{getHealthLabelDescription(data.overallLabel)}
 						</p>
 						{topRecommendation && (
 							<div className='mt-3 pt-3 border-t flex items-start gap-2'>
@@ -365,11 +351,11 @@ function FullHealthCheck({ data }: { data: FinancialHealthScoreData }) {
 
 				{/* Pillar breakdown */}
 				<div className='border-t pt-4 space-y-2'>
-					{data.pillars.map((pillar) => {
+					{orderHealthPillars(data.pillars).map((pillar) => {
 						const Icon = PILLAR_ICONS[pillar.name] || Shield;
 						const isExpanded = expandedPillar === pillar.name;
 						const isWeakest = topRecommendation?.name === pillar.name;
-						const oneLiner = PILLAR_ONE_LINERS[pillar.name];
+						const oneLiner = getPillarQuestion(pillar.name);
 
 						return (
 							<div
