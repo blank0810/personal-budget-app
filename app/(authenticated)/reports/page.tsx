@@ -21,7 +21,6 @@ import { IncomeExpenseRatioChart } from '@/components/modules/reports/IncomeExpe
 import { serialize } from '@/lib/serialization';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Wallet, TrendingDown, PiggyBank } from 'lucide-react';
-import { FinancialHealthCheck } from '@/components/modules/reports/FinancialHealthCheck';
 import { SendReportDialog } from '@/components/modules/reports/SendReportDialog';
 
 export default async function ReportsPage({
@@ -70,7 +69,6 @@ export default async function ReportsPage({
 		cashFlowWaterfall,
 		transactionStatement,
 		, // allCategories — fetched but unused in this view
-		healthScore,
 		userPrefs,
 	] = await Promise.all([
 		ReportService.getCategoryBreakdown(userId, from, to),
@@ -85,7 +83,6 @@ export default async function ReportsPage({
 		ReportService.getCashFlowWaterfall(userId, from, to),
 		ReportService.getTransactionStatement(userId, from, to),
 		CategoryService.getCategories(userId),
-		DashboardService.getFinancialHealthScore(userId),
 		UserService.getEmailAndCreatedAt(userId),
 	]);
 
@@ -135,13 +132,10 @@ export default async function ReportsPage({
 					<TabsTrigger value='ledger'>Statements</TabsTrigger>
 				</TabsList>
 
-				{/* 1. OVERVIEW TAB — Financial Command Center */}
+				{/* 1. OVERVIEW TAB — Financial Summary */}
 				<TabsContent value='overview' className='space-y-6'>
-					{/* Row 1: Health Badge + KPI Cards */}
-					<div className='grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-5'>
-						{/* Health Badge — inline anchor */}
-						<FinancialHealthCheck data={healthScore} variant='badge' />
-						{/* KPI Cards */}
+					{/* Row 1: KPI Cards */}
+					<div className='grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4'>
 						<KPICard
 							title='Net Result'
 							value={formatCurrency(kpis.netIncome.value)}
@@ -175,9 +169,6 @@ export default async function ReportsPage({
 
 					{/* Row 2: Net Worth Trend (full width, animated) */}
 					<NetWorthTrendChart data={netWorthHistory} />
-
-					{/* Row 3: 5-Pillar Breakdown */}
-					<FinancialHealthCheck data={healthScore} variant='pillars-only' />
 				</TabsContent>
 
 				{/* 2. INCOME & EXPENSES TAB */}

@@ -134,7 +134,7 @@ The system favors near-white or near-black canvases, gray hairlines, compact den
 - Compose shadcn/ui New York primitives from `components/ui/`; themes use `next-themes` with a `.dark` class and the system default.
 - Use tabs for indentation, `lucide-react` for icons, Recharts for charts, and Sonner for toasts.
 - Aniq UI remains a general authenticated-app reference; the shipped Health Ledger is the dashboard's visual ground truth. The authenticated shell remains unchanged.
-- Reports retains its own layout. The dashboard shares authoritative financial-health copy with Reports, but this document does not redesign Reports.
+- Reports retains its own visual system. Its Overview is intentionally limited to four summary cards followed by Net Worth Trend; financial-health diagnosis and pillar scoring live on the dashboard.
 - The public landing remains Vercel × Raycast × Linear × Mercury: light, gradient, glass, and restrained, within its isolated landing scope.
 
 ## Colors
@@ -250,7 +250,7 @@ Diagnostic structures deliberately resist card silhouettes: verdict bands and ev
 ### Health Ledger
 
 - Always show the five pillars in their fixed order as comparison rows, not cards: pillar/question and weight, grade/status, factual evidence, then a real next action.
-- Use hairlines, shared column tracks, compact `0.75rem` row padding, small status icons, and text-backed semantic badges.
+- Define desktop tracks once on the ledger parent and let its header and rows inherit them with subgrid. Use hairlines, compact `0.75rem` row padding, small status icons, and text-backed semantic badges.
 - On mobile, preserve the same information order in a vertical row. Unsupported pillars say “Needs data” without a misleading number.
 
 ### Evidence strip and operating panels
@@ -274,7 +274,7 @@ Diagnostic structures deliberately resist card silhouettes: verdict bands and ev
 - **Do** reflow the verdict focus block below the diagnosis before the layout becomes cramped.
 - **Do** pair every status color with a label, score, grade, sign, icon, or explanation.
 - **Do** keep unavailable quick actions keyboard-focusable and show the reason they cannot run.
-- **Do** keep landing effects isolated, Reports layout unchanged, and the authenticated shell singular.
+- **Do** keep landing effects isolated, preserve Reports Overview's summary-to-net-worth sequence, and keep the authenticated shell singular.
 - **Do** preserve landing-grid asymmetry, mixed-case section headings, and restrained glass where its route-specific guidance calls for them.
 
 ### Don't:
