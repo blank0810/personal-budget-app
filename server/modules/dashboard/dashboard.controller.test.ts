@@ -158,4 +158,18 @@ describe('getDashboardOverviewAction', () => {
 		);
 		consoleError.mockRestore();
 	});
+
+	it('rethrows Next.js control-flow errors for the framework to handle', async () => {
+		const consoleError = vi
+			.spyOn(console, 'error')
+			.mockImplementation(() => undefined);
+		const dynamicError = Object.assign(new Error('dynamic request data'), {
+			digest: 'DYNAMIC_SERVER_USAGE',
+		});
+		mocks.getAuthenticatedUser.mockRejectedValue(dynamicError);
+
+		await expect(getDashboardOverviewAction()).rejects.toBe(dynamicError);
+		expect(consoleError).not.toHaveBeenCalled();
+		consoleError.mockRestore();
+	});
 });

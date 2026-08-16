@@ -335,4 +335,26 @@ describe('buildDashboardOverview', () => {
 			payment: { enabled: true, disabledReason: null },
 		});
 	});
+
+	it('treats liability credits as zero debt instead of negative debt', () => {
+		const source = makeSource();
+		source.dashboard.totalDebt = -500;
+		source.dashboard.liabilities = -500;
+		source.dashboard.debtToAssetRatio = -2.5;
+		source.dashboard.creditUtilization = -2.5;
+
+		const result = buildDashboardOverview(source, new Date(2026, 7, 16));
+
+		expect(result.health.pillars[0].evidence).toBe('Debt-free');
+		expect(result.health.pillars[3].evidence).toBe('Debt-free');
+		expect(result.health.pillars[3].action).toEqual({
+			kind: 'link',
+			href: '/accounts',
+			label: 'Review accounts',
+		});
+		expect(result.accountsDebt).toMatchObject({
+			liabilities: 0,
+			creditUtilization: 0,
+		});
+	});
 });

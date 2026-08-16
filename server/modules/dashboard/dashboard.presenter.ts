@@ -158,9 +158,9 @@ function evidenceFor(
 		return 'Income and expense history required';
 	}
 	if (name === 'Solvency') {
-		return data.totalDebt === 0
+		return data.totalDebt <= 0
 			? 'Debt-free'
-			: `${data.debtToAssetRatio.toFixed(1)}% debt-to-asset`;
+			: `${Math.max(0, data.debtToAssetRatio).toFixed(1)}% debt-to-asset`;
 	}
 	if (name === 'Liquidity') {
 		return data.runwayMonths === null
@@ -171,9 +171,9 @@ function evidenceFor(
 		return `${data.savingsRate.toFixed(1)}% YTD savings rate`;
 	}
 	if (name === 'Debt Management') {
-		if (data.totalDebt === 0) return 'Debt-free';
+		if (data.totalDebt <= 0) return 'Debt-free';
 		if (data.totalCreditLimit > 0) {
-			return `${data.creditUtilization.toFixed(1)}% credit utilization`;
+			return `${Math.max(0, data.creditUtilization).toFixed(1)}% credit utilization`;
 		}
 		return `${formatCurrency(data.totalDebt, {
 			currency: source.currency,
@@ -207,6 +207,27 @@ function buildPillars(
 			(quality === 'partial' &&
 				definition.name !== 'Savings' &&
 				definition.name !== 'Cash Flow');
+		const action =
+			quality === 'partial' && definition.name === 'Savings'
+				? ({
+						kind: 'quick-action',
+						action: 'income',
+						label: 'Add income',
+					} satisfies DashboardAction)
+				: quality === 'partial' && definition.name === 'Cash Flow'
+					? ({
+							kind: 'quick-action',
+							action: 'expense',
+							label: 'Add expense',
+						} satisfies DashboardAction)
+					: definition.name === 'Debt Management' &&
+						  source.dashboard.totalDebt <= 0
+						? ({
+								kind: 'link',
+								href: '/accounts',
+								label: 'Review accounts',
+							} satisfies DashboardAction)
+						: PILLAR_ACTIONS[definition.name];
 		return {
 			name: definition.name,
 			question: definition.question,
@@ -217,16 +238,7 @@ function buildPillars(
 			tone: toneForScore(supported ? raw.score : null),
 			evidence: evidenceFor(definition.name, source, quality),
 			recommendation: supported ? raw.recommendation : null,
-			action:
-				quality === 'partial' && definition.name === 'Savings'
-					? { kind: 'quick-action', action: 'income', label: 'Add income' }
-					: quality === 'partial' && definition.name === 'Cash Flow'
-						? {
-								kind: 'quick-action',
-								action: 'expense',
-								label: 'Add expense',
-							}
-						: PILLAR_ACTIONS[definition.name],
+			action,
 		};
 	});
 }
@@ -446,11 +458,11 @@ export function buildDashboardOverview(
 		},
 		accountsDebt: {
 			liquidAssets: source.dashboard.liquidAssets,
-			liabilities: source.dashboard.liabilities,
+			liabilities: Math.max(0, source.dashboard.liabilities),
 			netWorth: source.dashboard.netWorth,
 			creditUtilization:
 				source.dashboard.totalCreditLimit > 0
-					? source.dashboard.creditUtilization
+					? Math.max(0, source.dashboard.creditUtilization)
 					: null,
 		},
 		recentActivity: source.transactions.slice(0, 8).map(mapActivity),

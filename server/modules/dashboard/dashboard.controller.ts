@@ -1,5 +1,6 @@
 'use server';
 
+import { unstable_rethrow } from 'next/navigation';
 import { getAuthenticatedUser } from '@/server/lib/auth-guard';
 import { BudgetService } from '@/server/modules/budget/budget.service';
 import { CategoryService } from '@/server/modules/category/category.service';
@@ -112,6 +113,7 @@ export async function getDashboardOverviewAction(): Promise<DashboardOverviewRes
 
 		return { success: true, data };
 	} catch (error) {
+		unstable_rethrow(error);
 		console.error('Failed to load dashboard:', error);
 		return { error: 'Failed to load dashboard' };
 	}

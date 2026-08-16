@@ -73,7 +73,7 @@ import { createPaymentAction } from '@/server/modules/payment/payment.controller
 
 export type QuickAction = 'income' | 'expense' | 'transfer' | 'payment';
 
-interface AccountOption {
+export interface QuickActionAccountOption {
 	id: string;
 	name: string;
 	type: string;
@@ -81,12 +81,12 @@ interface AccountOption {
 	isLiability: boolean;
 }
 
-interface CategoryOption {
+export interface QuickActionCategoryOption {
 	id: string;
 	name: string;
 }
 
-interface BudgetOption {
+export interface QuickActionBudgetOption {
 	id: string;
 	name: string;
 	categoryId: string;
@@ -94,10 +94,10 @@ interface BudgetOption {
 }
 
 export interface QuickActionSheetProps {
-	accounts: AccountOption[];
-	incomeCategories: CategoryOption[];
-	expenseCategories: CategoryOption[];
-	budgets: BudgetOption[];
+	accounts: QuickActionAccountOption[];
+	incomeCategories: QuickActionCategoryOption[];
+	expenseCategories: QuickActionCategoryOption[];
+	budgets: QuickActionBudgetOption[];
 	children: React.ReactNode;
 }
 
@@ -166,8 +166,8 @@ function IncomeQuickForm({
 	categories,
 	onClose,
 }: {
-	accounts: AccountOption[];
-	categories: CategoryOption[];
+	accounts: QuickActionAccountOption[];
+	categories: QuickActionCategoryOption[];
 	onClose: () => void;
 }) {
 	const router = useRouter();
@@ -461,9 +461,9 @@ function ExpenseQuickForm({
 	budgets,
 	onClose,
 }: {
-	accounts: AccountOption[];
-	categories: CategoryOption[];
-	budgets: BudgetOption[];
+	accounts: QuickActionAccountOption[];
+	categories: QuickActionCategoryOption[];
+	budgets: QuickActionBudgetOption[];
 	onClose: () => void;
 }) {
 	const router = useRouter();
@@ -730,7 +730,7 @@ function TransferQuickForm({
 	accounts,
 	onClose,
 }: {
-	accounts: AccountOption[];
+	accounts: QuickActionAccountOption[];
 	onClose: () => void;
 }) {
 	const router = useRouter();
@@ -929,7 +929,7 @@ function PaymentQuickForm({
 	accounts,
 	onClose,
 }: {
-	accounts: AccountOption[];
+	accounts: QuickActionAccountOption[];
 	onClose: () => void;
 }) {
 	const router = useRouter();
