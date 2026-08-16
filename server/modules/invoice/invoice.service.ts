@@ -25,6 +25,15 @@ const PAID_EMAIL_WARNING =
 const PAID_EMAIL_MISSING_WARNING =
 	'Invoice was marked as paid, but no client email is available. Add an email before retrying.';
 
+function isRecordNotFoundError(error: unknown): boolean {
+	return (
+		typeof error === 'object' &&
+		error !== null &&
+		'code' in error &&
+		error.code === 'P2025'
+	);
+}
+
 /**
  * Compute subtotal, tax, and total from an array of line items and a tax rate.
  */
@@ -536,10 +545,21 @@ export const InvoiceService = {
 			throw new Error('Only DRAFT invoices can be marked as sent');
 		}
 
-		const updated = await prisma.invoice.update({
-			where: { id: data.invoiceId, userId },
-			data: { status: InvoiceStatus.SENT },
-		});
+		const updated = await prisma.invoice
+			.update({
+				where: {
+					id: data.invoiceId,
+					userId,
+					status: InvoiceStatus.DRAFT,
+				},
+				data: { status: InvoiceStatus.SENT },
+			})
+			.catch((error: unknown) => {
+				if (isRecordNotFoundError(error)) {
+					throw new Error('Only DRAFT invoices can be marked as sent');
+				}
+				throw error;
+			});
 
 		let emailedTo: string | null = null;
 		let emailWarning: string | null = null;
@@ -607,10 +627,25 @@ export const InvoiceService = {
 		}
 
 		const paidAt = data.date ?? new Date();
-		const updated = await prisma.invoice.update({
-			where: { id: data.invoiceId, userId },
-			data: { status: InvoiceStatus.PAID, paidAt },
-		});
+		const updated = await prisma.invoice
+			.update({
+				where: {
+					id: data.invoiceId,
+					userId,
+					status: {
+						in: [InvoiceStatus.SENT, InvoiceStatus.OVERDUE],
+					},
+				},
+				data: { status: InvoiceStatus.PAID, paidAt },
+			})
+			.catch((error: unknown) => {
+				if (isRecordNotFoundError(error)) {
+					throw new Error(
+						'Only SENT or OVERDUE invoices can be marked as paid'
+					);
+				}
+				throw error;
+			});
 
 		let emailedTo: string | null = null;
 		let emailWarning: string | null = null;

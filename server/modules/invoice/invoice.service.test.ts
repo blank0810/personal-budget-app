@@ -113,14 +113,24 @@ function makeInvoice(
 	};
 }
 
+function makeRecordNotFoundError() {
+	return Object.assign(new Error('Record to update not found'), {
+		code: 'P2025',
+	});
+}
+
 beforeEach(() => {
 	vi.clearAllMocks();
 	mocks.events.length = 0;
 	mocks.getCurrency.mockResolvedValue('USD');
 	mocks.urlToQrDataUri.mockResolvedValue(null);
-	mocks.renderInvoicePDF.mockResolvedValue(Buffer.from('invoice-pdf'));
+	mocks.renderInvoicePDF.mockImplementation(async () => {
+		mocks.events.push('render:pdf');
+		return Buffer.from('invoice-pdf');
+	});
 	mocks.invoiceUpdate.mockImplementation(
 		async ({ data }: { data: { status: InvoiceStatus; paidAt?: Date } }) => {
+			await Promise.resolve();
 			mocks.events.push(`update:${data.status}`);
 			return { id: 'invoice-1', ...data };
 		}
@@ -151,7 +161,11 @@ describe('InvoiceService.markAsSent', () => {
 		});
 
 		expect(mocks.invoiceUpdate).toHaveBeenCalledWith({
-			where: { id: 'invoice-1', userId: 'user-1' },
+			where: {
+				id: 'invoice-1',
+				userId: 'user-1',
+				status: InvoiceStatus.DRAFT,
+			},
 			data: { status: InvoiceStatus.SENT },
 		});
 		expect(mocks.sendInvoice).not.toHaveBeenCalled();
@@ -169,7 +183,11 @@ describe('InvoiceService.markAsSent', () => {
 			sendEmail: true,
 		});
 
-		expect(mocks.events).toEqual(['update:SENT', 'email:invoice']);
+		expect(mocks.events).toEqual([
+			'update:SENT',
+			'render:pdf',
+			'email:invoice',
+		]);
 		expect(result.emailedTo).toBe('client@example.com');
 		expect(result.emailWarning).toBeNull();
 	});
@@ -193,7 +211,11 @@ describe('InvoiceService.markAsSent', () => {
 			emailedTo: null,
 			emailWarning: SENT_EMAIL_WARNING,
 		});
-		expect(mocks.events).toEqual(['update:SENT', 'email:invoice']);
+		expect(mocks.events).toEqual([
+			'update:SENT',
+			'render:pdf',
+			'email:invoice',
+		]);
 	});
 
 	it('keeps SENT and warns when selected delivery has no address', async () => {
@@ -229,10 +251,55 @@ describe('InvoiceService.markAsSent', () => {
 		expect(mocks.sendInvoice).not.toHaveBeenCalled();
 	});
 
-	it('rejects a non-DRAFT invoice before updating or emailing', async () => {
-		mocks.invoiceFindUnique.mockResolvedValue(
-			makeInvoice(InvoiceStatus.SENT)
+	it('allows only one concurrent SENT transition and delivery', async () => {
+		let storedStatus = InvoiceStatus.DRAFT;
+		mocks.invoiceFindUnique.mockImplementation(async () =>
+			makeInvoice(storedStatus)
 		);
+		mocks.invoiceUpdate.mockImplementation(
+			async ({
+				where,
+				data,
+			}: {
+				where: { status?: InvoiceStatus };
+				data: { status: InvoiceStatus };
+			}) => {
+				if (where.status !== storedStatus) {
+					throw makeRecordNotFoundError();
+				}
+				storedStatus = data.status;
+				mocks.events.push(`update:${data.status}`);
+				return { id: 'invoice-1', ...data };
+			}
+		);
+
+		const results = await Promise.allSettled([
+			InvoiceService.markAsSent('user-1', {
+				invoiceId: 'invoice-1',
+				sendEmail: true,
+			}),
+			InvoiceService.markAsSent('user-1', {
+				invoiceId: 'invoice-1',
+				sendEmail: true,
+			}),
+		]);
+
+		expect(results.filter(({ status }) => status === 'fulfilled')).toHaveLength(1);
+		expect(results.filter(({ status }) => status === 'rejected')).toHaveLength(1);
+		expect(results.find(({ status }) => status === 'rejected')).toMatchObject({
+			reason: new Error('Only DRAFT invoices can be marked as sent'),
+		});
+		expect(storedStatus).toBe(InvoiceStatus.SENT);
+		expect(mocks.sendInvoice).toHaveBeenCalledOnce();
+	});
+
+	it.each([
+		InvoiceStatus.SENT,
+		InvoiceStatus.PAID,
+		InvoiceStatus.OVERDUE,
+		InvoiceStatus.CANCELLED,
+	])('rejects %s before updating or emailing', async (status) => {
+		mocks.invoiceFindUnique.mockResolvedValue(makeInvoice(status));
 
 		await expect(
 			InvoiceService.markAsSent('user-1', {
@@ -259,7 +326,13 @@ describe('InvoiceService.markAsPaid', () => {
 		});
 
 		expect(mocks.invoiceUpdate).toHaveBeenCalledWith({
-			where: { id: 'invoice-1', userId: 'user-1' },
+			where: {
+				id: 'invoice-1',
+				userId: 'user-1',
+				status: {
+					in: [InvoiceStatus.SENT, InvoiceStatus.OVERDUE],
+				},
+			},
 			data: { status: InvoiceStatus.PAID, paidAt },
 		});
 		expect(mocks.sendInvoiceReceipt).not.toHaveBeenCalled();
@@ -278,7 +351,11 @@ describe('InvoiceService.markAsPaid', () => {
 			sendEmail: true,
 		});
 
-		expect(mocks.events).toEqual(['update:PAID', 'email:receipt']);
+		expect(mocks.events).toEqual([
+			'update:PAID',
+			'render:pdf',
+			'email:receipt',
+		]);
 		expect(result.emailedTo).toBe('client@example.com');
 		expect(result.emailWarning).toBeNull();
 	});
@@ -303,7 +380,11 @@ describe('InvoiceService.markAsPaid', () => {
 			emailedTo: null,
 			emailWarning: PAID_EMAIL_WARNING,
 		});
-		expect(mocks.events).toEqual(['update:PAID', 'email:receipt']);
+		expect(mocks.events).toEqual([
+			'update:PAID',
+			'render:pdf',
+			'email:receipt',
+		]);
 	});
 
 	it('keeps PAID and warns when selected receipt delivery has no address', async () => {
@@ -323,10 +404,69 @@ describe('InvoiceService.markAsPaid', () => {
 		expect(result.emailWarning).toBe(PAID_EMAIL_MISSING_WARNING);
 	});
 
-	it('rejects a DRAFT invoice before updating or emailing', async () => {
-		mocks.invoiceFindUnique.mockResolvedValue(
-			makeInvoice(InvoiceStatus.DRAFT)
+	it('allows only one concurrent PAID transition and receipt delivery', async () => {
+		let storedStatus = InvoiceStatus.SENT;
+		let storedPaidAt: Date | null = null;
+		mocks.invoiceFindUnique.mockImplementation(async () =>
+			makeInvoice(storedStatus)
 		);
+		mocks.invoiceUpdate.mockImplementation(
+			async ({
+				where,
+				data,
+			}: {
+				where: {
+					status?: InvoiceStatus | { in?: InvoiceStatus[] };
+				};
+				data: { status: InvoiceStatus; paidAt?: Date };
+			}) => {
+				const allowedStatuses =
+					typeof where.status === 'object'
+						? where.status.in ?? []
+						: [where.status];
+				if (!allowedStatuses.includes(storedStatus)) {
+					throw makeRecordNotFoundError();
+				}
+				storedStatus = data.status;
+				storedPaidAt = data.paidAt ?? null;
+				mocks.events.push(`update:${data.status}`);
+				return { id: 'invoice-1', ...data };
+			}
+		);
+		const firstPaidAt = new Date('2026-08-17T00:00:00.000Z');
+		const secondPaidAt = new Date('2026-08-18T00:00:00.000Z');
+
+		const results = await Promise.allSettled([
+			InvoiceService.markAsPaid('user-1', {
+				invoiceId: 'invoice-1',
+				date: firstPaidAt,
+				sendEmail: true,
+			}),
+			InvoiceService.markAsPaid('user-1', {
+				invoiceId: 'invoice-1',
+				date: secondPaidAt,
+				sendEmail: true,
+			}),
+		]);
+
+		expect(results.filter(({ status }) => status === 'fulfilled')).toHaveLength(1);
+		expect(results.filter(({ status }) => status === 'rejected')).toHaveLength(1);
+		expect(results.find(({ status }) => status === 'rejected')).toMatchObject({
+			reason: new Error(
+				'Only SENT or OVERDUE invoices can be marked as paid'
+			),
+		});
+		expect(storedStatus).toBe(InvoiceStatus.PAID);
+		expect([firstPaidAt, secondPaidAt]).toContainEqual(storedPaidAt);
+		expect(mocks.sendInvoiceReceipt).toHaveBeenCalledOnce();
+	});
+
+	it.each([
+		InvoiceStatus.DRAFT,
+		InvoiceStatus.PAID,
+		InvoiceStatus.CANCELLED,
+	])('rejects %s before updating or emailing', async (status) => {
+		mocks.invoiceFindUnique.mockResolvedValue(makeInvoice(status));
 
 		await expect(
 			InvoiceService.markAsPaid('user-1', {
