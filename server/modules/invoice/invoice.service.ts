@@ -3,6 +3,7 @@ import prisma from '@/lib/prisma';
 import {
 	CreateInvoiceInput,
 	UpdateInvoiceInput,
+	MarkAsSentInput,
 	MarkAsPaidInput,
 	GetInvoicesInput,
 	GenerateFromEntriesInput,
@@ -14,6 +15,11 @@ import { renderInvoicePDF } from './invoice.templates';
 import { urlToQrDataUri } from '@/lib/qr';
 import { formatCurrency } from '@/lib/formatters';
 import { InvoiceStatus } from '@prisma/client';
+
+const SENT_EMAIL_WARNING =
+	'Invoice was marked as sent, but the email could not be delivered. You can retry from this invoice.';
+const SENT_EMAIL_MISSING_WARNING =
+	'Invoice was marked as sent, but no client email is available. Add an email before retrying.';
 
 /**
  * Compute subtotal, tax, and total from an array of line items and a tax rate.
@@ -496,13 +502,12 @@ export const InvoiceService = {
 	},
 
 	/**
-	 * Transition invoice from DRAFT to SENT.
-	 * If the invoice has a clientEmail on file, also email the rendered PDF to
-	 * the client. Returns the updated invoice plus the recipient when emailed.
+	 * Transition a DRAFT invoice to SENT, then optionally email its PDF.
+	 * Delivery failure never rolls back the successful status transition.
 	 */
-	async markAsSent(userId: string, invoiceId: string) {
+	async markAsSent(userId: string, data: MarkAsSentInput) {
 		const invoice = await prisma.invoice.findUnique({
-			where: { id: invoiceId, userId },
+			where: { id: data.invoiceId, userId },
 			include: {
 				lineItems: { orderBy: { sortOrder: 'asc' } },
 				user: {
@@ -527,27 +532,37 @@ export const InvoiceService = {
 			throw new Error('Only DRAFT invoices can be marked as sent');
 		}
 
-		let emailedTo: string | null = null;
-
-		if (invoice.clientEmail) {
-			const currency =
-				invoice.currency || (await UserService.getCurrency(userId));
-
-			emailedTo = await emailInvoiceToClient(invoice, currency, {
-				status: InvoiceStatus.SENT,
-				paidAt: null,
-				variant: 'invoice',
-			});
-		}
-
 		const updated = await prisma.invoice.update({
-			where: { id: invoiceId, userId },
-			data: {
-				status: InvoiceStatus.SENT,
-			},
+			where: { id: data.invoiceId, userId },
+			data: { status: InvoiceStatus.SENT },
 		});
 
-		return { invoice: updated, emailedTo };
+		let emailedTo: string | null = null;
+		let emailWarning: string | null = null;
+
+		if (data.sendEmail) {
+			if (!invoice.clientEmail) {
+				emailWarning = SENT_EMAIL_MISSING_WARNING;
+			} else {
+				try {
+					const currency =
+						invoice.currency || (await UserService.getCurrency(userId));
+					emailedTo = await emailInvoiceToClient(invoice, currency, {
+						status: InvoiceStatus.SENT,
+						paidAt: null,
+						variant: 'invoice',
+					});
+				} catch (error) {
+					console.error(
+						'Invoice marked as sent, but email delivery failed:',
+						error
+					);
+					emailWarning = SENT_EMAIL_WARNING;
+				}
+			}
+		}
+
+		return { invoice: updated, emailedTo, emailWarning };
 	},
 
 	/**
