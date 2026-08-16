@@ -38,7 +38,7 @@ export function HealthLedger({
 				</div>
 				<span className='text-sm text-muted-foreground'>100% total weight</span>
 			</div>
-			<div className='mt-4 hidden grid-cols-[minmax(12rem,1.2fr)_7rem_minmax(12rem,1fr)_auto] gap-6 border-b pb-2 text-xs font-medium text-muted-foreground md:grid'>
+			<div className='mt-3 hidden grid-cols-[minmax(12rem,1.2fr)_7rem_minmax(12rem,1fr)_auto] gap-6 border-b pb-2 text-xs font-medium text-muted-foreground md:grid'>
 				<span>Pillar</span>
 				<span>Grade</span>
 				<span>Evidence</span>
@@ -51,7 +51,7 @@ export function HealthLedger({
 					return (
 						<li
 							key={pillar.name}
-							className='grid gap-3 border-b py-4 md:grid-cols-[minmax(12rem,1.2fr)_7rem_minmax(12rem,1fr)_auto] md:items-center md:gap-6'
+							className='grid gap-3 border-b py-3 md:grid-cols-[minmax(12rem,1.2fr)_7rem_minmax(12rem,1fr)_auto] md:items-center md:gap-6'
 						>
 							<div className='flex gap-3'>
 								<Icon

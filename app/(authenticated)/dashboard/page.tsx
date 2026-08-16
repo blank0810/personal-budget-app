@@ -31,7 +31,7 @@ export default async function DashboardPage() {
 			expenseCategories={overview.quickActions.expenseCategories}
 			budgets={overview.quickActions.budgets}
 		>
-			<div className='container mx-auto space-y-6 py-5 md:py-6'>
+			<div className='container mx-auto space-y-5 py-4'>
 				<DashboardHeader
 					snapshotLabel={overview.snapshotLabel}
 					availability={overview.quickActions.availability}
@@ -46,7 +46,7 @@ export default async function DashboardPage() {
 							evidence={overview.evidence}
 							currency={overview.currency}
 						/>
-						<div className='grid gap-6 lg:grid-cols-[minmax(0,1.65fr)_minmax(18rem,0.75fr)]'>
+						<div className='grid gap-5 lg:grid-cols-[minmax(0,1.65fr)_minmax(18rem,0.75fr)]'>
 							<CashFlowTrend
 								cashFlow={overview.cashFlow}
 								currency={overview.currency}
@@ -56,7 +56,7 @@ export default async function DashboardPage() {
 								currency={overview.currency}
 							/>
 						</div>
-						<div className='grid gap-6 lg:grid-cols-[minmax(18rem,0.75fr)_minmax(0,1.65fr)]'>
+						<div className='grid gap-5 lg:grid-cols-[minmax(18rem,0.75fr)_minmax(0,1.65fr)]'>
 							<AccountsDebtSummary
 								data={overview.accountsDebt}
 								currency={overview.currency}

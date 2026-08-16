@@ -44,13 +44,18 @@ export function FinancialHealthVerdict({
 	const tone = DASHBOARD_TONE_STYLES[verdict.tone];
 	return (
 		<section
-			className='grid gap-6 border-y bg-muted/25 py-5 sm:px-6 lg:grid-cols-[9rem_minmax(0,1fr)_minmax(20rem,0.8fr)] lg:items-center'
+			className='grid gap-5 border-y bg-muted/25 py-4 sm:px-6 xl:grid-cols-[10rem_minmax(0,1fr)_minmax(19rem,0.75fr)] xl:items-center'
 			aria-labelledby='financial-health-title'
 		>
 			<div>
-				<p className='text-sm font-medium text-muted-foreground'>
-					Financial health
-				</p>
+				<div className='flex flex-wrap items-center gap-x-2 gap-y-1'>
+					<p className='text-sm font-medium text-muted-foreground'>
+						Financial health
+					</p>
+					<span className={`text-xs font-semibold ${tone.text}`}>
+						{verdict.label}
+					</span>
+				</div>
 				<p className='mt-1 font-mono text-5xl font-semibold tabular-nums tracking-[-0.04em]'>
 					{verdict.score}
 					<span className='text-lg text-muted-foreground'>/100</span>
@@ -59,15 +64,12 @@ export function FinancialHealthVerdict({
 			<div>
 				<h2
 					id='financial-health-title'
-					className={`text-2xl font-semibold tracking-[-0.025em] ${tone.text}`}
+					className='max-w-[36ch] text-xl font-semibold leading-7 tracking-[-0.02em] text-balance sm:text-2xl sm:leading-8'
 				>
-					{verdict.label}
-				</h2>
-				<p className='mt-2 max-w-[65ch] text-sm leading-6 text-muted-foreground'>
 					{verdict.description}
-				</p>
+				</h2>
 			</div>
-			<div className='grid gap-3 border-t pt-5 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center lg:border-l lg:border-t-0 lg:pl-6 lg:pt-0'>
+			<div className='grid gap-3 border-t pt-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center xl:border-l xl:border-t-0 xl:pl-6 xl:pt-0'>
 				<div>
 					<p className='text-sm font-medium'>
 						{verdict.focus.pillarName
@@ -81,7 +83,7 @@ export function FinancialHealthVerdict({
 				<DashboardActionButton
 					action={verdict.focus.action}
 					variant='default'
-					className='justify-self-start lg:justify-self-end'
+					className='justify-self-start sm:justify-self-end'
 				/>
 			</div>
 		</section>

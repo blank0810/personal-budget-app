@@ -133,27 +133,29 @@ export function CashFlowTrend({
 					</LineChart>
 				</ResponsiveContainer>
 			</div>
-			<table className='sr-only'>
-				<caption>{summary}</caption>
-				<thead>
-					<tr>
-						<th>Month</th>
-						<th>Income</th>
-						<th>Expense</th>
-						<th>Surplus</th>
-					</tr>
-				</thead>
-				<tbody>
-					{cashFlow.points.map((point) => (
-						<tr key={point.month}>
-							<th>{point.month}</th>
-							<td>{formatCurrency(point.income, { currency })}</td>
-							<td>{formatCurrency(point.expense, { currency })}</td>
-							<td>{formatCurrency(point.surplus, { currency })}</td>
+			<div className='sr-only'>
+				<table>
+					<caption>{summary}</caption>
+					<thead>
+						<tr>
+							<th>Month</th>
+							<th>Income</th>
+							<th>Expense</th>
+							<th>Surplus</th>
 						</tr>
-					))}
-				</tbody>
-			</table>
+					</thead>
+					<tbody>
+						{cashFlow.points.map((point) => (
+							<tr key={point.month}>
+								<th>{point.month}</th>
+								<td>{formatCurrency(point.income, { currency })}</td>
+								<td>{formatCurrency(point.expense, { currency })}</td>
+								<td>{formatCurrency(point.surplus, { currency })}</td>
+							</tr>
+						))}
+					</tbody>
+				</table>
+			</div>
 		</figure>
 	);
 }

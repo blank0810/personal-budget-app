@@ -52,7 +52,7 @@ export default async function DashboardLayout({
 		<CurrencyProvider currency={dbUser?.currency ?? 'USD'}>
 			<SidebarProvider>
 				<AppSidebar user={user} signOutAction={signOutAction} hasNewChangelog={hasNewChangelog} disabledSidebarKeys={disabledSidebarKeys} />
-				<SidebarInset>
+				<SidebarInset className='min-w-0'>
 					<header className='flex h-16 shrink-0 items-center gap-2 border-b px-4 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12'>
 						<div className='flex items-center gap-2'>
 							<SidebarTrigger className='-ml-1' />

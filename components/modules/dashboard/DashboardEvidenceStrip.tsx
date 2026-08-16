@@ -38,7 +38,7 @@ export function DashboardEvidenceStrip({
 			{values.map((item) => (
 				<div
 					key={item.label}
-					className='border-b py-4 sm:px-5 sm:[&:nth-child(odd)]:border-r lg:border-b-0 lg:border-r lg:last:border-r-0'
+					className='border-b py-3 sm:px-5 sm:[&:nth-child(odd)]:border-r lg:border-b-0 lg:border-r lg:last:border-r-0'
 				>
 					<dt className='text-xs font-medium text-muted-foreground'>
 						{item.label}

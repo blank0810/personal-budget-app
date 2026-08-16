@@ -2,7 +2,7 @@
 
 import React, { createContext, useContext, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
-import { useForm } from 'react-hook-form';
+import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { format } from 'date-fns';
 import { CalendarIcon, Loader2 } from 'lucide-react';
@@ -190,6 +190,14 @@ function IncomeQuickForm({
 			emergencyFundPercentage: 10,
 		},
 	});
+	const titheEnabled = useWatch({
+		control: form.control,
+		name: 'titheEnabled',
+	});
+	const emergencyFundEnabled = useWatch({
+		control: form.control,
+		name: 'emergencyFundEnabled',
+	});
 
 	function onSubmit(data: CreateIncomeInput) {
 		startTransition(async () => {
@@ -367,7 +375,7 @@ function IncomeQuickForm({
 					)}
 				/>
 
-				{form.watch('titheEnabled') && (
+				{titheEnabled && (
 					<FormField
 						control={form.control}
 						name='tithePercentage'
@@ -408,7 +416,7 @@ function IncomeQuickForm({
 					)}
 				/>
 
-				{form.watch('emergencyFundEnabled') && (
+				{emergencyFundEnabled && (
 					<FormField
 						control={form.control}
 						name='emergencyFundPercentage'
@@ -749,10 +757,14 @@ function TransferQuickForm({
 		},
 	});
 
-	// eslint-disable-next-line react-hooks/incompatible-library
-	const fromAccountId = form.watch('fromAccountId');
-	// eslint-disable-next-line react-hooks/incompatible-library
-	const toAccountId = form.watch('toAccountId');
+	const fromAccountId = useWatch({
+		control: form.control,
+		name: 'fromAccountId',
+	});
+	const toAccountId = useWatch({
+		control: form.control,
+		name: 'toAccountId',
+	});
 
 	function onSubmit(data: CreateTransferInput) {
 		startTransition(async () => {
