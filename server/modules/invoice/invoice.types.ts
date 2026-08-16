@@ -39,14 +39,20 @@ export const updateInvoiceSchema = createInvoiceSchema
 		lineItems: z.array(updateLineItemSchema).min(1).optional(),
 	});
 
+export const markAsSentSchema = z.object({
+	invoiceId: z.string(),
+	sendEmail: z.boolean().default(false),
+});
+
 export const markAsPaidSchema = z.object({
 	invoiceId: z.string(),
 	date: z.coerce.date().optional(),
-	sendEmail: z.boolean().optional(),
+	sendEmail: z.boolean().default(false),
 });
 
 export type CreateInvoiceInput = z.infer<typeof createInvoiceSchema>;
 export type UpdateInvoiceInput = z.infer<typeof updateInvoiceSchema>;
+export type MarkAsSentInput = z.infer<typeof markAsSentSchema>;
 export type MarkAsPaidInput = z.infer<typeof markAsPaidSchema>;
 
 export const getInvoicesSchema = z.object({
