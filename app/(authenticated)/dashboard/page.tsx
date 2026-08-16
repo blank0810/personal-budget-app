@@ -1,3 +1,6 @@
+import { AccountsDebtSummary } from '@/components/modules/dashboard/AccountsDebtSummary';
+import { BudgetPressure } from '@/components/modules/dashboard/BudgetPressure';
+import { CashFlowTrend } from '@/components/modules/dashboard/CashFlowTrend';
 import { DashboardEvidenceStrip } from '@/components/modules/dashboard/DashboardEvidenceStrip';
 import { DashboardHeader } from '@/components/modules/dashboard/DashboardHeader';
 import {
@@ -7,6 +10,7 @@ import {
 import { FinancialHealthVerdict } from '@/components/modules/dashboard/FinancialHealthVerdict';
 import { HealthLedger } from '@/components/modules/dashboard/HealthLedger';
 import { QuickActionProvider } from '@/components/modules/dashboard/QuickActionSheet';
+import { RecentActivity } from '@/components/modules/dashboard/RecentActivity';
 import { getDashboardOverviewAction } from '@/server/modules/dashboard/dashboard.controller';
 
 export default async function DashboardPage() {
@@ -42,6 +46,26 @@ export default async function DashboardPage() {
 							evidence={overview.evidence}
 							currency={overview.currency}
 						/>
+						<div className='grid gap-6 lg:grid-cols-[minmax(0,1.65fr)_minmax(18rem,0.75fr)]'>
+							<CashFlowTrend
+								cashFlow={overview.cashFlow}
+								currency={overview.currency}
+							/>
+							<BudgetPressure
+								data={overview.budgetPressure}
+								currency={overview.currency}
+							/>
+						</div>
+						<div className='grid gap-6 lg:grid-cols-[minmax(18rem,0.75fr)_minmax(0,1.65fr)]'>
+							<AccountsDebtSummary
+								data={overview.accountsDebt}
+								currency={overview.currency}
+							/>
+							<RecentActivity
+								items={overview.recentActivity}
+								currency={overview.currency}
+							/>
+						</div>
 					</>
 				)}
 			</div>
