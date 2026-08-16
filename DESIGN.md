@@ -134,7 +134,7 @@ The system favors near-white or near-black canvases, gray hairlines, compact den
 - Compose shadcn/ui New York primitives from `components/ui/`; themes use `next-themes` with a `.dark` class and the system default.
 - Use tabs for indentation, `lucide-react` for icons, Recharts for charts, and Sonner for toasts.
 - Aniq UI remains a general authenticated-app reference; the shipped Health Ledger is the dashboard's visual ground truth. The authenticated shell remains unchanged.
-- Reports retains its own visual system. Its Overview is intentionally limited to four summary cards followed by Net Worth Trend; financial-health diagnosis and pillar scoring live on the dashboard.
+- Reports retains its own visual system and begins with Income & Expenses, followed by Budget Analytics and Statements. Summary health, KPI, and net-worth overview belong to the dashboard.
 - The public landing remains Vercel × Raycast × Linear × Mercury: light, gradient, glass, and restrained, within its isolated landing scope.
 
 ## Colors
@@ -274,7 +274,7 @@ Diagnostic structures deliberately resist card silhouettes: verdict bands and ev
 - **Do** reflow the verdict focus block below the diagnosis before the layout becomes cramped.
 - **Do** pair every status color with a label, score, grade, sign, icon, or explanation.
 - **Do** keep unavailable quick actions keyboard-focusable and show the reason they cannot run.
-- **Do** keep landing effects isolated, preserve Reports Overview's summary-to-net-worth sequence, and keep the authenticated shell singular.
+- **Do** keep landing effects isolated, keep Reports focused on analysis and statements, and keep the authenticated shell singular.
 - **Do** preserve landing-grid asymmetry, mixed-case section headings, and restrained glass where its route-specific guidance calls for them.
 
 ### Don't:

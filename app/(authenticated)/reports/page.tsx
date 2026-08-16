@@ -4,15 +4,12 @@ import { ReportService } from '@/server/modules/report/report.service';
 import { UserService } from '@/server/modules/user/user.service';
 import { DashboardService } from '@/server/modules/dashboard/dashboard.service';
 import { BudgetService } from '@/server/modules/budget/budget.service';
-import { CategoryService } from '@/server/modules/category/category.service';
 import { CategoryBreakdownChart } from '@/components/modules/reports/CategoryBreakdownChart';
 import { MonthlyComparisonChart } from '@/components/modules/reports/MonthlyComparisonChart';
 import { BudgetPerformanceChart } from '@/components/modules/reports/BudgetPerformanceChart';
 import { BudgetAnalytics } from '@/components/modules/reports/BudgetAnalytics';
 import { subMonths, startOfMonth, endOfMonth, parse, parseISO, isValid } from 'date-fns';
-import { KPICard } from '@/components/modules/reports/KPICard';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { NetWorthTrendChart } from '@/components/modules/reports/NetWorthTrendChart';
 import { ReportsToolbar } from '@/components/modules/reports/ReportsToolbar';
 import { FinancialStatement } from '@/components/modules/reports/FinancialStatement';
 import { TransactionStatement } from '@/components/modules/reports/TransactionStatement';
@@ -61,28 +58,22 @@ export default async function ReportsPage({
 		monthlyComparison,
 		budgetPerformance,
 		financialStatement,
-		kpis,
 		accounts,
-		netWorthHistory,
 		budgetTrends,
 		budgetRecommendations,
 		cashFlowWaterfall,
 		transactionStatement,
-		, // allCategories — fetched but unused in this view
 		userPrefs,
 	] = await Promise.all([
 		ReportService.getCategoryBreakdown(userId, from, to),
 		ReportService.getMonthlyComparison(userId, subMonths(to, 5), to),
 		ReportService.getBudgetVsActual(userId, from, to),
 		ReportService.getFinancialStatement(userId, from, to),
-		ReportService.getDashboardKPIs(userId, from, to),
 		DashboardService.getAccountBalances(userId),
-		ReportService.getNetWorthHistory(userId, from, to),
 		BudgetService.getBudgetTrends(userId, from, to),
 		BudgetService.getBudgetRecommendations(userId, 6),
 		ReportService.getCashFlowWaterfall(userId, from, to),
 		ReportService.getTransactionStatement(userId, from, to),
-		CategoryService.getCategories(userId),
 		UserService.getEmailAndCreatedAt(userId),
 	]);
 
@@ -124,54 +115,14 @@ export default async function ReportsPage({
 				</div>
 			</div>
 
-			<Tabs defaultValue='overview' className='space-y-4'>
+			<Tabs defaultValue='pnl' className='space-y-4'>
 				<TabsList className='w-full justify-start overflow-x-auto'>
-					<TabsTrigger value='overview'>Overview</TabsTrigger>
 					<TabsTrigger value='pnl'>Income & Expenses</TabsTrigger>
 					<TabsTrigger value='budget'>Budget Analytics</TabsTrigger>
 					<TabsTrigger value='ledger'>Statements</TabsTrigger>
 				</TabsList>
 
-				{/* 1. OVERVIEW TAB — Financial Summary */}
-				<TabsContent value='overview' className='space-y-6'>
-					{/* Row 1: KPI Cards */}
-					<div className='grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4'>
-						<KPICard
-							title='Net Result'
-							value={formatCurrency(kpis.netIncome.value)}
-							change={kpis.netIncome.change}
-							trend={kpis.netIncome.trend}
-							history={kpis.netIncome.history}
-						/>
-						<KPICard
-							title='Inflow Velocity'
-							value={formatCurrency(kpis.totalIncome.value)}
-							change={kpis.totalIncome.change}
-							trend={kpis.totalIncome.trend}
-							history={kpis.totalIncome.history}
-						/>
-						<KPICard
-							title='Burn Rate'
-							value={formatCurrency(kpis.totalExpenses.value)}
-							change={kpis.totalExpenses.change}
-							trend={kpis.totalExpenses.trend}
-							history={kpis.totalExpenses.history}
-							inverseTrend
-						/>
-						<KPICard
-							title='Savings Ratio'
-							value={`${kpis.savingsRate.value.toFixed(1)}%`}
-							change={kpis.savingsRate.change}
-							trend={kpis.savingsRate.trend}
-							history={kpis.savingsRate.history}
-						/>
-					</div>
-
-					{/* Row 2: Net Worth Trend (full width, animated) */}
-					<NetWorthTrendChart data={netWorthHistory} />
-				</TabsContent>
-
-				{/* 2. INCOME & EXPENSES TAB */}
+				{/* 1. INCOME & EXPENSES TAB */}
 				<TabsContent value='pnl' className='space-y-4'>
 					<div className='grid gap-4 grid-cols-1 lg:grid-cols-7'>
 						<div className='lg:col-span-4'>
@@ -197,7 +148,7 @@ export default async function ReportsPage({
 					</div>
 				</TabsContent>
 
-				{/* 3. BUDGET ANALYTICS TAB */}
+				{/* 2. BUDGET ANALYTICS TAB */}
 				<TabsContent value='budget' className='space-y-4'>
 					{/* Budget Summary Cards */}
 					<div className='grid gap-4 md:grid-cols-3'>
@@ -259,7 +210,7 @@ export default async function ReportsPage({
 					/>
 				</TabsContent>
 
-				{/* 4. LEDGER / STATEMENTS TAB */}
+				{/* 3. LEDGER / STATEMENTS TAB */}
 				<TabsContent value='ledger' className='space-y-6'>
 					<TransactionStatement
 						data={serialize(transactionStatement)}

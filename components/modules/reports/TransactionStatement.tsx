@@ -16,6 +16,7 @@ import {
 	Table,
 	TableBody,
 	TableCell,
+	TableFooter,
 	TableHead,
 	TableHeader,
 	TableRow,
@@ -113,11 +114,21 @@ export function TransactionStatement({
 							</div>
 						)}
 
-						{/* Fixed Header */}
-						<Table>
-							<TableHeader className='bg-background'>
+						<Table
+							containerClassName='max-h-[400px] overflow-auto'
+							className='min-w-[980px] table-fixed'
+						>
+							<colgroup>
+								<col className='w-[100px]' />
+								<col />
+								<col className='w-[170px]' />
+								<col className='w-[190px]' />
+								<col className='w-[160px]' />
+								<col className='w-[160px]' />
+							</colgroup>
+							<TableHeader className='sticky top-0 z-10 bg-background'>
 								<TableRow>
-									<TableHead className='w-[100px]'>Date</TableHead>
+									<TableHead>Date</TableHead>
 									<TableHead>Description</TableHead>
 									<TableHead>Category</TableHead>
 									<TableHead>Budget Status</TableHead>
@@ -125,99 +136,92 @@ export function TransactionStatement({
 									<TableHead className='text-right'>Balance</TableHead>
 								</TableRow>
 							</TableHeader>
-						</Table>
+							<TableBody>
+								{/* Opening Balance Row */}
+								<TableRow className='bg-muted/30'>
+									<TableCell>
+										{format(new Date(data.periodStart), 'MMM d')}
+									</TableCell>
+									<TableCell colSpan={3} className='font-medium'>
+										Opening Balance
+									</TableCell>
+									<TableCell className='text-right tabular-nums'>-</TableCell>
+									<TableCell className='text-right font-bold tabular-nums'>
+										{formatCurrency(data.openingBalance)}
+									</TableCell>
+								</TableRow>
 
-						{/* Scrollable Body */}
-						<div className='max-h-[400px] overflow-y-auto'>
-							<Table>
-								<TableBody>
-									{/* Opening Balance Row */}
-									<TableRow className='bg-muted/30'>
-										<TableCell className='w-[100px]'>
-											{format(new Date(data.periodStart), 'MMM d')}
+								{data.transactions.map((tx) => (
+									<TableRow key={tx.id}>
+										<TableCell className='text-muted-foreground'>
+											{format(new Date(tx.date), 'MMM d')}
 										</TableCell>
-										<TableCell colSpan={3} className='font-medium'>
-											Opening Balance
+										<TableCell className='whitespace-normal break-words'>
+											{tx.description || '-'}
 										</TableCell>
-										<TableCell className='text-right'>-</TableCell>
-										<TableCell className='text-right font-bold'>
-											{formatCurrency(data.openingBalance)}
+										<TableCell>
+											<Badge variant='outline' className='text-xs'>
+												{tx.categoryName}
+											</Badge>
+										</TableCell>
+										<TableCell>
+											{tx.type === 'EXPENSE' ? (
+												tx.budgetStatus === 'budgeted' ? (
+													<Badge variant='default' className='bg-green-600'>
+														{tx.budgetName || 'Budgeted'}
+													</Badge>
+												) : (
+													<Badge variant='destructive'>Unbudgeted</Badge>
+												)
+											) : (
+												<span className='text-muted-foreground'>-</span>
+											)}
+										</TableCell>
+										<TableCell
+											className={cn(
+												'text-right font-medium tabular-nums',
+												tx.type === 'INCOME'
+													? 'text-green-600'
+													: 'text-red-600'
+											)}
+										>
+											<span className='flex items-center justify-end gap-1'>
+												{tx.type === 'INCOME' ? (
+													<ArrowDownLeft className='h-3 w-3' />
+												) : (
+													<ArrowUpRight className='h-3 w-3' />
+												)}
+												{tx.type === 'INCOME' ? '+' : '-'}
+												{formatCurrency(tx.amount)}
+											</span>
+										</TableCell>
+										<TableCell className='text-right font-medium tabular-nums'>
+											{formatCurrency(tx.runningBalance)}
 										</TableCell>
 									</TableRow>
+								))}
+							</TableBody>
 
-									{data.transactions.map((tx) => (
-										<TableRow key={tx.id}>
-											<TableCell className='w-[100px] text-muted-foreground'>
-												{format(new Date(tx.date), 'MMM d')}
-											</TableCell>
-											<TableCell>{tx.description || '-'}</TableCell>
-											<TableCell>
-												<Badge variant='outline' className='text-xs'>
-													{tx.categoryName}
-												</Badge>
-											</TableCell>
-											<TableCell>
-												{tx.type === 'EXPENSE' ? (
-													tx.budgetStatus === 'budgeted' ? (
-														<Badge variant='default' className='bg-green-600'>
-															{tx.budgetName || 'Budgeted'}
-														</Badge>
-													) : (
-														<Badge variant='destructive'>Unbudgeted</Badge>
-													)
-												) : (
-													<span className='text-muted-foreground'>-</span>
-												)}
-											</TableCell>
-											<TableCell
-												className={cn(
-													'text-right font-medium',
-													tx.type === 'INCOME'
-														? 'text-green-600'
-														: 'text-red-600'
-												)}
-											>
-												<span className='flex items-center justify-end gap-1'>
-													{tx.type === 'INCOME' ? (
-														<ArrowDownLeft className='h-3 w-3' />
-													) : (
-														<ArrowUpRight className='h-3 w-3' />
-													)}
-													{tx.type === 'INCOME' ? '+' : '-'}
-													{formatCurrency(tx.amount)}
-												</span>
-											</TableCell>
-											<TableCell className='text-right font-medium'>
-												{formatCurrency(tx.runningBalance)}
-											</TableCell>
-										</TableRow>
-									))}
-								</TableBody>
-							</Table>
-						</div>
-
-						{/* Fixed Footer - Closing Balance */}
-						<Table>
-							<TableBody>
-								<TableRow className='bg-muted/50 font-bold border-t'>
+							<TableFooter className='sticky bottom-0 z-10'>
+								<TableRow className='font-bold'>
 									<TableCell className='w-[100px]'>
 										{format(new Date(data.periodEnd), 'MMM d')}
 									</TableCell>
 									<TableCell colSpan={3}>Closing Balance</TableCell>
 									<TableCell
 										className={cn(
-											'text-right',
+											'text-right tabular-nums',
 											data.netChange >= 0 ? 'text-green-600' : 'text-red-600'
 										)}
 									>
 										{data.netChange >= 0 ? '+' : ''}
 										{formatCurrency(data.netChange)}
 									</TableCell>
-									<TableCell className='text-right'>
+									<TableCell className='text-right tabular-nums'>
 										{formatCurrency(data.closingBalance)}
 									</TableCell>
 								</TableRow>
-							</TableBody>
+							</TableFooter>
 						</Table>
 					</div>
 
