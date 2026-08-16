@@ -20,6 +20,10 @@ const SENT_EMAIL_WARNING =
 	'Invoice was marked as sent, but the email could not be delivered. You can retry from this invoice.';
 const SENT_EMAIL_MISSING_WARNING =
 	'Invoice was marked as sent, but no client email is available. Add an email before retrying.';
+const PAID_EMAIL_WARNING =
+	'Invoice was marked as paid, but the receipt email could not be delivered. You can retry from this invoice.';
+const PAID_EMAIL_MISSING_WARNING =
+	'Invoice was marked as paid, but no client email is available. Add an email before retrying.';
 
 /**
  * Compute subtotal, tax, and total from an array of line items and a tax rate.
@@ -566,12 +570,8 @@ export const InvoiceService = {
 	},
 
 	/**
-	 * Mark invoice as PAID — updates status and paidAt.
-	 * If `sendEmail` is true and the invoice has a clientEmail, also emails a
-	 * PAID-stamped PDF receipt to the client.
-	 *
-	 * Does NOT create an income record (currency conversion between invoice
-	 * currency and account currency is not yet supported).
+	 * Transition a SENT or OVERDUE invoice to PAID, then optionally email its receipt.
+	 * Delivery failure never rolls back the successful status transition.
 	 */
 	async markAsPaid(userId: string, data: MarkAsPaidInput) {
 		const invoice = await prisma.invoice.findUnique({
@@ -607,32 +607,41 @@ export const InvoiceService = {
 		}
 
 		const paidAt = data.date ?? new Date();
-		let emailedTo: string | null = null;
-
-		if (data.sendEmail && invoice.clientEmail) {
-			const currency =
-				invoice.currency || (await UserService.getCurrency(userId));
-
-			emailedTo = await emailInvoiceToClient(
-				{ ...invoice, paidAt },
-				currency,
-				{
-					status: InvoiceStatus.PAID,
-					paidAt,
-					variant: 'receipt',
-				}
-			);
-		}
-
 		const updated = await prisma.invoice.update({
 			where: { id: data.invoiceId, userId },
-			data: {
-				status: InvoiceStatus.PAID,
-				paidAt,
-			},
+			data: { status: InvoiceStatus.PAID, paidAt },
 		});
 
-		return { invoice: updated, emailedTo };
+		let emailedTo: string | null = null;
+		let emailWarning: string | null = null;
+
+		if (data.sendEmail) {
+			if (!invoice.clientEmail) {
+				emailWarning = PAID_EMAIL_MISSING_WARNING;
+			} else {
+				try {
+					const currency =
+						invoice.currency || (await UserService.getCurrency(userId));
+					emailedTo = await emailInvoiceToClient(
+						{ ...invoice, paidAt },
+						currency,
+						{
+							status: InvoiceStatus.PAID,
+							paidAt,
+							variant: 'receipt',
+						}
+					);
+				} catch (error) {
+					console.error(
+						'Invoice marked as paid, but receipt delivery failed:',
+						error
+					);
+					emailWarning = PAID_EMAIL_WARNING;
+				}
+			}
+		}
+
+		return { invoice: updated, emailedTo, emailWarning };
 	},
 
 	/**

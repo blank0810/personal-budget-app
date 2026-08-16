@@ -244,3 +244,98 @@ describe('InvoiceService.markAsSent', () => {
 		expect(mocks.sendInvoice).not.toHaveBeenCalled();
 	});
 });
+
+describe('InvoiceService.markAsPaid', () => {
+	it('records PAID without invoking receipt email when delivery is off', async () => {
+		mocks.invoiceFindUnique.mockResolvedValue(
+			makeInvoice(InvoiceStatus.SENT)
+		);
+		const paidAt = new Date('2026-08-17T00:00:00.000Z');
+
+		const result = await InvoiceService.markAsPaid('user-1', {
+			invoiceId: 'invoice-1',
+			date: paidAt,
+			sendEmail: false,
+		});
+
+		expect(mocks.invoiceUpdate).toHaveBeenCalledWith({
+			where: { id: 'invoice-1', userId: 'user-1' },
+			data: { status: InvoiceStatus.PAID, paidAt },
+		});
+		expect(mocks.sendInvoiceReceipt).not.toHaveBeenCalled();
+		expect(result.emailedTo).toBeNull();
+		expect(result.emailWarning).toBeNull();
+	});
+
+	it('saves PAID before sending a selected receipt', async () => {
+		mocks.invoiceFindUnique.mockResolvedValue(
+			makeInvoice(InvoiceStatus.OVERDUE)
+		);
+
+		const result = await InvoiceService.markAsPaid('user-1', {
+			invoiceId: 'invoice-1',
+			date: new Date('2026-08-17T00:00:00.000Z'),
+			sendEmail: true,
+		});
+
+		expect(mocks.events).toEqual(['update:PAID', 'email:receipt']);
+		expect(result.emailedTo).toBe('client@example.com');
+		expect(result.emailWarning).toBeNull();
+	});
+
+	it('keeps PAID and returns a warning when receipt delivery fails', async () => {
+		vi.spyOn(console, 'error').mockImplementation(() => undefined);
+		mocks.invoiceFindUnique.mockResolvedValue(
+			makeInvoice(InvoiceStatus.SENT)
+		);
+		mocks.sendInvoiceReceipt.mockImplementation(async () => {
+			mocks.events.push('email:receipt');
+			throw new Error('SMTP unavailable');
+		});
+
+		await expect(
+			InvoiceService.markAsPaid('user-1', {
+				invoiceId: 'invoice-1',
+				date: new Date('2026-08-17T00:00:00.000Z'),
+				sendEmail: true,
+			})
+		).resolves.toMatchObject({
+			emailedTo: null,
+			emailWarning: PAID_EMAIL_WARNING,
+		});
+		expect(mocks.events).toEqual(['update:PAID', 'email:receipt']);
+	});
+
+	it('keeps PAID and warns when selected receipt delivery has no address', async () => {
+		mocks.invoiceFindUnique.mockResolvedValue(
+			makeInvoice(InvoiceStatus.SENT, null)
+		);
+
+		const result = await InvoiceService.markAsPaid('user-1', {
+			invoiceId: 'invoice-1',
+			date: new Date('2026-08-17T00:00:00.000Z'),
+			sendEmail: true,
+		});
+
+		expect(mocks.invoiceUpdate).toHaveBeenCalledOnce();
+		expect(mocks.renderInvoicePDF).not.toHaveBeenCalled();
+		expect(mocks.sendInvoiceReceipt).not.toHaveBeenCalled();
+		expect(result.emailWarning).toBe(PAID_EMAIL_MISSING_WARNING);
+	});
+
+	it('rejects a DRAFT invoice before updating or emailing', async () => {
+		mocks.invoiceFindUnique.mockResolvedValue(
+			makeInvoice(InvoiceStatus.DRAFT)
+		);
+
+		await expect(
+			InvoiceService.markAsPaid('user-1', {
+				invoiceId: 'invoice-1',
+				date: new Date('2026-08-17T00:00:00.000Z'),
+				sendEmail: false,
+			})
+		).rejects.toThrow('Only SENT or OVERDUE invoices can be marked as paid');
+		expect(mocks.invoiceUpdate).not.toHaveBeenCalled();
+		expect(mocks.sendInvoiceReceipt).not.toHaveBeenCalled();
+	});
+});
