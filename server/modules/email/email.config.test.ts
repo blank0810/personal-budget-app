@@ -26,7 +26,7 @@ vi.mock('@/lib/prisma', () => ({
 	},
 }));
 
-process.env.EMAIL_CREDENTIALS_KEY = crypto.randomBytes(32).toString('base64');
+process.env.SECRET_ENCRYPTION_KEY = crypto.randomBytes(32).toString('base64');
 
 const {
 	getEmailConfig,
@@ -34,7 +34,7 @@ const {
 	clearEmailConfigCache,
 	EmailConfigService,
 } = await import('./email.config');
-const { seal } = await import('./email.crypto');
+const { seal, open } = await import('@/server/lib/crypto');
 const { EmailNotConfiguredError } = await import('./email.provider');
 
 function activeRow(overrides: Record<string, unknown> = {}) {
@@ -45,7 +45,7 @@ function activeRow(overrides: Record<string, unknown> = {}) {
 		fromEmail: 'noreply@budget.umbra.build',
 		fromName: 'Budget Planner',
 		replyToEmail: null,
-		credentials: seal('re_live_key_1234'),
+		credentials: seal(JSON.stringify({ apiKey: 're_live_key_1234' })),
 		lastVerifiedAt: null,
 		lastError: null,
 		...overrides,
@@ -73,7 +73,7 @@ describe('email.config', () => {
 
 			await expect(getEmailConfig()).resolves.toEqual({
 				provider: 'RESEND',
-				apiKey: 're_live_key_1234',
+				credentials: { apiKey: 're_live_key_1234' },
 				fromEmail: 'noreply@budget.umbra.build',
 				fromName: 'Budget Planner',
 				replyToEmail: null,
@@ -89,6 +89,15 @@ describe('email.config', () => {
 
 			delete process.env.RESEND_API_KEY;
 			delete process.env.EMAIL_FROM;
+		});
+
+		it('reads a legacy bare-string credential as { apiKey }', async () => {
+			mocks.findFirst.mockResolvedValue(
+				activeRow({ credentials: seal('re_legacy_bare_key') })
+			);
+
+			const config = await getEmailConfig();
+			expect(config?.credentials).toEqual({ apiKey: 're_legacy_bare_key' });
 		});
 
 		it('treats an undecryptable row as not configured', async () => {
@@ -134,7 +143,7 @@ describe('email.config', () => {
 				fromEmail: 'a@b.com',
 				fromName: 'X',
 				replyToEmail: null,
-				apiKey: 're_plaintext_secret',
+				credentials: { apiKey: 're_plaintext_secret' },
 			});
 
 			const created = mocks.create.mock.calls[0][0].data;
@@ -150,7 +159,7 @@ describe('email.config', () => {
 				fromEmail: 'a@b.com',
 				fromName: 'X',
 				replyToEmail: null,
-				apiKey: 're_key',
+				credentials: { apiKey: 're_key' },
 			});
 
 			expect(mocks.updateMany).toHaveBeenCalledWith({
@@ -170,11 +179,13 @@ describe('email.config', () => {
 			});
 
 			const update = mocks.update.mock.calls[0][0].data;
-			expect(update).not.toHaveProperty('credentials');
+			expect(JSON.parse(open(update.credentials))).toEqual({
+				apiKey: 're_live_key_1234',
+			});
 			expect(update.fromEmail).toBe('new@b.com');
 		});
 
-		it('refuses to add a brand-new provider with no credential', async () => {
+		it('refuses to add a provider missing a required declared credential', async () => {
 			mocks.findUnique.mockResolvedValue(null);
 
 			await expect(
@@ -184,7 +195,42 @@ describe('email.config', () => {
 					fromName: 'X',
 					replyToEmail: null,
 				})
-			).rejects.toThrow(/API key is required/);
+			).rejects.toThrow(/Missing required credential: API key/);
+		});
+
+		it('treats a blank value as unchanged rather than as a clear', async () => {
+			mocks.findUnique.mockResolvedValue(activeRow());
+
+			await EmailConfigService.upsert({
+				provider: 'RESEND',
+				fromEmail: 'a@b.com',
+				fromName: 'X',
+				replyToEmail: null,
+				credentials: { apiKey: '   ' },
+			});
+
+			const update = mocks.update.mock.calls[0][0].data;
+			expect(JSON.parse(open(update.credentials))).toEqual({
+				apiKey: 're_live_key_1234',
+			});
+		});
+
+		it('merges a new field alongside stored ones, for providers needing several', async () => {
+			mocks.findUnique.mockResolvedValue(activeRow());
+
+			await EmailConfigService.upsert({
+				provider: 'RESEND',
+				fromEmail: 'a@b.com',
+				fromName: 'X',
+				replyToEmail: null,
+				credentials: { webhookSecret: 'whsec_abc' },
+			});
+
+			const update = mocks.update.mock.calls[0][0].data;
+			expect(JSON.parse(open(update.credentials))).toEqual({
+				apiKey: 're_live_key_1234',
+				webhookSecret: 'whsec_abc',
+			});
 		});
 
 		it('clears any prior verification, since the identity changed', async () => {
@@ -211,7 +257,7 @@ describe('email.config', () => {
 			const serialised = JSON.stringify(result);
 
 			expect(result.configured).toBe(true);
-			expect(result.providers[0].hasCredential).toBe(true);
+			expect(result.providers[0].storedCredentialFields).toEqual(['apiKey']);
 			expect(serialised).not.toContain('re_live_key_1234');
 			expect(serialised).not.toContain('credentials');
 		});

@@ -1,7 +1,8 @@
 import { EmailProviderKey } from '@prisma/client';
 import prisma from '@/lib/prisma';
-import { open, seal } from './email.crypto';
+import { open, seal } from '@/server/lib/crypto';
 import { EmailNotConfiguredError, ResolvedEmailConfig } from './email.provider';
+import { getProvider } from './providers/registry';
 
 /**
  * The active EmailProviderConfig row is the ONLY source of provider config.
@@ -10,8 +11,8 @@ import { EmailNotConfiguredError, ResolvedEmailConfig } from './email.provider';
  * deliberately not readable from env. Putting the API key in env would defeat
  * the reason this is DB-backed in the first place — rotating a credential or
  * switching provider without a redeploy — and would leave the same secret in two
- * places. The one email secret that must stay in env is EMAIL_CREDENTIALS_KEY,
- * which encrypts this table and therefore cannot live inside it.
+ * places. The one secret that must stay in env is SECRET_ENCRYPTION_KEY, which
+ * encrypts this table and therefore cannot live inside it.
  */
 
 const CACHE_TTL_MS = 60_000;
@@ -27,6 +28,29 @@ export function clearEmailConfigCache(): void {
 	cache = null;
 }
 
+/**
+ * Decode a sealed credential blob.
+ *
+ * Stored as a sealed JSON object of named values, so a provider needing more
+ * than one credential (SES: access key id + secret + region; a webhook signing
+ * secret alongside a sending key) needs no schema change. A sealed bare string
+ * is tolerated as `{ apiKey }` for rows written by the first iteration.
+ */
+function decodeCredentials(sealed: string): Record<string, string> {
+	const plaintext = open(sealed);
+
+	try {
+		const parsed = JSON.parse(plaintext);
+		if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+			return parsed as Record<string, string>;
+		}
+	} catch {
+		// Not JSON — fall through to the legacy single-key shape.
+	}
+
+	return { apiKey: plaintext };
+}
+
 async function resolve(): Promise<ResolvedEmailConfig | null> {
 	const row = await prisma.emailProviderConfig.findFirst({
 		where: { isActive: true },
@@ -37,13 +61,13 @@ async function resolve(): Promise<ResolvedEmailConfig | null> {
 	try {
 		return {
 			provider: row.provider,
-			apiKey: open(row.credentials),
+			credentials: decodeCredentials(row.credentials),
 			fromEmail: row.fromEmail,
 			fromName: row.fromName,
 			replyToEmail: row.replyToEmail,
 		};
 	} catch (error) {
-		// Undecryptable row: EMAIL_CREDENTIALS_KEY was rotated or the value was
+		// Undecryptable row: SECRET_ENCRYPTION_KEY was rotated or the value was
 		// tampered with. Report as "not configured" so callers keep their existing
 		// failure semantics rather than retrying a permanent condition.
 		console.error(
@@ -75,30 +99,45 @@ export const EmailConfigService = {
 	/**
 	 * Upsert a provider's config and make it the only active one.
 	 *
-	 * `apiKey` is optional on update so an admin can edit the sender identity
-	 * without re-entering the credential — the UI never receives the current
-	 * value, so it cannot echo it back.
+	 * Credentials merge rather than replace: a field the admin left blank keeps
+	 * its stored value. The UI never receives a stored secret, so a blank input
+	 * means "unchanged" and must never be read as "clear it".
 	 */
 	async upsert(input: {
 		provider: EmailProviderKey;
 		fromEmail: string;
 		fromName: string;
 		replyToEmail: string | null;
-		apiKey?: string;
+		credentials?: Record<string, string>;
 	}) {
 		const existing = await prisma.emailProviderConfig.findUnique({
 			where: { provider: input.provider },
 		});
 
-		if (!existing && !input.apiKey) {
-			throw new Error('An API key is required when adding a provider.');
+		const stored = existing ? safeDecode(existing.credentials) : {};
+
+		// Drop blanks before merging so an untouched field cannot erase a secret.
+		const supplied = Object.fromEntries(
+			Object.entries(input.credentials ?? {}).filter(
+				([, value]) => value.trim() !== ''
+			)
+		);
+
+		const merged = { ...stored, ...supplied };
+
+		const missing = getProvider(input.provider)
+			.credentialFields.filter((f) => f.required && !merged[f.name])
+			.map((f) => f.label);
+
+		if (missing.length > 0) {
+			throw new Error(`Missing required credential: ${missing.join(', ')}`);
 		}
 
-		// Sealed once, outside the branches. An earlier version inlined
-		// `seal(apiKey!)` in an upsert's `create` block, which JS evaluates even
-		// when only `update` is used — so saving an identity change without
-		// re-entering the key threw. Hence explicit update/create.
-		const sealed = input.apiKey ? seal(input.apiKey) : null;
+		// Sealed once, outside the branches. An earlier version inlined the seal
+		// call in a Prisma upsert's `create` block, which JS evaluates even when
+		// only `update` runs — so saving an identity change without re-entering the
+		// key threw. Hence explicit update/create.
+		const sealed = seal(JSON.stringify(merged));
 
 		const result = await prisma.$transaction(async (tx) => {
 			// Exactly one active provider. Deactivating first keeps the invariant
@@ -108,36 +147,27 @@ export const EmailConfigService = {
 				data: { isActive: false },
 			});
 
+			const data = {
+				fromEmail: input.fromEmail,
+				fromName: input.fromName,
+				replyToEmail: input.replyToEmail,
+				isActive: true,
+				credentials: sealed,
+				// Identity or credentials changed, so any prior verification no
+				// longer applies.
+				lastVerifiedAt: null,
+				lastError: null,
+			};
+
 			if (existing) {
 				return tx.emailProviderConfig.update({
 					where: { provider: input.provider },
-					data: {
-						fromEmail: input.fromEmail,
-						fromName: input.fromName,
-						replyToEmail: input.replyToEmail,
-						isActive: true,
-						// Absent key means "keep the stored one", never "clear it".
-						...(sealed ? { credentials: sealed } : {}),
-						// Identity changed, so any prior verification no longer applies.
-						lastVerifiedAt: null,
-						lastError: null,
-					},
+					data,
 				});
 			}
 
-			if (!sealed) {
-				throw new Error('An API key is required when adding a provider.');
-			}
-
 			return tx.emailProviderConfig.create({
-				data: {
-					provider: input.provider,
-					fromEmail: input.fromEmail,
-					fromName: input.fromName,
-					replyToEmail: input.replyToEmail,
-					isActive: true,
-					credentials: sealed,
-				},
+				data: { ...data, provider: input.provider },
 			});
 		});
 
@@ -146,8 +176,8 @@ export const EmailConfigService = {
 	},
 
 	/**
-	 * Config for the admin UI. Returns a masked credential hint only — the
-	 * plaintext key never crosses the server boundary.
+	 * Config for the admin UI. Returns which credential fields are populated —
+	 * never their values. Secrets are write-only across this boundary.
 	 */
 	async getForAdmin() {
 		const rows = await prisma.emailProviderConfig.findMany({
@@ -162,7 +192,7 @@ export const EmailConfigService = {
 				fromEmail: row.fromEmail,
 				fromName: row.fromName,
 				replyToEmail: row.replyToEmail,
-				hasCredential: row.credentials.length > 0,
+				storedCredentialFields: Object.keys(safeDecode(row.credentials)),
 				lastVerifiedAt: row.lastVerifiedAt,
 				lastError: row.lastError,
 			})),
@@ -182,3 +212,16 @@ export const EmailConfigService = {
 		clearEmailConfigCache();
 	},
 };
+
+/**
+ * Decode for display/merge paths, where an undecryptable row must not crash the
+ * admin panel — it should render as "no credentials stored" so the admin can
+ * re-enter them.
+ */
+function safeDecode(sealed: string): Record<string, string> {
+	try {
+		return decodeCredentials(sealed);
+	} catch {
+		return {};
+	}
+}

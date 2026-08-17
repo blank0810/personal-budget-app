@@ -1,12 +1,15 @@
 import crypto from 'crypto';
 
 /**
- * Authenticated encryption for provider credentials at rest.
+ * Authenticated encryption for third-party integration secrets at rest.
  *
- * Deliberately keyed by a dedicated EMAIL_CREDENTIALS_KEY rather than
- * NEXTAUTH_SECRET: that secret already silently governs unsubscribe-token
- * validity (see report.service.ts), and rotating auth must not also brick mail
- * delivery.
+ * Shared across integrations — email provider credentials today, any future
+ * connected service tomorrow — hence SECRET_ENCRYPTION_KEY rather than a
+ * per-feature key.
+ *
+ * Deliberately NOT keyed by NEXTAUTH_SECRET: that value already silently governs
+ * unsubscribe-token validity (see report.service.ts), and rotating auth must not
+ * also render every stored integration credential unreadable.
  *
  * Ciphertext format: `v1:<iv>:<authTag>:<ciphertext>`, each part base64.
  * The version prefix exists so a future key rotation or algorithm change can be
@@ -18,18 +21,18 @@ const IV_BYTES = 12; // GCM standard nonce length
 const KEY_BYTES = 32;
 const VERSION = 'v1';
 
-export class EmailCryptoKeyError extends Error {
+export class SecretCryptoError extends Error {
 	constructor(message: string) {
 		super(message);
-		this.name = 'EmailCryptoKeyError';
+		this.name = 'SecretCryptoError';
 	}
 }
 
 function getKey(): Buffer {
-	const raw = process.env.EMAIL_CREDENTIALS_KEY;
+	const raw = process.env.SECRET_ENCRYPTION_KEY;
 	if (!raw) {
-		throw new EmailCryptoKeyError(
-			'EMAIL_CREDENTIALS_KEY is not set. Generate one with: openssl rand -base64 32'
+		throw new SecretCryptoError(
+			'SECRET_ENCRYPTION_KEY is not set. Generate one with: openssl rand -base64 32'
 		);
 	}
 
@@ -37,14 +40,14 @@ function getKey(): Buffer {
 	try {
 		key = Buffer.from(raw, 'base64');
 	} catch {
-		throw new EmailCryptoKeyError(
-			'EMAIL_CREDENTIALS_KEY is not valid base64.'
+		throw new SecretCryptoError(
+			'SECRET_ENCRYPTION_KEY is not valid base64.'
 		);
 	}
 
 	if (key.length !== KEY_BYTES) {
-		throw new EmailCryptoKeyError(
-			`EMAIL_CREDENTIALS_KEY must decode to ${KEY_BYTES} bytes, got ${key.length}. Generate one with: openssl rand -base64 32`
+		throw new SecretCryptoError(
+			`SECRET_ENCRYPTION_KEY must decode to ${KEY_BYTES} bytes, got ${key.length}. Generate one with: openssl rand -base64 32`
 		);
 	}
 
@@ -81,12 +84,12 @@ export function open(sealed: string): string {
 	const parts = sealed.split(':');
 
 	if (parts.length !== 4) {
-		throw new EmailCryptoKeyError('Stored credential is malformed.');
+		throw new SecretCryptoError('Stored credential is malformed.');
 	}
 
 	const [version, ivB64, tagB64, dataB64] = parts;
 	if (version !== VERSION) {
-		throw new EmailCryptoKeyError(
+		throw new SecretCryptoError(
 			`Unsupported credential format "${version}".`
 		);
 	}
@@ -105,21 +108,10 @@ export function open(sealed: string): string {
 		]).toString('utf8');
 	} catch {
 		// GCM auth tag mismatch: wrong key, or the row was tampered with.
-		throw new EmailCryptoKeyError(
-			'Stored credential could not be decrypted. EMAIL_CREDENTIALS_KEY may have changed.'
+		throw new SecretCryptoError(
+			'Stored credential could not be decrypted. SECRET_ENCRYPTION_KEY may have changed.'
 		);
 	}
-}
-
-/**
- * Render a non-reversible hint for the admin UI, e.g. `re_••••a91f`.
- * This is the ONLY representation of a credential that may leave the server.
- */
-export function maskCredential(plaintext: string): string {
-	if (plaintext.length <= 8) return '••••';
-	const prefix = plaintext.slice(0, 3);
-	const suffix = plaintext.slice(-4);
-	return `${prefix}••••${suffix}`;
 }
 
 /**

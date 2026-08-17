@@ -36,7 +36,7 @@ const { EmailQuotaExceededError, EmailSendError } = await import(
 
 const CONFIG = {
 	provider: 'RESEND' as const,
-	apiKey: 're_test',
+	credentials: { apiKey: 're_test' },
 	fromEmail: 'noreply@budget.umbra.build',
 	fromName: 'Budget Planner',
 	replyToEmail: null,

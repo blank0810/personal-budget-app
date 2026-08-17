@@ -61,7 +61,8 @@ export async function adminUpdateEmailConfigAction(
 		return { error: parsed.error.issues[0]?.message || 'Validation failed' };
 	}
 
-	const { provider, fromEmail, fromName, apiKey, replyToEmail } = parsed.data;
+	const { provider, fromEmail, fromName, credentials, replyToEmail } =
+		parsed.data;
 
 	try {
 		await EmailConfigService.upsert({
@@ -69,8 +70,9 @@ export async function adminUpdateEmailConfigAction(
 			fromEmail,
 			fromName,
 			replyToEmail: replyToEmail || null,
-			// Blank means "keep the stored credential", never "clear it".
-			...(apiKey ? { apiKey } : {}),
+			// Blanks are dropped and merged over stored values by the service, so a
+			// field left untouched keeps its secret.
+			credentials,
 		});
 
 		const config = await requireEmailConfig();

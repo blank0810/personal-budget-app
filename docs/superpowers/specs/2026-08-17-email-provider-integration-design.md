@@ -37,7 +37,7 @@ server/modules/email/
 ├── email.service.ts          # PUBLIC API — signatures unchanged from the Gmail version
 ├── email.provider.ts         # EmailProvider interface, shared types, typed errors
 ├── email.config.ts           # resolve + cache the active provider config
-├── email.crypto.ts           # AES-256-GCM seal/open for stored credentials
+│                           # (crypto lives in server/lib/crypto.ts — shared)
 ├── email.quota.ts            # daily quota guard + priority tiers
 ├── email.controller.ts       # admin server actions (getConfig/updateConfig/sendTest)
 ├── email.types.ts            # Zod schemas
@@ -83,8 +83,18 @@ export type SendEmailInput = {
 
 export type SendResult = { providerMessageId: string; provider: EmailProviderKey };
 
+export type CredentialField = {
+  name: string;        // key inside the sealed credential object
+  label: string;
+  placeholder?: string;
+  secret: boolean;     // write-only in the UI
+  required: boolean;
+  help?: string;
+};
+
 export interface EmailProvider {
   readonly key: EmailProviderKey;
+  readonly credentialFields: ReadonlyArray<CredentialField>;  // UI renders itself from this
   send(input: SendEmailInput, cfg: ResolvedEmailConfig): Promise<SendResult>;
   verify(cfg: ResolvedEmailConfig): Promise<{ ok: boolean; message: string }>;
 }
@@ -111,6 +121,7 @@ Two error types the interface must normalize so callers stay provider-agnostic:
 | `tags` | array of `{name, value}`, **not** a plain object | Interface mirrors this so the next provider adapts to us. |
 | `to` | max 50 addresses | We always send single-recipient. |
 | Free tier | 3,000/month, **100/day** | Lower than Gmail's ~500/day — drives the quota guard. |
+| Auth | a **single** API key (`re_...`) as a Bearer token — no key/secret pair | Resend declares one credential field. Its webhook signing secret (Svix) is separate and only needed for inbound bounce events, which this app does not yet ingest. |
 
 ### Config model
 
@@ -124,7 +135,7 @@ model EmailProviderConfig {
   fromEmail      String
   fromName       String
   replyToEmail   String?          // app-level default reply-to
-  credentials    String           @db.Text   // AES-256-GCM ciphertext
+  credentials    String           @db.Text   // sealed JSON of named secrets
   lastVerifiedAt DateTime?
   lastError      String?          @db.Text
   createdAt      DateTime         @default(now())
@@ -135,17 +146,27 @@ model EmailProviderConfig {
 }
 ```
 
-- **Encryption:** AES-256-GCM under a dedicated `EMAIL_CREDENTIALS_KEY` (32-byte base64).
-  Deliberately *not* `NEXTAUTH_SECRET`, which already silently governs unsubscribe-token
-  validity (`report.service.ts:1100`) — rotating auth must not also brick mail.
-- **Never leaves the server.** The controller returns a masked hint (`re_••••7f2a`) only.
-  Write-only in the UI; redacted in logs and in `lastError`.
+- **Encryption:** AES-256-GCM under `SECRET_ENCRYPTION_KEY` (32-byte base64), via
+  `server/lib/crypto.ts`. Named and located generically because it protects integration
+  secrets in general, not email specifically. Deliberately *not* `NEXTAUTH_SECRET`, which
+  already silently governs unsubscribe-token validity (`report.service.ts:1100`) —
+  rotating auth must not also render every stored credential unreadable.
+- **`credentials` holds a sealed JSON object of named values**, not a bare key, and each
+  provider *declares* the fields it needs (`EmailProvider.credentialFields`). Resend needs
+  only `apiKey`, but that is the exception: AWS SES needs access key id + secret access key
+  + region, Mailgun needs a key plus a sending domain, and Resend's own webhook
+  verification uses a Svix signing secret separate from the sending key. A bare string is
+  still tolerated on read as `{ apiKey }`. Supplied fields **merge** over stored ones, so a
+  field left blank keeps its secret.
+- **Never leaves the server.** `getForAdmin()` returns `storedCredentialFields: string[]`
+  — which fields are populated, never any value, not even masked. Write-only in the UI;
+  redacted in logs and in `lastError`.
 - **One active provider:** enforced in a transaction (deactivate others on activate).
 - **Caching:** module-level cache busted on admin update via `invalidateTags`, plus a
   60s TTL so multi-instance deploys converge without a restart.
-- **Bootstrap fallback:** with no active row, fall back to `RESEND_API_KEY` + `EMAIL_FROM`
-  from env. Removes the "migrated but not yet configured = all mail down" window and
-  gives local dev a zero-click path.
+- **No env fallback.** With no active row, email is simply unconfigured and sends throw
+  `EmailNotConfiguredError`. Commit 1 shipped a bootstrap fallback to avoid a window with
+  no way to configure; commit 2's admin UI closed that window and removed it.
 
 ### Send log, quota guard, priority
 
@@ -198,7 +219,7 @@ Binding constraint is actually the monthly cap, not the daily one: 40 reports/da
 | Removed | Replacement |
 |---|---|
 | `nodemailer` dep + the `createTransport` singleton (`email.service.ts:3-11`) | `resend` + provider registry |
-| `SMTP_USER` / `SMTP_PASS` (`.env.example`, `docker-compose.yml:21-22`) | `RESEND_API_KEY`, `EMAIL_FROM`, `EMAIL_CREDENTIALS_KEY` |
+| `SMTP_USER` / `SMTP_PASS` (`.env.example`, `docker-compose.yml:21-22`) | provider config in the DB + `SECRET_ENCRYPTION_KEY` |
 | `EMAIL_FROM = process.env.SMTP_USER` (`email.service.ts:13`) | `EmailProviderConfig.fromEmail` |
 | `ADMIN_EMAIL = process.env.SMTP_USER` (`feature-request.service.ts:7`) | **`admin_notification_email` SystemSetting.** Must land in the same commit — `:109` returns early when unset, so feature-request mail would die silently. |
 
@@ -210,7 +231,7 @@ reference — this table is the committed source of truth. All are also wired in
 
 | Variable | Required | Purpose |
 |---|---|---|
-| `EMAIL_CREDENTIALS_KEY` | **yes** | AES-256-GCM key for credentials at rest. `openssl rand -base64 32`. |
+| `SECRET_ENCRYPTION_KEY` | **yes** | AES-256-GCM key for stored integration secrets. `openssl rand -base64 32`. |
 | `EMAIL_DAILY_LIMIT` | no | Daily send budget. Defaults to `100` (Resend free tier). |
 | `EMAIL_DAILY_RESERVE` | no | Of that budget, how much is held for CRITICAL/HIGH. Defaults to `40`. |
 | `ADMIN_NOTIFICATION_EMAIL` | no | Feature-request recipient when the `admin_notification_email` setting is blank. |
@@ -222,7 +243,7 @@ reference — this table is the committed source of truth. All are also wired in
 app under Admin → System and stored encrypted in `email_provider_configs`. Commit 1
 shipped an env bootstrap fallback for them; commit 2 removed it. Reading the key from env
 would defeat the no-redeploy rotation that DB storage was chosen for, and would leave the
-same secret in two places. `EMAIL_CREDENTIALS_KEY` is the sole exception because it
+same secret in two places. `SECRET_ENCRYPTION_KEY` is the sole exception because it
 encrypts that table and so cannot live inside it.
 
 ## Notification types — all user-configurable

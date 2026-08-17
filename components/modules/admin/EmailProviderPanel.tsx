@@ -36,7 +36,7 @@ interface ProviderRow {
 	fromEmail: string;
 	fromName: string;
 	replyToEmail: string | null;
-	hasCredential: boolean;
+	storedCredentialFields: string[];
 	lastVerifiedAt: string | Date | null;
 	lastError: string | null;
 }
@@ -49,11 +49,24 @@ interface QuotaStatus {
 	reserveForPriority: number;
 }
 
+interface CredentialField {
+	name: string;
+	label: string;
+	placeholder?: string;
+	secret: boolean;
+	required: boolean;
+	help?: string;
+}
+
 interface EmailProviderPanelProps {
 	configured: boolean;
 	providers: ProviderRow[];
 	quota: QuotaStatus;
-	availableProviders: ReadonlyArray<{ key: string; label: string }>;
+	availableProviders: ReadonlyArray<{
+		key: string;
+		label: string;
+		credentialFields: ReadonlyArray<CredentialField>;
+	}>;
 }
 
 export function EmailProviderPanel({
@@ -72,13 +85,23 @@ export function EmailProviderPanel({
 		active?.fromName ?? 'Budget Planner'
 	);
 	const [replyToEmail, setReplyToEmail] = useState(active?.replyToEmail ?? '');
-	const [apiKey, setApiKey] = useState('');
+	const [credentials, setCredentials] = useState<Record<string, string>>({});
 	const [testTo, setTestTo] = useState('');
 	const [isSaving, startSaving] = useTransition();
 	const [isTesting, startTesting] = useTransition();
 
 	const current = providers.find((p) => p.provider === provider) ?? null;
-	const hasStoredCredential = current?.hasCredential ?? false;
+	const stored = current?.storedCredentialFields ?? [];
+	const fields =
+		availableProviders.find((p) => p.key === provider)?.credentialFields ?? [];
+
+	function isSatisfied(field: CredentialField) {
+		return (
+			!field.required ||
+			stored.includes(field.name) ||
+			(credentials[field.name]?.trim() ?? '') !== ''
+		);
+	}
 
 	function handleSave() {
 		startSaving(async () => {
@@ -87,7 +110,7 @@ export function EmailProviderPanel({
 				fromEmail,
 				fromName,
 				replyToEmail,
-				apiKey,
+				credentials,
 			});
 
 			if ('error' in result) {
@@ -95,8 +118,8 @@ export function EmailProviderPanel({
 				return;
 			}
 
-			// Clear the field so a stored key is never echoed back into the DOM.
-			setApiKey('');
+			// Clear the inputs so a stored secret is never left in the DOM.
+			setCredentials({});
 
 			if (result.data?.verified) {
 				toast.success('Saved and verified', {
@@ -126,7 +149,7 @@ export function EmailProviderPanel({
 	const canSave =
 		fromEmail.trim() !== '' &&
 		fromName.trim() !== '' &&
-		(hasStoredCredential || apiKey.trim() !== '');
+		fields.every(isSatisfied);
 
 	const quotaPercent =
 		quota.dailyLimit > 0
@@ -194,24 +217,41 @@ export function EmailProviderPanel({
 						</Select>
 					</div>
 
-					<div className='space-y-2'>
-						<Label htmlFor='email-api-key'>API key</Label>
-						<Input
-							id='email-api-key'
-							type='password'
-							autoComplete='off'
-							value={apiKey}
-							onChange={(e) => setApiKey(e.target.value)}
-							placeholder={
-								hasStoredCredential
-									? 'Stored — leave blank to keep'
-									: 're_...'
-							}
-						/>
-						<p className='text-xs text-muted-foreground'>
-							Stored encrypted. Never displayed again after saving.
-						</p>
-					</div>
+					{fields.map((field) => (
+						<div key={field.name} className='space-y-2'>
+							<Label htmlFor={`email-cred-${field.name}`}>
+								{field.label}
+								{!field.required && (
+									<span className='text-muted-foreground'>
+										{' '}
+										(optional)
+									</span>
+								)}
+							</Label>
+							<Input
+								id={`email-cred-${field.name}`}
+								type={field.secret ? 'password' : 'text'}
+								autoComplete='off'
+								value={credentials[field.name] ?? ''}
+								onChange={(e) =>
+									setCredentials((prev) => ({
+										...prev,
+										[field.name]: e.target.value,
+									}))
+								}
+								placeholder={
+									stored.includes(field.name)
+										? 'Stored — leave blank to keep'
+										: field.placeholder
+								}
+							/>
+							<p className='text-xs text-muted-foreground'>
+								{field.help}
+								{field.secret &&
+									' Stored encrypted; never displayed again after saving.'}
+							</p>
+						</div>
+					))}
 
 					<div className='space-y-2'>
 						<Label htmlFor='email-from'>From address</Label>

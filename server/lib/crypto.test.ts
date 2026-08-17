@@ -3,24 +3,23 @@ import crypto from 'crypto';
 import {
 	seal,
 	open,
-	maskCredential,
 	redactSecrets,
-	EmailCryptoKeyError,
-} from './email.crypto';
+	SecretCryptoError,
+} from './crypto';
 
 const VALID_KEY = crypto.randomBytes(32).toString('base64');
 const OTHER_KEY = crypto.randomBytes(32).toString('base64');
 
-describe('email.crypto', () => {
-	const original = process.env.EMAIL_CREDENTIALS_KEY;
+describe('lib/crypto', () => {
+	const original = process.env.SECRET_ENCRYPTION_KEY;
 
 	beforeEach(() => {
-		process.env.EMAIL_CREDENTIALS_KEY = VALID_KEY;
+		process.env.SECRET_ENCRYPTION_KEY = VALID_KEY;
 	});
 
 	afterEach(() => {
-		if (original === undefined) delete process.env.EMAIL_CREDENTIALS_KEY;
-		else process.env.EMAIL_CREDENTIALS_KEY = original;
+		if (original === undefined) delete process.env.SECRET_ENCRYPTION_KEY;
+		else process.env.SECRET_ENCRYPTION_KEY = original;
 	});
 
 	describe('seal / open', () => {
@@ -55,17 +54,17 @@ describe('email.crypto', () => {
 				Buffer.from('totally different bytes').toString('base64'),
 			].join(':');
 
-			expect(() => open(tampered)).toThrow(EmailCryptoKeyError);
+			expect(() => open(tampered)).toThrow(SecretCryptoError);
 		});
 
 		it('rejects a ciphertext sealed under a different key', () => {
 			const sealed = seal('re_abc123');
-			process.env.EMAIL_CREDENTIALS_KEY = OTHER_KEY;
-			expect(() => open(sealed)).toThrow(EmailCryptoKeyError);
+			process.env.SECRET_ENCRYPTION_KEY = OTHER_KEY;
+			expect(() => open(sealed)).toThrow(SecretCryptoError);
 		});
 
 		it('rejects a malformed payload', () => {
-			expect(() => open('not-a-sealed-value')).toThrow(EmailCryptoKeyError);
+			expect(() => open('not-a-sealed-value')).toThrow(SecretCryptoError);
 		});
 
 		it('rejects an unknown format version', () => {
@@ -78,25 +77,15 @@ describe('email.crypto', () => {
 
 	describe('key validation', () => {
 		it('throws a clear error when the key is absent', () => {
-			delete process.env.EMAIL_CREDENTIALS_KEY;
-			expect(() => seal('x')).toThrow(/EMAIL_CREDENTIALS_KEY is not set/);
+			delete process.env.SECRET_ENCRYPTION_KEY;
+			expect(() => seal('x')).toThrow(/SECRET_ENCRYPTION_KEY is not set/);
 		});
 
 		it('throws when the key is the wrong length', () => {
-			process.env.EMAIL_CREDENTIALS_KEY = Buffer.from('too-short').toString(
+			process.env.SECRET_ENCRYPTION_KEY = Buffer.from('too-short').toString(
 				'base64'
 			);
 			expect(() => seal('x')).toThrow(/must decode to 32 bytes/);
-		});
-	});
-
-	describe('maskCredential', () => {
-		it('shows only a prefix and suffix', () => {
-			expect(maskCredential('re_abcdefghijkl1234')).toBe('re_••••1234');
-		});
-
-		it('fully masks a short value rather than leaking most of it', () => {
-			expect(maskCredential('re_abc')).toBe('••••');
 		});
 	});
 

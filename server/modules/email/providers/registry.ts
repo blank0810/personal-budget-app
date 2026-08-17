@@ -18,8 +18,20 @@ export function getProvider(key: EmailProviderKey): EmailProvider {
 	return EMAIL_PROVIDERS[key];
 }
 
-/** Providers offered in the admin config UI, in display order. */
-export const AVAILABLE_PROVIDERS: ReadonlyArray<{
-	key: EmailProviderKey;
-	label: string;
-}> = [{ key: EmailProviderKey.RESEND, label: 'Resend' }];
+const PROVIDER_LABELS: Record<EmailProviderKey, string> = {
+	[EmailProviderKey.RESEND]: 'Resend',
+};
+
+/**
+ * Providers offered in the admin config UI, each carrying the credential fields
+ * it declares so the form renders itself. Adding a provider needs no UI change.
+ */
+export const AVAILABLE_PROVIDERS = Object.values(EmailProviderKey).map(
+	(key) => ({
+		key,
+		label: PROVIDER_LABELS[key],
+		credentialFields: EMAIL_PROVIDERS[key].credentialFields,
+	})
+);
+
+export type AvailableProvider = (typeof AVAILABLE_PROVIDERS)[number];

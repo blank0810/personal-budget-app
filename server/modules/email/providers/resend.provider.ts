@@ -1,6 +1,8 @@
 import { Resend } from 'resend';
 import { EmailProviderKey } from '@prisma/client';
 import {
+	CredentialField,
+	EmailCredentialError,
 	EmailProvider,
 	EmailSendError,
 	ResolvedEmailConfig,
@@ -9,7 +11,7 @@ import {
 	VerifyResult,
 	formatAddress,
 } from '../email.provider';
-import { redactSecrets } from '../email.crypto';
+import { redactSecrets } from '@/server/lib/crypto';
 
 /**
  * Resend error codes that represent a transient condition worth another attempt.
@@ -40,14 +42,39 @@ function getClient(apiKey: string): Resend {
 	return client;
 }
 
+/**
+ * Resend authenticates with a single API key as a Bearer token — no key/secret
+ * pair. (Its webhook signing secret is separate and only needed for inbound
+ * bounce/complaint events, which this app does not yet ingest.)
+ */
+const CREDENTIAL_FIELDS: ReadonlyArray<CredentialField> = [
+	{
+		name: 'apiKey',
+		label: 'API key',
+		placeholder: 're_...',
+		secret: true,
+		required: true,
+		help: 'Create one at resend.com/api-keys with Sending access.',
+	},
+];
+
+function getApiKey(config: ResolvedEmailConfig): string {
+	const apiKey = config.credentials.apiKey;
+	if (!apiKey) {
+		throw new EmailCredentialError('Resend API key is missing.');
+	}
+	return apiKey;
+}
+
 export const resendProvider: EmailProvider = {
 	key: EmailProviderKey.RESEND,
+	credentialFields: CREDENTIAL_FIELDS,
 
 	async send(
 		input: SendEmailInput,
 		config: ResolvedEmailConfig
 	): Promise<SendResult> {
-		const client = getClient(config.apiKey);
+		const client = getClient(getApiKey(config));
 
 		// The provider owns the envelope address; only the display name and
 		// reply-to may be overridden per user, so a user can never send as
@@ -100,7 +127,7 @@ export const resendProvider: EmailProvider = {
 		try {
 			// Listing domains touches auth without sending mail, so a misconfigured
 			// key is reported before anything reaches a real inbox.
-			const { error } = await getClient(config.apiKey).domains.list();
+			const { error } = await getClient(getApiKey(config)).domains.list();
 
 			if (error) {
 				return { ok: false, message: redactSecrets(error.message) };

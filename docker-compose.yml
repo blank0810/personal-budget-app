@@ -18,10 +18,12 @@ services:
             DATABASE_URL: ${DATABASE_URL}
             NEXTAUTH_URL: ${NEXTAUTH_URL}
             NEXTAUTH_SECRET: ${NEXTAUTH_SECRET}
-            # Provider credentials + sender identity live in the DB
-            # (email_provider_configs), entered under Admin -> System. Only the
-            # key that encrypts them belongs in the environment.
-            EMAIL_CREDENTIALS_KEY: ${EMAIL_CREDENTIALS_KEY}
+            # Encrypts stored integration secrets (email provider credentials
+            # today, other connected services later). Those secrets are entered
+            # under Admin -> System and live in the DB; only the key that
+            # encrypts them belongs in the environment, since it cannot live
+            # inside the table it protects.
+            SECRET_ENCRYPTION_KEY: ${SECRET_ENCRYPTION_KEY}
             EMAIL_DAILY_LIMIT: ${EMAIL_DAILY_LIMIT}
             EMAIL_DAILY_RESERVE: ${EMAIL_DAILY_RESERVE}
             ADMIN_NOTIFICATION_EMAIL: ${ADMIN_NOTIFICATION_EMAIL}

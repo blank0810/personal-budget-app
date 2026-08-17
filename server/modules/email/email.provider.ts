@@ -63,9 +63,31 @@ export type VerifyResult = {
  * Provider config after decryption. Adapters receive this rather than reading
  * env or the database themselves, so they stay pure and testable.
  */
+/**
+ * One credential input a provider needs. Providers declare these so the admin UI
+ * renders the right fields and validation stays in one place, instead of the
+ * form hardcoding "API key" and breaking on the first provider that needs more.
+ *
+ * Resend needs only `apiKey`, but that is the exception rather than the rule:
+ * AWS SES needs an access key id, a secret access key, and a region; Mailgun
+ * needs a key plus a sending domain; and Resend's own webhook verification uses
+ * a Svix signing secret separate from the sending key.
+ */
+export type CredentialField = {
+	/** Key under which the value is stored in the sealed credential object. */
+	name: string;
+	label: string;
+	placeholder?: string;
+	/** Secret values are write-only: masked in the UI and never returned. */
+	secret: boolean;
+	required: boolean;
+	help?: string;
+};
+
 export type ResolvedEmailConfig = {
 	provider: EmailProviderKey;
-	apiKey: string;
+	/** Decrypted credential values, keyed by CredentialField.name. */
+	credentials: Record<string, string>;
 	fromEmail: string;
 	fromName: string;
 	replyToEmail: string | null;
@@ -73,9 +95,19 @@ export type ResolvedEmailConfig = {
 
 export interface EmailProvider {
 	readonly key: EmailProviderKey;
+	/** What this provider needs configured, in display order. */
+	readonly credentialFields: ReadonlyArray<CredentialField>;
 	send(input: SendEmailInput, config: ResolvedEmailConfig): Promise<SendResult>;
 	/** Credential/identity smoke test behind the admin "send test" button. */
 	verify(config: ResolvedEmailConfig): Promise<VerifyResult>;
+}
+
+/** Missing or malformed credentials for the configured provider. */
+export class EmailCredentialError extends Error {
+	constructor(message: string) {
+		super(message);
+		this.name = 'EmailCredentialError';
+	}
 }
 
 /**

@@ -12,10 +12,13 @@ export const updateEmailConfigSchema = z.object({
 		.min(1, 'A sender name is required')
 		.max(100, 'Sender name is too long'),
 	/**
-	 * Empty string means "keep the stored credential" — the UI never receives the
-	 * current key, so a blank field must not be read as "clear it".
+	 * Credential values keyed by the provider's declared CredentialField names.
+	 * A blank or omitted field means "keep the stored value" — the UI never
+	 * receives a stored secret, so blank must not be read as "clear it".
+	 * Which fields are required is the provider's declaration to enforce, not
+	 * this schema's, so that adding a provider needs no change here.
 	 */
-	apiKey: z.string().trim().default(''),
+	credentials: z.record(z.string(), z.string()).default({}),
 	replyToEmail: z
 		.union([z.string().email('Reply-to must be a valid email'), z.literal('')])
 		.default(''),

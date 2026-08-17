@@ -1,7 +1,7 @@
 import { EmailPriority, EmailProviderKey, EmailStatus } from '@prisma/client';
 import prisma from '@/lib/prisma';
 import { requireEmailConfig } from './email.config';
-import { redactSecrets } from './email.crypto';
+import { redactSecrets } from '@/server/lib/crypto';
 import { checkQuota } from './email.quota';
 import { getProvider } from './providers/registry';
 import {
