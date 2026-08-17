@@ -18,10 +18,9 @@ services:
             DATABASE_URL: ${DATABASE_URL}
             NEXTAUTH_URL: ${NEXTAUTH_URL}
             NEXTAUTH_SECRET: ${NEXTAUTH_SECRET}
-            RESEND_API_KEY: ${RESEND_API_KEY}
-            EMAIL_FROM: ${EMAIL_FROM}
-            EMAIL_FROM_NAME: ${EMAIL_FROM_NAME}
-            EMAIL_REPLY_TO: ${EMAIL_REPLY_TO}
+            # Provider credentials + sender identity live in the DB
+            # (email_provider_configs), entered under Admin -> System. Only the
+            # key that encrypts them belongs in the environment.
             EMAIL_CREDENTIALS_KEY: ${EMAIL_CREDENTIALS_KEY}
             EMAIL_DAILY_LIMIT: ${EMAIL_DAILY_LIMIT}
             EMAIL_DAILY_RESERVE: ${EMAIL_DAILY_RESERVE}

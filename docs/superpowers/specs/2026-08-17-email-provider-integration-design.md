@@ -210,16 +210,20 @@ reference — this table is the committed source of truth. All are also wired in
 
 | Variable | Required | Purpose |
 |---|---|---|
-| `EMAIL_CREDENTIALS_KEY` | **yes**, to store a provider config | AES-256-GCM key for credentials at rest. `openssl rand -base64 32`. |
-| `RESEND_API_KEY` | bootstrap only | Used when no active DB config exists. |
-| `EMAIL_FROM` | bootstrap only | Envelope sender, e.g. `noreply@budget.umbra.build`. |
-| `EMAIL_FROM_NAME` | no | Default display name. Defaults to `Budget Planner`. |
-| `EMAIL_REPLY_TO` | no | App-level default reply-to. |
+| `EMAIL_CREDENTIALS_KEY` | **yes** | AES-256-GCM key for credentials at rest. `openssl rand -base64 32`. |
 | `EMAIL_DAILY_LIMIT` | no | Daily send budget. Defaults to `100` (Resend free tier). |
 | `EMAIL_DAILY_RESERVE` | no | Of that budget, how much is held for CRITICAL/HIGH. Defaults to `40`. |
 | `ADMIN_NOTIFICATION_EMAIL` | no | Feature-request recipient when the `admin_notification_email` setting is blank. |
 
 **Removed:** `SMTP_USER`, `SMTP_PASS`.
+
+**Deliberately NOT env vars.** The provider API key and sender identity
+(`RESEND_API_KEY`, `EMAIL_FROM`, `EMAIL_FROM_NAME`, `EMAIL_REPLY_TO`) are entered in the
+app under Admin → System and stored encrypted in `email_provider_configs`. Commit 1
+shipped an env bootstrap fallback for them; commit 2 removed it. Reading the key from env
+would defeat the no-redeploy rotation that DB storage was chosen for, and would leave the
+same secret in two places. `EMAIL_CREDENTIALS_KEY` is the sole exception because it
+encrypts that table and so cannot live inside it.
 
 ## Notification types — all user-configurable
 
@@ -323,7 +327,7 @@ Mechanics that make the claim honest:
 | # | Contents | Status |
 |---|---|---|
 | **1** | Provider layer + Resend adapter + `EmailProviderConfig` + encryption + `EmailSendLog` (quota/audit/idempotency) + `admin_notification_email` + nodemailer removed | **done** |
-| **2** | `/admin/system` provider section + send-test | next |
+| **2** | `/admin/system` provider section + send-test; env bootstrap removed | **done** |
 | **3** | Code-side notification registry + shared `NotificationPreferencesCard` + HTML escaping + default-preservation migration | |
 | **4** | The 7 new owner-facing types and their triggers | |
 | **5** | Onboarding Notifications step | |
@@ -364,6 +368,33 @@ Four things changed once the code met reality:
    report as done. Pre-existing, but the quota guard turned it from rare into likely.
 
 4. **Batch size 50 → 40** in both `report.queue.ts` (default) and `registry.ts`.
+
+## Implementation notes — commit 2
+
+- **Env bootstrap removed.** `readEnvBootstrap()` is gone and `ResolvedEmailConfig` lost
+  its `isBootstrap` flag. The active DB row is now the only source of provider config.
+- **`requireAdminSession` moved to `server/lib/auth-guard.ts`.** It was private to
+  `admin.controller.ts`; the email controller needs the same ADMIN-role-plus-sudo gate, and
+  a `'use server'` module cannot safely export a shared helper (every export becomes a
+  callable action endpoint). `admin.controller.ts` now imports it.
+- **Bug caught by its own test:** the first cut of `EmailConfigService.upsert` inlined
+  `seal(input.apiKey!)` inside a Prisma `upsert`'s `create` block. JS evaluates that object
+  even when only `update` is used, so saving a sender-identity change *without* re-entering
+  the API key threw — precisely the flow the UI's "leave blank to keep" placeholder
+  invites. Replaced with explicit `update` / `create` branches.
+- **Credential handling across the boundary:** blank `apiKey` means "keep the stored one",
+  never "clear it". `getForAdmin()` returns `hasCredential: boolean` and never the value;
+  the client clears its own input on success so a key is not left in the DOM.
+- **Test send is CRITICAL priority** so a spent daily quota cannot make a correctly
+  configured provider look broken.
+- Saving runs `verify()` immediately (Resend `domains.list`, no mail sent) and records
+  `lastVerifiedAt` / `lastError`, so a bad key surfaces in the panel rather than later as a
+  silently dropped password reset.
+
+Verified end-to-end against the live Resend API: credential stored as `v1:` ciphertext with
+no plaintext, decrypt correct, identity-only update preserved the key, and a deliberately
+invalid key returned `validation_error` → mapped to a non-retryable failure with
+`lastError` recorded.
 
 ### Required follow-up before enabling the report cron on the free tier
 

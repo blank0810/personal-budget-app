@@ -69,8 +69,6 @@ export type ResolvedEmailConfig = {
 	fromEmail: string;
 	fromName: string;
 	replyToEmail: string | null;
-	/** True when the config came from env bootstrap rather than a DB row. */
-	isBootstrap: boolean;
 };
 
 export interface EmailProvider {

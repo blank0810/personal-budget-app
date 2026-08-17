@@ -22,6 +22,7 @@ export const CACHE_TAGS = {
 	ADMIN: 'admin',
 	FEATURE_FLAGS: 'feature-flags',
 	AUTOMATION_SCHEDULES: 'automation-schedules',
+	EMAIL_CONFIG: 'email-config',
 	LEDGER: 'ledger',
 } as const;
 

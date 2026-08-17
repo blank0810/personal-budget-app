@@ -1,6 +1,7 @@
 'use server';
 
 import { auth } from '@/auth';
+import { requireAdminSession } from '@/server/lib/auth-guard';
 import { AdminService } from './admin.service';
 import { AdminUsersService } from './admin-users.service';
 import { AdminContentService } from './admin-content.service';
@@ -17,14 +18,8 @@ import {
 } from '@/server/modules/feature-flag/feature-flag.types';
 import type { ActionResponse } from '@/server/lib/action-types';
 
-async function requireAdminSession() {
-	const session = await auth();
-	if (!session?.user?.id)
-		return { error: 'Not authenticated' as const, userId: '' };
-	const active = await AdminService.isAdminSessionActive(session.user.id);
-	if (!active) return { error: 'Admin session expired' as const, userId: '' };
-	return { error: null, userId: session.user.id };
-}
+// Guard lives in server/lib/auth-guard.ts so other admin-scoped controllers
+// (e.g. the email provider config) share one implementation.
 
 export async function adminReauth(password: string) {
 	const session = await auth();

@@ -4,14 +4,14 @@ import { open, seal } from './email.crypto';
 import { EmailNotConfiguredError, ResolvedEmailConfig } from './email.provider';
 
 /**
- * Resolution order for the active provider config:
+ * The active EmailProviderConfig row is the ONLY source of provider config.
  *
- *   1. The active EmailProviderConfig row (set under Admin → System).
- *   2. Env bootstrap — RESEND_API_KEY + EMAIL_FROM.
- *
- * The env fallback exists so the migration that removes SMTP does not leave a
- * window where all mail is down before an admin has clicked anything, and so
- * local dev works with no admin steps at all.
+ * Credentials are entered under Admin → System and stored encrypted; they are
+ * deliberately not readable from env. Putting the API key in env would defeat
+ * the reason this is DB-backed in the first place — rotating a credential or
+ * switching provider without a redeploy — and would leave the same secret in two
+ * places. The one email secret that must stay in env is EMAIL_CREDENTIALS_KEY,
+ * which encrypts this table and therefore cannot live inside it.
  */
 
 const CACHE_TTL_MS = 60_000;
@@ -27,48 +27,31 @@ export function clearEmailConfigCache(): void {
 	cache = null;
 }
 
-function readEnvBootstrap(): ResolvedEmailConfig | null {
-	const apiKey = process.env.RESEND_API_KEY;
-	const fromEmail = process.env.EMAIL_FROM;
-	if (!apiKey || !fromEmail) return null;
-
-	return {
-		provider: EmailProviderKey.RESEND,
-		apiKey,
-		fromEmail,
-		fromName: process.env.EMAIL_FROM_NAME || 'Budget Planner',
-		replyToEmail: process.env.EMAIL_REPLY_TO || null,
-		isBootstrap: true,
-	};
-}
-
 async function resolve(): Promise<ResolvedEmailConfig | null> {
 	const row = await prisma.emailProviderConfig.findFirst({
 		where: { isActive: true },
 	});
 
-	if (row) {
-		try {
-			return {
-				provider: row.provider,
-				apiKey: open(row.credentials),
-				fromEmail: row.fromEmail,
-				fromName: row.fromName,
-				replyToEmail: row.replyToEmail,
-				isBootstrap: false,
-			};
-		} catch (error) {
-			// An undecryptable row (rotated key, tampered value) must not silently
-			// fall through to env with different sender identity — surface it.
-			console.error(
-				'Active email provider config could not be decrypted:',
-				error instanceof Error ? error.message : error
-			);
-			return null;
-		}
-	}
+	if (!row) return null;
 
-	return readEnvBootstrap();
+	try {
+		return {
+			provider: row.provider,
+			apiKey: open(row.credentials),
+			fromEmail: row.fromEmail,
+			fromName: row.fromName,
+			replyToEmail: row.replyToEmail,
+		};
+	} catch (error) {
+		// Undecryptable row: EMAIL_CREDENTIALS_KEY was rotated or the value was
+		// tampered with. Report as "not configured" so callers keep their existing
+		// failure semantics rather than retrying a permanent condition.
+		console.error(
+			'Active email provider config could not be decrypted:',
+			error instanceof Error ? error.message : error
+		);
+		return null;
+	}
 }
 
 /** Resolved config, or null when email is not configured at all. */
@@ -111,6 +94,12 @@ export const EmailConfigService = {
 			throw new Error('An API key is required when adding a provider.');
 		}
 
+		// Sealed once, outside the branches. An earlier version inlined
+		// `seal(apiKey!)` in an upsert's `create` block, which JS evaluates even
+		// when only `update` is used — so saving an identity change without
+		// re-entering the key threw. Hence explicit update/create.
+		const sealed = input.apiKey ? seal(input.apiKey) : null;
+
 		const result = await prisma.$transaction(async (tx) => {
 			// Exactly one active provider. Deactivating first keeps the invariant
 			// true at every point a concurrent reader could observe.
@@ -119,25 +108,35 @@ export const EmailConfigService = {
 				data: { isActive: false },
 			});
 
-			return tx.emailProviderConfig.upsert({
-				where: { provider: input.provider },
-				update: {
-					fromEmail: input.fromEmail,
-					fromName: input.fromName,
-					replyToEmail: input.replyToEmail,
-					isActive: true,
-					...(input.apiKey ? { credentials: seal(input.apiKey) } : {}),
-					// Identity changed, so any prior verification no longer applies.
-					lastVerifiedAt: null,
-					lastError: null,
-				},
-				create: {
+			if (existing) {
+				return tx.emailProviderConfig.update({
+					where: { provider: input.provider },
+					data: {
+						fromEmail: input.fromEmail,
+						fromName: input.fromName,
+						replyToEmail: input.replyToEmail,
+						isActive: true,
+						// Absent key means "keep the stored one", never "clear it".
+						...(sealed ? { credentials: sealed } : {}),
+						// Identity changed, so any prior verification no longer applies.
+						lastVerifiedAt: null,
+						lastError: null,
+					},
+				});
+			}
+
+			if (!sealed) {
+				throw new Error('An API key is required when adding a provider.');
+			}
+
+			return tx.emailProviderConfig.create({
+				data: {
 					provider: input.provider,
 					fromEmail: input.fromEmail,
 					fromName: input.fromName,
 					replyToEmail: input.replyToEmail,
 					isActive: true,
-					credentials: seal(input.apiKey!),
+					credentials: sealed,
 				},
 			});
 		});
@@ -155,12 +154,8 @@ export const EmailConfigService = {
 			orderBy: { provider: 'asc' },
 		});
 
-		const bootstrap = readEnvBootstrap();
-
 		return {
-			// True when nothing is stored but env can still send, so the UI can say
-			// "running on env bootstrap" instead of "not configured".
-			usingEnvBootstrap: rows.every((r) => !r.isActive) && bootstrap !== null,
+			configured: rows.some((r) => r.isActive),
 			providers: rows.map((row) => ({
 				provider: row.provider,
 				isActive: row.isActive,
