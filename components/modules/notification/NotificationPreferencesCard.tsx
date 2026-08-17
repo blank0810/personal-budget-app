@@ -25,6 +25,7 @@ import {
 	updateNotificationPreferenceAction,
 	updateEmailNotificationsEnabledAction,
 	updateNotificationEmailAction,
+	updateLargeExpenseThresholdAction,
 } from '@/server/modules/notification/notification.controller';
 import type { MergedPreference } from '@/server/modules/notification/notification.types';
 import {
@@ -46,6 +47,7 @@ export function NotificationPreferencesCard({
 	emailNotificationsEnabled,
 	notificationEmail,
 	accountEmail,
+	largeExpenseThreshold = null,
 	embedded = false,
 }: {
 	preferences: MergedPreference[];
@@ -53,6 +55,7 @@ export function NotificationPreferencesCard({
 	emailNotificationsEnabled: boolean;
 	notificationEmail: string | null;
 	accountEmail: string;
+	largeExpenseThreshold?: number | null;
 	/**
 	 * Render without the Card chrome, for hosts that supply their own — the
 	 * onboarding wizard's "Customize" disclosure. Extracted from ProfilePage so
@@ -62,6 +65,14 @@ export function NotificationPreferencesCard({
 }) {
 	const [localPrefs, setLocalPrefs] = useState(preferences);
 	const [shakingKey, setShakingKey] = useState<string | null>(null);
+
+	// Large-expense threshold. Rendered inline under its own toggle rather than in
+	// a separate card, because the toggle does nothing without it.
+	const [thresholdValue, setThresholdValue] = useState(
+		largeExpenseThreshold != null ? String(largeExpenseThreshold) : ''
+	);
+	const [savedThreshold, setSavedThreshold] = useState(largeExpenseThreshold);
+	const [isThresholdPending, startThresholdTransition] = useTransition();
 
 	// Master email toggle state
 	const [masterEnabled, setMasterEnabled] = useState(emailNotificationsEnabled);
@@ -136,6 +147,31 @@ export function NotificationPreferencesCard({
 				setEditingDelivery(false);
 				toast.success('Delivery email updated');
 			}
+		});
+	}
+
+	function handleThresholdSave() {
+		startThresholdTransition(async () => {
+			const trimmed = thresholdValue.trim();
+			const parsed = trimmed === '' ? null : Number(trimmed);
+
+			if (parsed !== null && (Number.isNaN(parsed) || parsed <= 0)) {
+				toast.error('Enter an amount greater than zero, or clear the field');
+				return;
+			}
+
+			const result = await updateLargeExpenseThresholdAction(parsed);
+			if (result.error) {
+				toast.error(result.error);
+				return;
+			}
+
+			setSavedThreshold(parsed);
+			toast.success(
+				parsed === null
+					? 'Threshold cleared — large expense alerts are inactive'
+					: 'Threshold updated'
+			);
 		});
 	}
 
@@ -311,8 +347,8 @@ export function NotificationPreferencesCard({
 								] ?? category}
 							</h3>
 							{grouped[category].map((pref) => (
+								<div key={pref.key}>
 								<div
-									key={pref.key}
 									className={`flex items-center justify-between py-2 ${
 										shakingKey === pref.key
 											? 'animate-shake'
@@ -385,6 +421,43 @@ export function NotificationPreferencesCard({
 											</Tooltip>
 										)}
 									</div>
+								</div>
+
+								{pref.key === 'large_expense_alert' && (
+									<div className="pl-1 pb-2 space-y-2">
+										<div className="flex flex-col sm:flex-row gap-2">
+											<Input
+												type="number"
+												min="0"
+												step="0.01"
+												inputMode="decimal"
+												value={thresholdValue}
+												onChange={(e) => setThresholdValue(e.target.value)}
+												placeholder="Alert above this amount"
+												disabled={isThresholdPending}
+												className="h-8 text-sm sm:max-w-[200px]"
+											/>
+											<Button
+												size="sm"
+												variant="secondary"
+												className="h-8 shrink-0"
+												onClick={handleThresholdSave}
+												disabled={isThresholdPending}
+											>
+												{isThresholdPending ? (
+													<Loader2 className="h-3 w-3 animate-spin mr-1" />
+												) : null}
+												Save threshold
+											</Button>
+										</div>
+										{savedThreshold == null && (
+											<p className="flex items-center gap-1 text-xs text-amber-600 dark:text-amber-500">
+												<AlertCircle className="h-3 w-3 shrink-0" />
+												Set an amount — this alert stays inactive without one
+											</p>
+										)}
+									</div>
+								)}
 								</div>
 							))}
 						</div>

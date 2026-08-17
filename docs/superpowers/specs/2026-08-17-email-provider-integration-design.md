@@ -371,7 +371,8 @@ Mechanics that make the claim honest:
 | **2** | `/admin/system` provider section + send-test; env bootstrap removed | **done** |
 | **2b** | `SECRET_ENCRYPTION_KEY` rename; generic `integrations` table replaces `email_provider_configs` | **done** |
 | **3** | Code-side notification registry + shared `NotificationPreferencesCard` + HTML escaping + default preservation | **done** |
-| **4** | The 7 new owner-facing types and their triggers | |
+| **4** | 6 of the 7 new owner-facing types and their triggers | **done** |
+| **4b** | `weekly_summary` (needs `generateMonthlyDigest` re-parameterized to a date range) | |
 | **5** | Onboarding Notifications step | |
 
 Commit 1 is the only one with rollback risk; 2–5 are additive.
@@ -437,6 +438,55 @@ Verified end-to-end against the live Resend API: credential stored as `v1:` ciph
 no plaintext, decrypt correct, identity-only update preserved the key, and a deliberately
 invalid key returned `validation_error` → mapped to a non-retryable failure with
 `lastError` recorded.
+
+## Implementation notes — commit 4
+
+Six of the seven types shipped. **`weekly_summary` split into commit 4b**: it needs
+`generateMonthlyDigest` re-parameterized from a month to an arbitrary date range, which is
+report-math work that belongs behind the money-review gate on its own rather than bundled
+with six unrelated triggers.
+
+**`security_alerts` scoped to password changes.** Both paths are covered — the in-app change
+(`notification.controller.ts`) and completing a forgot-password reset
+(`auth.service.ts`). New-device sign-in alerts are **deferred**: there is no device or
+session record to compare against, so "new device" would mean emailing on every sign-in.
+That needs session tracking first, and shipping a spammy version would train users to
+disable the one alert worth keeping.
+
+**Shared email layout** at `notification.templates.ts`. Six types at once would otherwise
+mean six copies of the same table markup; every caller string is escaped inside the helper
+so a sender cannot forget. The existing budget-alert and income templates are deliberately
+NOT migrated onto it — they work and are visually tuned, and re-rendering live mail through
+a new path to save duplication is not a good trade. They can migrate when one next needs
+editing.
+
+**Overdue digest is one email per owner, not per invoice.** A freelancer with eight late
+clients wants a list.
+
+**`large_expense_alert` needs a threshold**, so `User.largeExpenseThreshold` was added and
+the input sits inline under its own toggle in the preferences card, with a warning while
+unset. This is why the type defaults to off: enabled-but-unset must stay silent.
+
+### Money-review gate findings (commit 4)
+
+The gate caught a bug I introduced and one that predated me.
+
+1. **CRITICAL — `processOverdue` lost its status guard.** Rewriting the bulk `updateMany`
+   into select-then-update narrowed the update to `id IN (...)`, dropping
+   `status = SENT`. An invoice paid between the select and the update would have been
+   flipped back to OVERDUE. Guard restored, plus a re-read so the digest describes what
+   actually lapsed rather than what was merely a candidate — otherwise a freelancer would
+   be told a paid invoice is overdue. Six tests cover the race.
+2. **MAJOR (pre-existing) — `syncLinkedAccounts` wrote float-derived money.** It computed
+   `Number(balance) - Number(baseline)` and wrote the result into a `Decimal(12,2)` column.
+   Now `Prisma.Decimal.minus()`. I only extracted it to a variable, so this was not a
+   regression, but it was in the diff and is the documented anti-pattern.
+3. **MINOR — `addContribution` return shape.** My first cut returned milestone data from a
+   method that previously returned nothing. The controller ignores it, so nothing broke, but
+   it leaked internals into a public contract. Reverted to void.
+
+Percentage maths for crossing checks stays in `Number` deliberately — those values are
+compared against 50/100 and never written back, matching how budget alerts already work.
 
 ## Implementation notes — commit 3
 

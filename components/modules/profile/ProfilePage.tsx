@@ -64,6 +64,7 @@ interface ProfilePageProps {
 		providers: string[];
 		emailNotificationsEnabled: boolean;
 		notificationEmail: string | null;
+		largeExpenseThreshold: number | null;
 		businessName: string | null;
 		businessAddress: string | null;
 		businessTaxId: string | null;
@@ -151,6 +152,7 @@ export function ProfilePage({ user, preferences }: ProfilePageProps) {
 					hasPhoneNumber={!!phoneNumber}
 					emailNotificationsEnabled={user.emailNotificationsEnabled}
 					notificationEmail={user.notificationEmail}
+					largeExpenseThreshold={user.largeExpenseThreshold}
 					accountEmail={user.email}
 				/>
 				<DangerZoneCard hasPassword={user.hasPassword} />

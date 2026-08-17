@@ -1,3 +1,4 @@
+import type { Prisma } from '@prisma/client';
 /**
  * Return type for UserService.getForLayout()
  */
@@ -20,6 +21,8 @@ export type UserProfile = {
 	phoneNumber: string | null;
 	emailNotificationsEnabled: boolean;
 	notificationEmail: string | null;
+	/** Prisma Decimal; callers convert. Null means the alert is inactive. */
+	largeExpenseThreshold: Prisma.Decimal | null;
 	businessName: string | null;
 	businessAddress: string | null;
 	businessTaxId: string | null;

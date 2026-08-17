@@ -11,6 +11,7 @@ import {
 } from './invoice.types';
 import { UserService } from '@/server/modules/user/user.service';
 import { EmailService } from '@/server/modules/email/email.service';
+import { NotificationService } from '@/server/modules/notification/notification.service';
 import { renderInvoicePDF } from './invoice.templates';
 import { urlToQrDataUri } from '@/lib/qr';
 import { formatCurrency } from '@/lib/formatters';
@@ -663,6 +664,17 @@ export const InvoiceService = {
 				throw error;
 			});
 
+		// Owner-facing confirmation, independent of whether the client is emailed.
+		// Fire-and-forget: a notification must never fail a recorded payment.
+		NotificationService.sendInvoicePaidOwner(userId, {
+			invoiceNumber: invoice.invoiceNumber,
+			clientName: invoice.clientName,
+			amount: Number(invoice.totalAmount),
+			paidAt,
+		}).catch((error) =>
+			console.error('Invoice paid confirmation failed:', error)
+		);
+
 		let emailedTo: string | null = null;
 		let emailWarning: string | null = null;
 
@@ -862,13 +874,72 @@ export const InvoiceService = {
 	 * Bulk update SENT invoices past due date to OVERDUE
 	 */
 	async processOverdue(): Promise<{ processed: number }> {
-		const result = await prisma.invoice.updateMany({
+		// Select before updating so the owners can be told which invoices lapsed.
+		// The previous version was a bare updateMany, which flipped the status and
+		// notified nobody — the detection existed, the email never did.
+		const becomingOverdue = await prisma.invoice.findMany({
 			where: {
 				status: InvoiceStatus.SENT,
 				dueDate: { lt: new Date() },
 			},
+			select: {
+				id: true,
+				userId: true,
+				invoiceNumber: true,
+				clientName: true,
+				totalAmount: true,
+				dueDate: true,
+			},
+		});
+
+		if (becomingOverdue.length === 0) return { processed: 0 };
+
+		const candidateIds = becomingOverdue.map((i) => i.id);
+
+		// The status guard MUST be repeated here. Narrowing to `id IN (...)` alone
+		// would flip an invoice the user paid between the select and this update
+		// straight back to OVERDUE.
+		const result = await prisma.invoice.updateMany({
+			where: { id: { in: candidateIds }, status: InvoiceStatus.SENT },
 			data: { status: InvoiceStatus.OVERDUE },
 		});
+
+		// Re-read so the digest describes what actually lapsed. Without this, an
+		// invoice paid mid-run would be correctly skipped above but still emailed
+		// about — telling the freelancer a paid invoice is overdue.
+		const flippedIds = new Set(
+			(
+				await prisma.invoice.findMany({
+					where: { id: { in: candidateIds }, status: InvoiceStatus.OVERDUE },
+					select: { id: true },
+				})
+			).map((i) => i.id)
+		);
+
+		// One digest per owner rather than one email per invoice: a freelancer with
+		// eight late clients wants a list, not eight emails. Fire-and-forget —
+		// notification failure must never fail the status transition.
+		const byUser = new Map<string, typeof becomingOverdue>();
+		for (const invoice of becomingOverdue) {
+			if (!flippedIds.has(invoice.id)) continue;
+			const bucket = byUser.get(invoice.userId) ?? [];
+			bucket.push(invoice);
+			byUser.set(invoice.userId, bucket);
+		}
+
+		for (const [userId, invoices] of byUser) {
+			NotificationService.sendInvoiceOverdueDigest(
+				userId,
+				invoices.map((i) => ({
+					invoiceNumber: i.invoiceNumber,
+					clientName: i.clientName,
+					amount: Number(i.totalAmount),
+					dueDate: i.dueDate,
+				}))
+			).catch((error) =>
+				console.error('Overdue invoice digest failed:', error)
+			);
+		}
 
 		return { processed: result.count };
 	},

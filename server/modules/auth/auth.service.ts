@@ -1,6 +1,7 @@
 import prisma from '@/lib/prisma';
 import bcrypt from 'bcryptjs';
 import { RegisterInput } from './auth.types';
+import { NotificationService } from '@/server/modules/notification/notification.service';
 
 export class AuthService {
 	/**
@@ -97,6 +98,13 @@ export class AuthService {
 				where: { id: resetToken.id },
 			}),
 		]);
+
+		// Also alerted on the reset path, not just the in-app change: completing a
+		// reset is exactly the event a user needs to see if someone else requested
+		// it. Fire-and-forget — the password is already changed.
+		NotificationService.sendSecurityAlert(user.id, {
+			kind: 'password_changed',
+		}).catch((error) => console.error('Security alert failed:', error));
 	}
 }
 

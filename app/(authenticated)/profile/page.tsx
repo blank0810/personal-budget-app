@@ -37,6 +37,10 @@ export default async function ProfileRoute() {
 				providers: user.authAccounts.map((a) => a.provider),
 				emailNotificationsEnabled: user.emailNotificationsEnabled,
 				notificationEmail: user.notificationEmail,
+				largeExpenseThreshold:
+					user.largeExpenseThreshold === null
+						? null
+						: Number(user.largeExpenseThreshold),
 				businessName: user.businessName,
 				businessAddress: user.businessAddress,
 				businessTaxId: user.businessTaxId,

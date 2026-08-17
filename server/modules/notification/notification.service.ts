@@ -1,11 +1,16 @@
 import prisma from '@/lib/prisma';
-import { NotificationChannel } from '@prisma/client';
+import { EmailPriority, NotificationChannel } from '@prisma/client';
 import { EmailService } from '@/server/modules/email/email.service';
 import { UserService } from '@/server/modules/user/user.service';
 import { formatCurrency } from '@/lib/formatters';
 import { escapeHtml, escapeHtmlOrEmpty } from '@/server/lib/html';
 import { MergedPreference } from './notification.types';
 import { NOTIFICATION_TYPES } from './notification.registry';
+import {
+	EMAIL_COLORS,
+	renderList,
+	renderNotificationEmail,
+} from './notification.templates';
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
 
@@ -42,6 +47,53 @@ async function preserveImplicitOptIns(
 	});
 
 	return result.count;
+}
+
+/**
+ * Gate → resolve recipient → render → send, for owner-facing notifications.
+ *
+ * Every sender needs the same four steps, and getting the order wrong means
+ * either leaking mail past a disabled preference or doing needless work for a
+ * user who will not receive it. The preference check runs first and cheapest.
+ *
+ * `build` receives the values senders actually need so each one stays a template
+ * and nothing more.
+ */
+async function sendToOwner(
+	userId: string,
+	notificationKey: string,
+	build: (ctx: { currency: string; name: string | null }) => {
+		subject: string;
+		html: string;
+	},
+	priority: EmailPriority = EmailPriority.NORMAL
+): Promise<void> {
+	const enabled = await NotificationService.isEnabled(
+		userId,
+		notificationKey,
+		'EMAIL'
+	);
+	if (!enabled) return;
+
+	const to = await UserService.resolveNotificationRecipient(userId);
+	if (!to) return;
+
+	const [currency, user] = await Promise.all([
+		UserService.getCurrency(userId),
+		UserService.getEmailAndName(userId),
+	]);
+
+	const { subject, html } = build({ currency, name: user.name });
+
+	await EmailService.send({
+		to,
+		subject,
+		html,
+		userId,
+		notificationKey,
+		priority,
+		tags: [{ name: 'kind', value: notificationKey }],
+	});
 }
 
 export const NotificationService = {
@@ -405,5 +457,232 @@ export const NotificationService = {
 				tags: [{ name: 'kind', value: 'income_notification' }],
 			});
 		}
+	},
+	/**
+	 * Password changed. CRITICAL: this is how a user learns their account was
+	 * taken over, so it is never held back by the daily quota guard.
+	 */
+	async sendSecurityAlert(
+		userId: string,
+		event: { kind: 'password_changed'; at?: Date }
+	): Promise<void> {
+		const at = event.at ?? new Date();
+
+		await sendToOwner(
+			userId,
+			'security_alerts',
+			({ name }) => ({
+				subject: 'Your Budget Planner password was changed',
+				html: renderNotificationEmail({
+					headline: 'Password Changed',
+					headlineColor: EMAIL_COLORS.warning,
+					recipientName: name,
+					message:
+						"Your password was changed just now. If this was you, nothing more is needed. If it wasn't, reset your password immediately and review your account.",
+					rows: [
+						{
+							label: 'When',
+							value: at.toLocaleString('en-US', {
+								dateStyle: 'medium',
+								timeStyle: 'short',
+							}),
+						},
+					],
+					cta: { label: 'Review Account', path: '/profile' },
+					footerReason: 'security alerts are enabled',
+				}),
+			}),
+			EmailPriority.CRITICAL
+		);
+	},
+
+	/**
+	 * Digest of invoices that just went overdue. One email per user per run, not
+	 * one per invoice — a freelancer with eight late clients wants a list, not
+	 * eight separate emails.
+	 */
+	async sendInvoiceOverdueDigest(
+		userId: string,
+		invoices: Array<{ invoiceNumber: string; clientName: string; amount: number; dueDate: Date }>
+	): Promise<void> {
+		if (invoices.length === 0) return;
+
+		await sendToOwner(userId, 'invoice_overdue_owner', ({ currency }) => {
+			const total = invoices.reduce((sum, i) => sum + i.amount, 0);
+			const noun = invoices.length === 1 ? 'invoice' : 'invoices';
+
+			return {
+				subject:
+					invoices.length === 1
+						? `Invoice ${invoices[0].invoiceNumber} is overdue`
+						: `${invoices.length} invoices are now overdue`,
+				html:
+					renderNotificationEmail({
+						headline: invoices.length === 1 ? 'Invoice Overdue' : 'Invoices Overdue',
+						headlineColor: EMAIL_COLORS.danger,
+						recipientName: null,
+						message: `${invoices.length} ${noun} passed the due date without payment, totalling ${formatCurrency(total, { currency })}.`,
+						rows: [
+							{
+								label: 'Total outstanding',
+								valueHtml: formatCurrency(total, { currency }),
+								color: EMAIL_COLORS.danger,
+							},
+						],
+						cta: { label: 'View Invoices', path: '/invoices' },
+						footerReason: 'overdue invoice alerts are enabled',
+					}) +
+					renderList(
+						invoices.map(
+							(i) =>
+								`${i.invoiceNumber} — ${i.clientName} — ${formatCurrency(i.amount, { currency })} — due ${i.dueDate.toLocaleDateString('en-US', { dateStyle: 'medium' } as Intl.DateTimeFormatOptions)}`
+						)
+					),
+			};
+		});
+	},
+
+	/** Confirmation to the owner that they recorded a payment. */
+	async sendInvoicePaidOwner(
+		userId: string,
+		invoice: { invoiceNumber: string; clientName: string; amount: number; paidAt: Date }
+	): Promise<void> {
+		await sendToOwner(userId, 'invoice_paid_owner', ({ currency }) => ({
+			subject: `Payment recorded — Invoice ${invoice.invoiceNumber}`,
+			html: renderNotificationEmail({
+				headline: 'Payment Recorded',
+				headlineColor: EMAIL_COLORS.success,
+				recipientName: null,
+				message: `You marked invoice ${invoice.invoiceNumber} as paid.`,
+				rows: [
+					{ label: 'Invoice', value: invoice.invoiceNumber },
+					{ label: 'Client', value: invoice.clientName },
+					{
+						label: 'Amount',
+						valueHtml: formatCurrency(invoice.amount, { currency }),
+						color: EMAIL_COLORS.success,
+					},
+					{
+						label: 'Paid on',
+						value: invoice.paidAt.toLocaleDateString('en-US', {
+							dateStyle: 'medium',
+						} as Intl.DateTimeFormatOptions),
+					},
+				],
+				cta: { label: 'View Invoices', path: '/invoices' },
+				footerReason: 'payment confirmations are enabled',
+			}),
+		}));
+	},
+
+	/**
+	 * Savings goal crossed 50% or 100%. Threshold-crossing, like budget alerts:
+	 * fires on the transition only, so re-syncing a linked goal cannot re-send.
+	 */
+	async sendGoalMilestone(
+		userId: string,
+		goal: { name: string; targetAmount: number; currentAmount: number },
+		prevPercentage: number,
+		newPercentage: number
+	): Promise<void> {
+		let headline: string;
+		let milestone: string;
+
+		if (prevPercentage < 100 && newPercentage >= 100) {
+			headline = 'Goal Reached';
+			milestone = '100%';
+		} else if (prevPercentage < 50 && newPercentage >= 50) {
+			headline = 'Halfway There';
+			milestone = '50%';
+		} else {
+			return;
+		}
+
+		await sendToOwner(userId, 'goal_milestone', ({ currency }) => ({
+			subject: `${headline}: ${goal.name} at ${milestone}`,
+			html: renderNotificationEmail({
+				headline,
+				headlineColor: EMAIL_COLORS.success,
+				recipientName: null,
+				message:
+					milestone === '100%'
+						? `Your goal "${goal.name}" is fully funded.`
+						: `Your goal "${goal.name}" has passed the halfway mark.`,
+				rows: [
+					{ label: 'Goal', value: goal.name },
+					{
+						label: 'Saved',
+						valueHtml: formatCurrency(goal.currentAmount, { currency }),
+						color: EMAIL_COLORS.success,
+					},
+					{
+						label: 'Target',
+						valueHtml: formatCurrency(goal.targetAmount, { currency }),
+					},
+					{ label: 'Progress', value: `${newPercentage.toFixed(0)}%` },
+				],
+				cta: { label: 'View Goals', path: '/goals' },
+				footerReason: 'goal milestone alerts are enabled',
+			}),
+		}));
+	},
+
+	/** CSV import finished. */
+	async sendImportComplete(
+		userId: string,
+		summary: { imported: number; skipped: number; accountName: string }
+	): Promise<void> {
+		await sendToOwner(userId, 'import_complete', () => ({
+			subject: `Import complete — ${summary.imported} transactions`,
+			html: renderNotificationEmail({
+				headline: 'Import Complete',
+				recipientName: null,
+				message: `Your CSV import into ${summary.accountName} has finished.`,
+				rows: [
+					{ label: 'Imported', value: String(summary.imported) },
+					{ label: 'Skipped', value: String(summary.skipped) },
+					{ label: 'Account', value: summary.accountName },
+				],
+				cta: { label: 'View Transactions', path: '/transactions' },
+				footerReason: 'import summaries are enabled',
+			}),
+		}));
+	},
+
+	/**
+	 * A single expense exceeded the user's own threshold. The threshold is read by
+	 * the caller, since only it knows whether the expense is new.
+	 */
+	async sendLargeExpenseAlert(
+		userId: string,
+		expense: { amount: number; description: string | null; categoryName: string },
+		threshold: number
+	): Promise<void> {
+		await sendToOwner(userId, 'large_expense_alert', ({ currency }) => ({
+			subject: `Large expense: ${formatCurrency(expense.amount, { currency })}`,
+			html: renderNotificationEmail({
+				headline: 'Large Expense Recorded',
+				headlineColor: EMAIL_COLORS.warning,
+				recipientName: null,
+				message: `An expense of ${formatCurrency(expense.amount, { currency })} exceeded your ${formatCurrency(threshold, { currency })} alert threshold.`,
+				rows: [
+					{
+						label: 'Amount',
+						valueHtml: formatCurrency(expense.amount, { currency }),
+						color: EMAIL_COLORS.warning,
+					},
+					...(expense.description
+						? [{ label: 'Description', value: expense.description }]
+						: []),
+					{ label: 'Category', value: expense.categoryName },
+					{
+						label: 'Your threshold',
+						valueHtml: formatCurrency(threshold, { currency }),
+					},
+				],
+				cta: { label: 'View Transactions', path: '/transactions' },
+				footerReason: 'large expense alerts are enabled',
+			}),
+		}));
 	},
 };

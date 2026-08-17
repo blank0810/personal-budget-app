@@ -1,4 +1,5 @@
 import prisma from '@/lib/prisma';
+import { Prisma } from '@prisma/client';
 import type {
 	CreateGoalInput,
 	UpdateGoalInput,
@@ -7,6 +8,32 @@ import type {
 	GoalHealthSummary,
 	GoalHealthStatus,
 } from './goal.types';
+import { NotificationService } from '@/server/modules/notification/notification.service';
+
+/**
+ * Translate a goal's before/after saved amount into a milestone notification.
+ * A goal with no target has no percentage, so nothing to cross.
+ */
+async function notifyGoalMilestone(
+	userId: string,
+	goal: { name: string; target: number; before: number; after: number }
+): Promise<void> {
+	if (goal.target <= 0) return;
+
+	const prevPct = (goal.before / goal.target) * 100;
+	const newPct = (goal.after / goal.target) * 100;
+
+	await NotificationService.sendGoalMilestone(
+		userId,
+		{
+			name: goal.name,
+			targetAmount: goal.target,
+			currentAmount: goal.after,
+		},
+		prevPct,
+		newPct
+	);
+}
 
 export const GoalService = {
 	async create(userId: string, data: CreateGoalInput) {
@@ -108,11 +135,17 @@ export const GoalService = {
 	},
 
 	async addContribution(userId: string, data: AddContributionInput) {
-		return prisma.$transaction(async (tx) => {
+		const result = await prisma.$transaction(async (tx) => {
 			// Verify ownership
 			const goal = await tx.goal.findUnique({
 				where: { id: data.goalId, userId },
-				select: { id: true, linkedAccountId: true },
+				select: {
+					id: true,
+					linkedAccountId: true,
+					name: true,
+					currentAmount: true,
+					targetAmount: true,
+				},
 			});
 			if (!goal) throw new Error('Goal not found');
 			if (goal.linkedAccountId) {
@@ -138,7 +171,28 @@ export const GoalService = {
 					currentAmount: { increment: data.amount },
 				},
 			});
+
+			// Percentages only — never written back, so Number() is safe. The
+			// balance itself is updated with Prisma's Decimal increment above.
+			return {
+				name: goal.name,
+				target: Number(goal.targetAmount ?? 0),
+				before: Number(goal.currentAmount),
+				after: new Prisma.Decimal(goal.currentAmount)
+					.plus(data.amount)
+					.toNumber(),
+			};
 		});
+
+		// Milestone check outside the transaction, on committed values. Crossing is
+		// computed from the persisted amount, so it can only fire on the transition
+		// — never again for the same goal.
+		notifyGoalMilestone(userId, result).catch((error) =>
+			console.error('Goal milestone notification failed:', error)
+		);
+
+		// Deliberately returns nothing, as before: the milestone data is internal,
+		// and leaking it would change this method's public contract.
 	},
 
 	/**
@@ -158,13 +212,38 @@ export const GoalService = {
 
 		for (const goal of linkedGoals) {
 			if (!goal.linkedAccount) continue;
-			const progress =
-				Number(goal.linkedAccount.balance) -
-				Number(goal.baselineAmount);
+
+			// Decimal arithmetic, not float. This previously computed
+			// Number(balance) - Number(baseline) and wrote the result straight into
+			// a Decimal(12,2) money column; Prisma.Decimal keeps it exact.
+			const progress = goal.linkedAccount.balance.minus(goal.baselineAmount);
+			const afterDecimal = progress.isNegative()
+				? new Prisma.Decimal(0)
+				: progress;
+
 			await prisma.goal.update({
 				where: { id: goal.id },
-				data: { currentAmount: Math.max(0, progress) },
+				data: { currentAmount: afterDecimal },
 			});
+
+			// Percentages for the crossing check are display-layer maths, so
+			// Number() is fine here — nothing is written back from these.
+			const after = afterDecimal.toNumber();
+			const before = Number(goal.currentAmount);
+
+			// This method runs on every /goals page load, so the crossing check
+			// must be based on the persisted amount rather than on "did we just
+			// sync" — otherwise a milestone would re-send on every visit.
+			if (after !== before) {
+				notifyGoalMilestone(userId, {
+					name: goal.name,
+					target: Number(goal.targetAmount ?? 0),
+					before,
+					after,
+				}).catch((error) =>
+					console.error('Goal milestone notification failed:', error)
+				);
+			}
 		}
 	},
 

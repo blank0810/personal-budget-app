@@ -1,6 +1,7 @@
 import prisma from '@/lib/prisma';
 import { ImportTransaction, ImportResult } from './import.types';
 import { createId } from '@paralleldrive/cuid2';
+import { NotificationService } from '@/server/modules/notification/notification.service';
 
 export const ImportService = {
 	/**
@@ -17,7 +18,7 @@ export const ImportService = {
 
 		const account = await prisma.account.findUnique({
 			where: { id: accountId, userId },
-			select: { isLiability: true },
+			select: { isLiability: true, name: true },
 		});
 
 		if (!account) throw new Error('Account not found');
@@ -84,6 +85,13 @@ export const ImportService = {
 				});
 			}
 		});
+
+		// Fire-and-forget: a notification must never fail an import that succeeded.
+		NotificationService.sendImportComplete(userId, {
+			imported: transactions.length,
+			skipped: 0,
+			accountName: account.name,
+		}).catch((error) => console.error('Import summary email failed:', error));
 
 		return {
 			imported: transactions.length,
@@ -208,7 +216,7 @@ export const ImportService = {
 			for (const [accountId, changes] of balanceChanges) {
 				const account = await tx.account.findUnique({
 					where: { id: accountId },
-					select: { isLiability: true },
+					select: { isLiability: true, name: true },
 				});
 
 				if (account?.isLiability) {

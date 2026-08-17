@@ -58,6 +58,7 @@ export const UserService = {
 				phoneNumber: true,
 				emailNotificationsEnabled: true,
 				notificationEmail: true,
+				largeExpenseThreshold: true,
 				businessName: true,
 				businessAddress: true,
 				businessTaxId: true,
@@ -188,6 +189,32 @@ export const UserService = {
 	 * Master gate: whether the user wants any notification email at all.
 	 * Throws if user not found.
 	 */
+	/**
+	 * The user's large-expense alert threshold, or null when unset. Null is the
+	 * reason large_expense_alert defaults to off: the preference cannot do
+	 * anything until this has a value.
+	 */
+	async getLargeExpenseThreshold(userId: string): Promise<number | null> {
+		const row = await prisma.user.findUniqueOrThrow({
+			where: { id: userId },
+			select: { largeExpenseThreshold: true },
+		});
+		return row.largeExpenseThreshold === null
+			? null
+			: Number(row.largeExpenseThreshold);
+	},
+
+	/** Set or clear the large-expense alert threshold. */
+	async setLargeExpenseThreshold(
+		userId: string,
+		threshold: number | null
+	): Promise<void> {
+		await prisma.user.update({
+			where: { id: userId },
+			data: { largeExpenseThreshold: threshold },
+		});
+	},
+
 	async getEmailNotificationsEnabled(userId: string): Promise<boolean> {
 		const row = await prisma.user.findUniqueOrThrow({
 			where: { id: userId },

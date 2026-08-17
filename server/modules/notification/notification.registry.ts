@@ -58,10 +58,70 @@ export const NOTIFICATION_TYPES: readonly NotificationTypeDefinition[] = [
 		// Default-OFF, changed from on. It is the highest-volume type by an order
 		// of magnitude — one email per income record — and the least useful, since
 		// the user just entered the record themselves. Existing users keep their
-		// current behaviour via an explicit backfill in the migration that flips
-		// this; only new accounts get the quiet default.
+		// current behaviour via the explicit backfill in syncTypes(); only new
+		// accounts get the quiet default.
 		defaultEnabled: false,
 		monthlyVolume: '10-30 (one per income record)',
+	},
+	{
+		key: 'security_alerts',
+		label: 'Security Alerts',
+		description: 'Get notified when your password changes',
+		category: 'security',
+		// On by default: a control that tells you your account was accessed is
+		// worth more than the inbox space it costs. Still toggleable — the user
+		// owns it, not the admin.
+		defaultEnabled: true,
+		monthlyVolume: 'rare (per password change)',
+	},
+	{
+		key: 'invoice_overdue_owner',
+		label: 'Overdue Invoices',
+		description:
+			'Get a summary when invoices pass their due date without payment',
+		category: 'alerts',
+		// The overdue cron already detects this and told nobody, so this is the
+		// highest-value gap of the batch. One digest per run, not one per invoice.
+		defaultEnabled: true,
+		monthlyVolume: '0-2 (one digest per overdue run)',
+	},
+	{
+		key: 'goal_milestone',
+		label: 'Goal Milestones',
+		description: 'Get notified when a savings goal reaches 50% or 100%',
+		category: 'activity',
+		defaultEnabled: true,
+		monthlyVolume: 'rare (at most 2 per goal, ever)',
+	},
+	{
+		key: 'import_complete',
+		label: 'Import Summaries',
+		description: 'Get a summary when a CSV import finishes',
+		category: 'activity',
+		defaultEnabled: true,
+		monthlyVolume: '0-5 (one per import)',
+	},
+	{
+		key: 'large_expense_alert',
+		label: 'Large Expense Alerts',
+		description:
+			'Get notified when a single expense exceeds your chosen threshold',
+		category: 'alerts',
+		// Off by default because it is meaningless until the user sets a
+		// threshold, and its volume is unbounded once they do.
+		defaultEnabled: false,
+		monthlyVolume: 'unbounded (threshold-dependent)',
+	},
+	{
+		key: 'invoice_paid_owner',
+		label: 'Payment Confirmations',
+		description: 'Get a confirmation when you mark one of your invoices paid',
+		category: 'activity',
+		// Off by default: you just performed the action, so this is the weakest
+		// of the batch. Included because it is cheap and some users want a
+		// paper trail in their inbox.
+		defaultEnabled: false,
+		monthlyVolume: '1 per payment recorded',
 	},
 ];
 

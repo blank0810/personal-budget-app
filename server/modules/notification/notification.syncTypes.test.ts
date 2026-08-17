@@ -41,6 +41,9 @@ vi.mock('@/server/modules/email/email.service', () => ({
 const { NotificationService } = await import('./notification.service');
 const { NOTIFICATION_TYPES } = await import('./notification.registry');
 
+/** Types whose registry default is off — the ones a sync must protect. */
+const DEFAULT_OFF_TYPES = NOTIFICATION_TYPES.filter((t) => !t.defaultEnabled);
+
 describe('NotificationService.syncTypes', () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
@@ -82,8 +85,8 @@ describe('NotificationService.syncTypes', () => {
 
 	describe('protecting a default that flips true -> false', () => {
 		beforeEach(() => {
-			// Every type currently defaults to true in the DB. income_notifications
-			// is false in the registry, so only that one should trigger a backfill.
+			// Fixture: every type reads as default-true in the DB, so each
+			// default-off registry entry represents a flip needing protection.
 			mocks.typeFindUnique.mockImplementation(
 				async ({ where }: { where: { key: string } }) => ({
 					id: `nt_${where.key}`,
@@ -114,7 +117,12 @@ describe('NotificationService.syncTypes', () => {
 				],
 				skipDuplicates: true,
 			});
-			expect(result.preserved).toBe(2);
+
+			// Derived from the registry, not hardcoded: this fixture makes every
+			// stored default `true`, so one backfill of 2 users happens per
+			// default-off type. A hardcoded count would break every time a
+			// default-off type is added, which is noise rather than signal.
+			expect(result.preserved).toBe(2 * DEFAULT_OFF_TYPES.length);
 		});
 
 		it('only targets users who lack an explicit EMAIL row', async () => {
@@ -133,9 +141,16 @@ describe('NotificationService.syncTypes', () => {
 			});
 		});
 
-		it('backfills for the flipping type only, not every type', async () => {
+		it('backfills only for types whose default actually flips', async () => {
 			await NotificationService.syncTypes();
-			expect(mocks.prefCreateMany).toHaveBeenCalledTimes(1);
+
+			// Not once per type in the registry — only the default-off ones.
+			expect(mocks.prefCreateMany).toHaveBeenCalledTimes(
+				DEFAULT_OFF_TYPES.length
+			);
+			expect(DEFAULT_OFF_TYPES.length).toBeLessThan(
+				NOTIFICATION_TYPES.length
+			);
 		});
 
 		it('backfills before flipping the stored default', async () => {

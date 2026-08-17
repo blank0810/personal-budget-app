@@ -153,6 +153,36 @@ const updateBusinessProfileSchema = z.object({
 	paymentInstructions: optionalTrimmedText(2000, 'Payment instructions'),
 });
 
+/**
+ * Null clears the threshold, which silences large_expense_alert regardless of the
+ * toggle — the preference cannot act without a number.
+ */
+const updateLargeExpenseThresholdSchema = z.object({
+	threshold: z
+		.number()
+		.positive('Threshold must be greater than zero')
+		.max(99_999_999.99, 'Threshold is too large')
+		.nullable(),
+});
+
+export async function updateLargeExpenseThresholdAction(threshold: number | null) {
+	const userId = await getAuthenticatedUser();
+
+	const validated = updateLargeExpenseThresholdSchema.safeParse({ threshold });
+	if (!validated.success) {
+		return { error: validated.error.issues[0]?.message || 'Invalid threshold' };
+	}
+
+	try {
+		await UserService.setLargeExpenseThreshold(userId, validated.data.threshold);
+		invalidateTags(CACHE_TAGS.PROFILE);
+		return { success: true as const };
+	} catch (error) {
+		console.error('Failed to update large expense threshold:', error);
+		return { error: 'Failed to update threshold' };
+	}
+}
+
 const updatePasswordSchema = z
 	.object({
 		currentPassword: z.string().optional(),
@@ -245,6 +275,12 @@ export async function updatePasswordAction(data: {
 
 		const hashedPassword = await bcrypt.hash(validated.data.newPassword, 10);
 		await UserService.updatePassword(userId, hashedPassword);
+
+		// Fire-and-forget: the password IS changed, so a failed alert must not
+		// report failure to the user and make them think it did not apply.
+		NotificationService.sendSecurityAlert(userId, {
+			kind: 'password_changed',
+		}).catch((error) => console.error('Security alert failed:', error));
 
 		invalidateTags(CACHE_TAGS.PROFILE);
 		return { success: true as const };

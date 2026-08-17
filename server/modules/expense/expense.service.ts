@@ -7,6 +7,7 @@ import {
 } from './expense.types';
 import { CategoryService } from '../category/category.service';
 import { NotificationService } from '@/server/modules/notification/notification.service';
+import { UserService } from '@/server/modules/user/user.service';
 import { Prisma } from '@prisma/client';
 
 export const ExpenseService = {
@@ -100,6 +101,33 @@ export const ExpenseService = {
 			} catch {
 				// Notification failure must never fail the main operation
 			}
+		}
+
+		// Large-expense alert. Only fires when the user set a threshold, which is
+		// why large_expense_alert defaults to off — the preference is meaningless
+		// without one, so an enabled-but-unset state must stay silent.
+		try {
+			const threshold = await UserService.getLargeExpenseThreshold(userId);
+			if (threshold !== null && data.amount > threshold) {
+				// Resolved separately rather than by including the relation in the
+				// create above, which would change this method's return shape.
+				const category = await prisma.category.findUnique({
+					where: { id: expense.categoryId },
+					select: { name: true },
+				});
+
+				NotificationService.sendLargeExpenseAlert(
+					userId,
+					{
+						amount: data.amount,
+						description: data.description || null,
+						categoryName: category?.name ?? 'Uncategorized',
+					},
+					threshold
+				).catch(() => {});
+			}
+		} catch {
+			// Notification failure must never fail the main operation
 		}
 
 		return expense;
