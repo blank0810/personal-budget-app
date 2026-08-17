@@ -286,13 +286,21 @@ it.
 All ON ≈ 45/user/month → free tier breaks at ~65 active users.
 Recommended defaults ≈ 16/user/month → ~185 active users.
 
-### Migration catch
+### Migration catch — solved generically, not as a one-off
 
 Existing users have no `UserNotificationPreference` rows, so they inherit `defaultEnabled`
-live (`notification.service.ts:107`). Flipping `income_notifications` to false would
-silently stop mail they currently receive. The migration must **write explicit
-`enabled: true` rows for all existing users first, then flip the default** — new users get
-the quiet default, existing users keep what they had.
+live. Flipping `income_notifications` to false would silently stop mail they currently
+receive.
+
+Rather than a one-off data migration, `NotificationService.syncTypes()` detects **any**
+default going true → false and backfills explicit `enabled: true` rows for users with none,
+*before* writing the new default. So every future default change is protected by the same
+mechanism, and the ordering cannot be got wrong by hand.
+
+It is also fail-safe if the seed never runs: no sync means no flip, so behaviour is
+unchanged rather than half-applied. Verified against the real DB — an existing user with no
+row kept `income_notifications` on via a written row, a freshly created account inherited
+off with zero rows written, and a second run backfilled nothing.
 
 ### Never configurable
 
@@ -362,7 +370,7 @@ Mechanics that make the claim honest:
 | **1** | Provider layer + Resend adapter + `EmailProviderConfig` + encryption + `EmailSendLog` (quota/audit/idempotency) + `admin_notification_email` + nodemailer removed | **done** |
 | **2** | `/admin/system` provider section + send-test; env bootstrap removed | **done** |
 | **2b** | `SECRET_ENCRYPTION_KEY` rename; generic `integrations` table replaces `email_provider_configs` | **done** |
-| **3** | Code-side notification registry + shared `NotificationPreferencesCard` + HTML escaping + default-preservation migration | |
+| **3** | Code-side notification registry + shared `NotificationPreferencesCard` + HTML escaping + default preservation | **done** |
 | **4** | The 7 new owner-facing types and their triggers | |
 | **5** | Onboarding Notifications step | |
 
@@ -429,6 +437,25 @@ Verified end-to-end against the live Resend API: credential stored as `v1:` ciph
 no plaintext, decrypt correct, identity-only update preserved the key, and a deliberately
 invalid key returned `validation_error` → mapped to a non-retryable failure with
 `lastError` recorded.
+
+## Implementation notes — commit 3
+
+- **Registry** at `server/modules/notification/notification.registry.ts` is now the source
+  of truth; `prisma/seed.ts` calls `NotificationService.syncTypes()` instead of carrying its
+  own copy of the list. Each definition records its rough monthly volume next to its
+  default, so the reason for the default is not lost.
+- **Default flip protection is generic** — see the migration-catch section above.
+- **`NotificationPreferencesCard` extracted** to `components/modules/notification/`, out of
+  `ProfilePage.tsx` (which shrank by ~350 lines). An `embedded` prop drops the Card chrome
+  for the onboarding wizard's "Customize" disclosure, so the two surfaces cannot drift.
+  Category grouping is now ordered by the registry rather than by row insertion order.
+- **HTML escaping** via `server/lib/html.ts`, applied across all four email-sending services.
+  The sharpest case was `feature-request.service.ts`, reachable from the *public,
+  unauthenticated* form. Note the deliberate asymmetry: email **subjects** stay unescaped,
+  because a subject is a plain-text header and escaping it would show a literal `&amp;` to
+  the recipient. Comments mark this at each site so it is not "fixed" later.
+- **`profile/page.tsx` now goes through the controller** rather than calling
+  `NotificationService` directly, per the data-flow rule in CLAUDE.md.
 
 ## Implementation notes — commit 2b
 

@@ -2,6 +2,7 @@ import prisma from '@/lib/prisma';
 import { getRedisConnection } from '@/lib/redis';
 import { EmailPriority, RequestCategory } from '@prisma/client';
 import { EmailService } from '@/server/modules/email/email.service';
+import { escapeHtml } from '@/server/lib/html';
 import { CATEGORY_LABELS } from './feature-request.types';
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
@@ -152,6 +153,13 @@ export const FeatureRequestService = {
 
 		const subject = `[Feature Request] ${categoryLabel}: ${request.title}`;
 
+		// Reachable from the PUBLIC, unauthenticated feature-request form, so these
+		// are the least trustworthy strings in the app. The subject above stays raw
+		// because it is a plain-text header, not markup.
+		const title = escapeHtml(request.title);
+		const description = escapeHtml(request.description);
+		const submitterEmail = escapeHtml(request.email);
+
 		const html = `
       <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto; background: #ffffff;">
         <div style="padding: 32px 24px; border-bottom: 3px solid #0D9488;">
@@ -166,7 +174,7 @@ export const FeatureRequestService = {
             <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
               <tr>
                 <td style="padding: 8px 0; color: #6B7280; vertical-align: top; width: 100px;">Title</td>
-                <td style="padding: 8px 0; font-weight: 600; color: #111827;">${request.title}</td>
+                <td style="padding: 8px 0; font-weight: 600; color: #111827;">${title}</td>
               </tr>
               <tr>
                 <td style="padding: 8px 0; color: #6B7280; vertical-align: top;">Category</td>
@@ -174,7 +182,7 @@ export const FeatureRequestService = {
               </tr>
               <tr>
                 <td style="padding: 8px 0; color: #6B7280; vertical-align: top;">Submitted by</td>
-                <td style="padding: 8px 0; font-weight: 600; color: #111827;">${request.email} (${submitterType})</td>
+                <td style="padding: 8px 0; font-weight: 600; color: #111827;">${submitterEmail} (${submitterType})</td>
               </tr>
               <tr>
                 <td style="padding: 8px 0; color: #6B7280; vertical-align: top;">Date</td>
@@ -184,7 +192,7 @@ export const FeatureRequestService = {
           </div>
           <div style="margin-bottom: 24px;">
             <p style="margin: 0 0 8px; font-size: 13px; font-weight: 600; color: #6B7280; text-transform: uppercase; letter-spacing: 0.05em;">Description</p>
-            <div style="padding: 16px; background: #ffffff; border: 1px solid #E5E7EB; border-radius: 8px; font-size: 14px; color: #374151; line-height: 1.6; white-space: pre-wrap;">${request.description}</div>
+            <div style="padding: 16px; background: #ffffff; border: 1px solid #E5E7EB; border-radius: 8px; font-size: 14px; color: #374151; line-height: 1.6; white-space: pre-wrap;">${description}</div>
           </div>
           <p style="margin: 0; font-size: 12px; color: #9CA3AF;">Request ID: ${request.id}</p>
         </div>

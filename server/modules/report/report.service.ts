@@ -30,6 +30,7 @@ import { BudgetService } from '@/server/modules/budget/budget.service';
 import { renderMonthlyReportPDF } from './report.templates';
 import { put } from '@vercel/blob';
 import { EmailService } from '@/server/modules/email/email.service';
+import { escapeHtml } from '@/server/lib/html';
 import { UserService } from '@/server/modules/user/user.service';
 
 export const ReportService = {
@@ -1139,14 +1140,14 @@ function buildReportEmailHtml(digest: MonthlyDigest): string {
     <p style="margin:4px 0 0;color:#6b7280;font-size:14px;">Your ${digest.month} Financial Snapshot</p>
   </div>
   <div style="padding:24px;">
-    <p style="margin:0 0 20px;font-size:16px;">Hi ${digest.userName},</p>
+    <p style="margin:0 0 20px;font-size:16px;">Hi ${escapeHtml(digest.userName)},</p>
     <p style="margin:0 0 24px;color:#374151;">Your ${digest.month} financial snapshot is ready.</p>
     <table style="width:100%;border-collapse:collapse;margin-bottom:24px;">
       <tr><td style="padding:8px 0;color:#6b7280;">Health Score</td><td style="padding:8px 0;text-align:right;font-weight:700;font-size:18px;">${healthScore.score} / 100 <span style="color:#6b7280;font-weight:400;font-size:14px;">${healthScore.label}</span></td></tr>
       ${netResultLine}
       <tr><td style="padding:8px 0;color:#6b7280;">Net Worth</td><td style="padding:8px 0;text-align:right;font-weight:600;">${formatCurrency(netWorth.current)} <span style="color:${changeColor};font-size:13px;">${changeSign}${netWorth.changePercent.toFixed(1)}%</span></td></tr>
     </table>
-    <p style="margin:0 0 24px;padding:16px;background:#f9fafb;border-left:3px solid #0d9488;color:#374151;font-style:italic;font-size:14px;">"${healthScore.roast}"</p>
+    <p style="margin:0 0 24px;padding:16px;background:#f9fafb;border-left:3px solid #0d9488;color:#374151;font-style:italic;font-size:14px;">"${escapeHtml(healthScore.roast)}"</p>
     <p style="margin:0 0 24px;color:#374151;font-size:14px;">Your full report is attached as a PDF.</p>
     <hr style="border:none;border-top:1px solid #e5e7eb;margin:24px 0;">
     <p style="margin:0;font-size:13px;color:#9ca3af;">

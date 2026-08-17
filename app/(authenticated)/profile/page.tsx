@@ -1,6 +1,6 @@
 import { auth } from '@/auth';
 import { redirect } from 'next/navigation';
-import { NotificationService } from '@/server/modules/notification/notification.service';
+import { getNotificationPreferencesAction } from '@/server/modules/notification/notification.controller';
 import { UserService } from '@/server/modules/user/user.service';
 import { ProfilePage } from '@/components/modules/profile/ProfilePage';
 
@@ -12,10 +12,19 @@ export default async function ProfileRoute() {
 
 	const userId = session.user.id;
 
-	const [user, preferences] = await Promise.all([
+	// Through the controller, not the service directly: CLAUDE.md requires every
+	// request to route via a controller so auth checks and validation are applied
+	// at every entry point. This page previously reached past it.
+	const [user, preferencesResult] = await Promise.all([
 		UserService.getProfile(userId),
-		NotificationService.getPreferencesForUser(userId),
+		getNotificationPreferencesAction(),
 	]);
+
+	if ('error' in preferencesResult) {
+		throw new Error(preferencesResult.error);
+	}
+
+	const preferences = preferencesResult.data;
 
 	return (
 		<ProfilePage

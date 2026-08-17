@@ -2,6 +2,7 @@ import { EmailPriority, EmailStatus, IntegrationProvider } from '@prisma/client'
 import prisma from '@/lib/prisma';
 import { requireEmailConfig } from './email.config';
 import { redactSecrets } from '@/server/lib/crypto';
+import { escapeHtml, escapeHtmlOrEmpty } from '@/server/lib/html';
 import { checkQuota } from './email.quota';
 import { getProvider } from './providers/registry';
 import {
@@ -256,18 +257,21 @@ export class EmailService {
 			day: 'numeric',
 		});
 		const senderLine = fromName ?? fromEmail ?? 'Your service provider';
+		// Escaped for the body. `senderLine` is reused raw in the subject below,
+		// which is a plain-text header rather than markup.
+		const safeSender = escapeHtml(senderLine);
 		const replyLine = fromEmail
-			? `If you have any questions, simply reply to this email or contact ${fromEmail}.`
+			? `If you have any questions, simply reply to this email or contact ${escapeHtml(fromEmail)}.`
 			: 'If you have any questions, simply reply to this email.';
 
 		const html = `
 			<div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; color: #111111;">
-				<h2 style="font-family: serif; font-size: 24px; margin-bottom: 16px;">Invoice ${invoiceNumber}</h2>
-				<p>Hi ${clientName},</p>
-				<p>Please find attached invoice <strong>${invoiceNumber}</strong> for <strong>${totalFormatted}</strong>, due on <strong>${dueLabel}</strong>.</p>
-				${notes ? `<p style="background-color: #f5f5f5; padding: 12px; border-radius: 6px; white-space: pre-line;">${notes}</p>` : ''}
+				<h2 style="font-family: serif; font-size: 24px; margin-bottom: 16px;">Invoice ${escapeHtml(invoiceNumber)}</h2>
+				<p>Hi ${escapeHtml(clientName)},</p>
+				<p>Please find attached invoice <strong>${escapeHtml(invoiceNumber)}</strong> for <strong>${escapeHtml(totalFormatted)}</strong>, due on <strong>${dueLabel}</strong>.</p>
+				${notes ? `<p style="background-color: #f5f5f5; padding: 12px; border-radius: 6px; white-space: pre-line;">${escapeHtml(notes)}</p>` : ''}
 				<p>${replyLine}</p>
-				<p>Thank you,<br/>${senderLine}</p>
+				<p>Thank you,<br/>${safeSender}</p>
 			</div>
 		`;
 
@@ -323,18 +327,19 @@ export class EmailService {
 			day: 'numeric',
 		});
 		const senderLine = fromName ?? fromEmail ?? 'Your service provider';
+		const safeSender = escapeHtml(senderLine);
 		const replyLine = fromEmail
-			? `If you have any questions, simply reply to this email or contact ${fromEmail}.`
+			? `If you have any questions, simply reply to this email or contact ${escapeHtml(fromEmail)}.`
 			: 'If you have any questions, simply reply to this email.';
 
 		const html = `
 			<div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; color: #111111;">
 				<h2 style="font-family: serif; font-size: 24px; margin-bottom: 16px;">Payment Received</h2>
-				<p>Hi ${clientName},</p>
-				<p>Thank you — we've recorded payment of <strong>${totalFormatted}</strong> against invoice <strong>${invoiceNumber}</strong> on <strong>${paidLabel}</strong>.</p>
+				<p>Hi ${escapeHtml(clientName)},</p>
+				<p>Thank you — we've recorded payment of <strong>${escapeHtml(totalFormatted)}</strong> against invoice <strong>${escapeHtml(invoiceNumber)}</strong> on <strong>${paidLabel}</strong>.</p>
 				<p>A PAID copy of the invoice is attached for your records.</p>
 				<p>${replyLine}</p>
-				<p>Thank you,<br/>${senderLine}</p>
+				<p>Thank you,<br/>${safeSender}</p>
 			</div>
 		`;
 
@@ -378,7 +383,7 @@ export class EmailService {
 		const html = `
 			<div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
 				<h2>Password Reset</h2>
-				<p>Hi ${userName},</p>
+				<p>Hi ${escapeHtmlOrEmpty(userName)},</p>
 				<p>You requested a password reset for your Budget Planner account.</p>
 				<p>
 					<a href="${resetUrl}" style="display: inline-block; padding: 12px 24px; background-color: #0f172a; color: #ffffff; text-decoration: none; border-radius: 6px;">

@@ -1,4 +1,5 @@
 import { PrismaClient } from '@prisma/client';
+import { NotificationService } from '../server/modules/notification/notification.service';
 import bcrypt from 'bcryptjs';
 import { computeNextRunAt } from '../server/modules/automation/automation.service';
 import { AUTOMATION_JOBS } from '../server/modules/automation/registry';
@@ -88,43 +89,17 @@ async function main() {
 
 	console.log({ user });
 
-	// Seed notification types
-	const notificationTypes = [
-		{
-			id: 'nt_monthly_report',
-			key: 'monthly_report',
-			label: 'Monthly Financial Report',
-			description: 'Receive a PDF financial digest on the 1st of each month',
-			category: 'reports',
-			defaultEnabled: true,
-		},
-		{
-			id: 'nt_budget_alerts',
-			key: 'budget_alerts',
-			label: 'Budget Alerts',
-			description: 'Get notified when a budget reaches 80% or exceeds 100%',
-			category: 'alerts',
-			defaultEnabled: true,
-		},
-		{
-			id: 'nt_income_notifications',
-			key: 'income_notifications',
-			label: 'Income Notifications',
-			description: 'Get notified when income is recorded to your account',
-			category: 'activity',
-			defaultEnabled: true,
-		},
-	];
-
-	for (const nt of notificationTypes) {
-		await prisma.notificationType.upsert({
-			where: { key: nt.key },
-			update: { label: nt.label, description: nt.description, category: nt.category, defaultEnabled: nt.defaultEnabled },
-			create: nt,
-		});
-	}
-
-	console.log('Seeded notification types');
+	// Seed notification types from the code-side registry, which is the single
+	// source of truth (server/modules/notification/notification.registry.ts).
+	// syncTypes() also protects users from a default flipping true -> false by
+	// writing explicit opt-in rows first, so this is safe to run on every deploy.
+	const notificationSync = await NotificationService.syncTypes();
+	console.log(
+		`Seeded ${notificationSync.synced} notification types` +
+			(notificationSync.preserved > 0
+				? ` (preserved ${notificationSync.preserved} implicit opt-ins before a default flip)`
+				: '')
+	);
 
 	// Seed default feature flags
 	const featureFlags = [
