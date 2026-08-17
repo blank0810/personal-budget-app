@@ -36,7 +36,10 @@ async function queueMonthlyReports() {
 }
 
 async function processReports() {
-	const processedCount = await processBatch(50);
+	// 40, not 50: the Resend free tier allows 100 sends/day, and the remainder is
+	// reserved for transactional mail (see email.quota.ts). A larger batch would
+	// spend the day's allowance on digests and get password resets suppressed.
+	const processedCount = await processBatch(40);
 	return { processedCount };
 }
 

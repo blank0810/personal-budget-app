@@ -78,6 +78,12 @@ async function emailInvoiceToClient(
 		status: InvoiceStatus;
 		paidAt: Date | null;
 		variant: 'invoice' | 'receipt';
+		/**
+		 * Deduplication key for the send. Supplied only by the one-shot status
+		 * transitions (markAsSent / markAsPaid), never by resendEmail — a resend
+		 * is an explicit request to deliver again and must not be deduped away.
+		 */
+		dedupeKey?: string;
 	}
 ): Promise<string> {
 	if (!invoice.clientEmail) {
@@ -130,28 +136,37 @@ async function emailInvoiceToClient(
 		currency,
 	});
 
+	// Business name wins over the personal name: it is what the client
+	// recognises on the invoice itself. The reply address routes client replies
+	// to the freelancer instead of the app's mailbox.
+	const senderName = invoice.user?.businessName ?? invoice.user?.name ?? null;
+
 	if (options.variant === 'receipt') {
 		await EmailService.sendInvoiceReceipt({
 			to: invoice.clientEmail,
 			invoiceNumber: invoice.invoiceNumber,
-			fromName: invoice.user?.name ?? null,
+			fromName: senderName,
 			fromEmail: invoice.user?.email ?? null,
 			clientName: invoice.clientName,
 			totalFormatted,
 			paidAt: options.paidAt ?? new Date(),
 			pdfBuffer,
+			userId: invoice.userId,
+			dedupeKey: options.dedupeKey,
 		});
 	} else {
 		await EmailService.sendInvoice({
 			to: invoice.clientEmail,
 			invoiceNumber: invoice.invoiceNumber,
-			fromName: invoice.user?.name ?? null,
+			fromName: senderName,
 			fromEmail: invoice.user?.email ?? null,
 			clientName: invoice.clientName,
 			totalFormatted,
 			dueDate: invoice.dueDate,
 			notes: invoice.notes,
 			pdfBuffer,
+			userId: invoice.userId,
+			dedupeKey: options.dedupeKey,
 		});
 	}
 
@@ -575,6 +590,7 @@ export const InvoiceService = {
 						status: InvoiceStatus.SENT,
 						paidAt: null,
 						variant: 'invoice',
+						dedupeKey: `invoice:${invoice.id}:sent`,
 					});
 				} catch (error) {
 					console.error(
@@ -664,6 +680,7 @@ export const InvoiceService = {
 							status: InvoiceStatus.PAID,
 							paidAt,
 							variant: 'receipt',
+							dedupeKey: `invoice:${invoice.id}:paid`,
 						}
 					);
 				} catch (error) {

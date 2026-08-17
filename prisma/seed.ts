@@ -175,6 +175,10 @@ async function main() {
 	// Seed default system settings
 	const systemSettings = [
 		{ key: 'invoice_due_days', value: '30', label: 'Default invoice due date (days from issue)' },
+		// Recipient for feature-request notifications. Replaces the old
+		// SMTP_USER-derived address, which disappeared with Gmail SMTP.
+		// Empty means "fall back to ADMIN_NOTIFICATION_EMAIL, else skip".
+		{ key: 'admin_notification_email', value: '', label: 'Admin email for feature-request notifications' },
 	];
 
 	for (const setting of systemSettings) {

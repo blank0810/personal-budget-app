@@ -194,7 +194,14 @@ export const NotificationService = {
 				</div>
 			`;
 
-			await EmailService.send({ to, subject, html });
+			await EmailService.send({
+				to,
+				subject,
+				html,
+				userId,
+				notificationKey: 'budget_alerts',
+				tags: [{ name: 'kind', value: 'budget_alert' }],
+			});
 		}
 	},
 
@@ -286,7 +293,14 @@ export const NotificationService = {
 				</div>
 			`;
 
-			await EmailService.send({ to, subject, html });
+			await EmailService.send({
+				to,
+				subject,
+				html,
+				userId,
+				notificationKey: 'income_notifications',
+				tags: [{ name: 'kind', value: 'income_notification' }],
+			});
 		}
 	},
 };

@@ -1,88 +1,228 @@
-import nodemailer from 'nodemailer';
+import { EmailPriority, EmailProviderKey, EmailStatus } from '@prisma/client';
+import prisma from '@/lib/prisma';
+import { requireEmailConfig } from './email.config';
+import { redactSecrets } from './email.crypto';
+import { checkQuota } from './email.quota';
+import { getProvider } from './providers/registry';
+import {
+	EmailAttachment,
+	EmailIdentity,
+	EmailQuotaExceededError,
+	EmailTag,
+	SendEmailInput,
+} from './email.provider';
 
-const transporter = nodemailer.createTransport({
-	host: 'smtp.gmail.com',
-	port: 465,
-	secure: true,
-	auth: {
-		user: process.env.SMTP_USER,
-		pass: process.env.SMTP_PASS,
-	},
-});
-
-const EMAIL_FROM = process.env.SMTP_USER || '';
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
 
 /**
  * Email Service
- * Transactional email sending via Gmail SMTP
+ *
+ * Transactional email over the configured provider (see providers/registry.ts).
+ * The public method signatures are intentionally unchanged from the Gmail SMTP
+ * version this replaces, so every existing call site works untouched — the
+ * provider abstraction sits underneath the API, not through it.
  */
+
+type DispatchInput = SendEmailInput & {
+	/** Defaults to NORMAL, the only tier the daily-quota guard suppresses. */
+	priority?: EmailPriority;
+	/** Owner of this mail, for the audit trail. Null for admin/system mail. */
+	userId?: string | null;
+	/** NotificationType key when this mail is governed by a preference. */
+	notificationKey?: string | null;
+};
+
+type LogOutcome = {
+	status: EmailStatus;
+	provider?: EmailProviderKey | null;
+	providerMessageId?: string | null;
+	error?: string | null;
+};
+
+/**
+ * Record the outcome of a send attempt.
+ *
+ * Keyed messages upsert, so the row is the message's current state rather than
+ * one row per attempt. That matters for two reasons: a FAILED or
+ * SUPPRESSED_QUOTA attempt must not permanently occupy the unique key and block
+ * its own retry, and a later successful retry must not collide with the earlier
+ * row. Unkeyed messages simply append.
+ */
+async function writeLog(
+	input: DispatchInput,
+	priority: EmailPriority,
+	outcome: LogOutcome
+) {
+	const data = {
+		userId: input.userId ?? null,
+		notificationKey: input.notificationKey ?? null,
+		priority,
+		status: outcome.status,
+		provider: outcome.provider ?? null,
+		recipient: input.to,
+		subject: input.subject,
+		providerMessageId: outcome.providerMessageId ?? null,
+		error: outcome.error ?? null,
+	};
+
+	if (!input.idempotencyKey) {
+		await prisma.emailSendLog.create({ data });
+		return;
+	}
+
+	await prisma.emailSendLog.upsert({
+		where: { idempotencyKey: input.idempotencyKey },
+		update: data,
+		create: { ...data, idempotencyKey: input.idempotencyKey },
+	});
+}
+
+/**
+ * Single send path: resolve config → quota gate → provider → audit log.
+ *
+ * Every exit writes an EmailSendLog row (or reuses one), so "did this user get
+ * the mail?" is answerable after the fact — something the SMTP implementation
+ * could not do at all.
+ */
+async function dispatch(input: DispatchInput): Promise<{ id: string }> {
+	const priority = input.priority ?? EmailPriority.NORMAL;
+
+	// Local idempotency check. The provider also dedupes (Resend: 24h), but
+	// short-circuiting here saves an API call, works across providers, and keeps
+	// the log from growing a second row for the same logical message.
+	if (input.idempotencyKey) {
+		const prior = await prisma.emailSendLog.findUnique({
+			where: { idempotencyKey: input.idempotencyKey },
+		});
+		if (prior?.status === EmailStatus.SENT) {
+			return { id: prior.providerMessageId ?? prior.id };
+		}
+	}
+
+	// Resolve before the quota check so a missing provider reports as
+	// "not configured" rather than as a quota problem.
+	const config = await requireEmailConfig();
+
+	const quota = await checkQuota(priority);
+	if (!quota.allowed) {
+		await writeLog(input, priority, {
+			status: EmailStatus.SUPPRESSED_QUOTA,
+			provider: config.provider,
+		});
+		throw new EmailQuotaExceededError(quota.sentToday, quota.dailyLimit);
+	}
+
+	const provider = getProvider(config.provider);
+
+	try {
+		const result = await provider.send(input, config);
+
+		await writeLog(input, priority, {
+			status: EmailStatus.SENT,
+			provider: result.provider,
+			providerMessageId: result.providerMessageId,
+		});
+
+		return { id: result.providerMessageId };
+	} catch (error) {
+		const message =
+			error instanceof Error ? error.message : 'Unknown send failure';
+
+		await writeLog(input, priority, {
+			status: EmailStatus.FAILED,
+			provider: config.provider,
+			error: redactSecrets(message).slice(0, 2000),
+		});
+
+		throw error;
+	}
+}
+
 export class EmailService {
 	/**
-	 * Send a generic email
+	 * Send a generic email.
 	 */
 	static async send({
 		to,
 		subject,
 		html,
+		priority,
+		userId,
+		notificationKey,
+		idempotencyKey,
+		identity,
+		tags,
 	}: {
 		to: string;
 		subject: string;
 		html: string;
+		priority?: EmailPriority;
+		userId?: string | null;
+		notificationKey?: string | null;
+		idempotencyKey?: string;
+		identity?: EmailIdentity;
+		tags?: EmailTag[];
 	}) {
-		try {
-			const info = await transporter.sendMail({
-				from: EMAIL_FROM,
-				to,
-				subject,
-				html,
-			});
-			return { id: info.messageId };
-		} catch (error) {
-			console.error('Failed to send email:', error);
-			throw new Error(
-				`Failed to send email: ${error instanceof Error ? error.message : 'Unknown error'}`
-			);
-		}
+		return dispatch({
+			to,
+			subject,
+			html,
+			priority,
+			userId,
+			notificationKey,
+			idempotencyKey,
+			identity,
+			tags,
+		});
 	}
 
 	/**
-	 * Send an email with file attachments
+	 * Send an email with file attachments.
 	 */
 	static async sendWithAttachment({
 		to,
 		subject,
 		html,
 		attachments,
+		priority,
+		userId,
+		notificationKey,
+		idempotencyKey,
+		identity,
+		tags,
 	}: {
 		to: string;
 		subject: string;
 		html: string;
-		attachments: Array<{
-			filename: string;
-			content: Buffer;
-			contentType: string;
-		}>;
+		attachments: EmailAttachment[];
+		priority?: EmailPriority;
+		userId?: string | null;
+		notificationKey?: string | null;
+		idempotencyKey?: string;
+		identity?: EmailIdentity;
+		tags?: EmailTag[];
 	}) {
-		try {
-			const info = await transporter.sendMail({
-				from: EMAIL_FROM,
-				to,
-				subject,
-				html,
-				attachments,
-			});
-			return { id: info.messageId };
-		} catch (error) {
-			console.error('Failed to send email with attachment:', error);
-			throw new Error(
-				`Failed to send email: ${error instanceof Error ? error.message : 'Unknown error'}`
-			);
-		}
+		return dispatch({
+			to,
+			subject,
+			html,
+			attachments,
+			priority,
+			userId,
+			notificationKey,
+			idempotencyKey,
+			identity,
+			tags,
+		});
 	}
 
 	/**
 	 * Send an invoice to a client with the rendered PDF attached.
+	 *
+	 * Client-facing, so HIGH priority: a freelancer's invoice is never withheld
+	 * to protect the app's own digest quota. The sender's name and email become
+	 * the display name and Reply-To, so a client hitting reply reaches the
+	 * freelancer rather than the app's mailbox.
 	 */
 	static async sendInvoice({
 		to,
@@ -94,6 +234,8 @@ export class EmailService {
 		dueDate,
 		notes,
 		pdfBuffer,
+		userId,
+		dedupeKey,
 	}: {
 		to: string;
 		invoiceNumber: string;
@@ -104,6 +246,9 @@ export class EmailService {
 		dueDate: Date;
 		notes: string | null;
 		pdfBuffer: Buffer;
+		userId?: string | null;
+		/** Caller-supplied dedupe key; omitted on deliberate resends. */
+		dedupeKey?: string;
 	}) {
 		const dueLabel = dueDate.toLocaleDateString('en-US', {
 			year: 'numeric',
@@ -126,7 +271,7 @@ export class EmailService {
 			</div>
 		`;
 
-		return this.sendWithAttachment({
+		return dispatch({
 			to,
 			subject: `Invoice ${invoiceNumber} from ${senderLine}`,
 			html,
@@ -137,6 +282,11 @@ export class EmailService {
 					contentType: 'application/pdf',
 				},
 			],
+			identity: { fromName, replyTo: fromEmail },
+			priority: EmailPriority.HIGH,
+			userId,
+			...(dedupeKey ? { idempotencyKey: dedupeKey } : {}),
+			tags: [{ name: 'kind', value: 'invoice' }],
 		});
 	}
 
@@ -152,6 +302,8 @@ export class EmailService {
 		totalFormatted,
 		paidAt,
 		pdfBuffer,
+		userId,
+		dedupeKey,
 	}: {
 		to: string;
 		invoiceNumber: string;
@@ -161,6 +313,9 @@ export class EmailService {
 		totalFormatted: string;
 		paidAt: Date;
 		pdfBuffer: Buffer;
+		userId?: string | null;
+		/** Caller-supplied dedupe key; omitted on deliberate resends. */
+		dedupeKey?: string;
 	}) {
 		const paidLabel = paidAt.toLocaleDateString('en-US', {
 			year: 'numeric',
@@ -183,7 +338,7 @@ export class EmailService {
 			</div>
 		`;
 
-		return this.sendWithAttachment({
+		return dispatch({
 			to,
 			subject: `Receipt — Invoice ${invoiceNumber} paid`,
 			html,
@@ -194,11 +349,20 @@ export class EmailService {
 					contentType: 'application/pdf',
 				},
 			],
+			identity: { fromName, replyTo: fromEmail },
+			priority: EmailPriority.HIGH,
+			userId,
+			...(dedupeKey ? { idempotencyKey: dedupeKey } : {}),
+			tags: [{ name: 'kind', value: 'invoice_receipt' }],
 		});
 	}
 
 	/**
-	 * Send a password reset email
+	 * Send a password reset email.
+	 *
+	 * CRITICAL: someone is sitting on a page waiting for this, so it is never
+	 * quota-suppressed and carries no idempotency key (a second request must
+	 * always produce a fresh mail for the newest token).
 	 */
 	static async sendPasswordReset({
 		email,
@@ -226,10 +390,12 @@ export class EmailService {
 			</div>
 		`;
 
-		return this.send({
+		return dispatch({
 			to: email,
 			subject: 'Reset your password - Budget Planner',
 			html,
+			priority: EmailPriority.CRITICAL,
+			tags: [{ name: 'kind', value: 'password_reset' }],
 		});
 	}
 }

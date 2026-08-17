@@ -1087,10 +1087,27 @@ export const ReportService = {
 						contentType: 'application/pdf',
 					},
 				],
+				userId,
+				notificationKey: 'monthly_report',
+				// Keyed per user+period so a BullMQ retry after a partial failure
+				// cannot deliver the same digest twice.
+				idempotencyKey: reportEmailIdempotencyKey(userId, monthStart),
+				tags: [{ name: 'kind', value: 'monthly_report' }],
 			});
 		}
 	},
 };
+
+/**
+ * Dedupe key for a user's monthly digest email.
+ *
+ * Shared with report.queue.ts, which uses it to tell "this report was generated"
+ * apart from "this report was delivered" — the MonthlyReport row is marked
+ * completed before the send, so generation alone is not proof of delivery.
+ */
+export function reportEmailIdempotencyKey(userId: string, monthStart: Date) {
+	return `report:${userId}:${startOfMonth(monthStart).toISOString()}`;
+}
 
 function buildReportEmailHtml(digest: MonthlyDigest): string {
 	const { healthScore, incomeExpense, netWorth } = digest.sections;

@@ -38,6 +38,27 @@ enum NotificationChannel {
   SMS
 }
 
+// Transactional email provider. One adapter per value; exactly one config row
+// may be active at a time. Add a value here to onboard a new provider.
+enum EmailProviderKey {
+  RESEND
+}
+
+// Delivery tier. Drives the daily-quota guard: NORMAL is suppressed first so a
+// batch of digests can never starve a password reset.
+enum EmailPriority {
+  CRITICAL // password reset, security alerts — never quota-suppressed
+  HIGH // client-facing invoice mail
+  NORMAL // digests, budget/income alerts
+}
+
+enum EmailStatus {
+  SENT
+  FAILED
+  SUPPRESSED_QUOTA
+  SKIPPED_PREF
+}
+
 enum RequestCategory {
   BUG
   ENHANCEMENT
@@ -138,6 +159,7 @@ model User {
   workEntries             WorkEntry[]
   userFeatures            UserFeature[]
   bulkOperations          BulkOperation[]
+  emailSendLogs           EmailSendLog[]
 
   @@map("users")
 }
@@ -381,6 +403,51 @@ model UserNotificationPreference {
 
   @@unique([userId, notificationTypeId, channel])
   @@map("user_notification_preferences")
+}
+
+// Active transactional email provider + its sender identity. Credentials are
+// AES-256-GCM ciphertext under EMAIL_CREDENTIALS_KEY and must never be returned
+// to a client — the admin UI reads a masked hint only. At most one row may have
+// isActive = true; enforced in EmailConfigService.activate() inside a transaction.
+model EmailProviderConfig {
+  id             String           @id @default(cuid())
+  provider       EmailProviderKey
+  isActive       Boolean          @default(false)
+  fromEmail      String
+  fromName       String
+  replyToEmail   String? // app-level default reply-to
+  credentials    String           @db.Text // AES-256-GCM ciphertext, never plaintext
+  lastVerifiedAt DateTime?
+  lastError      String?          @db.Text
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  @@unique([provider])
+  @@map("email_provider_configs")
+}
+
+// One row per send attempt. Serves three purposes at once: the daily-quota
+// counter (indexed count over createdAt), the delivery audit trail, and the
+// idempotency-key store that stops BullMQ retries double-sending reports.
+model EmailSendLog {
+  id                String            @id @default(cuid())
+  userId            String? // null for admin/system mail
+  notificationKey   String? // null for transactional mail
+  priority          EmailPriority
+  status            EmailStatus
+  provider          EmailProviderKey?
+  recipient         String
+  subject           String
+  providerMessageId String?
+  idempotencyKey    String?           @unique
+  error             String?           @db.Text
+  createdAt         DateTime          @default(now())
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([createdAt])
+  @@index([userId, createdAt])
+  @@map("email_send_logs")
 }
 
 // Feature Request - User-submitted feature requests and bug reports

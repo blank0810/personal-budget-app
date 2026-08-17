@@ -1,11 +1,11 @@
 import prisma from '@/lib/prisma';
 import { getRedisConnection } from '@/lib/redis';
-import { RequestCategory } from '@prisma/client';
+import { EmailPriority, RequestCategory } from '@prisma/client';
 import { EmailService } from '@/server/modules/email/email.service';
 import { CATEGORY_LABELS } from './feature-request.types';
 
-const ADMIN_EMAIL = process.env.SMTP_USER || '';
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+const ADMIN_EMAIL_SETTING_KEY = 'admin_notification_email';
 const RATE_LIMIT_MAX = 3;
 const RATE_LIMIT_WINDOW = 3600; // 1 hour in seconds
 
@@ -98,6 +98,23 @@ export const FeatureRequestService = {
 		return request;
 	},
 
+	/**
+	 * Resolve where feature-request notifications go.
+	 *
+	 * Previously derived from SMTP_USER, which meant removing Gmail SMTP would
+	 * have silently killed these notifications via the early return below.
+	 * Now an explicit setting, with an env fallback for local dev.
+	 */
+	async getAdminRecipient(): Promise<string | null> {
+		const setting = await prisma.systemSetting.findUnique({
+			where: { key: ADMIN_EMAIL_SETTING_KEY },
+		});
+		const value = setting?.value?.trim();
+		if (value) return value;
+
+		return process.env.ADMIN_NOTIFICATION_EMAIL?.trim() || null;
+	},
+
 	async notifyAdmin(request: {
 		id: string;
 		title: string;
@@ -107,7 +124,13 @@ export const FeatureRequestService = {
 		userId: string | null;
 		createdAt: Date;
 	}) {
-		if (!ADMIN_EMAIL) return;
+		const adminEmail = await this.getAdminRecipient();
+		if (!adminEmail) {
+			console.warn(
+				`No ${ADMIN_EMAIL_SETTING_KEY} configured; skipping feature-request notification for ${request.id}.`
+			);
+			return;
+		}
 
 		const categoryLabel = CATEGORY_LABELS[request.category] || request.category;
 		const submitterType = request.userId ? 'Registered User' : 'Public Visitor';
@@ -171,6 +194,15 @@ export const FeatureRequestService = {
       </div>
     `;
 
-		await EmailService.send({ to: ADMIN_EMAIL, subject, html });
+		// CRITICAL, not because it is urgent, but because it is low-volume
+		// operational mail that must never be dropped by the digest quota guard.
+		await EmailService.send({
+			to: adminEmail,
+			subject,
+			html,
+			priority: EmailPriority.CRITICAL,
+			idempotencyKey: `feature_request:${request.id}`,
+			tags: [{ name: 'kind', value: 'feature_request' }],
+		});
 	},
 };
