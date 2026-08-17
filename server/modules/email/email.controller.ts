@@ -1,6 +1,6 @@
 'use server';
 
-import { EmailPriority, EmailProviderKey } from '@prisma/client';
+import { EmailPriority, IntegrationProvider } from '@prisma/client';
 import { requireAdminSession } from '@/server/lib/auth-guard';
 import { invalidateTags } from '@/server/actions/cache';
 import { CACHE_TAGS } from '@/server/lib/cache-tags';
@@ -22,9 +22,9 @@ import {
 /**
  * Admin server actions for the email provider integration.
  *
- * Every action is gated on an ADMIN role plus a live sudo window. Credentials
- * are write-only across this boundary: nothing here ever returns a decrypted
- * API key, only a masked hint.
+ * Every action is gated on an ADMIN role plus a live sudo window. Credentials are
+ * write-only across this boundary: nothing here ever returns a stored key, not
+ * even masked — only whether one exists.
  */
 
 /** Current provider config for the admin panel, plus today's quota usage. */
@@ -61,18 +61,17 @@ export async function adminUpdateEmailConfigAction(
 		return { error: parsed.error.issues[0]?.message || 'Validation failed' };
 	}
 
-	const { provider, fromEmail, fromName, credentials, replyToEmail } =
-		parsed.data;
+	const { provider, fromEmail, fromName, apiKey, replyToEmail } = parsed.data;
 
 	try {
 		await EmailConfigService.upsert({
-			provider: provider as EmailProviderKey,
+			provider: provider as IntegrationProvider,
 			fromEmail,
 			fromName,
 			replyToEmail: replyToEmail || null,
-			// Blanks are dropped and merged over stored values by the service, so a
-			// field left untouched keeps its secret.
-			credentials,
+			// Blank is dropped and merged over the stored value, so leaving the field
+			// untouched keeps the existing key.
+			apiKey,
 		});
 
 		const config = await requireEmailConfig();

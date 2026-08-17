@@ -36,14 +36,19 @@ Three outcomes, in priority order:
 server/modules/email/
 ├── email.service.ts          # PUBLIC API — signatures unchanged from the Gmail version
 ├── email.provider.ts         # EmailProvider interface, shared types, typed errors
-├── email.config.ts           # resolve + cache the active provider config
-│                           # (crypto lives in server/lib/crypto.ts — shared)
+├── email.config.ts           # email's view of the shared integrations table
 ├── email.quota.ts            # daily quota guard + priority tiers
 ├── email.controller.ts       # admin server actions (getConfig/updateConfig/sendTest)
 ├── email.types.ts            # Zod schemas
 └── providers/
     ├── registry.ts           # PROVIDERS map — mirrors server/modules/automation/registry.ts
     └── resend.provider.ts    # the only adapter today
+
+server/modules/integration/
+└── integration.service.ts    # shared storage/crypto/active-flag for ALL integrations
+
+server/lib/
+└── crypto.ts                 # AES-256-GCM seal/open, shared
 ```
 
 The four existing public methods (`send`, `sendWithAttachment`, `sendInvoice`,
@@ -81,20 +86,10 @@ export type SendEmailInput = {
   tags?: Array<{ name: string; value: string }>;   // Resend's shape, deliberately
 };
 
-export type SendResult = { providerMessageId: string; provider: EmailProviderKey };
-
-export type CredentialField = {
-  name: string;        // key inside the sealed credential object
-  label: string;
-  placeholder?: string;
-  secret: boolean;     // write-only in the UI
-  required: boolean;
-  help?: string;
-};
+export type SendResult = { providerMessageId: string; provider: IntegrationProvider };
 
 export interface EmailProvider {
-  readonly key: EmailProviderKey;
-  readonly credentialFields: ReadonlyArray<CredentialField>;  // UI renders itself from this
+  readonly key: IntegrationProvider;
   send(input: SendEmailInput, cfg: ResolvedEmailConfig): Promise<SendResult>;
   verify(cfg: ResolvedEmailConfig): Promise<{ ok: boolean; message: string }>;
 }
@@ -123,50 +118,67 @@ Two error types the interface must normalize so callers stay provider-agnostic:
 | Free tier | 3,000/month, **100/day** | Lower than Gmail's ~500/day — drives the quota guard. |
 | Auth | a **single** API key (`re_...`) as a Bearer token — no key/secret pair | Resend declares one credential field. Its webhook signing secret (Svix) is separate and only needed for inbound bounce events, which this app does not yet ingest. |
 
-### Config model
+### Integration storage — one generic table
+
+Every integration needs the same scaffolding: which provider, whether it is active,
+encrypted credentials, and the last verification result. That lives once, in a generic
+table, rather than being re-implemented per category.
 
 ```prisma
-enum EmailProviderKey { RESEND }
+enum IntegrationCategory { EMAIL }    // SMS, PAYMENT, STORAGE later
+enum IntegrationProvider { RESEND }   // TWILIO, STRIPE later
 
-model EmailProviderConfig {
-  id             String           @id @default(cuid())
-  provider       EmailProviderKey
-  isActive       Boolean          @default(false)
-  fromEmail      String
-  fromName       String
-  replyToEmail   String?          // app-level default reply-to
-  credentials    String           @db.Text   // sealed JSON of named secrets
+model Integration {
+  id             String              @id @default(cuid())
+  category       IntegrationCategory
+  provider       IntegrationProvider
+  isActive       Boolean             @default(false)
+  credentials    String              @db.Text        // sealed JSON, secrets only
+  settings       Json                @default("{}")  // non-secret properties
   lastVerifiedAt DateTime?
-  lastError      String?          @db.Text
-  createdAt      DateTime         @default(now())
-  updatedAt      DateTime         @updatedAt
+  lastError      String?             @db.Text
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
 
-  @@unique([provider])
-  @@map("email_provider_configs")
+  @@unique([category, provider])
+  @@index([category, isActive])
+  @@map("integrations")
 }
 ```
 
+For EMAIL, `settings` holds `{ fromEmail, fromName, replyToEmail }`.
+
+**The split.** `IntegrationService` owns storage, encryption, and the
+one-active-per-category rule; it knows nothing about what a "from address" is. Each
+category's own module owns what is specific: its settings schema, its credential keys, how
+to verify, how to call the service. Adding an integration is an adapter plus two enum
+values plus a Zod schema — no migration, no new table, no new admin panel.
+
+**The cost, and how it is paid back.** `fromEmail` loses its `NOT NULL`. So the settings
+schema is applied on **read** as well as on write: an active row whose JSON is invalid
+resolves to `null` and mail simply does not send, rather than going out with an empty From
+address. The admin panel deliberately tolerates the same invalid row and renders it blank,
+so it can be fixed. Verified by test and by end-to-end run.
+
 - **Encryption:** AES-256-GCM under `SECRET_ENCRYPTION_KEY` (32-byte base64), via
   `server/lib/crypto.ts`. Named and located generically because it protects integration
-  secrets in general, not email specifically. Deliberately *not* `NEXTAUTH_SECRET`, which
-  already silently governs unsubscribe-token validity (`report.service.ts:1100`) —
-  rotating auth must not also render every stored credential unreadable.
-- **`credentials` holds a sealed JSON object of named values**, not a bare key, and each
-  provider *declares* the fields it needs (`EmailProvider.credentialFields`). Resend needs
-  only `apiKey`, but that is the exception: AWS SES needs access key id + secret access key
-  + region, Mailgun needs a key plus a sending domain, and Resend's own webhook
-  verification uses a Svix signing secret separate from the sending key. A bare string is
-  still tolerated on read as `{ apiKey }`. Supplied fields **merge** over stored ones, so a
-  field left blank keeps its secret.
-- **Never leaves the server.** `getForAdmin()` returns `storedCredentialFields: string[]`
-  — which fields are populated, never any value, not even masked. Write-only in the UI;
-  redacted in logs and in `lastError`.
-- **One active provider:** enforced in a transaction (deactivate others on activate).
-- **Caching:** module-level cache busted on admin update via `invalidateTags`, plus a
-  60s TTL so multi-instance deploys converge without a restart.
-- **No env fallback.** With no active row, email is simply unconfigured and sends throw
-  `EmailNotConfiguredError`. Commit 1 shipped a bootstrap fallback to avoid a window with
-  no way to configure; commit 2's admin UI closed that window and removed it.
+  secrets in general. Deliberately *not* `NEXTAUTH_SECRET`, which already silently governs
+  unsubscribe-token validity (`report.service.ts:1100`) — rotating auth must not also
+  render every stored credential unreadable.
+- **`credentials` is sealed JSON, not a bare string.** Resend needs only `apiKey`; the JSON
+  shape costs nothing today and means Resend's *separate* webhook signing secret can be
+  added later as another key with no data migration. A sealed bare string is still read as
+  `{ apiKey }`. Supplied credentials **merge** over stored ones with blanks dropped, so an
+  untouched field keeps its secret.
+- **Never leaves the server.** `getForAdmin()` reports `hasCredential: boolean` — never a
+  value, not even masked. Write-only in the UI; redacted in logs and in `lastError`.
+- **One active per category:** enforced in a transaction, scoped by category, so activating
+  an email provider cannot disturb an SMS or payment integration.
+- **Caching:** module-level cache busted on admin update via `invalidateTags`, plus a 60s
+  TTL so multi-instance deploys converge without a restart.
+- **No env fallback.** With no active row, email is unconfigured and sends throw
+  `EmailNotConfiguredError`. Commit 1 shipped a bootstrap fallback; commit 2's admin UI
+  closed that window and removed it.
 
 ### Send log, quota guard, priority
 
@@ -188,7 +200,7 @@ model EmailSendLog {
   notificationKey   String?       // null for transactional
   priority          EmailPriority
   status            EmailStatus
-  provider          EmailProviderKey?
+  provider          IntegrationProvider?
   recipient         String
   subject           String
   providerMessageId String?
@@ -219,7 +231,7 @@ Binding constraint is actually the monthly cap, not the daily one: 40 reports/da
 | Removed | Replacement |
 |---|---|
 | `nodemailer` dep + the `createTransport` singleton (`email.service.ts:3-11`) | `resend` + provider registry |
-| `SMTP_USER` / `SMTP_PASS` (`.env.example`, `docker-compose.yml:21-22`) | provider config in the DB + `SECRET_ENCRYPTION_KEY` |
+| `SMTP_USER` / `SMTP_PASS` (`.env.example`, `docker-compose.yml:21-22`) | a row in `integrations` + `SECRET_ENCRYPTION_KEY` |
 | `EMAIL_FROM = process.env.SMTP_USER` (`email.service.ts:13`) | `EmailProviderConfig.fromEmail` |
 | `ADMIN_EMAIL = process.env.SMTP_USER` (`feature-request.service.ts:7`) | **`admin_notification_email` SystemSetting.** Must land in the same commit — `:109` returns early when unset, so feature-request mail would die silently. |
 
@@ -349,6 +361,7 @@ Mechanics that make the claim honest:
 |---|---|---|
 | **1** | Provider layer + Resend adapter + `EmailProviderConfig` + encryption + `EmailSendLog` (quota/audit/idempotency) + `admin_notification_email` + nodemailer removed | **done** |
 | **2** | `/admin/system` provider section + send-test; env bootstrap removed | **done** |
+| **2b** | `SECRET_ENCRYPTION_KEY` rename; generic `integrations` table replaces `email_provider_configs` | **done** |
 | **3** | Code-side notification registry + shared `NotificationPreferencesCard` + HTML escaping + default-preservation migration | |
 | **4** | The 7 new owner-facing types and their triggers | |
 | **5** | Onboarding Notifications step | |
@@ -416,6 +429,35 @@ Verified end-to-end against the live Resend API: credential stored as `v1:` ciph
 no plaintext, decrypt correct, identity-only update preserved the key, and a deliberately
 invalid key returned `validation_error` → mapped to a non-retryable failure with
 `lastError` recorded.
+
+## Implementation notes — commit 2b
+
+Two corrections, both taken while the table still held zero rows.
+
+**1. `EMAIL_CREDENTIALS_KEY` → `SECRET_ENCRYPTION_KEY`**, and the crypto module moved from
+`server/modules/email/email.crypto.ts` to `server/lib/crypto.ts`. It protects integration
+secrets generally, so neither the name nor the location should have been feature-scoped.
+Dropped `maskCredential` at the same time: dead once the UI reported only *whether* a
+credential exists, and keeping it implied secrets get echoed back masked, which they do not.
+
+**2. `email_provider_configs` → a generic `integrations` table.** The per-category table
+would have meant `sms_provider_configs`, `payment_provider_configs`, and so on, each
+re-implementing identical scaffolding and each needing its own migration, service, and admin
+panel. What is genuinely per-integration is adapter code, which has to be written either
+way. Done now specifically because the table was empty — after a live key is configured in
+prod, the same change would be migrating real credentials.
+
+**Rejected along the way: a provider-declared `credentialFields` array** driving a dynamic
+admin form. It read as good generality but bought almost nothing — you cannot add a provider
+without writing an adapter regardless, so the only saving was one UI edit, and with a single
+one-field provider it was machinery rendering exactly one input. Replaced with a concrete
+`apiKey` on `ResolvedEmailConfig`. The sealed-JSON *storage* was kept, since that is what
+avoids a data migration when Resend's webhook signing secret arrives.
+
+Verified end-to-end: sealed JSON with no plaintext, settings-only save preserved the key and
+updated reply-to, corrupted JSON settings resolved to `null` while the admin panel still
+rendered the broken row, category-scoped deactivation, and a live Resend call still mapping
+to the right failure.
 
 ### Required follow-up before enabling the report cron on the free tier
 

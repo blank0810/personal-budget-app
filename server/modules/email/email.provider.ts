@@ -1,4 +1,4 @@
-import { EmailProviderKey } from '@prisma/client';
+import { IntegrationProvider } from '@prisma/client';
 
 /**
  * Provider-neutral send contract.
@@ -51,7 +51,7 @@ export type SendEmailInput = {
 
 export type SendResult = {
 	providerMessageId: string;
-	provider: EmailProviderKey;
+	provider: IntegrationProvider;
 };
 
 export type VerifyResult = {
@@ -63,40 +63,22 @@ export type VerifyResult = {
  * Provider config after decryption. Adapters receive this rather than reading
  * env or the database themselves, so they stay pure and testable.
  */
-/**
- * One credential input a provider needs. Providers declare these so the admin UI
- * renders the right fields and validation stays in one place, instead of the
- * form hardcoding "API key" and breaking on the first provider that needs more.
- *
- * Resend needs only `apiKey`, but that is the exception rather than the rule:
- * AWS SES needs an access key id, a secret access key, and a region; Mailgun
- * needs a key plus a sending domain; and Resend's own webhook verification uses
- * a Svix signing secret separate from the sending key.
- */
-export type CredentialField = {
-	/** Key under which the value is stored in the sealed credential object. */
-	name: string;
-	label: string;
-	placeholder?: string;
-	/** Secret values are write-only: masked in the UI and never returned. */
-	secret: boolean;
-	required: boolean;
-	help?: string;
-};
-
 export type ResolvedEmailConfig = {
-	provider: EmailProviderKey;
-	/** Decrypted credential values, keyed by CredentialField.name. */
-	credentials: Record<string, string>;
+	provider: IntegrationProvider;
+	/**
+	 * The provider's API key. Resend authenticates with a single key as a Bearer
+	 * token — no key/secret pair. At rest this is one field inside a sealed JSON
+	 * object, so Resend's separate webhook signing secret can be added later
+	 * without a data migration.
+	 */
+	apiKey: string;
 	fromEmail: string;
 	fromName: string;
 	replyToEmail: string | null;
 };
 
 export interface EmailProvider {
-	readonly key: EmailProviderKey;
-	/** What this provider needs configured, in display order. */
-	readonly credentialFields: ReadonlyArray<CredentialField>;
+	readonly key: IntegrationProvider;
 	send(input: SendEmailInput, config: ResolvedEmailConfig): Promise<SendResult>;
 	/** Credential/identity smoke test behind the admin "send test" button. */
 	verify(config: ResolvedEmailConfig): Promise<VerifyResult>;
@@ -134,15 +116,15 @@ export class EmailSendError extends Error {
 }
 
 /**
- * No active provider config and no env bootstrap. Thrown rather than silently
- * dropped so each caller keeps its existing failure semantics: password reset
- * surfaces to the user, notifications hit their `.catch(() => {})`, invoices
- * return an emailWarning, report jobs fail into retry.
+ * No active provider config. Thrown rather than silently dropped so each caller
+ * keeps its existing failure semantics: password reset surfaces to the user,
+ * notifications hit their `.catch(() => {})`, invoices return an emailWarning,
+ * report jobs fail into retry.
  */
 export class EmailNotConfiguredError extends Error {
 	constructor() {
 		super(
-			'No email provider is configured. Set one up under Admin → System, or set RESEND_API_KEY and EMAIL_FROM.'
+			'No email provider is configured. Set one up under Admin → System.'
 		);
 		this.name = 'EmailNotConfiguredError';
 	}

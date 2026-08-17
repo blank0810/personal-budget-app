@@ -1,32 +1,20 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import crypto from 'crypto';
 
 const mocks = vi.hoisted(() => ({
-	findFirst: vi.fn(),
-	findMany: vi.fn(),
-	findUnique: vi.fn(),
-	create: vi.fn(),
-	update: vi.fn(),
-	updateMany: vi.fn(),
-	transaction: vi.fn(),
+	getActive: vi.fn(),
+	upsert: vi.fn(),
+	listForAdmin: vi.fn(),
+	recordVerification: vi.fn(),
 }));
 
-vi.mock('@/lib/prisma', () => ({
-	default: {
-		emailProviderConfig: {
-			findFirst: mocks.findFirst,
-			findMany: mocks.findMany,
-			findUnique: mocks.findUnique,
-			create: mocks.create,
-			update: mocks.update,
-			updateMany: mocks.updateMany,
-		},
-		// Run the callback against the same mock surface.
-		$transaction: mocks.transaction,
+vi.mock('@/server/modules/integration/integration.service', () => ({
+	IntegrationService: {
+		getActive: mocks.getActive,
+		upsert: mocks.upsert,
+		listForAdmin: mocks.listForAdmin,
+		recordVerification: mocks.recordVerification,
 	},
 }));
-
-process.env.SECRET_ENCRYPTION_KEY = crypto.randomBytes(32).toString('base64');
 
 const {
 	getEmailConfig,
@@ -34,18 +22,21 @@ const {
 	clearEmailConfigCache,
 	EmailConfigService,
 } = await import('./email.config');
-const { seal, open } = await import('@/server/lib/crypto');
 const { EmailNotConfiguredError } = await import('./email.provider');
 
-function activeRow(overrides: Record<string, unknown> = {}) {
+const SETTINGS = {
+	fromEmail: 'noreply@budget.umbra.build',
+	fromName: 'Budget Planner',
+	replyToEmail: null,
+};
+
+function stored(overrides: Record<string, unknown> = {}) {
 	return {
-		id: 'cfg_1',
+		category: 'EMAIL',
 		provider: 'RESEND',
 		isActive: true,
-		fromEmail: 'noreply@budget.umbra.build',
-		fromName: 'Budget Planner',
-		replyToEmail: null,
-		credentials: seal(JSON.stringify({ apiKey: 're_live_key_1234' })),
+		credentials: { apiKey: 're_live_1234' },
+		settings: SETTINGS,
 		lastVerifiedAt: null,
 		lastError: null,
 		...overrides,
@@ -56,32 +47,28 @@ describe('email.config', () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
 		clearEmailConfigCache();
-		mocks.transaction.mockImplementation(async (cb: (tx: unknown) => unknown) =>
-			cb({
-				emailProviderConfig: {
-					updateMany: mocks.updateMany,
-					create: mocks.create,
-					update: mocks.update,
-				},
-			})
-		);
 	});
 
 	describe('resolution', () => {
-		it('decrypts the active row', async () => {
-			mocks.findFirst.mockResolvedValue(activeRow());
+		it('flattens the stored integration into a send-ready config', async () => {
+			mocks.getActive.mockResolvedValue(stored());
 
 			await expect(getEmailConfig()).resolves.toEqual({
 				provider: 'RESEND',
-				credentials: { apiKey: 're_live_key_1234' },
+				apiKey: 're_live_1234',
 				fromEmail: 'noreply@budget.umbra.build',
 				fromName: 'Budget Planner',
 				replyToEmail: null,
 			});
 		});
 
-		it('returns null with no active row — the API key is never read from env', async () => {
-			mocks.findFirst.mockResolvedValue(null);
+		it('returns null when no integration is active', async () => {
+			mocks.getActive.mockResolvedValue(null);
+			await expect(getEmailConfig()).resolves.toBeNull();
+		});
+
+		it('never reads the API key from env', async () => {
+			mocks.getActive.mockResolvedValue(null);
 			process.env.RESEND_API_KEY = 're_should_be_ignored';
 			process.env.EMAIL_FROM = 'ignored@example.com';
 
@@ -91,182 +78,136 @@ describe('email.config', () => {
 			delete process.env.EMAIL_FROM;
 		});
 
-		it('reads a legacy bare-string credential as { apiKey }', async () => {
-			mocks.findFirst.mockResolvedValue(
-				activeRow({ credentials: seal('re_legacy_bare_key') })
-			);
-
-			const config = await getEmailConfig();
-			expect(config?.credentials).toEqual({ apiKey: 're_legacy_bare_key' });
-		});
-
-		it('treats an undecryptable row as not configured', async () => {
-			mocks.findFirst.mockResolvedValue(
-				activeRow({ credentials: 'v1:bogus:bogus:bogus' })
+		it('rejects settings that are invalid in the JSON column', async () => {
+			// This is what replaces the NOT NULL a real column would have had: a row
+			// hand-edited to an empty From address must not send mail.
+			mocks.getActive.mockResolvedValue(
+				stored({
+					settings: { fromEmail: '', fromName: '', replyToEmail: null },
+				})
 			);
 
 			await expect(getEmailConfig()).resolves.toBeNull();
 		});
 
+		it('rejects settings missing a required key entirely', async () => {
+			mocks.getActive.mockResolvedValue(stored({ settings: {} }));
+			await expect(getEmailConfig()).resolves.toBeNull();
+		});
+
+		it('rejects an integration with no API key stored', async () => {
+			mocks.getActive.mockResolvedValue(stored({ credentials: {} }));
+			await expect(getEmailConfig()).resolves.toBeNull();
+		});
+
 		it('requireEmailConfig throws EmailNotConfiguredError when absent', async () => {
-			mocks.findFirst.mockResolvedValue(null);
+			mocks.getActive.mockResolvedValue(null);
 			await expect(requireEmailConfig()).rejects.toThrow(
 				EmailNotConfiguredError
 			);
 		});
 
 		it('memoises, then re-reads after an explicit cache clear', async () => {
-			mocks.findFirst.mockResolvedValue(activeRow());
+			mocks.getActive.mockResolvedValue(stored());
 
 			await getEmailConfig();
 			await getEmailConfig();
-			expect(mocks.findFirst).toHaveBeenCalledOnce();
+			expect(mocks.getActive).toHaveBeenCalledOnce();
 
 			clearEmailConfigCache();
 			await getEmailConfig();
-			expect(mocks.findFirst).toHaveBeenCalledTimes(2);
+			expect(mocks.getActive).toHaveBeenCalledTimes(2);
 		});
 	});
 
 	describe('upsert', () => {
-		beforeEach(() => {
-			mocks.create.mockResolvedValue(activeRow());
-			mocks.update.mockResolvedValue(activeRow());
-			mocks.updateMany.mockResolvedValue({ count: 0 });
-		});
-
-		it('seals the API key rather than storing it in the clear', async () => {
-			mocks.findUnique.mockResolvedValue(null);
+		it('validates settings before storing and declares apiKey required', async () => {
+			mocks.upsert.mockResolvedValue({});
 
 			await EmailConfigService.upsert({
 				provider: 'RESEND',
 				fromEmail: 'a@b.com',
 				fromName: 'X',
 				replyToEmail: null,
-				credentials: { apiKey: 're_plaintext_secret' },
+				apiKey: 're_new',
 			});
 
-			const created = mocks.create.mock.calls[0][0].data;
-			expect(created.credentials).not.toContain('re_plaintext_secret');
-			expect(created.credentials).toMatch(/^v1:/);
+			expect(mocks.upsert).toHaveBeenCalledWith({
+				category: 'EMAIL',
+				provider: 'RESEND',
+				credentials: { apiKey: 're_new' },
+				settings: { fromEmail: 'a@b.com', fromName: 'X', replyToEmail: null },
+				requiredCredentials: ['apiKey'],
+			});
 		});
 
-		it('deactivates other providers so only one can be active', async () => {
-			mocks.findUnique.mockResolvedValue(null);
+		it('sends no credential at all when the key field was left blank', async () => {
+			mocks.upsert.mockResolvedValue({});
 
 			await EmailConfigService.upsert({
 				provider: 'RESEND',
 				fromEmail: 'a@b.com',
 				fromName: 'X',
 				replyToEmail: null,
-				credentials: { apiKey: 're_key' },
 			});
 
-			expect(mocks.updateMany).toHaveBeenCalledWith({
-				where: { provider: { not: 'RESEND' }, isActive: true },
-				data: { isActive: false },
-			});
+			expect(mocks.upsert.mock.calls[0][0].credentials).toEqual({});
 		});
 
-		it('keeps the stored credential when no new key is supplied', async () => {
-			mocks.findUnique.mockResolvedValue(activeRow());
-
-			await EmailConfigService.upsert({
-				provider: 'RESEND',
-				fromEmail: 'new@b.com',
-				fromName: 'New Name',
-				replyToEmail: null,
-			});
-
-			const update = mocks.update.mock.calls[0][0].data;
-			expect(JSON.parse(open(update.credentials))).toEqual({
-				apiKey: 're_live_key_1234',
-			});
-			expect(update.fromEmail).toBe('new@b.com');
-		});
-
-		it('refuses to add a provider missing a required declared credential', async () => {
-			mocks.findUnique.mockResolvedValue(null);
-
+		it('rejects an invalid sender address before it reaches storage', async () => {
 			await expect(
 				EmailConfigService.upsert({
 					provider: 'RESEND',
-					fromEmail: 'a@b.com',
+					fromEmail: 'not-an-email',
 					fromName: 'X',
 					replyToEmail: null,
+					apiKey: 're_new',
 				})
-			).rejects.toThrow(/Missing required credential: API key/);
-		});
+			).rejects.toThrow();
 
-		it('treats a blank value as unchanged rather than as a clear', async () => {
-			mocks.findUnique.mockResolvedValue(activeRow());
-
-			await EmailConfigService.upsert({
-				provider: 'RESEND',
-				fromEmail: 'a@b.com',
-				fromName: 'X',
-				replyToEmail: null,
-				credentials: { apiKey: '   ' },
-			});
-
-			const update = mocks.update.mock.calls[0][0].data;
-			expect(JSON.parse(open(update.credentials))).toEqual({
-				apiKey: 're_live_key_1234',
-			});
-		});
-
-		it('merges a new field alongside stored ones, for providers needing several', async () => {
-			mocks.findUnique.mockResolvedValue(activeRow());
-
-			await EmailConfigService.upsert({
-				provider: 'RESEND',
-				fromEmail: 'a@b.com',
-				fromName: 'X',
-				replyToEmail: null,
-				credentials: { webhookSecret: 'whsec_abc' },
-			});
-
-			const update = mocks.update.mock.calls[0][0].data;
-			expect(JSON.parse(open(update.credentials))).toEqual({
-				apiKey: 're_live_key_1234',
-				webhookSecret: 'whsec_abc',
-			});
-		});
-
-		it('clears any prior verification, since the identity changed', async () => {
-			mocks.findUnique.mockResolvedValue(activeRow({ lastVerifiedAt: new Date() }));
-
-			await EmailConfigService.upsert({
-				provider: 'RESEND',
-				fromEmail: 'moved@b.com',
-				fromName: 'X',
-				replyToEmail: null,
-			});
-
-			const update = mocks.update.mock.calls[0][0].data;
-			expect(update.lastVerifiedAt).toBeNull();
-			expect(update.lastError).toBeNull();
+			expect(mocks.upsert).not.toHaveBeenCalled();
 		});
 	});
 
 	describe('getForAdmin', () => {
-		it('never returns the credential, only whether one exists', async () => {
-			mocks.findMany.mockResolvedValue([activeRow()]);
+		it('reports whether a credential exists, never its value', async () => {
+			mocks.listForAdmin.mockResolvedValue([
+				{
+					provider: 'RESEND',
+					isActive: true,
+					settings: SETTINGS,
+					storedCredentialKeys: ['apiKey'],
+					lastVerifiedAt: null,
+					lastError: null,
+				},
+			]);
 
 			const result = await EmailConfigService.getForAdmin();
-			const serialised = JSON.stringify(result);
 
 			expect(result.configured).toBe(true);
-			expect(result.providers[0].storedCredentialFields).toEqual(['apiKey']);
-			expect(serialised).not.toContain('re_live_key_1234');
-			expect(serialised).not.toContain('credentials');
+			expect(result.providers[0]).toMatchObject({
+				hasCredential: true,
+				fromEmail: 'noreply@budget.umbra.build',
+			});
+			expect(JSON.stringify(result)).not.toContain('re_');
 		});
 
-		it('reports unconfigured when no row is active', async () => {
-			mocks.findMany.mockResolvedValue([activeRow({ isActive: false })]);
+		it('still renders a row whose settings are invalid, so it can be fixed', async () => {
+			mocks.listForAdmin.mockResolvedValue([
+				{
+					provider: 'RESEND',
+					isActive: true,
+					settings: { garbage: true },
+					storedCredentialKeys: [],
+					lastVerifiedAt: null,
+					lastError: null,
+				},
+			]);
 
 			const result = await EmailConfigService.getForAdmin();
-			expect(result.configured).toBe(false);
+
+			expect(result.providers[0].fromEmail).toBe('');
+			expect(result.providers[0].hasCredential).toBe(false);
 		});
 	});
 });

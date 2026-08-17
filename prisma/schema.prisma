@@ -38,9 +38,14 @@ enum NotificationChannel {
   SMS
 }
 
-// Transactional email provider. One adapter per value; exactly one config row
-// may be active at a time. Add a value here to onboard a new provider.
-enum EmailProviderKey {
+// Third-party integration taxonomy. One row in `integrations` per
+// (category, provider); at most one active per category.
+enum IntegrationCategory {
+  EMAIL
+}
+
+// Every provider across every category. One adapter per value.
+enum IntegrationProvider {
   RESEND
 }
 
@@ -405,25 +410,37 @@ model UserNotificationPreference {
   @@map("user_notification_preferences")
 }
 
-// Active transactional email provider + its sender identity. Credentials are
-// AES-256-GCM ciphertext under EMAIL_CREDENTIALS_KEY and must never be returned
-// to a client — the admin UI reads a masked hint only. At most one row may have
-// isActive = true; enforced in EmailConfigService.activate() inside a transaction.
-model EmailProviderConfig {
-  id             String           @id @default(cuid())
-  provider       EmailProviderKey
-  isActive       Boolean          @default(false)
-  fromEmail      String
-  fromName       String
-  replyToEmail   String? // app-level default reply-to
-  credentials    String           @db.Text // AES-256-GCM ciphertext, never plaintext
+// One connected third-party service. Deliberately generic: the scaffolding every
+// integration needs — which provider, whether it is active, its encrypted
+// credentials, and its last verification result — is identical, so it lives once
+// here rather than being re-implemented per category.
+//
+// `credentials` is AES-256-GCM ciphertext under SECRET_ENCRYPTION_KEY and must
+// never be returned to a client, not even masked; the admin UI reads only
+// whether a credential exists.
+//
+// `settings` holds the category's non-secret properties (for EMAIL:
+// fromEmail / fromName / replyToEmail). Untyped at the DB level, so each
+// category validates it with Zod on both write and read — which restores the
+// NOT NULL guarantee that typed columns would have given.
+//
+// At most one row per category may be active; enforced in
+// IntegrationService.upsert() inside a transaction.
+model Integration {
+  id             String              @id @default(cuid())
+  category       IntegrationCategory
+  provider       IntegrationProvider
+  isActive       Boolean             @default(false)
+  credentials    String              @db.Text // sealed JSON, never plaintext
+  settings       Json                @default("{}")
   lastVerifiedAt DateTime?
-  lastError      String?          @db.Text
-  createdAt      DateTime         @default(now())
-  updatedAt      DateTime         @updatedAt
+  lastError      String?             @db.Text
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
 
-  @@unique([provider])
-  @@map("email_provider_configs")
+  @@unique([category, provider])
+  @@index([category, isActive])
+  @@map("integrations")
 }
 
 // One row per send attempt. Serves three purposes at once: the daily-quota
@@ -435,7 +452,7 @@ model EmailSendLog {
   notificationKey   String? // null for transactional mail
   priority          EmailPriority
   status            EmailStatus
-  provider          EmailProviderKey?
+  provider          IntegrationProvider?
   recipient         String
   subject           String
   providerMessageId String?

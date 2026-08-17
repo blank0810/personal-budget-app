@@ -1,7 +1,34 @@
 import { z } from 'zod';
-import { EmailProviderKey } from '@prisma/client';
+import { IntegrationProvider } from '@prisma/client';
 
-const providerKeys = Object.values(EmailProviderKey) as [string, ...string[]];
+const providerKeys = Object.values(IntegrationProvider) as [
+	string,
+	...string[],
+];
+
+/**
+ * The email integration's non-secret properties, as stored in
+ * `Integration.settings`.
+ *
+ * That column is untyped JSON, so this schema is the contract instead — applied
+ * on write AND on read. Validating on read is what replaces the column-level
+ * NOT NULL these fields would have had as real columns.
+ */
+export const emailSettingsSchema = z.object({
+	fromEmail: z.string().email('A valid sender address is required'),
+	fromName: z
+		.string()
+		.trim()
+		.min(1, 'A sender name is required')
+		.max(100, 'Sender name is too long'),
+	replyToEmail: z
+		.string()
+		.email('Reply-to must be a valid email')
+		.nullable()
+		.default(null),
+});
+
+export type EmailSettings = z.infer<typeof emailSettingsSchema>;
 
 export const updateEmailConfigSchema = z.object({
 	provider: z.enum(providerKeys, { error: 'Unknown email provider' }),
@@ -12,13 +39,10 @@ export const updateEmailConfigSchema = z.object({
 		.min(1, 'A sender name is required')
 		.max(100, 'Sender name is too long'),
 	/**
-	 * Credential values keyed by the provider's declared CredentialField names.
-	 * A blank or omitted field means "keep the stored value" — the UI never
-	 * receives a stored secret, so blank must not be read as "clear it".
-	 * Which fields are required is the provider's declaration to enforce, not
-	 * this schema's, so that adding a provider needs no change here.
+	 * Empty string means "keep the stored key" — the UI never receives the current
+	 * value, so a blank field must not be read as "clear it".
 	 */
-	credentials: z.record(z.string(), z.string()).default({}),
+	apiKey: z.string().trim().default(''),
 	replyToEmail: z
 		.union([z.string().email('Reply-to must be a valid email'), z.literal('')])
 		.default(''),

@@ -1,4 +1,4 @@
-import { EmailPriority, EmailProviderKey, EmailStatus } from '@prisma/client';
+import { EmailPriority, EmailStatus, IntegrationProvider } from '@prisma/client';
 import prisma from '@/lib/prisma';
 import { requireEmailConfig } from './email.config';
 import { redactSecrets } from '@/server/lib/crypto';
@@ -34,7 +34,7 @@ type DispatchInput = SendEmailInput & {
 
 type LogOutcome = {
 	status: EmailStatus;
-	provider?: EmailProviderKey | null;
+	provider?: IntegrationProvider | null;
 	providerMessageId?: string | null;
 	error?: string | null;
 };

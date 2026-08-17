@@ -1,7 +1,6 @@
 import { Resend } from 'resend';
-import { EmailProviderKey } from '@prisma/client';
+import { IntegrationProvider } from '@prisma/client';
 import {
-	CredentialField,
 	EmailCredentialError,
 	EmailProvider,
 	EmailSendError,
@@ -33,6 +32,13 @@ const RETRYABLE_CODES = new Set([
  */
 const clients = new Map<string, Resend>();
 
+function requireApiKey(config: ResolvedEmailConfig): string {
+	if (!config.apiKey) {
+		throw new EmailCredentialError('Resend API key is missing.');
+	}
+	return config.apiKey;
+}
+
 function getClient(apiKey: string): Resend {
 	let client = clients.get(apiKey);
 	if (!client) {
@@ -42,39 +48,14 @@ function getClient(apiKey: string): Resend {
 	return client;
 }
 
-/**
- * Resend authenticates with a single API key as a Bearer token — no key/secret
- * pair. (Its webhook signing secret is separate and only needed for inbound
- * bounce/complaint events, which this app does not yet ingest.)
- */
-const CREDENTIAL_FIELDS: ReadonlyArray<CredentialField> = [
-	{
-		name: 'apiKey',
-		label: 'API key',
-		placeholder: 're_...',
-		secret: true,
-		required: true,
-		help: 'Create one at resend.com/api-keys with Sending access.',
-	},
-];
-
-function getApiKey(config: ResolvedEmailConfig): string {
-	const apiKey = config.credentials.apiKey;
-	if (!apiKey) {
-		throw new EmailCredentialError('Resend API key is missing.');
-	}
-	return apiKey;
-}
-
 export const resendProvider: EmailProvider = {
-	key: EmailProviderKey.RESEND,
-	credentialFields: CREDENTIAL_FIELDS,
+	key: IntegrationProvider.RESEND,
 
 	async send(
 		input: SendEmailInput,
 		config: ResolvedEmailConfig
 	): Promise<SendResult> {
-		const client = getClient(getApiKey(config));
+		const client = getClient(requireApiKey(config));
 
 		// The provider owns the envelope address; only the display name and
 		// reply-to may be overridden per user, so a user can never send as
@@ -120,14 +101,14 @@ export const resendProvider: EmailProvider = {
 			});
 		}
 
-		return { providerMessageId: data.id, provider: EmailProviderKey.RESEND };
+		return { providerMessageId: data.id, provider: IntegrationProvider.RESEND };
 	},
 
 	async verify(config: ResolvedEmailConfig): Promise<VerifyResult> {
 		try {
 			// Listing domains touches auth without sending mail, so a misconfigured
 			// key is reported before anything reaches a real inbox.
-			const { error } = await getClient(getApiKey(config)).domains.list();
+			const { error } = await getClient(requireApiKey(config)).domains.list();
 
 			if (error) {
 				return { ok: false, message: redactSecrets(error.message) };
