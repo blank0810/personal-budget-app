@@ -321,9 +321,19 @@ app's mailbox and no `replyTo` is set, so replies vanish. Derive both from data 
 `User`:
 
 - `fromName` → `businessName ?? name` (schema:107 / :95)
-- `replyTo` → `notificationEmail ?? email` (schema:104 / :103)
+- `replyTo` → **`user.email`** — the account address (`invoice.service.ts:150`)
 
 No migration, no new settings field, and invoices immediately reply to the freelancer.
+
+⚠️ **Corrected 2026-08-18.** This section originally specified `replyTo` as
+`notificationEmail ?? email`. The shipped code uses `user.email` only. That is arguably
+the better behaviour — `notificationEmail` governs where a user reads *their own* app
+mail, not where their clients should reach them — but the spec described something the
+code never did. Believe the code.
+
+Non-invoice mail sets no per-send `replyTo`, so it falls back to the app-level
+`replyToEmail` in the provider config (blank by default → replies land on the `From`
+address).
 
 ## Onboarding — disclosure, not configuration
 
