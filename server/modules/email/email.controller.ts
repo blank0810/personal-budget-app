@@ -6,6 +6,7 @@ import { invalidateTags } from '@/server/actions/cache';
 import { CACHE_TAGS } from '@/server/lib/cache-tags';
 import type { ActionResponse } from '@/server/lib/action-types';
 import { UserService } from '@/server/modules/user/user.service';
+import { NotificationService } from '@/server/modules/notification/notification.service';
 import {
 	EmailConfigService,
 	getEmailConfig,
@@ -148,6 +149,38 @@ export async function adminSendTestEmailAction(
 		console.error('Test email failed:', err);
 		return {
 			error: err instanceof Error ? err.message : 'Test email failed',
+		};
+	}
+}
+
+/**
+ * Project the notification-type registry into the database on demand.
+ *
+ * The registry syncs automatically on the daily scheduler tick, but that leaves a
+ * window after a deploy where a newly added notification type has no row and so
+ * cannot appear in anyone's preferences. This is the manual escape hatch, with
+ * none of the side effects of triggering the whole cron (which would also
+ * generate reports and upload blobs).
+ *
+ * Idempotent, and it applies the same default-flip protection as the scheduled
+ * run — an existing user never silently loses mail they were receiving.
+ */
+export async function adminSyncNotificationTypesAction(): Promise<
+	ActionResponse<{ synced: number; preserved: number }>
+> {
+	const { error } = await requireAdminSession();
+	if (error) return { error };
+
+	try {
+		const result = await NotificationService.syncTypes();
+		invalidateTags(CACHE_TAGS.ADMIN);
+		invalidateTags(CACHE_TAGS.PROFILE);
+		return { success: true as const, data: result };
+	} catch (err) {
+		console.error('Notification type sync failed:', err);
+		return {
+			error:
+				err instanceof Error ? err.message : 'Failed to sync notification types',
 		};
 	}
 }
