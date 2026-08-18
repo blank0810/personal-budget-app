@@ -309,15 +309,32 @@ export function NotificationPreferencesCard({
 					{/* Divider */}
 					<div className="border-t" />
 
-					{/* Column headers */}
-					<div className="flex items-center justify-end gap-6 pr-1">
+					{/* Column headers. Deliberately OUTSIDE the scroll region below:
+					    the master switch, delivery address, and column label are what
+					    someone arriving from an email needs, and they must not scroll
+					    out of reach. */}
+					<div className="flex items-center justify-between gap-6 pr-1">
+						<span className="text-xs text-muted-foreground">
+							{localPrefs.length} notification
+							{localPrefs.length === 1 ? '' : 's'}
+						</span>
 						<div className="flex items-center gap-1 text-xs font-medium text-muted-foreground">
 							<Mail className="h-3.5 w-3.5" />
 							<span className="hidden sm:inline">Email</span>
 						</div>
 					</div>
 
-					{orderedCategories.map((category) => (
+					{/* Bounded so the card stops growing as notification types are
+					    added — the list is the only part that scrolls, and the page
+					    around it stays a fixed, scannable height.
+
+					    Native overflow rather than the Radix ScrollArea used elsewhere:
+					    this region is full of focusable switches, and native scrolling
+					    keeps the browser's built-in "scroll focused element into view"
+					    behaviour when tabbing through them. */}
+					<div className="relative">
+						<div className="max-h-[26rem] space-y-6 overflow-y-auto pr-2">
+							{orderedCategories.map((category) => (
 						<div key={category} className="space-y-3">
 							<h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
 								{CATEGORY_LABELS[
@@ -410,8 +427,19 @@ export function NotificationPreferencesCard({
 								)}
 								</div>
 							))}
+							</div>
+						))}
 						</div>
-					))}
+
+						{/* Signals there is more below. pointer-events-none so it never
+						    swallows a click on the last row's switch. */}
+						<div
+							aria-hidden
+							className={`pointer-events-none absolute inset-x-0 bottom-0 h-8 bg-gradient-to-t to-transparent ${
+								embedded ? 'from-background' : 'from-card'
+							}`}
+						/>
+					</div>
 			</Shell>
 		</TooltipProvider>
 	);
