@@ -16,9 +16,7 @@ import {
 	Bell,
 	Loader2,
 	Mail,
-	MessageSquare,
 	Pencil,
-	Smartphone,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import {
@@ -43,7 +41,6 @@ import {
  */
 export function NotificationPreferencesCard({
 	preferences,
-	hasPhoneNumber,
 	emailNotificationsEnabled,
 	notificationEmail,
 	accountEmail,
@@ -51,7 +48,6 @@ export function NotificationPreferencesCard({
 	embedded = false,
 }: {
 	preferences: MergedPreference[];
-	hasPhoneNumber: boolean;
 	emailNotificationsEnabled: boolean;
 	notificationEmail: string | null;
 	accountEmail: string;
@@ -177,6 +173,8 @@ export function NotificationPreferencesCard({
 
 	async function handleToggle(
 		key: string,
+		// The SMS channel remains in the schema and in per-channel preferences;
+		// only its column is hidden until SMS actually ships, so nothing is lost.
 		channel: 'EMAIL' | 'SMS',
 		enabled: boolean
 	) {
@@ -216,19 +214,6 @@ export function NotificationPreferencesCard({
 	return (
 		<TooltipProvider>
 			<Shell>
-					{!hasPhoneNumber && (
-						<div className="flex items-start gap-3 p-3 rounded-md bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-900">
-							<Smartphone className="h-5 w-5 text-blue-600 dark:text-blue-400 mt-0.5 shrink-0" />
-							<div className="text-sm text-blue-800 dark:text-blue-300">
-								<p className="font-medium">Add a phone number</p>
-								<p className="text-blue-600 dark:text-blue-400">
-									Save your mobile number now so you are ready when
-									SMS notifications launch.
-								</p>
-							</div>
-						</div>
-					)}
-
 					{/* Master email toggle */}
 					<div
 						className={`flex items-center justify-between py-2 ${
@@ -330,14 +315,7 @@ export function NotificationPreferencesCard({
 							<Mail className="h-3.5 w-3.5" />
 							<span className="hidden sm:inline">Email</span>
 						</div>
-						<div className="flex items-center gap-1 text-xs font-medium text-muted-foreground">
-							<MessageSquare className="h-3.5 w-3.5" />
-							<span className="hidden sm:inline">SMS</span>
-						</div>
 					</div>
-					<p className="text-right text-xs text-muted-foreground">
-						SMS notifications coming soon
-					</p>
 
 					{orderedCategories.map((category) => (
 						<div key={category} className="space-y-3">
@@ -389,34 +367,6 @@ export function NotificationPreferencesCard({
 												</TooltipTrigger>
 												<TooltipContent>
 													<p>Turn on Email Notifications above to enable</p>
-												</TooltipContent>
-											</Tooltip>
-										)}
-										{/* SMS toggle — always independent */}
-										{hasPhoneNumber ? (
-											<Switch
-												checked={pref.smsEnabled}
-												onCheckedChange={(checked) =>
-													handleToggle(
-														pref.key,
-														'SMS',
-														checked
-													)
-												}
-											/>
-										) : (
-											<Tooltip>
-												<TooltipTrigger asChild>
-													<div>
-														<Switch
-															checked={false}
-															disabled
-															className="opacity-50"
-														/>
-													</div>
-												</TooltipTrigger>
-												<TooltipContent>
-													<p>Add your phone number to enable</p>
 												</TooltipContent>
 											</Tooltip>
 										)}

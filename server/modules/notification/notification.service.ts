@@ -344,7 +344,7 @@ export const NotificationService = {
 						</a>
 					</div>
 					<div style="padding: 16px 24px; border-top: 1px solid #E5E7EB; font-size: 12px; color: #9CA3AF;">
-						You received this because budget alerts are enabled. <a href="${APP_URL}/profile" style="color: #0D9488;">Manage preferences</a>
+						You received this because budget alerts are enabled. <a href="${APP_URL}/settings/notifications" style="color: #0D9488;">Manage preferences</a>
 					</div>
 				</div>
 			`;
@@ -443,7 +443,7 @@ export const NotificationService = {
 						</a>
 					</div>
 					<div style="padding: 16px 24px; border-top: 1px solid #E5E7EB; font-size: 12px; color: #9CA3AF;">
-						You received this because income notifications are enabled. <a href="${APP_URL}/profile" style="color: #0D9488;">Manage preferences</a>
+						You received this because income notifications are enabled. <a href="${APP_URL}/settings/notifications" style="color: #0D9488;">Manage preferences</a>
 					</div>
 				</div>
 			`;
@@ -488,7 +488,7 @@ export const NotificationService = {
 							}),
 						},
 					],
-					cta: { label: 'Review Account', path: '/profile' },
+					cta: { label: 'Review Account', path: '/settings/security' },
 					footerReason: 'security alerts are enabled',
 				}),
 			}),

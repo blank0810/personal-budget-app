@@ -88,7 +88,7 @@ export function renderNotificationEmail(input: NotificationEmailInput): string {
     ${cta}
   </div>
   <div style="padding:16px 24px;border-top:1px solid ${HAIRLINE};font-size:12px;color:${FOOTER};">
-    You received this because ${escapeHtml(input.footerReason)}. <a href="${APP_URL}/profile" style="color:${BRAND};">Manage preferences</a>
+    You received this because ${escapeHtml(input.footerReason)}. <a href="${APP_URL}/settings/notifications" style="color:${BRAND};">Manage preferences</a>
   </div>
 </div>`;
 }

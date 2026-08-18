@@ -59,7 +59,7 @@ export function HeaderUser({
 				<DropdownMenuSeparator />
 				<DropdownMenuGroup>
 					<DropdownMenuItem asChild>
-						<a href='/profile'>
+						<a href='/settings/profile'>
 							<BadgeCheck />
 							Profile
 						</a>
