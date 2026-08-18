@@ -209,8 +209,10 @@ export function EmailProviderPanel({
 							}
 						/>
 						<p className='text-xs text-muted-foreground'>
-							Create one at resend.com/api-keys with Sending access.
-							Stored encrypted; never displayed again after saving.
+							Create one at resend.com/api-keys with{' '}
+							<strong>Sending access</strong> scoped to your domain — full
+							access is not needed. Stored encrypted; never displayed again
+							after saving.
 						</p>
 					</div>
 

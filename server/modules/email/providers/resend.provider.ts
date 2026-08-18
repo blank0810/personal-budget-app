@@ -110,6 +110,21 @@ export const resendProvider: EmailProvider = {
 			// key is reported before anything reaches a real inbox.
 			const { error } = await getClient(requireApiKey(config)).domains.list();
 
+			// `restricted_api_key` (401) means the key authenticated but is scoped to
+			// sending only — which is exactly how these keys SHOULD be created. It
+			// proves validity just as well as a successful list, so treating it as a
+			// failure would report a correctly-scoped key as broken and push whoever
+			// is configuring it toward granting full access to get a green tick.
+			//
+			// Distinct from `invalid_api_key` (403, key is wrong) and
+			// `missing_api_key` (401, no key sent), both of which are real failures.
+			if (error?.name === 'restricted_api_key') {
+				return {
+					ok: true,
+					message: `Credentials accepted for ${config.fromEmail} (key is scoped to sending only).`,
+				};
+			}
+
 			if (error) {
 				return { ok: false, message: redactSecrets(error.message) };
 			}
