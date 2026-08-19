@@ -16,6 +16,7 @@ import {
 	ChevronDown,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { InlineMarkdown } from './InlineMarkdown';
 import type { Version, Patch } from '@/server/modules/changelog/changelog.types';
 
 interface ChangelogViewProps {
@@ -41,7 +42,7 @@ function PatchSection({ patch }: { patch: Patch }) {
 							Patch
 						</Badge>
 						<span className='text-sm text-amber-800 dark:text-amber-300'>
-							· {patch.title}
+							· <InlineMarkdown>{patch.title}</InlineMarkdown>
 						</span>
 					</div>
 					<div className='flex items-center gap-2 shrink-0'>
@@ -59,7 +60,7 @@ function PatchSection({ patch }: { patch: Patch }) {
 				<CollapsibleContent>
 					<div className='p-4 pt-0 space-y-4'>
 						<p className='text-sm text-muted-foreground'>
-							{patch.description}
+							<InlineMarkdown>{patch.description}</InlineMarkdown>
 						</p>
 						{patch.features && patch.features.length > 0 && <div className='grid gap-4 md:grid-cols-2'>
 							{patch.features.map((feature) => (
@@ -70,7 +71,7 @@ function PatchSection({ patch }: { patch: Patch }) {
 									<CardHeader className='pb-2'>
 										<CardTitle className='text-sm font-semibold flex items-center gap-2'>
 											<Wrench className='h-3 w-3 text-amber-500' />
-											{feature.title}
+											<InlineMarkdown>{feature.title}</InlineMarkdown>
 										</CardTitle>
 									</CardHeader>
 									<CardContent>
@@ -81,7 +82,9 @@ function PatchSection({ patch }: { patch: Patch }) {
 													className='text-xs text-muted-foreground flex items-start gap-2'
 												>
 													<span className='mt-1 h-1 w-1 rounded-full bg-amber-500 shrink-0' />
-													{item}
+													<span>
+														<InlineMarkdown>{item}</InlineMarkdown>
+													</span>
 												</li>
 											))}
 										</ul>
@@ -174,7 +177,7 @@ function VersionEntry({
 				<div className='pl-8 md:pl-12 pr-4 pb-6 pt-2 space-y-6'>
 					{/* Description */}
 					<p className='text-muted-foreground leading-relaxed'>
-						{version.description}
+						<InlineMarkdown>{version.description}</InlineMarkdown>
 					</p>
 
 					{/* Patches */}
@@ -200,7 +203,7 @@ function VersionEntry({
 										) : (
 											<CheckCircle2 className='h-4 w-4 text-emerald-500' />
 										)}
-										{feature.title}
+										<InlineMarkdown>{feature.title}</InlineMarkdown>
 									</CardTitle>
 								</CardHeader>
 								<CardContent className='pb-4'>
@@ -211,7 +214,9 @@ function VersionEntry({
 												className='text-sm text-muted-foreground flex items-start gap-2'
 											>
 												<span className='mt-1.5 h-1.5 w-1.5 rounded-full bg-primary/40 shrink-0' />
-												{item}
+												<span>
+													<InlineMarkdown>{item}</InlineMarkdown>
+												</span>
 											</li>
 										))}
 									</ul>
