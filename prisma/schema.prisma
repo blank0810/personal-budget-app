@@ -3,7 +3,9 @@
 
 generator client {
   provider      = "prisma-client-js"
-  binaryTargets = ["native", "linux-musl-openssl-3.0.x"]
+  // native + musl for the Alpine dev container; debian for Trigger.dev
+  // Cloud, whose runtime is Debian and which loads the engine at runtime.
+  binaryTargets = ["native", "linux-musl-openssl-3.0.x", "debian-openssl-3.0.x"]
 }
 
 datasource db {
