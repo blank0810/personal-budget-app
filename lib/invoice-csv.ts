@@ -26,6 +26,21 @@ export interface ExportRow {
 	totalAmount: Decimal;
 }
 
+/**
+ * Spreadsheets treat a leading =, +, -, @, tab or CR as the start of a formula.
+ * That is a data-integrity problem here rather than a security one: every value
+ * in this file was typed by the person downloading it, so there is no injection
+ * path. But a legitimate company name like "+Post" would render as #NAME? in the
+ * accountant's spreadsheet, so text cells get a leading apostrophe that Excel
+ * consumes on display.
+ *
+ * Applied only to text columns. Money columns must never be escaped — a future
+ * negative amount starts with "-" and would become text, silently breaking sums.
+ */
+function csvSafeText(value: string): string {
+	return /^[=+\-@\t\r]/.test(value) ? `'${value}` : value;
+}
+
 const CSV_HEADERS = [
 	'Invoice Number',
 	'Status',
@@ -45,10 +60,10 @@ export function invoicesToCsv(rows: ExportRow[]): string {
 	return Papa.unparse({
 		fields: CSV_HEADERS,
 		data: rows.map((row) => [
-			row.invoiceNumber,
+			csvSafeText(row.invoiceNumber),
 			row.status,
-			row.companyName ?? '',
-			row.clientName ?? '',
+			csvSafeText(row.companyName ?? ''),
+			csvSafeText(row.clientName ?? ''),
 			isoDate(row.issueDate),
 			isoDate(row.dueDate),
 			row.paidAt ? isoDate(row.paidAt) : '',

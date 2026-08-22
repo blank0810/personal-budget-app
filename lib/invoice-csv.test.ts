@@ -123,3 +123,28 @@ describe('invoicesToCsv timezone safety', () => {
 		}
 	});
 });
+
+describe('invoicesToCsv spreadsheet formula safety', () => {
+	it('neutralizes text cells that would parse as formulas', () => {
+		const csv = invoicesToCsv([
+			makeRow({ companyName: '+Post', clientName: '=SUM(A1:A9)' }),
+		]);
+		expect(csv).toContain("'+Post");
+		expect(csv).toContain("'=SUM(A1:A9)");
+	});
+
+	it('leaves ordinary text untouched', () => {
+		const csv = invoicesToCsv([
+			makeRow({ companyName: 'Acme Corporation', clientName: 'Jane Dela Cruz' }),
+		]);
+		expect(csv).toContain('Acme Corporation');
+		expect(csv).not.toContain("'Acme");
+	});
+
+	// Money must not be escaped: a negative amount starts with '-' and escaping
+	// it would turn the cell into text and break every downstream sum.
+	it('never escapes money columns', () => {
+		const csv = invoicesToCsv([makeRow({})]);
+		expect(csv).not.toMatch(/'-?\d+\.\d{2}/);
+	});
+});
