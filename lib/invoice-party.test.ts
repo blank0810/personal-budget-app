@@ -3,6 +3,7 @@ import {
 	billedPartyName,
 	greetingName,
 	invoiceRecipientEmail,
+	hasContactDetails,
 } from './invoice-party';
 
 describe('invoice party helpers', () => {
@@ -32,5 +33,32 @@ describe('invoice party helpers', () => {
 		expect(
 			invoiceRecipientEmail({ clientEmail: ' ', companyEmail: ' billing@acme.com ' })
 		).toBe(' billing@acme.com ');
+	});
+});
+
+describe('hasContactDetails', () => {
+	it('is false when no point-person field is set', () => {
+		expect(
+			hasContactDetails({
+				clientName: null,
+				clientEmail: null,
+				clientPhone: null,
+				clientAddress: '   ',
+			})
+		).toBe(false);
+	});
+
+	it('is true on the name alone', () => {
+		expect(hasContactDetails({ clientName: 'Jane Dela Cruz' })).toBe(true);
+	});
+
+	// The regression: a contact with an email but no name must still render.
+	it('is true when only the email is set', () => {
+		expect(hasContactDetails({ clientEmail: 'jane@acme.com' })).toBe(true);
+	});
+
+	it('is true when only the phone or address is set', () => {
+		expect(hasContactDetails({ clientPhone: '+63 917 000 0000' })).toBe(true);
+		expect(hasContactDetails({ clientAddress: '12 Rizal St' })).toBe(true);
 	});
 });

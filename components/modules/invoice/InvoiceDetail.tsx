@@ -33,6 +33,7 @@ import { InvoiceStatus } from '@prisma/client';
 import {
 	billedPartyName,
 	invoiceRecipientEmail,
+	hasContactDetails,
 } from '@/lib/invoice-party';
 
 interface LineItem {
@@ -158,7 +159,7 @@ function InvoicePreview({
 	paymentQr?: string | null;
 }) {
 	const hasCompany = Boolean(invoice.companyName?.trim());
-	const hasContact = Boolean(invoice.clientName?.trim());
+	const hasContact = hasContactDetails(invoice);
 
 	return (
 		<div className="mx-auto w-full max-w-[800px]">
@@ -254,9 +255,11 @@ function InvoicePreview({
 										)}
 										{hasContact && (
 											<div className='mt-2'>
-												<p className='text-xs font-medium text-[#111111]'>
-													Attn: {invoice.clientName}
-												</p>
+												{invoice.clientName?.trim() && (
+													<p className='text-xs font-medium text-[#111111]'>
+														Attn: {invoice.clientName}
+													</p>
+												)}
 												{invoice.clientEmail && (
 													<p className='text-xs text-[#4b5563]'>
 														{invoice.clientEmail}

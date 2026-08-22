@@ -11,7 +11,7 @@ import {
 	renderToBuffer,
 } from '@react-pdf/renderer';
 import { getCurrencyConfig } from '@/lib/currency';
-import { billedPartyName } from '@/lib/invoice-party';
+import { billedPartyName, hasContactDetails } from '@/lib/invoice-party';
 import path from 'path';
 
 // Register fonts from local files (same as report.templates.tsx)
@@ -581,7 +581,7 @@ function FromBillToSection({ invoice }: { invoice: InvoicePDFData }) {
 	// when no person name is set.
 	const senderName = invoice.userName ?? invoice.businessName;
 	const hasCompany = Boolean(invoice.companyName?.trim());
-	const hasContact = Boolean(invoice.clientName?.trim());
+	const hasContact = hasContactDetails(invoice);
 
 	return (
 		<View style={styles.partyRow}>
@@ -634,9 +634,11 @@ function FromBillToSection({ invoice }: { invoice: InvoicePDFData }) {
 						) : null}
 						{hasContact ? (
 							<>
-								<Text style={styles.clientDetail}>
-									Attn: {invoice.clientName}
-								</Text>
+								{invoice.clientName?.trim() ? (
+									<Text style={styles.clientDetail}>
+										Attn: {invoice.clientName}
+									</Text>
+								) : null}
 								{invoice.clientEmail ? (
 									<Text style={styles.clientDetail}>{invoice.clientEmail}</Text>
 								) : null}
