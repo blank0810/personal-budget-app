@@ -33,6 +33,10 @@ import {
 import { toast } from 'sonner';
 import { Loader2, Plus, Trash2 } from 'lucide-react';
 import { ClientSelectCombobox } from '@/components/modules/client/ClientSelectCombobox';
+import {
+	computeInvoiceTotals,
+	lineAmount,
+} from '@/lib/invoice-totals';
 
 // Client-side Zod schema
 const lineItemSchema = z.object({
@@ -211,14 +215,20 @@ export function InvoiceForm({
 	);
 	const effectiveCurrency = selectedClient?.currency ?? userCurrency;
 
-	const subtotal = watchedLineItems.reduce((sum, item) => {
-		const qty = Number(item.quantity) || 0;
-		const price = Number(item.unitPrice) || 0;
-		return sum + qty * price;
-	}, 0);
-	const taxRate = Number(watchedTaxRate) || 0;
-	const taxAmount = subtotal * (taxRate / 100);
-	const total = subtotal + taxAmount;
+	const previewLineItems = watchedLineItems.map((item) => ({
+		amount: lineAmount(
+			Number(item.quantity) || 0,
+			Number(item.unitPrice) || 0
+		),
+	}));
+	const {
+		subtotal,
+		taxAmount,
+		totalAmount: total,
+	} = computeInvoiceTotals(
+		previewLineItems,
+		Number(watchedTaxRate) || 0
+	);
 
 	function formatAmount(value: number): string {
 		return value.toLocaleString(undefined, {
@@ -572,11 +582,7 @@ export function InvoiceForm({
 								</TableHeader>
 								<TableBody>
 									{fields.map((field, index) => {
-										const qty =
-											Number(watchedLineItems[index]?.quantity) || 0;
-										const price =
-											Number(watchedLineItems[index]?.unitPrice) || 0;
-										const lineAmount = qty * price;
+										const amount = previewLineItems[index]?.amount ?? 0;
 										return (
 											<TableRow key={field.id}>
 												<TableCell>
@@ -652,7 +658,7 @@ export function InvoiceForm({
 													/>
 												</TableCell>
 												<TableCell className='text-sm font-medium tabular-nums'>
-													{formatAmount(lineAmount)}
+													{formatAmount(amount)}
 												</TableCell>
 												<TableCell>
 													<Button
@@ -709,7 +715,7 @@ export function InvoiceForm({
 															type='number'
 															min={0}
 															max={100}
-															step='any'
+															step='0.01'
 															placeholder='0'
 															className='h-7 w-16 text-xs'
 															value={field.value ?? ''}

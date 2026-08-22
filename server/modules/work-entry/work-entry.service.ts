@@ -5,13 +5,14 @@ import {
 	UpdateWorkEntryInput,
 	GetWorkEntriesInput,
 } from './work-entry.types';
+import { lineAmount } from '@/lib/invoice-totals';
 
 export const WorkEntryService = {
 	/**
 	 * Create a new work entry with server-computed amount
 	 */
 	async create(userId: string, data: CreateWorkEntryInput) {
-		const amount = data.quantity * data.unitPrice;
+		const amount = lineAmount(data.quantity, data.unitPrice);
 
 		// Use the client's billing currency for the entry
 		const client = await prisma.client.findUniqueOrThrow({
@@ -56,7 +57,7 @@ export const WorkEntryService = {
 			updateData.quantity ?? entry.quantity.toNumber();
 		const unitPrice =
 			updateData.unitPrice ?? entry.unitPrice.toNumber();
-		const amount = quantity * unitPrice;
+		const amount = lineAmount(quantity, unitPrice);
 
 		// If client is changing, update the currency to match the new client
 		let currency = entry.currency;

@@ -20,6 +20,11 @@ import {
 	greetingName,
 	invoiceRecipientEmail,
 } from '@/lib/invoice-party';
+import {
+	computeInvoiceTotals,
+	lineAmount,
+	normalizeTaxRate,
+} from '@/lib/invoice-totals';
 import { InvoiceStatus } from '@prisma/client';
 
 const SENT_EMAIL_WARNING =
@@ -38,19 +43,6 @@ function isRecordNotFoundError(error: unknown): boolean {
 		'code' in error &&
 		error.code === 'P2025'
 	);
-}
-
-/**
- * Compute subtotal, tax, and total from an array of line items and a tax rate.
- */
-function computeInvoiceTotals(
-	lineItems: { amount: number }[],
-	taxRate: number
-) {
-	const subtotal = lineItems.reduce((sum, item) => sum + item.amount, 0);
-	const taxAmount = subtotal * (taxRate / 100);
-	const totalAmount = subtotal + taxAmount;
-	return { subtotal, taxAmount, totalAmount };
 }
 
 import type { Prisma } from '@prisma/client';
@@ -266,13 +258,14 @@ export const InvoiceService = {
 			description: item.description,
 			quantity: item.quantity,
 			unitPrice: item.unitPrice,
-			amount: item.quantity * item.unitPrice,
+			amount: lineAmount(item.quantity, item.unitPrice),
 			sortOrder: index,
 		}));
+		const normalizedTaxRate = normalizeTaxRate(data.taxRate ?? 0);
 
 		const { subtotal, taxAmount, totalAmount } = computeInvoiceTotals(
 			lineItems,
-			data.taxRate ?? 0
+			normalizedTaxRate
 		);
 
 		return await prisma.invoice.create({
@@ -292,7 +285,7 @@ export const InvoiceService = {
 				issueDate: data.issueDate,
 				dueDate: data.dueDate,
 				subtotal,
-				taxRate: data.taxRate,
+				taxRate: data.taxRate === undefined ? null : normalizedTaxRate,
 				taxAmount,
 				totalAmount,
 				notes: data.notes,
@@ -359,13 +352,17 @@ export const InvoiceService = {
 					description: entry.description,
 					quantity: Number(entry.quantity),
 					unitPrice: Number(entry.unitPrice),
-					amount: Number(entry.amount),
+					amount: lineAmount(
+						Number(entry.quantity),
+						Number(entry.unitPrice)
+					),
 					date: entry.date,
 					sortOrder: index,
 				}));
+				const normalizedTaxRate = normalizeTaxRate(data.taxRate ?? 0);
 
 				const { subtotal, taxAmount, totalAmount } =
-					computeInvoiceTotals(lineItems, data.taxRate ?? 0);
+					computeInvoiceTotals(lineItems, normalizedTaxRate);
 
 				// 5. Create invoice with line items, linking workEntryId on each
 				//    Use the client's billing currency
@@ -386,7 +383,8 @@ export const InvoiceService = {
 						currency: client.currency,
 						issueDate: data.issueDate,
 						dueDate: data.dueDate,
-						taxRate: data.taxRate ?? null,
+						taxRate:
+							data.taxRate === undefined ? null : normalizedTaxRate,
 						notes: data.notes || null,
 						subtotal,
 						taxAmount,
@@ -433,6 +431,9 @@ export const InvoiceService = {
 			if (invoice.status !== InvoiceStatus.DRAFT) {
 				throw new Error('Only DRAFT invoices can be edited');
 			}
+			const normalizedTaxRate = normalizeTaxRate(
+				updateData.taxRate ?? invoice.taxRate?.toNumber() ?? 0
+			);
 
 			// Re-resolve the currency when the invoice is pointed at a different
 			// client. Without this, switching a draft from a PHP client to a USD
@@ -468,17 +469,16 @@ export const InvoiceService = {
 			let totalAmount: number | undefined;
 
 			if (updateData.lineItems) {
-				lineItemsData = updateData.lineItems.map((item, index) => ({
+				const updatedLineItems = updateData.lineItems;
+				lineItemsData = updatedLineItems.map((item, index) => ({
 					description: item.description,
 					quantity: item.quantity,
 					unitPrice: item.unitPrice,
-					amount: item.quantity * item.unitPrice,
+					amount: lineAmount(item.quantity, item.unitPrice),
 					sortOrder: index,
 				}));
 
-				const taxRate =
-					updateData.taxRate ?? invoice.taxRate?.toNumber() ?? 0;
-				const totals = computeInvoiceTotals(lineItemsData, taxRate);
+				const totals = computeInvoiceTotals(lineItemsData, normalizedTaxRate);
 				subtotal = totals.subtotal;
 				taxAmount = totals.taxAmount;
 				totalAmount = totals.totalAmount;
@@ -497,7 +497,7 @@ export const InvoiceService = {
 
 				// 2. Get new line items' workEntryIds (from the incoming data)
 				const newWorkEntryIds = new Set(
-					updateData.lineItems
+					updatedLineItems
 						.filter((i) => i.workEntryId)
 						.map((i) => i.workEntryId!)
 				);
@@ -522,22 +522,26 @@ export const InvoiceService = {
 
 				// Create new line items (preserving workEntryId and date links)
 				await tx.invoiceLineItem.createMany({
-					data: updateData.lineItems.map((item, index) => ({
-						description: item.description,
-						quantity: item.quantity,
-						unitPrice: item.unitPrice,
-						amount: item.quantity * item.unitPrice,
-						sortOrder: index,
+					data: lineItemsData.map((item, index) => ({
+						...item,
 						invoiceId: id,
-						...(item.workEntryId ? { workEntryId: item.workEntryId } : {}),
-						...(item.date ? { date: item.date } : {}),
+						...(updatedLineItems[index].workEntryId
+							? { workEntryId: updatedLineItems[index].workEntryId }
+							: {}),
+						...(updatedLineItems[index].date
+							? { date: updatedLineItems[index].date }
+							: {}),
 					})),
 				});
 			} else if (updateData.taxRate !== undefined) {
 				// Tax rate changed but no new line items — recompute totals
-				subtotal = invoice.subtotal.toNumber();
-				taxAmount = subtotal * (updateData.taxRate / 100);
-				totalAmount = subtotal + taxAmount;
+				const totals = computeInvoiceTotals(
+					[{ amount: invoice.subtotal.toNumber() }],
+					normalizedTaxRate
+				);
+				subtotal = totals.subtotal;
+				taxAmount = totals.taxAmount;
+				totalAmount = totals.totalAmount;
 			}
 
 			return await tx.invoice.update({
@@ -579,7 +583,7 @@ export const InvoiceService = {
 					}),
 					...(updateData.dueDate && { dueDate: updateData.dueDate }),
 					...(updateData.taxRate !== undefined && {
-						taxRate: updateData.taxRate,
+						taxRate: normalizedTaxRate,
 					}),
 					...(updateData.notes !== undefined && {
 						notes: updateData.notes,

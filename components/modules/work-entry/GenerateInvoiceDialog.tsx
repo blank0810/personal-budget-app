@@ -29,6 +29,7 @@ import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
 import { formatCurrency as formatCurrencyUtil } from '@/lib/formatters';
 import { generateInvoiceFromEntriesAction } from '@/server/modules/invoice/invoice.controller';
+import { computeInvoiceTotals } from '@/lib/invoice-totals';
 
 interface EntryForInvoice {
 	id: string;
@@ -194,14 +195,17 @@ export function GenerateInvoiceDialog({
 		filteredEntries.length > 0 &&
 		filteredEntries.every((e) => selectedIds.has(e.id));
 
-	const selectedTotal = useMemo(() => {
-		return entries
-			.filter((e) => selectedIds.has(e.id))
-			.reduce((sum, e) => sum + e.amount, 0);
-	}, [entries, selectedIds]);
-
-	const taxAmount = taxRate ? selectedTotal * (parseFloat(taxRate) / 100) : 0;
-	const grandTotal = selectedTotal + taxAmount;
+	// Same canonical cents arithmetic the server uses, so this preview can never
+	// disagree with the invoice it generates.
+	const { totalAmount: grandTotal } =
+		useMemo(
+			() =>
+				computeInvoiceTotals(
+					entries.filter((e) => selectedIds.has(e.id)),
+					taxRate ? parseFloat(taxRate) || 0 : 0
+				),
+			[entries, selectedIds, taxRate]
+		);
 
 	function toggleEntry(id: string) {
 		setSelectedIds((prev) => {
