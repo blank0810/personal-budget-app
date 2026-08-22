@@ -26,7 +26,7 @@ import {
 	lineAmount,
 	normalizeTaxRate,
 } from '@/lib/invoice-totals';
-import { InvoiceStatus } from '@prisma/client';
+import { InvoiceStatus, type Prisma } from '@prisma/client';
 import type { ExportRow } from '@/lib/invoice-csv';
 
 const SENT_EMAIL_WARNING =
@@ -45,6 +45,52 @@ function endOfUtcDay(value: Date): Date {
 	return end;
 }
 
+export function resolveInvoiceExportStatuses(
+	input: Pick<
+		ExportInvoicesInput,
+		'payment' | 'includeDrafts' | 'includeCancelled'
+	>
+): InvoiceStatus[] {
+	const statuses: InvoiceStatus[] =
+		input.payment === 'PAID'
+			? [InvoiceStatus.PAID]
+			: input.payment === 'UNPAID'
+				? [InvoiceStatus.SENT, InvoiceStatus.OVERDUE]
+				: [
+						InvoiceStatus.PAID,
+						InvoiceStatus.SENT,
+						InvoiceStatus.OVERDUE,
+					];
+
+	if (input.includeDrafts) {
+		statuses.push(InvoiceStatus.DRAFT);
+	}
+	if (input.includeCancelled) {
+		statuses.push(InvoiceStatus.CANCELLED);
+	}
+
+	return statuses;
+}
+
+function invoiceExportWhere(
+	userId: string,
+	input: ExportInvoicesInput
+): Prisma.InvoiceWhereInput {
+	return {
+		userId,
+		status: { in: resolveInvoiceExportStatuses(input) },
+		issueDate: {
+			gte: input.from,
+			// End of the `to` day, not its midnight. Every issueDate today is
+			// exactly UTC midnight so `lte: input.to` happens to work, but one
+			// invoice with a time component would silently drop the last day
+			// of every range.
+			lte: endOfUtcDay(input.to),
+		},
+		...(input.clientId && { clientId: input.clientId }),
+	};
+}
+
 function isRecordNotFoundError(error: unknown): boolean {
 	return (
 		typeof error === 'object' &&
@@ -53,8 +99,6 @@ function isRecordNotFoundError(error: unknown): boolean {
 		error.code === 'P2025'
 	);
 }
-
-import type { Prisma } from '@prisma/client';
 
 type InvoiceForEmail = Prisma.InvoiceGetPayload<{
 	include: {
@@ -898,38 +942,8 @@ export const InvoiceService = {
 		userId: string,
 		input: ExportInvoicesInput
 	): Promise<ExportRow[]> {
-		const statuses: InvoiceStatus[] =
-			input.payment === 'PAID'
-				? [InvoiceStatus.PAID]
-				: input.payment === 'UNPAID'
-					? [InvoiceStatus.SENT, InvoiceStatus.OVERDUE]
-					: [
-							InvoiceStatus.PAID,
-							InvoiceStatus.SENT,
-							InvoiceStatus.OVERDUE,
-						];
-
-		if (input.includeDrafts) {
-			statuses.push(InvoiceStatus.DRAFT);
-		}
-		if (input.includeCancelled) {
-			statuses.push(InvoiceStatus.CANCELLED);
-		}
-
 		return await prisma.invoice.findMany({
-			where: {
-				userId,
-				status: { in: statuses },
-				issueDate: {
-					gte: input.from,
-					// End of the `to` day, not its midnight. Every issueDate today is
-					// exactly UTC midnight so `lte: input.to` happens to work, but one
-					// invoice with a time component would silently drop the last day
-					// of every range.
-					lte: endOfUtcDay(input.to),
-				},
-				...(input.clientId && { clientId: input.clientId }),
-			},
+			where: invoiceExportWhere(userId, input),
 			select: {
 				invoiceNumber: true,
 				status: true,
@@ -943,6 +957,32 @@ export const InvoiceService = {
 				taxRate: true,
 				taxAmount: true,
 				totalAmount: true,
+			},
+			orderBy: [{ issueDate: 'asc' }, { invoiceNumber: 'asc' }],
+		});
+	},
+
+	/**
+	 * Get the complete invoice snapshots needed for background PDF exports.
+	 */
+	async getForZipExport(userId: string, input: ExportInvoicesInput) {
+		return await prisma.invoice.findMany({
+			where: invoiceExportWhere(userId, input),
+			include: {
+				lineItems: {
+					orderBy: { sortOrder: 'asc' },
+				},
+				user: {
+					select: {
+						name: true,
+						email: true,
+						phoneNumber: true,
+						businessName: true,
+						businessAddress: true,
+						businessTaxId: true,
+						paymentInstructions: true,
+					},
+				},
 			},
 			orderBy: [{ issueDate: 'asc' }, { invoiceNumber: 'asc' }],
 		});

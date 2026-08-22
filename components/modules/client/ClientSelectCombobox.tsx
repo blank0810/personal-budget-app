@@ -14,6 +14,7 @@ interface ClientSelectComboboxProps {
 	value: string;
 	onChange: (clientId: string) => void;
 	placeholder?: string;
+	disabled?: boolean;
 }
 
 export function ClientSelectCombobox({
@@ -22,9 +23,10 @@ export function ClientSelectCombobox({
 	value,
 	onChange,
 	placeholder = 'Select client...',
+	disabled = false,
 }: ClientSelectComboboxProps) {
 	return (
-		<Select value={value} onValueChange={onChange}>
+		<Select value={value} onValueChange={onChange} disabled={disabled}>
 			<SelectTrigger id={id} className='w-full'>
 				<SelectValue placeholder={placeholder} />
 			</SelectTrigger>

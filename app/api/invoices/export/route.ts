@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 
 import { auth } from '@/auth';
 import { invoicesToCsv } from '@/lib/invoice-csv';
+import { invoiceExportFilename } from '@/lib/invoice-export';
 import { InvoiceService } from '@/server/modules/invoice/invoice.service';
 import { exportInvoicesSchema } from '@/server/modules/invoice/invoice.types';
 
@@ -23,17 +24,12 @@ export async function GET(request: NextRequest) {
 
 	const rows = await InvoiceService.getForExport(session.user.id, parsed.data);
 	const csv = invoicesToCsv(rows);
-	const filename = [
-		'invoices',
-		parsed.data.payment.toLowerCase(),
-		parsed.data.from.toISOString().slice(0, 10),
-		parsed.data.to.toISOString().slice(0, 10),
-	].join('_');
+	const filename = invoiceExportFilename(parsed.data, 'csv');
 
 	return new NextResponse(`\uFEFF${csv}`, {
 		headers: {
 			'Content-Type': 'text/csv; charset=utf-8',
-			'Content-Disposition': `attachment; filename="${filename}.csv"`,
+			'Content-Disposition': `attachment; filename="${filename}"`,
 		},
 	});
 }

@@ -9,6 +9,8 @@
     "lint": "eslint",
     "test": "vitest run",
     "test:watch": "vitest",
+    "trigger:dev": "trigger dev",
+    "trigger:deploy": "trigger deploy",
     "postinstall": "prisma generate",
     "build:prod": "npm install && prisma migrate deploy && tsx prisma/sync-reference-data.ts && next build",
     "deploy:fresh": "npm install && prisma migrate reset --force && prisma db seed && next build",
@@ -32,6 +34,8 @@
     "@react-pdf/renderer": "^4.3.2",
     "@tailwindcss/postcss": "^4",
     "@tanstack/react-table": "^8.21.3",
+    "@trigger.dev/react-hooks": "4.5.12",
+    "@trigger.dev/sdk": "4.5.12",
     "@types/ioredis": "^4.28.10",
     "@types/node": "^20",
     "@types/papaparse": "^5.5.2",
@@ -49,6 +53,7 @@
     "date-fns": "^4.1.0",
     "eslint": "^9",
     "eslint-config-next": "16.0.5",
+    "fflate": "0.8.3",
     "gray-matter": "^4.0.3",
     "gsap": "^3.15.0",
     "ioredis": "^5.9.2",
@@ -79,7 +84,9 @@
     "seed": "npx tsx prisma/seed.ts"
   },
   "devDependencies": {
+    "@trigger.dev/build": "4.5.12",
     "@vitest/ui": "^4.1.5",
+    "trigger.dev": "^4.5.12",
     "vitest": "^4.1.5"
   }
 }

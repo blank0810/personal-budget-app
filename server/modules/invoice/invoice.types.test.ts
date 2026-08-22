@@ -125,6 +125,18 @@ describe('invoice export schema', () => {
 		expect(result.includeDrafts).toBe(true);
 	});
 
+	it('preserves boolean values from JSON request bodies', () => {
+		const result = exportInvoicesSchema.parse({
+			from: '2026-08-01',
+			to: '2026-08-31',
+			includeDrafts: true,
+			includeCancelled: false,
+		});
+
+		expect(result.includeDrafts).toBe(true);
+		expect(result.includeCancelled).toBe(false);
+	});
+
 	it('rejects an end date before the start date', () => {
 		const result = exportInvoicesSchema.safeParse({
 			from: '2026-08-31',

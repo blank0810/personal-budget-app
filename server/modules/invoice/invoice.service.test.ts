@@ -77,7 +77,10 @@ vi.mock('@/lib/qr', () => ({
 	urlToQrDataUri: mocks.urlToQrDataUri,
 }));
 
-import { InvoiceService } from './invoice.service';
+import {
+	InvoiceService,
+	resolveInvoiceExportStatuses,
+} from './invoice.service';
 
 const SENT_EMAIL_WARNING =
 	'Invoice was marked as sent, but the email could not be delivered. You can retry from this invoice.';
@@ -870,6 +873,92 @@ describe('InvoiceService.getForExport', () => {
 				taxRate: true,
 				taxAmount: true,
 				totalAmount: true,
+			},
+			orderBy: [{ issueDate: 'asc' }, { invoiceNumber: 'asc' }],
+		});
+	});
+});
+
+describe('InvoiceService.getForZipExport', () => {
+	const from = new Date('2026-05-01T00:00:00.000Z');
+	const to = new Date('2026-07-31T00:00:00.000Z');
+	const toEndOfDay = new Date('2026-07-31T23:59:59.999Z');
+
+	it.each([
+		{
+			payment: 'ALL' as const,
+			includeDrafts: false,
+			includeCancelled: false,
+		},
+		{
+			payment: 'PAID' as const,
+			includeDrafts: true,
+			includeCancelled: false,
+		},
+		{
+			payment: 'UNPAID' as const,
+			includeDrafts: false,
+			includeCancelled: true,
+		},
+	])(
+		'uses the shared status resolver for $payment exports',
+		async ({ payment, includeDrafts, includeCancelled }) => {
+			const input = {
+				from,
+				to,
+				payment,
+				includeDrafts,
+				includeCancelled,
+			};
+
+			await InvoiceService.getForZipExport('user-1', input);
+
+			expect(
+				mocks.invoiceFindMany.mock.calls[0][0].where.status.in
+			).toEqual(resolveInvoiceExportStatuses(input));
+		}
+	);
+
+	it('loads all invoice scalars with ordered line items and PDF user fields', async () => {
+		await InvoiceService.getForZipExport('user-1', {
+			from,
+			to,
+			payment: 'ALL',
+			includeDrafts: false,
+			includeCancelled: true,
+			clientId: 'client-1',
+		});
+
+		const query = mocks.invoiceFindMany.mock.calls[0][0];
+		expect(query).not.toHaveProperty('select');
+		expect(query).toEqual({
+			where: {
+				userId: 'user-1',
+				status: {
+					in: resolveInvoiceExportStatuses({
+						payment: 'ALL',
+						includeDrafts: false,
+						includeCancelled: true,
+					}),
+				},
+				issueDate: { gte: from, lte: toEndOfDay },
+				clientId: 'client-1',
+			},
+			include: {
+				lineItems: {
+					orderBy: { sortOrder: 'asc' },
+				},
+				user: {
+					select: {
+						name: true,
+						email: true,
+						phoneNumber: true,
+						businessName: true,
+						businessAddress: true,
+						businessTaxId: true,
+						paymentInstructions: true,
+					},
+				},
 			},
 			orderBy: [{ issueDate: 'asc' }, { invoiceNumber: 'asc' }],
 		});
