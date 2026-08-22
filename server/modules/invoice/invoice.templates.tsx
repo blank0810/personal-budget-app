@@ -1,3 +1,4 @@
+/* eslint-disable jsx-a11y/alt-text -- @react-pdf/renderer Image does not support an alt prop. */
 import React from 'react';
 import {
 	Document,
@@ -10,6 +11,7 @@ import {
 	renderToBuffer,
 } from '@react-pdf/renderer';
 import { getCurrencyConfig } from '@/lib/currency';
+import { billedPartyName } from '@/lib/invoice-party';
 import path from 'path';
 
 // Register fonts from local files (same as report.templates.tsx)
@@ -404,7 +406,12 @@ interface InvoicePDFData {
 	paymentInstructions: string | null;
 	paymentLink?: string | null;
 	paymentQr?: string | null;
-	clientName: string;
+	companyName: string | null;
+	companyAddress: string | null;
+	companyTaxId: string | null;
+	companyEmail: string | null;
+	companyPhone: string | null;
+	clientName: string | null;
 	clientEmail: string | null;
 	clientAddress: string | null;
 	clientPhone: string | null;
@@ -573,6 +580,8 @@ function FromBillToSection({ invoice }: { invoice: InvoicePDFData }) {
 	// sender's contact card. Lead with the person, fall back to business name
 	// when no person name is set.
 	const senderName = invoice.userName ?? invoice.businessName;
+	const hasCompany = Boolean(invoice.companyName?.trim());
+	const hasContact = Boolean(invoice.clientName?.trim());
 
 	return (
 		<View style={styles.partyRow}>
@@ -603,19 +612,62 @@ function FromBillToSection({ invoice }: { invoice: InvoicePDFData }) {
 			{/* Bill To */}
 			<View style={styles.partyCol}>
 				<Text style={styles.partyLabel}>Bill To</Text>
-				<Text style={styles.clientName}>{invoice.clientName}</Text>
-				{invoice.clientEmail ? (
-					<Text style={styles.clientDetail}>{invoice.clientEmail}</Text>
-				) : null}
-				{invoice.clientPhone ? (
-					<Text style={styles.clientDetail}>{invoice.clientPhone}</Text>
-				) : null}
-				{invoice.clientAddress ? (
-					<MultiLineText
-						text={invoice.clientAddress}
-						style={styles.clientDetail}
-					/>
-				) : null}
+				<Text style={styles.clientName}>{billedPartyName(invoice)}</Text>
+				{hasCompany ? (
+					<>
+						{invoice.companyAddress ? (
+							<MultiLineText
+								text={invoice.companyAddress}
+								style={styles.clientDetail}
+							/>
+						) : null}
+						{invoice.companyTaxId ? (
+							<Text style={styles.taxIdText}>
+								Tax ID: {invoice.companyTaxId}
+							</Text>
+						) : null}
+						{invoice.companyEmail ? (
+							<Text style={styles.clientDetail}>{invoice.companyEmail}</Text>
+						) : null}
+						{invoice.companyPhone ? (
+							<Text style={styles.clientDetail}>{invoice.companyPhone}</Text>
+						) : null}
+						{hasContact ? (
+							<>
+								<Text style={styles.clientDetail}>
+									Attn: {invoice.clientName}
+								</Text>
+								{invoice.clientEmail ? (
+									<Text style={styles.clientDetail}>{invoice.clientEmail}</Text>
+								) : null}
+								{invoice.clientPhone ? (
+									<Text style={styles.clientDetail}>{invoice.clientPhone}</Text>
+								) : null}
+								{invoice.clientAddress ? (
+									<MultiLineText
+										text={invoice.clientAddress}
+										style={styles.clientDetail}
+									/>
+								) : null}
+							</>
+						) : null}
+					</>
+				) : (
+					<>
+						{invoice.clientEmail ? (
+							<Text style={styles.clientDetail}>{invoice.clientEmail}</Text>
+						) : null}
+						{invoice.clientPhone ? (
+							<Text style={styles.clientDetail}>{invoice.clientPhone}</Text>
+						) : null}
+						{invoice.clientAddress ? (
+							<MultiLineText
+								text={invoice.clientAddress}
+								style={styles.clientDetail}
+							/>
+						) : null}
+					</>
+				)}
 			</View>
 		</View>
 	);

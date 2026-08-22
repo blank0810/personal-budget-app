@@ -10,23 +10,45 @@ import { InvoiceStatus } from '@prisma/client';
 
 const mocks = vi.hoisted(() => ({
 	events: [] as string[],
+	invoiceFindFirst: vi.fn(),
 	invoiceFindUnique: vi.fn(),
+	invoiceCreate: vi.fn(),
 	invoiceUpdate: vi.fn(),
+	invoiceFindUniqueOrThrow: vi.fn(),
+	lineItemFindMany: vi.fn(),
+	lineItemDeleteMany: vi.fn(),
+	lineItemCreateMany: vi.fn(),
+	workEntryUpdateMany: vi.fn(),
+	clientFindUnique: vi.fn(),
 	getCurrency: vi.fn(),
 	sendInvoice: vi.fn(),
 	sendInvoiceReceipt: vi.fn(),
+	sendInvoicePaidOwner: vi.fn(),
 	renderInvoicePDF: vi.fn(),
 	urlToQrDataUri: vi.fn(),
 }));
 
-vi.mock('@/lib/prisma', () => ({
-	default: {
+vi.mock('@/lib/prisma', () => {
+	const client = {
 		invoice: {
+			findFirst: mocks.invoiceFindFirst,
 			findUnique: mocks.invoiceFindUnique,
+			findUniqueOrThrow: mocks.invoiceFindUniqueOrThrow,
+			create: mocks.invoiceCreate,
 			update: mocks.invoiceUpdate,
 		},
-	},
-}));
+		invoiceLineItem: {
+			findMany: mocks.lineItemFindMany,
+			deleteMany: mocks.lineItemDeleteMany,
+			createMany: mocks.lineItemCreateMany,
+		},
+		workEntry: { updateMany: mocks.workEntryUpdateMany },
+		client: { findUnique: mocks.clientFindUnique },
+		// Run the callback against the same mock client so `tx.*` resolves.
+		$transaction: (fn: (tx: unknown) => unknown) => fn(client),
+	};
+	return { default: client };
+});
 
 vi.mock('@/server/modules/user/user.service', () => ({
 	UserService: { getCurrency: mocks.getCurrency },
@@ -36,6 +58,12 @@ vi.mock('@/server/modules/email/email.service', () => ({
 	EmailService: {
 		sendInvoice: mocks.sendInvoice,
 		sendInvoiceReceipt: mocks.sendInvoiceReceipt,
+	},
+}));
+
+vi.mock('@/server/modules/notification/notification.service', () => ({
+	NotificationService: {
+		sendInvoicePaidOwner: mocks.sendInvoicePaidOwner,
 	},
 }));
 
@@ -52,20 +80,26 @@ import { InvoiceService } from './invoice.service';
 const SENT_EMAIL_WARNING =
 	'Invoice was marked as sent, but the email could not be delivered. You can retry from this invoice.';
 const SENT_EMAIL_MISSING_WARNING =
-	'Invoice was marked as sent, but no client email is available. Add an email before retrying.';
+	'Invoice was marked as sent, but no recipient email is available. Add a contact or company email before retrying.';
 const PAID_EMAIL_WARNING =
 	'Invoice was marked as paid, but the receipt email could not be delivered. You can retry from this invoice.';
 const PAID_EMAIL_MISSING_WARNING =
-	'Invoice was marked as paid, but no client email is available. Add an email before retrying.';
+	'Invoice was marked as paid, but no recipient email is available. Add a contact or company email before retrying.';
 
 function makeInvoice(
 	status: InvoiceStatus,
-	clientEmail: string | null = 'client@example.com'
+	clientEmail: string | null = 'client@example.com',
+	overrides: Record<string, unknown> = {}
 ) {
 	return {
 		id: 'invoice-1',
 		invoiceNumber: 'INV-0001',
 		status,
+		companyName: null,
+		companyAddress: null,
+		companyTaxId: null,
+		companyEmail: null,
+		companyPhone: null,
 		clientName: 'Demo Client',
 		clientEmail,
 		clientAddress: null,
@@ -110,6 +144,7 @@ function makeInvoice(
 			paymentInstructions: null,
 		},
 		linkedIncome: null,
+		...overrides,
 	};
 }
 
@@ -122,6 +157,12 @@ function makeRecordNotFoundError() {
 beforeEach(() => {
 	vi.clearAllMocks();
 	mocks.events.length = 0;
+	mocks.invoiceFindFirst.mockResolvedValue(null);
+	mocks.clientFindUnique.mockResolvedValue(null);
+	mocks.invoiceCreate.mockImplementation(async ({ data }) => ({
+		id: 'invoice-1',
+		...data,
+	}));
 	mocks.getCurrency.mockResolvedValue('USD');
 	mocks.urlToQrDataUri.mockResolvedValue(null);
 	mocks.renderInvoicePDF.mockImplementation(async () => {
@@ -143,6 +184,7 @@ beforeEach(() => {
 		mocks.events.push('email:receipt');
 		return { id: 'message-2' };
 	});
+	mocks.sendInvoicePaidOwner.mockResolvedValue(undefined);
 });
 
 afterEach(() => {
@@ -190,6 +232,66 @@ describe('InvoiceService.markAsSent', () => {
 		]);
 		expect(result.emailedTo).toBe('client@example.com');
 		expect(result.emailWarning).toBeNull();
+	});
+
+	it('renders a company-only invoice and emails the company address', async () => {
+		mocks.invoiceFindUnique.mockResolvedValue(
+			makeInvoice(InvoiceStatus.DRAFT, null, {
+				companyName: 'Acme Co',
+				companyEmail: 'billing@acme.com',
+				clientName: null,
+			})
+		);
+
+		const result = await InvoiceService.markAsSent('user-1', {
+			invoiceId: 'invoice-1',
+			sendEmail: true,
+		});
+
+		expect(mocks.renderInvoicePDF).toHaveBeenCalledWith(
+			expect.objectContaining({
+				companyName: 'Acme Co',
+				companyEmail: 'billing@acme.com',
+				clientName: null,
+			}),
+			'USD'
+		);
+		expect(mocks.sendInvoice).toHaveBeenCalledWith(
+			expect.objectContaining({
+				to: 'billing@acme.com',
+				clientName: 'Acme Co',
+			})
+		);
+		expect(result.emailedTo).toBe('billing@acme.com');
+	});
+
+	it('greets the point person while preserving the company PDF snapshot', async () => {
+		mocks.invoiceFindUnique.mockResolvedValue(
+			makeInvoice(InvoiceStatus.DRAFT, 'jane@acme.com', {
+				companyName: 'Acme Co',
+				companyEmail: 'billing@acme.com',
+				clientName: 'Jane Dela Cruz',
+			})
+		);
+
+		await InvoiceService.markAsSent('user-1', {
+			invoiceId: 'invoice-1',
+			sendEmail: true,
+		});
+
+		expect(mocks.renderInvoicePDF).toHaveBeenCalledWith(
+			expect.objectContaining({
+				companyName: 'Acme Co',
+				clientName: 'Jane Dela Cruz',
+			}),
+			'USD'
+		);
+		expect(mocks.sendInvoice).toHaveBeenCalledWith(
+			expect.objectContaining({
+				to: 'jane@acme.com',
+				clientName: 'Jane Dela Cruz',
+			})
+		);
 	});
 
 	it('keeps SENT and returns a warning when selected delivery fails', async () => {
@@ -309,6 +411,58 @@ describe('InvoiceService.markAsSent', () => {
 		).rejects.toThrow('Only DRAFT invoices can be marked as sent');
 		expect(mocks.invoiceUpdate).not.toHaveBeenCalled();
 		expect(mocks.sendInvoice).not.toHaveBeenCalled();
+	});
+});
+
+describe('InvoiceService.create', () => {
+	const createInput = {
+		companyName: 'Acme Co',
+		issueDate: new Date('2026-08-01T00:00:00.000Z'),
+		dueDate: new Date('2026-08-31T00:00:00.000Z'),
+		lineItems: [{ description: 'Consulting', quantity: 1, unitPrice: 100 }],
+	};
+
+	it('uses the selected client currency before the user default', async () => {
+		mocks.clientFindUnique.mockResolvedValue({
+			id: 'client-1',
+			userId: 'user-1',
+			currency: 'PHP',
+		});
+
+		await InvoiceService.create('user-1', {
+			...createInput,
+			clientId: 'client-1',
+		});
+
+		expect(mocks.clientFindUnique).toHaveBeenCalledWith({
+			where: { id: 'client-1', userId: 'user-1' },
+		});
+		expect(mocks.invoiceCreate).toHaveBeenCalledWith(
+			expect.objectContaining({
+				data: expect.objectContaining({
+					clientId: 'client-1',
+					currency: 'PHP',
+				}),
+			})
+		);
+		expect(mocks.getCurrency).not.toHaveBeenCalled();
+	});
+
+	it('rejects a selected client that does not belong to the user', async () => {
+		mocks.clientFindUnique.mockResolvedValue(null);
+
+		await expect(
+			InvoiceService.create('user-1', {
+				...createInput,
+				clientId: 'other-users-client',
+			})
+		).rejects.toThrow('Client not found');
+
+		expect(mocks.clientFindUnique).toHaveBeenCalledWith({
+			where: { id: 'other-users-client', userId: 'user-1' },
+		});
+		expect(mocks.invoiceCreate).not.toHaveBeenCalled();
+		expect(mocks.getCurrency).not.toHaveBeenCalled();
 	});
 });
 
@@ -477,5 +631,67 @@ describe('InvoiceService.markAsPaid', () => {
 		).rejects.toThrow('Only SENT or OVERDUE invoices can be marked as paid');
 		expect(mocks.invoiceUpdate).not.toHaveBeenCalled();
 		expect(mocks.sendInvoiceReceipt).not.toHaveBeenCalled();
+	});
+});
+
+describe('InvoiceService.update — currency follows the linked client', () => {
+	beforeEach(() => {
+		mocks.invoiceFindUniqueOrThrow.mockResolvedValue(
+			makeInvoice(InvoiceStatus.DRAFT, 'client@example.com', {
+				clientId: 'client-1',
+				currency: 'PHP',
+			})
+		);
+		mocks.invoiceUpdate.mockResolvedValue(makeInvoice(InvoiceStatus.DRAFT));
+		mocks.lineItemFindMany.mockResolvedValue([]);
+	});
+
+	it('re-resolves the currency when the invoice is pointed at another client', async () => {
+		mocks.clientFindUnique.mockResolvedValue({
+			id: 'client-2',
+			userId: 'user-1',
+			currency: 'USD',
+		});
+
+		await InvoiceService.update('user-1', {
+			id: 'invoice-1',
+			clientId: 'client-2',
+		});
+
+		expect(mocks.clientFindUnique).toHaveBeenCalledWith({
+			where: { id: 'client-2', userId: 'user-1' },
+		});
+		expect(mocks.invoiceUpdate).toHaveBeenCalledWith(
+			expect.objectContaining({
+				data: expect.objectContaining({
+					clientId: 'client-2',
+					currency: 'USD',
+				}),
+			})
+		);
+	});
+
+	it('leaves the currency alone when the client is unchanged', async () => {
+		await InvoiceService.update('user-1', {
+			id: 'invoice-1',
+			clientId: 'client-1',
+			companyName: 'Acme Corporation',
+		});
+
+		expect(mocks.clientFindUnique).not.toHaveBeenCalled();
+		const passed = mocks.invoiceUpdate.mock.calls[0][0].data;
+		expect(passed).not.toHaveProperty('currency');
+	});
+
+	it('rejects a client that belongs to another user', async () => {
+		mocks.clientFindUnique.mockResolvedValue(null);
+
+		await expect(
+			InvoiceService.update('user-1', {
+				id: 'invoice-1',
+				clientId: 'other-users-client',
+			})
+		).rejects.toThrow('Client not found');
+		expect(mocks.invoiceUpdate).not.toHaveBeenCalled();
 	});
 });

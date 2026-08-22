@@ -1,4 +1,5 @@
 import { LagoonReveal } from '@/components/modules/landing/lagoon/LagoonReveal';
+import Link from 'next/link';
 
 /**
  * AIAdvisorPreview — concept mock chat + transparency note for /ai-advisor.
@@ -102,13 +103,13 @@ export function AIAdvisorPreview() {
 									When the advisor ships, free-text questions will replace
 									these scripts and the answers will come from your own data.
 									We will announce it in the{' '}
-									<a
+									<Link
 										href='/changelog'
 										className='underline underline-offset-2 transition-colors hover:opacity-80'
 										style={{ color: 'var(--lagoon-accent)' }}
 									>
 										changelog
-									</a>
+									</Link>
 									.
 								</p>
 							</div>

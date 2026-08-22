@@ -126,7 +126,7 @@ model User {
   phoneNumber String?
 
   // Notification delivery controls
-  emailNotificationsEnabled Boolean @default(true) // master gate for all notification email
+  emailNotificationsEnabled Boolean  @default(true) // master gate for all notification email
   notificationEmail         String? // delivery override; null => account email
   // Threshold for the large_expense_alert notification. Null means unset, which
   // is why that notification defaults to off — it is meaningless without this.
@@ -222,12 +222,12 @@ model Account {
   updatedAt DateTime @updatedAt
 
   // Relations
-  user                  User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
-  incomes               Income[]
-  expenses              Expense[]
-  transfersFrom         Transfer[]             @relation("TransferFrom")
-  transfersTo           Transfer[]             @relation("TransferTo")
-  goals                 Goal[]
+  user          User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  incomes       Income[]
+  expenses      Expense[]
+  transfersFrom Transfer[] @relation("TransferFrom")
+  transfersTo   Transfer[] @relation("TransferTo")
+  goals         Goal[]
 
   @@unique([userId, name])
   @@index([userId, isArchived])
@@ -281,10 +281,10 @@ model Category {
   updatedAt DateTime     @updatedAt
 
   // Relations
-  user                  User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
-  incomes               Income[]
-  expenses              Expense[]
-  budgets               Budget[]
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  incomes  Income[]
+  expenses Expense[]
+  budgets  Budget[]
 
   @@unique([userId, name, type])
   @@map("categories")
@@ -292,17 +292,17 @@ model Category {
 
 // Income model
 model Income {
-  id              String            @id @default(cuid())
-  amount          Decimal           @db.Decimal(10, 2)
-  description     String?
-  date            DateTime
-  source          TransactionSource @default(MANUAL)
-  importBatchId   String?
-  categoryId      String
-  accountId       String? // Where the money went
-  userId          String
-  createdAt       DateTime          @default(now())
-  updatedAt       DateTime          @updatedAt
+  id            String            @id @default(cuid())
+  amount        Decimal           @db.Decimal(10, 2)
+  description   String?
+  date          DateTime
+  source        TransactionSource @default(MANUAL)
+  importBatchId String?
+  categoryId    String
+  accountId     String? // Where the money went
+  userId        String
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
 
   // Relations
   category       Category   @relation(fields: [categoryId], references: [id], onDelete: Restrict)
@@ -318,19 +318,19 @@ model Income {
 
 // Expense model
 model Expense {
-  id              String            @id @default(cuid())
-  amount          Decimal           @db.Decimal(10, 2)
-  description     String?
-  date            DateTime
-  notes           String?           @db.Text
-  source          TransactionSource @default(MANUAL)
-  importBatchId   String?
-  categoryId      String
-  budgetId        String? // Optional: link to budget for tracking
-  accountId       String? // Where the money came from
-  userId          String
-  createdAt       DateTime          @default(now())
-  updatedAt       DateTime          @updatedAt
+  id            String            @id @default(cuid())
+  amount        Decimal           @db.Decimal(10, 2)
+  description   String?
+  date          DateTime
+  notes         String?           @db.Text
+  source        TransactionSource @default(MANUAL)
+  importBatchId String?
+  categoryId    String
+  budgetId      String? // Optional: link to budget for tracking
+  accountId     String? // Where the money came from
+  userId        String
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
 
   // Relations
   category       Category  @relation(fields: [categoryId], references: [id], onDelete: Restrict)
@@ -450,7 +450,7 @@ model Integration {
 // counter (indexed count over createdAt), the delivery audit trail, and the
 // idempotency-key store that stops BullMQ retries double-sending reports.
 model EmailSendLog {
-  id                String            @id @default(cuid())
+  id                String               @id @default(cuid())
   userId            String? // null for admin/system mail
   notificationKey   String? // null for transactional mail
   priority          EmailPriority
@@ -459,9 +459,9 @@ model EmailSendLog {
   recipient         String
   subject           String
   providerMessageId String?
-  idempotencyKey    String?           @unique
-  error             String?           @db.Text
-  createdAt         DateTime          @default(now())
+  idempotencyKey    String?              @unique
+  error             String?              @db.Text
+  createdAt         DateTime             @default(now())
 
   user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
 
@@ -636,7 +636,12 @@ model Invoice {
   id             String        @id @default(cuid())
   invoiceNumber  String
   status         InvoiceStatus @default(DRAFT)
-  clientName     String
+  companyName    String?
+  companyAddress String?       @db.Text
+  companyTaxId   String?
+  companyEmail   String?
+  companyPhone   String?
+  clientName     String?
   clientEmail    String?
   clientAddress  String?       @db.Text
   clientPhone    String?
@@ -691,18 +696,22 @@ model InvoiceLineItem {
 // ── Client & Work Entry Models ──────────────────────────
 
 model Client {
-  id          String   @id @default(cuid())
-  name        String
-  email       String?
-  phone       String?
-  address     String?  @db.Text
-  defaultRate Decimal? @db.Decimal(10, 2)
-  currency    String   @default("USD")
-  notes       String?  @db.Text
-  isArchived  Boolean  @default(false)
-  userId      String
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id           String   @id @default(cuid())
+  name         String
+  email        String?
+  phone        String?
+  address      String?  @db.Text
+  taxId        String?
+  contactName  String?
+  contactEmail String?
+  contactPhone String?
+  defaultRate  Decimal? @db.Decimal(10, 2)
+  currency     String   @default("USD")
+  notes        String?  @db.Text
+  isArchived   Boolean  @default(false)
+  userId       String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
   user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
   workEntries WorkEntry[]

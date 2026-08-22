@@ -5,6 +5,10 @@ export const createClientSchema = z.object({
 	email: z.string().email().optional().or(z.literal('')),
 	phone: z.string().optional(),
 	address: z.string().optional(),
+	taxId: z.string().max(100).optional(),
+	contactName: z.string().max(200).optional(),
+	contactEmail: z.string().email().optional().or(z.literal('')),
+	contactPhone: z.string().optional(),
 	defaultRate: z.number().min(0).optional(),
 	currency: z
 		.string()

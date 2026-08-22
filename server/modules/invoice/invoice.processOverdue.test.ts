@@ -38,6 +38,7 @@ function candidate(id: string, userId = 'u1') {
 		id,
 		userId,
 		invoiceNumber: `INV-${id}`,
+		companyName: null,
 		clientName: 'Acme Co',
 		totalAmount: 100,
 		dueDate: new Date('2026-08-01'),

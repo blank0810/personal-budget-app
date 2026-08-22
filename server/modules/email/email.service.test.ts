@@ -208,6 +208,23 @@ describe('EmailService dispatch', () => {
 	});
 
 	describe('invoice mail', () => {
+		it('uses the supplied point-person name in the greeting', async () => {
+			await EmailService.sendInvoice({
+				to: 'jane@acme.com',
+				invoiceNumber: 'INV-001',
+				fromName: 'Demo Consulting',
+				fromEmail: 'sender@example.com',
+				clientName: 'Jane Dela Cruz',
+				totalFormatted: '$100.00',
+				dueDate: new Date('2026-09-01'),
+				notes: null,
+				pdfBuffer: Buffer.from('pdf'),
+			});
+
+			const [input] = mocks.providerSend.mock.calls[0];
+			expect(input.html).toContain('<p>Hi Jane Dela Cruz,</p>');
+		});
+
 		it('sends HIGH priority with the sender as display name and reply-to', async () => {
 			await EmailService.sendInvoice({
 				to: 'client@acme.com',

@@ -1,4 +1,5 @@
 import { LagoonReveal } from '@/components/modules/landing/lagoon/LagoonReveal';
+import Link from 'next/link';
 
 /**
  * AIAdvisorVision — planned capabilities section for /ai-advisor.
@@ -117,13 +118,13 @@ export function AIAdvisorVision() {
 					>
 						None of this is available yet. These are planned capabilities — we
 						will announce in the{' '}
-						<a
+						<Link
 							href='/changelog'
 							className='underline underline-offset-2 transition-colors hover:opacity-80'
 							style={{ color: 'var(--lagoon-accent)' }}
 						>
 							changelog
-						</a>{' '}
+						</Link>{' '}
 						when each part ships.
 					</p>
 				</LagoonReveal>

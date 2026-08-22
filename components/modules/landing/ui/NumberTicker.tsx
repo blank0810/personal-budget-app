@@ -29,10 +29,7 @@ export function NumberTicker({
 	const [display, setDisplay] = useState(0);
 
 	useEffect(() => {
-		if (mounted && prefersReduced) {
-			setDisplay(value);
-			return;
-		}
+		if (mounted && prefersReduced) return;
 		const el = ref.current;
 		if (!el) return;
 
@@ -60,7 +57,7 @@ export function NumberTicker({
 	return (
 		<span ref={ref} className={className}>
 			{prefix}
-			{display.toLocaleString('en-US')}
+			{(mounted && prefersReduced ? value : display).toLocaleString('en-US')}
 		</span>
 	);
 }

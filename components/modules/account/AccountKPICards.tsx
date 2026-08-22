@@ -12,7 +12,7 @@ export interface AccountKPIData {
 	creditUtilization: number | null; // null if no credit accounts
 }
 
-interface AccountKPICardsProps extends AccountKPIData {}
+type AccountKPICardsProps = AccountKPIData;
 
 const CARDS = [
 	{

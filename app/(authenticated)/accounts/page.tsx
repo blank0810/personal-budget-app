@@ -2,7 +2,6 @@ import { auth } from '@/auth';
 import { redirect } from 'next/navigation';
 import { serialize } from '@/lib/serialization';
 import { getAccountsAction, getAccountSummaryAction } from '@/server/modules/account/account.controller';
-import { AccountKPICards } from '@/components/modules/account/AccountKPICards';
 import { AccountPageContainer } from '@/components/modules/account/AccountPageContainer';
 
 export default async function AccountsPage() {

@@ -12,11 +12,17 @@ const updateLineItemSchema = lineItemSchema.extend({
 	date: z.coerce.date().nullish(),
 });
 
-export const createInvoiceSchema = z.object({
-	clientName: z.string().min(1, 'Client name is required').max(200),
+const invoiceBaseSchema = z.object({
+	companyName: z.string().max(200).optional(),
+	companyAddress: z.string().optional(),
+	companyTaxId: z.string().max(100).optional(),
+	companyEmail: z.string().email().optional().or(z.literal('')),
+	companyPhone: z.string().optional(),
+	clientName: z.string().max(200).optional(),
 	clientEmail: z.string().email().optional().or(z.literal('')),
 	clientAddress: z.string().optional(),
 	clientPhone: z.string().optional(),
+	clientId: z.string().optional(),
 	issueDate: z.coerce.date(),
 	dueDate: z.coerce.date(),
 	taxRate: z.number().min(0).max(100).optional(),
@@ -32,11 +38,34 @@ export const createInvoiceSchema = z.object({
 	lineItems: z.array(lineItemSchema).min(1, 'At least one line item is required'),
 });
 
-export const updateInvoiceSchema = createInvoiceSchema
+export const createInvoiceSchema = invoiceBaseSchema.refine(
+	(data) => Boolean(data.companyName?.trim() || data.clientName?.trim()),
+	{
+		message: 'Company name or contact name is required',
+		path: ['companyName'],
+	}
+);
+
+export const updateInvoiceSchema = invoiceBaseSchema
 	.partial()
 	.extend({
 		id: z.string(),
 		lineItems: z.array(updateLineItemSchema).min(1).optional(),
+	})
+	.superRefine((data, ctx) => {
+		// Only reject when both name keys are present; partial updates that omit either key must pass.
+		if (
+			Object.prototype.hasOwnProperty.call(data, 'companyName') &&
+			Object.prototype.hasOwnProperty.call(data, 'clientName') &&
+			!data.companyName?.trim() &&
+			!data.clientName?.trim()
+		) {
+			ctx.addIssue({
+				code: 'custom',
+				message: 'Company name or contact name is required',
+				path: ['companyName'],
+			});
+		}
 	});
 
 export const markAsSentSchema = z.object({

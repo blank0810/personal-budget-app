@@ -15,16 +15,21 @@ import { NotificationService } from '@/server/modules/notification/notification.
 import { renderInvoicePDF } from './invoice.templates';
 import { urlToQrDataUri } from '@/lib/qr';
 import { formatCurrency } from '@/lib/formatters';
+import {
+	billedPartyName,
+	greetingName,
+	invoiceRecipientEmail,
+} from '@/lib/invoice-party';
 import { InvoiceStatus } from '@prisma/client';
 
 const SENT_EMAIL_WARNING =
 	'Invoice was marked as sent, but the email could not be delivered. You can retry from this invoice.';
 const SENT_EMAIL_MISSING_WARNING =
-	'Invoice was marked as sent, but no client email is available. Add an email before retrying.';
+	'Invoice was marked as sent, but no recipient email is available. Add a contact or company email before retrying.';
 const PAID_EMAIL_WARNING =
 	'Invoice was marked as paid, but the receipt email could not be delivered. You can retry from this invoice.';
 const PAID_EMAIL_MISSING_WARNING =
-	'Invoice was marked as paid, but no client email is available. Add an email before retrying.';
+	'Invoice was marked as paid, but no recipient email is available. Add a contact or company email before retrying.';
 
 function isRecordNotFoundError(error: unknown): boolean {
 	return (
@@ -87,8 +92,9 @@ async function emailInvoiceToClient(
 		dedupeKey?: string;
 	}
 ): Promise<string> {
-	if (!invoice.clientEmail) {
-		throw new Error('Cannot email invoice without a client email');
+	const recipient = invoiceRecipientEmail(invoice);
+	if (!recipient) {
+		throw new Error('Cannot email invoice without a recipient email');
 	}
 
 	const paymentQr = await urlToQrDataUri(invoice.paymentLink);
@@ -108,6 +114,11 @@ async function emailInvoiceToClient(
 			businessAddress: invoice.user?.businessAddress ?? null,
 			businessTaxId: invoice.user?.businessTaxId ?? null,
 			paymentInstructions: invoice.user?.paymentInstructions ?? null,
+			companyName: invoice.companyName,
+			companyAddress: invoice.companyAddress,
+			companyTaxId: invoice.companyTaxId,
+			companyEmail: invoice.companyEmail,
+			companyPhone: invoice.companyPhone,
 			clientName: invoice.clientName,
 			clientEmail: invoice.clientEmail,
 			clientAddress: invoice.clientAddress,
@@ -144,11 +155,11 @@ async function emailInvoiceToClient(
 
 	if (options.variant === 'receipt') {
 		await EmailService.sendInvoiceReceipt({
-			to: invoice.clientEmail,
+			to: recipient,
 			invoiceNumber: invoice.invoiceNumber,
 			fromName: senderName,
 			fromEmail: invoice.user?.email ?? null,
-			clientName: invoice.clientName,
+			clientName: greetingName(invoice),
 			totalFormatted,
 			paidAt: options.paidAt ?? new Date(),
 			pdfBuffer,
@@ -157,11 +168,11 @@ async function emailInvoiceToClient(
 		});
 	} else {
 		await EmailService.sendInvoice({
-			to: invoice.clientEmail,
+			to: recipient,
 			invoiceNumber: invoice.invoiceNumber,
 			fromName: senderName,
 			fromEmail: invoice.user?.email ?? null,
-			clientName: invoice.clientName,
+			clientName: greetingName(invoice),
 			totalFormatted,
 			dueDate: invoice.dueDate,
 			notes: invoice.notes,
@@ -171,7 +182,7 @@ async function emailInvoiceToClient(
 		});
 	}
 
-	return invoice.clientEmail;
+	return recipient;
 }
 
 /**
@@ -234,11 +245,21 @@ export const InvoiceService = {
 	async create(userId: string, data: CreateInvoiceInput & { currency?: string }) {
 		const invoiceNumber = await this.getNextInvoiceNumber(userId);
 
-		// Resolve currency: explicit param > user default
-		let currency = data.currency;
-		if (!currency) {
-			currency = await UserService.getCurrency(userId);
+		const selectedClient = data.clientId
+			? await prisma.client.findUnique({
+					where: { id: data.clientId, userId },
+				})
+			: null;
+
+		if (data.clientId && !selectedClient) {
+			throw new Error('Client not found');
 		}
+
+		// Resolve currency: explicit param > selected client > user default
+		const currency =
+			data.currency ||
+			selectedClient?.currency ||
+			(await UserService.getCurrency(userId));
 
 		// Compute line item amounts and totals
 		const lineItems = data.lineItems.map((item, index) => ({
@@ -257,10 +278,16 @@ export const InvoiceService = {
 		return await prisma.invoice.create({
 			data: {
 				invoiceNumber,
-				clientName: data.clientName,
+				companyName: data.companyName || null,
+				companyAddress: data.companyAddress || null,
+				companyTaxId: data.companyTaxId || null,
+				companyEmail: data.companyEmail || null,
+				companyPhone: data.companyPhone || null,
+				clientName: data.clientName || null,
 				clientEmail: data.clientEmail || null,
 				clientAddress: data.clientAddress,
 				clientPhone: data.clientPhone,
+				clientId: data.clientId || null,
 				currency,
 				issueDate: data.issueDate,
 				dueDate: data.dueDate,
@@ -347,10 +374,15 @@ export const InvoiceService = {
 						invoiceNumber,
 						userId,
 						clientId: data.clientId,
-						clientName: client.name,
-						clientEmail: client.email,
-						clientAddress: client.address,
-						clientPhone: client.phone,
+						companyName: client.name,
+						companyAddress: client.address,
+						companyTaxId: client.taxId,
+						companyEmail: client.email,
+						companyPhone: client.phone,
+						clientName: client.contactName,
+						clientEmail: client.contactEmail,
+						clientAddress: null,
+						clientPhone: client.contactPhone,
 						currency: client.currency,
 						issueDate: data.issueDate,
 						dueDate: data.dueDate,
@@ -400,6 +432,25 @@ export const InvoiceService = {
 
 			if (invoice.status !== InvoiceStatus.DRAFT) {
 				throw new Error('Only DRAFT invoices can be edited');
+			}
+
+			// Re-resolve the currency when the invoice is pointed at a different
+			// client. Without this, switching a draft from a PHP client to a USD
+			// one leaves the stored currency on PHP while the form shows USD.
+			let nextCurrency: string | undefined;
+			if (
+				updateData.clientId !== undefined &&
+				(updateData.clientId || null) !== invoice.clientId
+			) {
+				if (updateData.clientId) {
+					const nextClient = await tx.client.findUnique({
+						where: { id: updateData.clientId, userId },
+					});
+					if (!nextClient) {
+						throw new Error('Client not found');
+					}
+					nextCurrency = nextClient.currency;
+				}
 			}
 
 			// Compute new line items and totals if line items are provided
@@ -492,8 +543,23 @@ export const InvoiceService = {
 			return await tx.invoice.update({
 				where: { id, userId },
 				data: {
-					...(updateData.clientName && {
-						clientName: updateData.clientName,
+					...(updateData.companyName !== undefined && {
+						companyName: updateData.companyName || null,
+					}),
+					...(updateData.companyAddress !== undefined && {
+						companyAddress: updateData.companyAddress || null,
+					}),
+					...(updateData.companyTaxId !== undefined && {
+						companyTaxId: updateData.companyTaxId || null,
+					}),
+					...(updateData.companyEmail !== undefined && {
+						companyEmail: updateData.companyEmail || null,
+					}),
+					...(updateData.companyPhone !== undefined && {
+						companyPhone: updateData.companyPhone || null,
+					}),
+					...(updateData.clientName !== undefined && {
+						clientName: updateData.clientName || null,
 					}),
 					...(updateData.clientEmail !== undefined && {
 						clientEmail: updateData.clientEmail || null,
@@ -504,6 +570,10 @@ export const InvoiceService = {
 					...(updateData.clientPhone !== undefined && {
 						clientPhone: updateData.clientPhone,
 					}),
+					...(updateData.clientId !== undefined && {
+						clientId: updateData.clientId || null,
+					}),
+					...(nextCurrency && { currency: nextCurrency }),
 					...(updateData.issueDate && {
 						issueDate: updateData.issueDate,
 					}),
@@ -581,7 +651,7 @@ export const InvoiceService = {
 		let emailWarning: string | null = null;
 
 		if (data.sendEmail) {
-			if (!invoice.clientEmail) {
+			if (!invoiceRecipientEmail(invoice)) {
 				emailWarning = SENT_EMAIL_MISSING_WARNING;
 			} else {
 				try {
@@ -668,7 +738,7 @@ export const InvoiceService = {
 		// Fire-and-forget: a notification must never fail a recorded payment.
 		NotificationService.sendInvoicePaidOwner(userId, {
 			invoiceNumber: invoice.invoiceNumber,
-			clientName: invoice.clientName,
+			clientName: billedPartyName(invoice),
 			amount: Number(invoice.totalAmount),
 			paidAt,
 		}).catch((error) =>
@@ -679,7 +749,7 @@ export const InvoiceService = {
 		let emailWarning: string | null = null;
 
 		if (data.sendEmail) {
-			if (!invoice.clientEmail) {
+			if (!invoiceRecipientEmail(invoice)) {
 				emailWarning = PAID_EMAIL_MISSING_WARNING;
 			} else {
 				try {
@@ -739,7 +809,7 @@ export const InvoiceService = {
 			throw new Error('Invoice not found');
 		}
 
-		if (!invoice.clientEmail) {
+		if (!invoiceRecipientEmail(invoice)) {
 			throw new Error('No client email on file for this invoice');
 		}
 
@@ -822,10 +892,20 @@ export const InvoiceService = {
 				userId,
 				...(filters?.status && { status: filters.status }),
 				...(filters?.clientName && {
-					clientName: {
-						contains: filters.clientName,
-						mode: 'insensitive' as const,
-					},
+					OR: [
+						{
+							clientName: {
+								contains: filters.clientName,
+								mode: 'insensitive' as const,
+							},
+						},
+						{
+							companyName: {
+								contains: filters.clientName,
+								mode: 'insensitive' as const,
+							},
+						},
+					],
 				}),
 				...(filters?.clientId && { clientId: filters.clientId }),
 			},
@@ -886,6 +966,7 @@ export const InvoiceService = {
 				id: true,
 				userId: true,
 				invoiceNumber: true,
+				companyName: true,
 				clientName: true,
 				totalAmount: true,
 				dueDate: true,
@@ -932,7 +1013,7 @@ export const InvoiceService = {
 				userId,
 				invoices.map((i) => ({
 					invoiceNumber: i.invoiceNumber,
-					clientName: i.clientName,
+					clientName: billedPartyName(i),
 					amount: Number(i.totalAmount),
 					dueDate: i.dueDate,
 				}))

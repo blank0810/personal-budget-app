@@ -4,7 +4,7 @@ import { useRouter } from 'next/navigation';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { useTransition } from 'react';
+import { useState, useTransition } from 'react';
 import {
 	Form,
 	FormControl,
@@ -17,6 +17,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
 	Table,
 	TableBody,
@@ -31,6 +32,7 @@ import {
 } from '@/server/modules/invoice/invoice.controller';
 import { toast } from 'sonner';
 import { Loader2, Plus, Trash2 } from 'lucide-react';
+import { ClientSelectCombobox } from '@/components/modules/client/ClientSelectCombobox';
 
 // Client-side Zod schema
 const lineItemSchema = z.object({
@@ -41,27 +43,53 @@ const lineItemSchema = z.object({
 	date: z.string().nullish(),
 });
 
-const invoiceFormSchema = z.object({
-	clientName: z.string().min(1, 'Client name is required').max(200),
-	clientEmail: z.string().email('Invalid email').optional().or(z.literal('')),
-	clientAddress: z.string().optional(),
-	clientPhone: z.string().optional(),
-	issueDate: z.string().min(1, 'Issue date is required'),
-	dueDate: z.string().min(1, 'Due date is required'),
-	taxRate: z.number().min(0).max(100).optional(),
-	notes: z.string().optional(),
-	paymentLink: z.string().optional(),
-	lineItems: z.array(lineItemSchema).min(1, 'At least one line item is required'),
-});
+const invoiceFormSchema = z
+	.object({
+		companyName: z.string().max(200).optional(),
+		companyAddress: z.string().optional(),
+		companyTaxId: z.string().max(100).optional(),
+		companyEmail: z
+			.string()
+			.email('Invalid email')
+			.optional()
+			.or(z.literal('')),
+		companyPhone: z.string().optional(),
+		clientName: z.string().max(200).optional(),
+		clientEmail: z.string().email('Invalid email').optional().or(z.literal('')),
+		clientAddress: z.string().optional(),
+		clientPhone: z.string().optional(),
+		clientId: z.string().optional(),
+		issueDate: z.string().min(1, 'Issue date is required'),
+		dueDate: z.string().min(1, 'Due date is required'),
+		taxRate: z.number().min(0).max(100).optional(),
+		notes: z.string().optional(),
+		paymentLink: z.string().optional(),
+		lineItems: z
+			.array(lineItemSchema)
+			.min(1, 'At least one line item is required'),
+	})
+	.refine(
+		(data) => Boolean(data.companyName?.trim() || data.clientName?.trim()),
+		{
+			message: 'Company name or contact name is required',
+			path: ['companyName'],
+		}
+	);
 
 type InvoiceFormValues = z.infer<typeof invoiceFormSchema>;
 
 export interface ExistingInvoice {
 	id: string;
-	clientName: string;
+	companyName: string | null;
+	companyAddress: string | null;
+	companyTaxId: string | null;
+	companyEmail: string | null;
+	companyPhone: string | null;
+	clientName: string | null;
 	clientEmail: string | null;
 	clientAddress: string | null;
 	clientPhone: string | null;
+	clientId: string | null;
 	issueDate: string | Date;
 	dueDate: string | Date;
 	taxRate: number | null;
@@ -76,9 +104,24 @@ export interface ExistingInvoice {
 	}[];
 }
 
+export interface ClientOption {
+	id: string;
+	name: string;
+	email: string | null;
+	phone: string | null;
+	address: string | null;
+	taxId: string | null;
+	contactName: string | null;
+	contactEmail: string | null;
+	contactPhone: string | null;
+	currency: string;
+}
+
 interface InvoiceFormProps {
 	mode: 'create' | 'edit';
 	invoice?: ExistingInvoice;
+	clients: ClientOption[];
+	userCurrency: string;
 }
 
 function formatDateInput(date: string | Date | null | undefined): string {
@@ -87,19 +130,38 @@ function formatDateInput(date: string | Date | null | undefined): string {
 	return d.toISOString().slice(0, 10);
 }
 
-export function InvoiceForm({ mode, invoice }: InvoiceFormProps) {
+export function InvoiceForm({
+	mode,
+	invoice,
+	clients,
+	userCurrency,
+}: InvoiceFormProps) {
 	const router = useRouter();
 	const [isPending, startTransition] = useTransition();
+	const hasLinkedClient = Boolean(
+		invoice?.clientId && clients.some((client) => client.id === invoice.clientId)
+	);
+	const [partyMode, setPartyMode] = useState<'existing' | 'one-off'>(
+		clients.length > 0 && (mode === 'create' || hasLinkedClient)
+			? 'existing'
+			: 'one-off'
+	);
 
 	const form = useForm<InvoiceFormValues>({
 		resolver: zodResolver(invoiceFormSchema),
 		defaultValues:
 			mode === 'edit' && invoice
 				? {
-						clientName: invoice.clientName,
+						companyName: invoice.companyName ?? '',
+						companyAddress: invoice.companyAddress ?? '',
+						companyTaxId: invoice.companyTaxId ?? '',
+						companyEmail: invoice.companyEmail ?? '',
+						companyPhone: invoice.companyPhone ?? '',
+						clientName: invoice.clientName ?? '',
 						clientEmail: invoice.clientEmail ?? '',
 						clientAddress: invoice.clientAddress ?? '',
 						clientPhone: invoice.clientPhone ?? '',
+						clientId: invoice.clientId ?? '',
 						issueDate: formatDateInput(invoice.issueDate),
 						dueDate: formatDateInput(invoice.dueDate),
 						taxRate: invoice.taxRate ?? undefined,
@@ -116,10 +178,16 @@ export function InvoiceForm({ mode, invoice }: InvoiceFormProps) {
 						})),
 					}
 				: {
+						companyName: '',
+						companyAddress: '',
+						companyTaxId: '',
+						companyEmail: '',
+						companyPhone: '',
 						clientName: '',
 						clientEmail: '',
 						clientAddress: '',
 						clientPhone: '',
+						clientId: '',
 						issueDate: new Date().toISOString().slice(0, 10),
 						dueDate: '',
 						taxRate: undefined,
@@ -137,6 +205,11 @@ export function InvoiceForm({ mode, invoice }: InvoiceFormProps) {
 	// eslint-disable-next-line react-hooks/incompatible-library -- react-hook-form watch() is not memoizable but works correctly here
 	const watchedLineItems = form.watch('lineItems');
 	const watchedTaxRate = form.watch('taxRate');
+	const watchedClientId = form.watch('clientId');
+	const selectedClient = clients.find(
+		(client) => client.id === watchedClientId
+	);
+	const effectiveCurrency = selectedClient?.currency ?? userCurrency;
 
 	const subtotal = watchedLineItems.reduce((sum, item) => {
 		const qty = Number(item.quantity) || 0;
@@ -152,6 +225,45 @@ export function InvoiceForm({ mode, invoice }: InvoiceFormProps) {
 			minimumFractionDigits: 2,
 			maximumFractionDigits: 2,
 		});
+	}
+
+	function handlePartyModeChange(value: string) {
+		if (value !== 'existing' && value !== 'one-off') return;
+
+		setPartyMode(value);
+		if (value === 'one-off') {
+			form.setValue('clientId', '', { shouldDirty: true });
+		}
+	}
+
+	function handleClientChange(clientId: string) {
+		const client = clients.find((option) => option.id === clientId);
+		if (!client) return;
+
+		form.setValue('clientId', client.id, { shouldDirty: true });
+		form.setValue('companyName', client.name, {
+			shouldDirty: true,
+			shouldValidate: true,
+		});
+		form.setValue('companyAddress', client.address ?? '', {
+			shouldDirty: true,
+		});
+		form.setValue('companyTaxId', client.taxId ?? '', {
+			shouldDirty: true,
+		});
+		form.setValue('companyEmail', client.email ?? '', { shouldDirty: true });
+		form.setValue('companyPhone', client.phone ?? '', { shouldDirty: true });
+		form.setValue('clientName', client.contactName ?? '', {
+			shouldDirty: true,
+			shouldValidate: true,
+		});
+		form.setValue('clientEmail', client.contactEmail ?? '', {
+			shouldDirty: true,
+		});
+		form.setValue('clientPhone', client.contactPhone ?? '', {
+			shouldDirty: true,
+		});
+		form.setValue('clientAddress', '', { shouldDirty: true });
 	}
 
 	function onSubmit(values: InvoiceFormValues) {
@@ -190,10 +302,145 @@ export function InvoiceForm({ mode, invoice }: InvoiceFormProps) {
 	return (
 		<Form {...form}>
 			<form onSubmit={form.handleSubmit(onSubmit)} className='space-y-6'>
-				{/* Client Info */}
+				{clients.length > 0 && (
+					<Card>
+						<CardHeader>
+							<CardTitle className='text-base'>Client Source</CardTitle>
+						</CardHeader>
+						<CardContent className='space-y-4'>
+							<Tabs value={partyMode} onValueChange={handlePartyModeChange}>
+								<TabsList className='grid w-full grid-cols-2'>
+									<TabsTrigger value='existing'>Existing client</TabsTrigger>
+									<TabsTrigger value='one-off'>One-off</TabsTrigger>
+								</TabsList>
+							</Tabs>
+							{partyMode === 'existing' && (
+								<FormField
+									control={form.control}
+									name='clientId'
+									render={({ field }) => (
+										<FormItem>
+											<FormLabel>Saved Client</FormLabel>
+											<FormControl>
+												<ClientSelectCombobox
+													clients={clients}
+													value={field.value ?? ''}
+													onChange={handleClientChange}
+													placeholder='Select a client...'
+												/>
+											</FormControl>
+											<p className='text-xs text-muted-foreground'>
+												The invoice keeps an editable snapshot; changes here do not update the saved client.
+											</p>
+											<FormMessage />
+										</FormItem>
+									)}
+								/>
+							)}
+						</CardContent>
+					</Card>
+				)}
+
 				<Card>
 					<CardHeader>
-						<CardTitle className='text-base'>Client Information</CardTitle>
+						<CardTitle className='text-base'>Company</CardTitle>
+					</CardHeader>
+					<CardContent className='space-y-4'>
+						<FormField
+							control={form.control}
+							name='companyName'
+							render={({ field }) => (
+								<FormItem>
+									<FormLabel>Company Name *</FormLabel>
+									<FormControl>
+										<Input
+											placeholder='Acme Corporation'
+											{...field}
+											value={field.value ?? ''}
+										/>
+									</FormControl>
+									<FormMessage />
+								</FormItem>
+							)}
+						/>
+						<div className='grid grid-cols-1 gap-4 sm:grid-cols-2'>
+							<FormField
+								control={form.control}
+								name='companyEmail'
+								render={({ field }) => (
+									<FormItem>
+										<FormLabel>Company Email</FormLabel>
+										<FormControl>
+											<Input
+												type='email'
+												placeholder='billing@acme.com'
+												{...field}
+												value={field.value ?? ''}
+											/>
+										</FormControl>
+										<FormMessage />
+									</FormItem>
+								)}
+							/>
+							<FormField
+								control={form.control}
+								name='companyPhone'
+								render={({ field }) => (
+									<FormItem>
+										<FormLabel>Company Phone</FormLabel>
+										<FormControl>
+											<Input
+												placeholder='+1 (555) 000-0000'
+												{...field}
+												value={field.value ?? ''}
+											/>
+										</FormControl>
+										<FormMessage />
+									</FormItem>
+								)}
+							/>
+						</div>
+						<FormField
+							control={form.control}
+							name='companyAddress'
+							render={({ field }) => (
+								<FormItem>
+									<FormLabel>Company Address</FormLabel>
+									<FormControl>
+										<Textarea
+											placeholder='123 Main St, City, State 12345'
+											rows={3}
+											{...field}
+											value={field.value ?? ''}
+										/>
+									</FormControl>
+									<FormMessage />
+								</FormItem>
+							)}
+						/>
+						<FormField
+							control={form.control}
+							name='companyTaxId'
+							render={({ field }) => (
+								<FormItem>
+									<FormLabel>Tax ID</FormLabel>
+									<FormControl>
+										<Input
+											placeholder='123-456-789'
+											{...field}
+											value={field.value ?? ''}
+										/>
+									</FormControl>
+									<FormMessage />
+								</FormItem>
+							)}
+						/>
+					</CardContent>
+				</Card>
+
+				<Card>
+					<CardHeader>
+						<CardTitle className='text-base'>Contact Person (optional)</CardTitle>
 					</CardHeader>
 					<CardContent className='space-y-4'>
 						<FormField
@@ -201,9 +448,13 @@ export function InvoiceForm({ mode, invoice }: InvoiceFormProps) {
 							name='clientName'
 							render={({ field }) => (
 								<FormItem>
-									<FormLabel>Client Name *</FormLabel>
+									<FormLabel>Contact Name</FormLabel>
 									<FormControl>
-										<Input placeholder='Acme Corporation' {...field} />
+										<Input
+											placeholder='Jane Dela Cruz'
+											{...field}
+											value={field.value ?? ''}
+										/>
 									</FormControl>
 									<FormMessage />
 								</FormItem>
@@ -215,12 +466,13 @@ export function InvoiceForm({ mode, invoice }: InvoiceFormProps) {
 								name='clientEmail'
 								render={({ field }) => (
 									<FormItem>
-										<FormLabel>Email</FormLabel>
+										<FormLabel>Contact Email</FormLabel>
 										<FormControl>
 											<Input
 												type='email'
-												placeholder='billing@acme.com'
+												placeholder='jane@acme.com'
 												{...field}
+												value={field.value ?? ''}
 											/>
 										</FormControl>
 										<FormMessage />
@@ -232,9 +484,13 @@ export function InvoiceForm({ mode, invoice }: InvoiceFormProps) {
 								name='clientPhone'
 								render={({ field }) => (
 									<FormItem>
-										<FormLabel>Phone</FormLabel>
+										<FormLabel>Contact Phone</FormLabel>
 										<FormControl>
-											<Input placeholder='+1 (555) 000-0000' {...field} />
+											<Input
+												placeholder='+1 (555) 000-0001'
+												{...field}
+												value={field.value ?? ''}
+											/>
 										</FormControl>
 										<FormMessage />
 									</FormItem>
@@ -246,12 +502,13 @@ export function InvoiceForm({ mode, invoice }: InvoiceFormProps) {
 							name='clientAddress'
 							render={({ field }) => (
 								<FormItem>
-									<FormLabel>Address</FormLabel>
+									<FormLabel>Contact Address</FormLabel>
 									<FormControl>
 										<Textarea
-											placeholder='123 Main St, City, State 12345'
+											placeholder='Optional contact address'
 											rows={3}
 											{...field}
+											value={field.value ?? ''}
 										/>
 									</FormControl>
 									<FormMessage />
@@ -430,6 +687,9 @@ export function InvoiceForm({ mode, invoice }: InvoiceFormProps) {
 						{/* Totals */}
 						<div className='flex justify-end'>
 							<div className='w-full max-w-xs space-y-2 rounded-md border p-4'>
+								<p className='text-xs font-medium text-muted-foreground'>
+									Billed in {effectiveCurrency}
+								</p>
 								<div className='flex justify-between text-sm'>
 									<span className='text-muted-foreground'>Subtotal</span>
 									<span className='tabular-nums'>

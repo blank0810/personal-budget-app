@@ -3,10 +3,15 @@ import { redirect, notFound } from 'next/navigation';
 import Link from 'next/link';
 import { InvoiceService } from '@/server/modules/invoice/invoice.service';
 import { InvoiceForm } from '@/components/modules/invoice/InvoiceForm';
-import type { ExistingInvoice } from '@/components/modules/invoice/InvoiceForm';
+import type {
+	ClientOption,
+	ExistingInvoice,
+} from '@/components/modules/invoice/InvoiceForm';
 import { Button } from '@/components/ui/button';
 import { serialize } from '@/lib/serialization';
 import { ArrowLeft } from 'lucide-react';
+import { ClientService } from '@/server/modules/client/client.service';
+import { UserService } from '@/server/modules/user/user.service';
 
 interface EditInvoicePageProps {
 	params: Promise<{ id: string }>;
@@ -20,7 +25,11 @@ export default async function EditInvoicePage({
 
 	const { id } = await params;
 
-	const invoice = await InvoiceService.getById(session.user.id, id);
+	const [invoice, clients, userCurrency] = await Promise.all([
+		InvoiceService.getById(session.user.id, id),
+		ClientService.getAll(session.user.id),
+		UserService.getCurrency(session.user.id),
+	]);
 
 	if (!invoice) notFound();
 
@@ -48,6 +57,8 @@ export default async function EditInvoicePage({
 				<InvoiceForm
 					mode='edit'
 					invoice={serialize(invoice) as unknown as ExistingInvoice}
+					clients={serialize(clients) as unknown as ClientOption[]}
+					userCurrency={userCurrency}
 				/>
 			</div>
 		</div>

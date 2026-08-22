@@ -43,8 +43,8 @@ describe('AccountService.updateAccount — P0-3 strip regression', () => {
 		await AccountService.updateAccount('user-1', {
 			id: 'acct-1',
 			name: 'Renamed',
-			// eslint-disable-next-line @typescript-eslint/no-explicit-any
 			balance: 9999,
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		} as any);
 
 		expect(accountUpdate).toHaveBeenCalledOnce();
@@ -57,8 +57,8 @@ describe('AccountService.updateAccount — P0-3 strip regression', () => {
 		await AccountService.updateAccount('user-1', {
 			id: 'acct-1',
 			name: 'Renamed',
-			// eslint-disable-next-line @typescript-eslint/no-explicit-any
 			openingBalance: 1234,
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		} as any);
 
 		const passedData = accountUpdate.mock.calls[0][0].data;
@@ -69,10 +69,9 @@ describe('AccountService.updateAccount — P0-3 strip regression', () => {
 		await AccountService.updateAccount('user-1', {
 			id: 'acct-1',
 			name: 'Renamed',
-			// eslint-disable-next-line @typescript-eslint/no-explicit-any
 			balance: 1,
-			// eslint-disable-next-line @typescript-eslint/no-explicit-any
 			openingBalance: 2,
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		} as any);
 
 		const passedData = accountUpdate.mock.calls[0][0].data;
@@ -116,8 +115,8 @@ describe('AccountService.createAccount — openingBalance strip', () => {
 			type: 'CASH',
 			balance: 100,
 			isLiability: false,
-			// eslint-disable-next-line @typescript-eslint/no-explicit-any
 			openingBalance: 9999,
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		} as any);
 
 		const passedData = accountCreate.mock.calls[0][0].data as {

@@ -2,12 +2,20 @@ import { auth } from '@/auth';
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import { InvoiceForm } from '@/components/modules/invoice/InvoiceForm';
+import type { ClientOption } from '@/components/modules/invoice/InvoiceForm';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft } from 'lucide-react';
+import { ClientService } from '@/server/modules/client/client.service';
+import { UserService } from '@/server/modules/user/user.service';
+import { serialize } from '@/lib/serialization';
 
 export default async function NewInvoicePage() {
 	const session = await auth();
 	if (!session?.user?.id) redirect('/login');
+	const [clients, userCurrency] = await Promise.all([
+		ClientService.getAll(session.user.id),
+		UserService.getCurrency(session.user.id),
+	]);
 
 	return (
 		<div className='container mx-auto py-6 md:py-10 space-y-6'>
@@ -25,7 +33,11 @@ export default async function NewInvoicePage() {
 			</h1>
 
 			<div className='max-w-3xl'>
-				<InvoiceForm mode='create' />
+				<InvoiceForm
+					mode='create'
+					clients={serialize(clients) as unknown as ClientOption[]}
+					userCurrency={userCurrency}
+				/>
 			</div>
 		</div>
 	);

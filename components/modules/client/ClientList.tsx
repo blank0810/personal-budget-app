@@ -17,6 +17,10 @@ interface ClientWithUnbilled {
 	email: string | null;
 	phone: string | null;
 	address: string | null;
+	taxId: string | null;
+	contactName: string | null;
+	contactEmail: string | null;
+	contactPhone: string | null;
 	defaultRate: number | null;
 	currency: string;
 	notes: string | null;

@@ -13,8 +13,6 @@
 import { PrismaClient, Prisma } from '@prisma/client';
 import { TransactionService } from '../server/modules/transaction/transaction.service';
 import { IncomeService } from '../server/modules/income/income.service';
-import { ExpenseService } from '../server/modules/expense/expense.service';
-import { TransferService } from '../server/modules/transfer/transfer.service';
 
 const prisma = new PrismaClient({
   datasources: { db: { url: process.env.DATABASE_URL } },
@@ -47,10 +45,6 @@ function dec(n: number): string {
 
 function addDec(a: string, b: string): string {
   return new Prisma.Decimal(a).add(new Prisma.Decimal(b)).toFixed(2);
-}
-
-function subDec(a: string, b: string): string {
-  return new Prisma.Decimal(a).sub(new Prisma.Decimal(b)).toFixed(2);
 }
 
 // ─── seed helpers ────────────────────────────────────────────────────────────
@@ -332,7 +326,7 @@ async function case7_bulkCategorizeIncomeCategoryOnExpenseThrows(userId: string)
   assert('7c: expense categoryId unchanged', row.categoryId === expenseCat.id);
 }
 
-async function case8_bulkDeleteZodRejectsOver100Items(userId: string) {
+async function case8_bulkDeleteZodRejectsOver100Items() {
   console.log('\n[Case 8] Bulk delete with 101 items — Zod rejects at schema level');
   const items = Array.from({ length: 101 }, (_, i) => ({
     kind: 'expense' as const,
@@ -419,7 +413,7 @@ async function main() {
     await case5_bulkDeleteSkipsFeeTransfer(user.id);
     await case6_bulkCategorizeThreeExpenses(user.id);
     await case7_bulkCategorizeIncomeCategoryOnExpenseThrows(user.id);
-    await case8_bulkDeleteZodRejectsOver100Items(user.id);
+    await case8_bulkDeleteZodRejectsOver100Items();
     await case9_bulkDeleteRollsBackOnInvalidId(user.id);
     await case10_auditRowCreatedAfterBulkOp(user.id);
   } finally {

@@ -5,6 +5,8 @@ import { FeatureFlagService } from '@/server/modules/feature-flag/feature-flag.s
 import { UserDetailPage } from '@/components/modules/admin/UserDetailPage';
 import { serialize } from '@/lib/serialization';
 
+type UserDetailProps = Parameters<typeof UserDetailPage>[0];
+
 interface AdminUserDetailPageProps {
 	params: Promise<{ id: string }>;
 }
@@ -30,9 +32,9 @@ export default async function AdminUserDetailPage({
 
 	return (
 		<UserDetailPage
-			user={serialize(user) as any}
-			timeline={serialize(timeline) as any}
-			flags={serialize(flags) as any}
+			user={serialize(user) as unknown as UserDetailProps['user']}
+			timeline={serialize(timeline) as unknown as UserDetailProps['timeline']}
+			flags={serialize(flags) as unknown as UserDetailProps['flags']}
 			overrides={overrides}
 		/>
 	);

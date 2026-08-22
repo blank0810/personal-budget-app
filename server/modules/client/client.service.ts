@@ -20,6 +20,10 @@ export const ClientService = {
 				email: data.email || null,
 				phone: data.phone || null,
 				address: data.address || null,
+				taxId: data.taxId || null,
+				contactName: data.contactName || null,
+				contactEmail: data.contactEmail || null,
+				contactPhone: data.contactPhone || null,
 				defaultRate: data.defaultRate ?? null,
 				currency,
 				notes: data.notes || null,
@@ -46,6 +50,18 @@ export const ClientService = {
 				}),
 				...(updateData.address !== undefined && {
 					address: updateData.address || null,
+				}),
+				...(updateData.taxId !== undefined && {
+					taxId: updateData.taxId || null,
+				}),
+				...(updateData.contactName !== undefined && {
+					contactName: updateData.contactName || null,
+				}),
+				...(updateData.contactEmail !== undefined && {
+					contactEmail: updateData.contactEmail || null,
+				}),
+				...(updateData.contactPhone !== undefined && {
+					contactPhone: updateData.contactPhone || null,
 				}),
 				...(updateData.defaultRate !== undefined && {
 					defaultRate: updateData.defaultRate ?? null,

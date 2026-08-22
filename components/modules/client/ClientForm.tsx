@@ -50,6 +50,10 @@ export interface ClientData {
 	email?: string | null;
 	phone?: string | null;
 	address?: string | null;
+	taxId?: string | null;
+	contactName?: string | null;
+	contactEmail?: string | null;
+	contactPhone?: string | null;
 	defaultRate?: number | null;
 	currency?: string | null;
 	notes?: string | null;
@@ -78,6 +82,10 @@ function CreateClientForm({
 			email: '',
 			phone: '',
 			address: '',
+			taxId: '',
+			contactName: '',
+			contactEmail: '',
+			contactPhone: '',
 			defaultRate: undefined,
 			currency: userCurrency || 'USD',
 			notes: '',
@@ -101,30 +109,68 @@ function CreateClientForm({
 	return (
 		<Form {...form}>
 			<form onSubmit={form.handleSubmit(onSubmit)} className='space-y-4'>
-				<FormField
-					control={form.control}
-					name='name'
-					render={({ field }) => (
-						<FormItem>
-							<FormLabel>Name</FormLabel>
-							<FormControl>
-								<Input placeholder='Acme Corp' {...field} />
-							</FormControl>
-							<FormMessage />
-						</FormItem>
-					)}
-				/>
-				<div className='grid grid-cols-2 gap-4'>
+				<fieldset className='space-y-4'>
+					<legend className='text-sm font-semibold'>Company</legend>
 					<FormField
 						control={form.control}
-						name='email'
+						name='name'
 						render={({ field }) => (
 							<FormItem>
-								<FormLabel>Email</FormLabel>
+								<FormLabel>Company Name</FormLabel>
 								<FormControl>
-									<Input
-										type='email'
-										placeholder='client@example.com'
+									<Input placeholder='Acme Corp' {...field} />
+								</FormControl>
+								<FormMessage />
+							</FormItem>
+						)}
+					/>
+					<div className='grid grid-cols-1 gap-4 sm:grid-cols-2'>
+						<FormField
+							control={form.control}
+							name='email'
+							render={({ field }) => (
+								<FormItem>
+									<FormLabel>Company Email</FormLabel>
+									<FormControl>
+										<Input
+											type='email'
+											placeholder='billing@acme.com'
+											{...field}
+											value={field.value ?? ''}
+										/>
+									</FormControl>
+									<FormMessage />
+								</FormItem>
+							)}
+						/>
+						<FormField
+							control={form.control}
+							name='phone'
+							render={({ field }) => (
+								<FormItem>
+									<FormLabel>Company Phone</FormLabel>
+									<FormControl>
+										<Input
+											placeholder='+1 555 0100'
+											{...field}
+											value={field.value ?? ''}
+										/>
+									</FormControl>
+									<FormMessage />
+								</FormItem>
+							)}
+						/>
+					</div>
+					<FormField
+						control={form.control}
+						name='address'
+						render={({ field }) => (
+							<FormItem>
+								<FormLabel>Company Address</FormLabel>
+								<FormControl>
+									<Textarea
+										placeholder='123 Main St, City, State'
+										rows={2}
 										{...field}
 										value={field.value ?? ''}
 									/>
@@ -135,13 +181,13 @@ function CreateClientForm({
 					/>
 					<FormField
 						control={form.control}
-						name='phone'
+						name='taxId'
 						render={({ field }) => (
 							<FormItem>
-								<FormLabel>Phone</FormLabel>
+								<FormLabel>Tax ID</FormLabel>
 								<FormControl>
 									<Input
-										placeholder='+1 555 0100'
+										placeholder='123-456-789'
 										{...field}
 										value={field.value ?? ''}
 									/>
@@ -150,25 +196,65 @@ function CreateClientForm({
 							</FormItem>
 						)}
 					/>
-				</div>
-				<FormField
-					control={form.control}
-					name='address'
-					render={({ field }) => (
-						<FormItem>
-							<FormLabel>Address</FormLabel>
-							<FormControl>
-								<Textarea
-									placeholder='123 Main St, City, State'
-									rows={2}
-									{...field}
-									value={field.value ?? ''}
-								/>
-							</FormControl>
-							<FormMessage />
-						</FormItem>
-					)}
-				/>
+				</fieldset>
+
+				<fieldset className='space-y-4 border-t pt-4'>
+					<legend className='pr-2 text-sm font-semibold'>Contact Person</legend>
+					<FormField
+						control={form.control}
+						name='contactName'
+						render={({ field }) => (
+							<FormItem>
+								<FormLabel>Contact Name</FormLabel>
+								<FormControl>
+									<Input
+										placeholder='Jane Dela Cruz'
+										{...field}
+										value={field.value ?? ''}
+									/>
+								</FormControl>
+								<FormMessage />
+							</FormItem>
+						)}
+					/>
+					<div className='grid grid-cols-1 gap-4 sm:grid-cols-2'>
+						<FormField
+							control={form.control}
+							name='contactEmail'
+							render={({ field }) => (
+								<FormItem>
+									<FormLabel>Contact Email</FormLabel>
+									<FormControl>
+										<Input
+											type='email'
+											placeholder='jane@acme.com'
+											{...field}
+											value={field.value ?? ''}
+										/>
+									</FormControl>
+									<FormMessage />
+								</FormItem>
+							)}
+						/>
+						<FormField
+							control={form.control}
+							name='contactPhone'
+							render={({ field }) => (
+								<FormItem>
+									<FormLabel>Contact Phone</FormLabel>
+									<FormControl>
+										<Input
+											placeholder='+1 555 0101'
+											{...field}
+											value={field.value ?? ''}
+										/>
+									</FormControl>
+									<FormMessage />
+								</FormItem>
+							)}
+						/>
+					</div>
+				</fieldset>
 				<FormField
 					control={form.control}
 					name='defaultRate'
@@ -289,6 +375,10 @@ function EditClientForm({
 			email: client.email ?? '',
 			phone: client.phone ?? '',
 			address: client.address ?? '',
+			taxId: client.taxId ?? '',
+			contactName: client.contactName ?? '',
+			contactEmail: client.contactEmail ?? '',
+			contactPhone: client.contactPhone ?? '',
 			defaultRate: client.defaultRate ?? undefined,
 			currency: client.currency ?? userCurrency ?? 'USD',
 			notes: client.notes ?? '',
@@ -311,30 +401,72 @@ function EditClientForm({
 	return (
 		<Form {...form}>
 			<form onSubmit={form.handleSubmit(onSubmit)} className='space-y-4'>
-				<FormField
-					control={form.control}
-					name='name'
-					render={({ field }) => (
-						<FormItem>
-							<FormLabel>Name</FormLabel>
-							<FormControl>
-								<Input placeholder='Acme Corp' {...field} value={field.value ?? ''} />
-							</FormControl>
-							<FormMessage />
-						</FormItem>
-					)}
-				/>
-				<div className='grid grid-cols-2 gap-4'>
+				<fieldset className='space-y-4'>
+					<legend className='text-sm font-semibold'>Company</legend>
 					<FormField
 						control={form.control}
-						name='email'
+						name='name'
 						render={({ field }) => (
 							<FormItem>
-								<FormLabel>Email</FormLabel>
+								<FormLabel>Company Name</FormLabel>
 								<FormControl>
 									<Input
-										type='email'
-										placeholder='client@example.com'
+										placeholder='Acme Corp'
+										{...field}
+										value={field.value ?? ''}
+									/>
+								</FormControl>
+								<FormMessage />
+							</FormItem>
+						)}
+					/>
+					<div className='grid grid-cols-1 gap-4 sm:grid-cols-2'>
+						<FormField
+							control={form.control}
+							name='email'
+							render={({ field }) => (
+								<FormItem>
+									<FormLabel>Company Email</FormLabel>
+									<FormControl>
+										<Input
+											type='email'
+											placeholder='billing@acme.com'
+											{...field}
+											value={field.value ?? ''}
+										/>
+									</FormControl>
+									<FormMessage />
+								</FormItem>
+							)}
+						/>
+						<FormField
+							control={form.control}
+							name='phone'
+							render={({ field }) => (
+								<FormItem>
+									<FormLabel>Company Phone</FormLabel>
+									<FormControl>
+										<Input
+											placeholder='+1 555 0100'
+											{...field}
+											value={field.value ?? ''}
+										/>
+									</FormControl>
+									<FormMessage />
+								</FormItem>
+							)}
+						/>
+					</div>
+					<FormField
+						control={form.control}
+						name='address'
+						render={({ field }) => (
+							<FormItem>
+								<FormLabel>Company Address</FormLabel>
+								<FormControl>
+									<Textarea
+										placeholder='123 Main St, City, State'
+										rows={2}
 										{...field}
 										value={field.value ?? ''}
 									/>
@@ -345,13 +477,13 @@ function EditClientForm({
 					/>
 					<FormField
 						control={form.control}
-						name='phone'
+						name='taxId'
 						render={({ field }) => (
 							<FormItem>
-								<FormLabel>Phone</FormLabel>
+								<FormLabel>Tax ID</FormLabel>
 								<FormControl>
 									<Input
-										placeholder='+1 555 0100'
+										placeholder='123-456-789'
 										{...field}
 										value={field.value ?? ''}
 									/>
@@ -360,25 +492,65 @@ function EditClientForm({
 							</FormItem>
 						)}
 					/>
-				</div>
-				<FormField
-					control={form.control}
-					name='address'
-					render={({ field }) => (
-						<FormItem>
-							<FormLabel>Address</FormLabel>
-							<FormControl>
-								<Textarea
-									placeholder='123 Main St, City, State'
-									rows={2}
-									{...field}
-									value={field.value ?? ''}
-								/>
-							</FormControl>
-							<FormMessage />
-						</FormItem>
-					)}
-				/>
+				</fieldset>
+
+				<fieldset className='space-y-4 border-t pt-4'>
+					<legend className='pr-2 text-sm font-semibold'>Contact Person</legend>
+					<FormField
+						control={form.control}
+						name='contactName'
+						render={({ field }) => (
+							<FormItem>
+								<FormLabel>Contact Name</FormLabel>
+								<FormControl>
+									<Input
+										placeholder='Jane Dela Cruz'
+										{...field}
+										value={field.value ?? ''}
+									/>
+								</FormControl>
+								<FormMessage />
+							</FormItem>
+						)}
+					/>
+					<div className='grid grid-cols-1 gap-4 sm:grid-cols-2'>
+						<FormField
+							control={form.control}
+							name='contactEmail'
+							render={({ field }) => (
+								<FormItem>
+									<FormLabel>Contact Email</FormLabel>
+									<FormControl>
+										<Input
+											type='email'
+											placeholder='jane@acme.com'
+											{...field}
+											value={field.value ?? ''}
+										/>
+									</FormControl>
+									<FormMessage />
+								</FormItem>
+							)}
+						/>
+						<FormField
+							control={form.control}
+							name='contactPhone'
+							render={({ field }) => (
+								<FormItem>
+									<FormLabel>Contact Phone</FormLabel>
+									<FormControl>
+										<Input
+											placeholder='+1 555 0101'
+											{...field}
+											value={field.value ?? ''}
+										/>
+									</FormControl>
+									<FormMessage />
+								</FormItem>
+							)}
+						/>
+					</div>
+				</fieldset>
 				<FormField
 					control={form.control}
 					name='defaultRate'
@@ -485,7 +657,7 @@ export function ClientForm({
 }: ClientFormProps) {
 	return (
 		<Dialog open={open} onOpenChange={onOpenChange}>
-			<DialogContent className='sm:max-w-[480px]'>
+			<DialogContent className='max-h-[90vh] overflow-y-auto sm:max-w-[520px]'>
 				<DialogHeader>
 					<DialogTitle>
 						{mode === 'create' ? 'Add Client' : 'Edit Client'}

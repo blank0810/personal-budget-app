@@ -38,11 +38,13 @@ import {
 } from 'lucide-react';
 import { InvoiceStatus } from '@prisma/client';
 import { cn } from '@/lib/utils';
+import { billedPartyName } from '@/lib/invoice-party';
 
 export interface InvoiceRow {
 	id: string;
 	invoiceNumber: string;
-	clientName: string;
+	companyName: string | null;
+	clientName: string | null;
 	totalAmount: number;
 	currency: string;
 	issueDate: string | Date;
@@ -120,7 +122,7 @@ export function InvoiceList({ invoices }: InvoiceListProps) {
 					cmp = a.invoiceNumber.localeCompare(b.invoiceNumber);
 					break;
 				case 'clientName':
-					cmp = a.clientName.localeCompare(b.clientName);
+					cmp = billedPartyName(a).localeCompare(billedPartyName(b));
 					break;
 				case 'totalAmount':
 					cmp = a.totalAmount - b.totalAmount;
@@ -214,7 +216,7 @@ export function InvoiceList({ invoices }: InvoiceListProps) {
 								/>
 								<SortableHeader
 									field='clientName'
-									label='Client'
+									label='Billed To'
 									sortField={sortField}
 									onSort={handleSort}
 								/>
@@ -253,7 +255,20 @@ export function InvoiceList({ invoices }: InvoiceListProps) {
 											{invoice.invoiceNumber}
 										</Link>
 									</TableCell>
-									<TableCell>{invoice.clientName}</TableCell>
+									<TableCell>
+										{invoice.companyName?.trim() ? (
+											<>
+												<div>{billedPartyName(invoice)}</div>
+												{invoice.clientName?.trim() ? (
+													<div className='text-xs text-muted-foreground'>
+														Attn: {invoice.clientName}
+													</div>
+												) : null}
+											</>
+										) : (
+											invoice.clientName
+										)}
+									</TableCell>
 									<TableCell>
 										{formatCurrency(invoice.totalAmount, {
 											currency: invoice.currency,

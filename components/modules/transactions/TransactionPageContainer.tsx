@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState, useTransition } from 'react';
+import { useCallback, useEffect, useRef, useState, useTransition } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { TransactionKPICards } from './TransactionKPICards';
@@ -42,6 +42,7 @@ export function TransactionPageContainer({
 
 	// Sync state when server re-renders with fresh data (e.g. after router.refresh())
 	useEffect(() => {
+		// eslint-disable-next-line react-hooks/set-state-in-effect -- Server refreshes intentionally replace the local result set.
 		setTransactions(initialTransactions);
 		setTotal(initialTotal);
 		setSummary(initialSummary);
@@ -94,14 +95,14 @@ export function TransactionPageContainer({
 	}, [searchParams]);
 
 	// Trigger re-fetch when search params change (skip initial render)
-	const [isInitial, setIsInitial] = useState(true);
+	const isInitial = useRef(true);
 	useEffect(() => {
-		if (isInitial) {
-			setIsInitial(false);
+		if (isInitial.current) {
+			isInitial.current = false;
 			return;
 		}
 		fetchTransactions();
-	}, [searchParams, fetchTransactions, isInitial]);
+	}, [searchParams, fetchTransactions]);
 
 	return (
 		<div className='space-y-6'>

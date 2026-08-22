@@ -3,6 +3,7 @@
 import { useState, useTransition, useCallback } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import Image from 'next/image';
 import { format } from 'date-fns';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -29,6 +30,10 @@ import {
 	ExternalLink,
 } from 'lucide-react';
 import { InvoiceStatus } from '@prisma/client';
+import {
+	billedPartyName,
+	invoiceRecipientEmail,
+} from '@/lib/invoice-party';
 
 interface LineItem {
 	id: string;
@@ -44,7 +49,12 @@ export interface InvoiceWithDetails {
 	invoiceNumber: string;
 	userName: string | null;
 	userEmail: string | null;
-	clientName: string;
+	companyName: string | null;
+	companyAddress: string | null;
+	companyTaxId: string | null;
+	companyEmail: string | null;
+	companyPhone: string | null;
+	clientName: string | null;
 	clientEmail: string | null;
 	clientAddress: string | null;
 	clientPhone: string | null;
@@ -147,6 +157,9 @@ function InvoicePreview({
 	formatCurrency: (value: number) => string;
 	paymentQr?: string | null;
 }) {
+	const hasCompany = Boolean(invoice.companyName?.trim());
+	const hasContact = Boolean(invoice.clientName?.trim());
+
 	return (
 		<div className="mx-auto w-full max-w-[800px]">
 			<Card className="shadow-lg">
@@ -214,23 +227,72 @@ function InvoicePreview({
 								<p className="text-[11px] font-bold uppercase tracking-wider text-[#6b7280] mb-1.5">
 									Bill To
 								</p>
-								<p className="text-sm font-bold text-[#111111]">
-									{invoice.clientName}
+								<p className='text-sm font-bold text-[#111111]'>
+									{billedPartyName(invoice)}
 								</p>
-								{invoice.clientEmail && (
-									<p className="text-xs text-[#4b5563]">
-										{invoice.clientEmail}
-									</p>
-								)}
-								{invoice.clientPhone && (
-									<p className="text-xs text-[#4b5563]">
-										{invoice.clientPhone}
-									</p>
-								)}
-								{invoice.clientAddress && (
-									<p className="text-xs text-[#4b5563] whitespace-pre-line">
-										{invoice.clientAddress}
-									</p>
+								{hasCompany ? (
+									<>
+										{invoice.companyAddress && (
+											<p className='whitespace-pre-line text-xs text-[#4b5563]'>
+												{invoice.companyAddress}
+											</p>
+										)}
+										{invoice.companyTaxId && (
+											<p className='text-xs text-[#4b5563]'>
+												Tax ID: {invoice.companyTaxId}
+											</p>
+										)}
+										{invoice.companyEmail && (
+											<p className='text-xs text-[#4b5563]'>
+												{invoice.companyEmail}
+											</p>
+										)}
+										{invoice.companyPhone && (
+											<p className='text-xs text-[#4b5563]'>
+												{invoice.companyPhone}
+											</p>
+										)}
+										{hasContact && (
+											<div className='mt-2'>
+												<p className='text-xs font-medium text-[#111111]'>
+													Attn: {invoice.clientName}
+												</p>
+												{invoice.clientEmail && (
+													<p className='text-xs text-[#4b5563]'>
+														{invoice.clientEmail}
+													</p>
+												)}
+												{invoice.clientPhone && (
+													<p className='text-xs text-[#4b5563]'>
+														{invoice.clientPhone}
+													</p>
+												)}
+												{invoice.clientAddress && (
+													<p className='whitespace-pre-line text-xs text-[#4b5563]'>
+														{invoice.clientAddress}
+													</p>
+												)}
+											</div>
+										)}
+									</>
+								) : (
+									<>
+										{invoice.clientEmail && (
+											<p className="text-xs text-[#4b5563]">
+												{invoice.clientEmail}
+											</p>
+										)}
+										{invoice.clientPhone && (
+											<p className="text-xs text-[#4b5563]">
+												{invoice.clientPhone}
+											</p>
+										)}
+										{invoice.clientAddress && (
+											<p className="text-xs text-[#4b5563] whitespace-pre-line">
+												{invoice.clientAddress}
+											</p>
+										)}
+									</>
 								)}
 							</div>
 						</div>
@@ -319,11 +381,13 @@ function InvoicePreview({
 											</p>
 										</div>
 										{paymentQr && (
-											<img
-												src={paymentQr}
-												role='img'
-												aria-label='Payment link QR code'
-												className='h-20 w-20 shrink-0 rounded border border-[#e5e5e5] bg-white'
+										<Image
+											src={paymentQr}
+											alt='Payment link QR code'
+											width={80}
+											height={80}
+											unoptimized
+											className='h-20 w-20 shrink-0 rounded border border-[#e5e5e5] bg-white'
 											/>
 										)}
 									</div>
@@ -426,6 +490,7 @@ export function InvoiceDetail({ invoice, paymentQr }: InvoiceDetailProps) {
 	const [isPending, startTransition] = useTransition();
 	const [sentDialogOpen, setSentDialogOpen] = useState(false);
 	const [paidDialogOpen, setPaidDialogOpen] = useState(false);
+	const recipientEmail = invoiceRecipientEmail(invoice);
 
 	// Use the invoice's own currency for formatting, falling back to USD
 	const formatCurrency = useCallback(
@@ -547,7 +612,7 @@ export function InvoiceDetail({ invoice, paymentQr }: InvoiceDetailProps) {
 								<CheckCircle className="mr-2 h-4 w-4" />
 								Mark as Paid
 							</Button>
-							{invoice.clientEmail && (
+							{recipientEmail && (
 								<Button
 									variant="outline"
 									onClick={handleResend}
@@ -584,7 +649,7 @@ export function InvoiceDetail({ invoice, paymentQr }: InvoiceDetailProps) {
 
 					{invoice.status === 'PAID' && (
 						<>
-							{invoice.clientEmail && (
+							{recipientEmail && (
 								<Button
 									variant="outline"
 									onClick={handleResend}
@@ -635,7 +700,7 @@ export function InvoiceDetail({ invoice, paymentQr }: InvoiceDetailProps) {
 
 			<MarkAsSentDialog
 				invoiceId={invoice.id}
-				clientEmail={invoice.clientEmail}
+				clientEmail={recipientEmail}
 				open={sentDialogOpen}
 				onSuccess={() => router.refresh()}
 				onClose={() => setSentDialogOpen(false)}
@@ -643,7 +708,7 @@ export function InvoiceDetail({ invoice, paymentQr }: InvoiceDetailProps) {
 
 			<MarkAsPaidDialog
 				invoiceId={invoice.id}
-				clientEmail={invoice.clientEmail}
+				clientEmail={recipientEmail}
 				open={paidDialogOpen}
 				onSuccess={() => router.refresh()}
 				onClose={() => setPaidDialogOpen(false)}
