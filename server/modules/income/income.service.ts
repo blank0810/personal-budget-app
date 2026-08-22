@@ -9,12 +9,17 @@ import { CategoryService } from '../category/category.service';
 import { NotificationService } from '@/server/modules/notification/notification.service';
 import { AccountType, Prisma } from '@prisma/client';
 import { subMonths, format } from 'date-fns';
+import { percentageOf, roundMoney } from '@/lib/money';
 
 export const IncomeService = {
 	/**
 	 * Create a new income entry
 	 */
 	async createIncome(userId: string, data: CreateIncomeInput) {
+		const amount = roundMoney(data.amount);
+		let bookedTitheAmount: number | undefined;
+		let bookedEfAmount: number | undefined;
+
 		// Transaction to ensure account balance is updated if accountId is provided
 		const income = await prisma.$transaction(async (tx) => {
 			// Handle category: get existing or create new
@@ -36,7 +41,7 @@ export const IncomeService = {
 
 			const created = await tx.income.create({
 				data: {
-					amount: data.amount,
+					amount,
 					description: data.description,
 					date: data.date,
 					categoryId,
@@ -57,15 +62,15 @@ export const IncomeService = {
 					where: { id: data.accountId, userId },
 					data: {
 						balance: account?.isLiability
-							? { decrement: data.amount } // Liability: income/payment reduces debt
-							: { increment: data.amount }, // Asset: income increases balance
+							? { decrement: amount } // Liability: income/payment reduces debt
+							: { increment: amount }, // Asset: income increases balance
 					},
 				});
 
 				// Handle Church Tithe (only for asset accounts, not liabilities)
 				if (data.titheEnabled && data.tithePercentage && !account?.isLiability) {
-					const titheAmount =
-						data.amount * (data.tithePercentage / 100);
+					const titheAmount = percentageOf(amount, data.tithePercentage);
+					bookedTitheAmount = titheAmount;
 
 					// 1. Find or Create "Tithes" Account
 					// Prioritize finding an account explicitly typed as TITHE
@@ -127,8 +132,10 @@ export const IncomeService = {
 					data.emergencyFundPercentage &&
 					!account?.isLiability
 				) {
-					const efAmount =
-						data.amount * (data.emergencyFundPercentage / 100);
+					const efAmount = percentageOf(
+						amount,
+						data.emergencyFundPercentage
+					);
 
 					// Find Emergency Fund goal with linked account
 					const efGoal = await tx.goal.findFirst({
@@ -142,6 +149,8 @@ export const IncomeService = {
 					});
 
 					if (efGoal?.linkedAccountId) {
+						bookedEfAmount = efAmount;
+
 						// Create Transfer record for audit trail
 						await tx.transfer.create({
 							data: {
@@ -214,49 +223,24 @@ export const IncomeService = {
 				emergencyFund?: { amount: number; percentage: number };
 			} = {};
 
-			if (data.titheEnabled && data.tithePercentage && accountId) {
-				// Check if account is asset (not liability) — same condition as tithe logic above
-				const acc = await prisma.account.findUnique({
-					where: { id: accountId },
-					select: { isLiability: true },
-				});
-				if (acc && !acc.isLiability) {
-					deductions.tithe = {
-						amount: data.amount * (data.tithePercentage / 100),
-						percentage: data.tithePercentage,
-					};
-				}
+			if (bookedTitheAmount !== undefined && data.tithePercentage) {
+				deductions.tithe = {
+					amount: bookedTitheAmount,
+					percentage: data.tithePercentage,
+				};
 			}
 
-			if (data.emergencyFundEnabled && data.emergencyFundPercentage && accountId) {
-				const acc = await prisma.account.findUnique({
-					where: { id: accountId },
-					select: { isLiability: true },
-				});
-				if (acc && !acc.isLiability) {
-					// Only include if there's an active EF goal with linked account
-					const efGoal = await prisma.goal.findFirst({
-						where: {
-							userId,
-							isEmergencyFund: true,
-							status: 'ACTIVE',
-							linkedAccountId: { not: null },
-						},
-						select: { id: true },
-					});
-					if (efGoal) {
-						deductions.emergencyFund = {
-							amount: data.amount * (data.emergencyFundPercentage / 100),
-							percentage: data.emergencyFundPercentage,
-						};
-					}
-				}
+			if (bookedEfAmount !== undefined && data.emergencyFundPercentage) {
+				deductions.emergencyFund = {
+					amount: bookedEfAmount,
+					percentage: data.emergencyFundPercentage,
+				};
 			}
 
 			NotificationService.sendIncomeNotification(
 				userId,
 				{
-					amount: data.amount,
+					amount,
 					description: data.description || null,
 					categoryName,
 				},
@@ -460,6 +444,7 @@ export const IncomeService = {
 			//    but they ARE in the input payload, so strip them off the
 			//    Prisma data shape.
 			const {
+				amount: requestedAmount,
 				titheEnabled: _t,
 				tithePercentage: _tp,
 				emergencyFundEnabled: _ef,
@@ -467,13 +452,15 @@ export const IncomeService = {
 				categoryName: _cn,
 				...prismaUpdate
 			} = updateData;
+			const newAmount = roundMoney(
+				requestedAmount ?? oldIncome.amount.toNumber()
+			);
 			const updatedIncome = await tx.income.update({
 				where: { id, userId },
-				data: prismaUpdate,
+				data: { ...prismaUpdate, amount: newAmount },
 			});
 
 			const newAccountId = updatedIncome.accountId;
-			const newAmount = updatedIncome.amount.toNumber();
 			const newDate = updatedIncome.date;
 			const newDescription = updatedIncome.description;
 
@@ -504,7 +491,7 @@ export const IncomeService = {
 					tithePercentage > 0 &&
 					!isLiability
 				) {
-					const titheAmount = newAmount * (tithePercentage / 100);
+					const titheAmount = percentageOf(newAmount, tithePercentage);
 
 					// Find or create Tithes account (mirror createIncome).
 					let titheAccount = await tx.account.findFirst({
@@ -558,7 +545,7 @@ export const IncomeService = {
 					efPercentage > 0 &&
 					!isLiability
 				) {
-					const efAmount = newAmount * (efPercentage / 100);
+					const efAmount = percentageOf(newAmount, efPercentage);
 
 					const efGoal = await tx.goal.findFirst({
 						where: {

@@ -43,7 +43,9 @@ const mocks = vi.hoisted(() => {
 	};
 
 	const incomeFindUniqueOrThrow = vi.fn();
+	const incomeCreate = vi.fn();
 	const incomeUpdate = vi.fn();
+	const categoryFindUnique = vi.fn();
 	const accountFindUnique = vi.fn();
 	const accountFindFirst = vi.fn();
 	const accountUpdate = vi.fn();
@@ -52,11 +54,14 @@ const mocks = vi.hoisted(() => {
 	const transferDelete = vi.fn();
 	const goalFindFirst = vi.fn();
 	const goalUpdate = vi.fn();
+	const sendIncomeNotification = vi.fn();
 
 	return {
 		state,
 		incomeFindUniqueOrThrow,
+		incomeCreate,
 		incomeUpdate,
+		categoryFindUnique,
 		accountFindUnique,
 		accountFindFirst,
 		accountUpdate,
@@ -65,6 +70,7 @@ const mocks = vi.hoisted(() => {
 		transferDelete,
 		goalFindFirst,
 		goalUpdate,
+		sendIncomeNotification,
 	};
 });
 
@@ -72,7 +78,11 @@ vi.mock('@/lib/prisma', () => {
 	const tx = {
 		income: {
 			findUniqueOrThrow: mocks.incomeFindUniqueOrThrow,
+			create: mocks.incomeCreate,
 			update: mocks.incomeUpdate,
+		},
+		category: {
+			findUnique: mocks.categoryFindUnique,
 		},
 		account: {
 			findUnique: mocks.accountFindUnique,
@@ -101,15 +111,19 @@ vi.mock('@/lib/prisma', () => {
 
 vi.mock('../category/category.service', () => ({ CategoryService: {} }));
 vi.mock('@/server/modules/notification/notification.service', () => ({
-	NotificationService: { sendIncomeNotification: vi.fn() },
+	NotificationService: { sendIncomeNotification: mocks.sendIncomeNotification },
 }));
 
 import { IncomeService } from './income.service';
+import { toCents } from '@/lib/money';
+import type { CreateIncomeInput } from './income.types';
 
 describe('IncomeService.updateIncome — P0-1 reverse-then-reapply', () => {
 	beforeEach(() => {
 		mocks.incomeFindUniqueOrThrow.mockReset();
+		mocks.incomeCreate.mockReset();
 		mocks.incomeUpdate.mockReset();
+		mocks.categoryFindUnique.mockReset();
 		mocks.accountFindUnique.mockReset();
 		mocks.accountFindFirst.mockReset();
 		mocks.accountUpdate.mockReset();
@@ -118,6 +132,7 @@ describe('IncomeService.updateIncome — P0-1 reverse-then-reapply', () => {
 		mocks.transferDelete.mockReset();
 		mocks.goalFindFirst.mockReset();
 		mocks.goalUpdate.mockReset();
+		mocks.sendIncomeNotification.mockReset();
 		mocks.state.oldIncome = null;
 		mocks.state.accountsById.clear();
 		mocks.state.titheAccount = null;
@@ -364,5 +379,378 @@ describe('IncomeService.updateIncome — P0-1 reverse-then-reapply', () => {
 				data: { currentAmount: { increment: 100 } },
 			})
 		);
+	});
+});
+
+type NumericMutationValue = number | Prisma.Decimal;
+
+type BalanceMutationArgs = {
+	where: { id: string; userId: string };
+	data: {
+		balance: {
+			increment?: NumericMutationValue;
+			decrement?: NumericMutationValue;
+		};
+	};
+};
+
+type GoalMutationArgs = {
+	data: {
+		currentAmount: {
+			increment?: NumericMutationValue;
+			decrement?: NumericMutationValue;
+		};
+	};
+};
+
+type TransferCreateArgs = {
+	data: { amount: number };
+};
+
+type IncomeWriteArgs = {
+	data: { amount: number };
+};
+
+function numericValue(value: NumericMutationValue): number {
+	return typeof value === 'number' ? value : value.toNumber();
+}
+
+function balanceMutations(start = 0): BalanceMutationArgs[] {
+	const calls = mocks.accountUpdate.mock.calls as unknown as Array<
+		[BalanceMutationArgs]
+	>;
+	return calls.slice(start).map(([args]) => args);
+}
+
+function goalMutations(start = 0): GoalMutationArgs[] {
+	const calls = mocks.goalUpdate.mock.calls as unknown as Array<
+		[GoalMutationArgs]
+	>;
+	return calls.slice(start).map(([args]) => args);
+}
+
+function transferCreates(start = 0): TransferCreateArgs[] {
+	const calls = mocks.transferCreate.mock.calls as unknown as Array<
+		[TransferCreateArgs]
+	>;
+	return calls.slice(start).map(([args]) => args);
+}
+
+function netBalanceChangeInCents(
+	mutations: BalanceMutationArgs[],
+	accountId: string
+): number {
+	return mutations
+		.filter((mutation) => mutation.where.id === accountId)
+		.reduce((total, mutation) => {
+			const { increment, decrement } = mutation.data.balance;
+			if (increment !== undefined) {
+				return total + toCents(numericValue(increment));
+			}
+			if (decrement !== undefined) {
+				return total - toCents(numericValue(decrement));
+			}
+			return total;
+		}, 0);
+}
+
+function netGoalChangeInCents(mutations: GoalMutationArgs[]): number {
+	return mutations.reduce((total, mutation) => {
+		const { increment, decrement } = mutation.data.currentAmount;
+		if (increment !== undefined) {
+			return total + toCents(numericValue(increment));
+		}
+		if (decrement !== undefined) {
+			return total - toCents(numericValue(decrement));
+		}
+		return total;
+	}, 0);
+}
+
+function createIncomeInput(
+	overrides: Partial<CreateIncomeInput> = {}
+): CreateIncomeInput {
+	return {
+		amount: 100.55,
+		description: 'Salary',
+		date: new Date('2026-04-01'),
+		categoryId: 'category-1',
+		accountId: 'main-asset',
+		titheEnabled: false,
+		tithePercentage: 10,
+		emergencyFundEnabled: false,
+		emergencyFundPercentage: 10,
+		...overrides,
+	};
+}
+
+describe('IncomeService money rounding symmetry', () => {
+	beforeEach(() => {
+		vi.resetAllMocks();
+		mocks.state.oldIncome = null;
+		mocks.state.accountsById.clear();
+		mocks.state.titheAccount = null;
+		mocks.state.efGoal = null;
+
+		mocks.incomeCreate.mockImplementation(
+			async ({ data }: { data: Record<string, unknown> & { amount: number } }) => ({
+				id: 'inc-1',
+				...data,
+				amount: new D(data.amount),
+			})
+		);
+		mocks.categoryFindUnique.mockResolvedValue({ name: 'Salary' });
+		mocks.accountFindUnique.mockResolvedValue({
+			isLiability: false,
+			name: 'Checking',
+			balance: new D(1000),
+		});
+		mocks.sendIncomeNotification.mockResolvedValue(undefined);
+	});
+
+	it('books and reverses the identical rounded tithe amount', async () => {
+		mocks.accountFindFirst.mockResolvedValue({
+			id: 'tithes-acct',
+			isLiability: false,
+		});
+
+		await IncomeService.createIncome(
+			'user-1',
+			createIncomeInput({ titheEnabled: true, tithePercentage: 10 })
+		);
+
+		const bookedAmount = transferCreates()[0].data.amount;
+		const createBalanceMutations = balanceMutations();
+		const sourceDeduction = createBalanceMutations.find(
+			(mutation) =>
+				mutation.where.id === 'main-asset' &&
+				mutation.data.balance.decrement !== undefined
+		)?.data.balance.decrement;
+		const destinationIncrement = createBalanceMutations.find(
+			(mutation) =>
+				mutation.where.id === 'tithes-acct' &&
+				mutation.data.balance.increment !== undefined
+		)?.data.balance.increment;
+
+		expect(typeof bookedAmount).toBe('number');
+		expect([
+			bookedAmount,
+			numericValue(sourceDeduction!),
+			numericValue(destinationIncrement!),
+		]).toEqual([10.06, 10.06, 10.06]);
+		expect(mocks.sendIncomeNotification).toHaveBeenCalledWith(
+			'user-1',
+			expect.anything(),
+			expect.anything(),
+			{ tithe: { amount: bookedAmount, percentage: 10 } }
+		);
+
+		const balanceStart = mocks.accountUpdate.mock.calls.length;
+		const transferStart = mocks.transferCreate.mock.calls.length;
+		mocks.incomeFindUniqueOrThrow.mockResolvedValue({
+			id: 'inc-1',
+			accountId: 'main-asset',
+			amount: new D(100.55),
+			date: new Date('2026-04-01'),
+			description: 'Salary',
+			childTransfers: [
+				{
+					id: 'xfer-tithe-1',
+					amount: new D(bookedAmount),
+					fromAccountId: 'main-asset',
+					toAccountId: 'tithes-acct',
+					efGoalId: null,
+				},
+			],
+		});
+		mocks.incomeUpdate.mockResolvedValue({
+			id: 'inc-1',
+			accountId: 'main-asset',
+			amount: new D(100.55),
+			date: new Date('2026-04-01'),
+			description: 'Salary',
+		});
+
+		await IncomeService.updateIncome('user-1', {
+			id: 'inc-1',
+			amount: 100.55,
+			titheEnabled: true,
+			tithePercentage: 10,
+		});
+
+		const updateBalanceMutations = balanceMutations(balanceStart);
+		expect(
+			numericValue(updateBalanceMutations[0].data.balance.increment!)
+		).toBe(bookedAmount);
+		expect(
+			numericValue(updateBalanceMutations[1].data.balance.decrement!)
+		).toBe(bookedAmount);
+		expect(transferCreates(transferStart)[0].data.amount).toBe(bookedAmount);
+		expect(
+			netBalanceChangeInCents(updateBalanceMutations, 'main-asset')
+		).toBe(0);
+		expect(
+			netBalanceChangeInCents(updateBalanceMutations, 'tithes-acct')
+		).toBe(0);
+	});
+
+	it('books and reverses one rounded emergency-fund amount everywhere', async () => {
+		mocks.goalFindFirst.mockResolvedValue({
+			id: 'goal-1',
+			linkedAccountId: 'ef-acct',
+		});
+
+		await IncomeService.createIncome(
+			'user-1',
+			createIncomeInput({
+				amount: 62,
+				emergencyFundEnabled: true,
+				emergencyFundPercentage: 8.25,
+			})
+		);
+
+		const bookedAmount = transferCreates()[0].data.amount;
+		const createBalanceMutations = balanceMutations();
+		const sourceDeduction = createBalanceMutations.find(
+			(mutation) =>
+				mutation.where.id === 'main-asset' &&
+				mutation.data.balance.decrement !== undefined
+		)?.data.balance.decrement;
+		const destinationIncrement = createBalanceMutations.find(
+			(mutation) =>
+				mutation.where.id === 'ef-acct' &&
+				mutation.data.balance.increment !== undefined
+		)?.data.balance.increment;
+		const goalIncrement = goalMutations()[0].data.currentAmount.increment;
+
+		expect(typeof bookedAmount).toBe('number');
+		expect([
+			bookedAmount,
+			numericValue(sourceDeduction!),
+			numericValue(destinationIncrement!),
+			numericValue(goalIncrement!),
+		]).toEqual([5.12, 5.12, 5.12, 5.12]);
+		expect(mocks.sendIncomeNotification).toHaveBeenCalledWith(
+			'user-1',
+			expect.anything(),
+			expect.anything(),
+			{ emergencyFund: { amount: bookedAmount, percentage: 8.25 } }
+		);
+
+		const balanceStart = mocks.accountUpdate.mock.calls.length;
+		const goalStart = mocks.goalUpdate.mock.calls.length;
+		const transferStart = mocks.transferCreate.mock.calls.length;
+		mocks.incomeFindUniqueOrThrow.mockResolvedValue({
+			id: 'inc-1',
+			accountId: 'main-asset',
+			amount: new D(62),
+			date: new Date('2026-04-01'),
+			description: 'Salary',
+			childTransfers: [
+				{
+					id: 'xfer-ef-1',
+					amount: new D(bookedAmount),
+					fromAccountId: 'main-asset',
+					toAccountId: 'ef-acct',
+					efGoalId: 'goal-1',
+				},
+			],
+		});
+		mocks.incomeUpdate.mockResolvedValue({
+			id: 'inc-1',
+			accountId: 'main-asset',
+			amount: new D(62),
+			date: new Date('2026-04-01'),
+			description: 'Salary',
+		});
+
+		await IncomeService.updateIncome('user-1', {
+			id: 'inc-1',
+			amount: 62,
+			emergencyFundEnabled: true,
+			emergencyFundPercentage: 8.25,
+		});
+
+		const updateBalanceMutations = balanceMutations(balanceStart);
+		const updateGoalMutations = goalMutations(goalStart);
+		expect(
+			numericValue(updateBalanceMutations[0].data.balance.increment!)
+		).toBe(bookedAmount);
+		expect(
+			numericValue(updateBalanceMutations[1].data.balance.decrement!)
+		).toBe(bookedAmount);
+		expect(
+			numericValue(
+				updateGoalMutations[0].data.currentAmount.decrement!
+			)
+		).toBe(bookedAmount);
+		expect(
+			numericValue(
+				updateGoalMutations[1].data.currentAmount.increment!
+			)
+		).toBe(bookedAmount);
+		expect(transferCreates(transferStart)[0].data.amount).toBe(bookedAmount);
+		expect(
+			netBalanceChangeInCents(updateBalanceMutations, 'main-asset')
+		).toBe(0);
+		expect(
+			netBalanceChangeInCents(updateBalanceMutations, 'ef-acct')
+		).toBe(0);
+		expect(netGoalChangeInCents(updateGoalMutations)).toBe(0);
+	});
+
+	it('writes and applies the same rounded income amount on create and update', async () => {
+		await IncomeService.createIncome(
+			'user-1',
+			createIncomeInput({ amount: 100.555 })
+		);
+
+		const incomeCreateCalls = mocks.incomeCreate.mock.calls as unknown as Array<
+			[IncomeWriteArgs]
+		>;
+		const storedCreateAmount = incomeCreateCalls[0][0].data.amount;
+		const createBalanceAmount = numericValue(
+			balanceMutations()[0].data.balance.increment!
+		);
+
+		expect(storedCreateAmount).toBe(100.56);
+		expect(createBalanceAmount).toBe(storedCreateAmount);
+
+		const balanceStart = mocks.accountUpdate.mock.calls.length;
+		mocks.incomeFindUniqueOrThrow.mockResolvedValue({
+			id: 'inc-1',
+			accountId: 'main-asset',
+			amount: new D(storedCreateAmount),
+			date: new Date('2026-04-01'),
+			description: 'Salary',
+			childTransfers: [],
+		});
+		mocks.incomeUpdate.mockResolvedValue({
+			id: 'inc-1',
+			accountId: 'main-asset',
+			amount: new D(100.56),
+			date: new Date('2026-04-01'),
+			description: 'Salary',
+		});
+
+		await IncomeService.updateIncome('user-1', {
+			id: 'inc-1',
+			amount: 100.555,
+		});
+
+		const incomeUpdateCalls = mocks.incomeUpdate.mock.calls as unknown as Array<
+			[IncomeWriteArgs]
+		>;
+		const storedUpdateAmount = incomeUpdateCalls[0][0].data.amount;
+		const updateBalanceMutations = balanceMutations(balanceStart);
+		const reappliedAmount = numericValue(
+			updateBalanceMutations[1].data.balance.increment!
+		);
+
+		expect(storedUpdateAmount).toBe(100.56);
+		expect(reappliedAmount).toBe(storedUpdateAmount);
+		expect(
+			netBalanceChangeInCents(updateBalanceMutations, 'main-asset')
+		).toBe(0);
 	});
 });
