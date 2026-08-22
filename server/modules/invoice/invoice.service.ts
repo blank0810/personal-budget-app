@@ -6,6 +6,7 @@ import {
 	MarkAsSentInput,
 	MarkAsPaidInput,
 	GetInvoicesInput,
+	ExportInvoicesInput,
 	GenerateFromEntriesInput,
 	InvoiceSummary,
 } from './invoice.types';
@@ -26,6 +27,7 @@ import {
 	normalizeTaxRate,
 } from '@/lib/invoice-totals';
 import { InvoiceStatus } from '@prisma/client';
+import type { ExportRow } from '@/lib/invoice-csv';
 
 const SENT_EMAIL_WARNING =
 	'Invoice was marked as sent, but the email could not be delivered. You can retry from this invoice.';
@@ -35,6 +37,13 @@ const PAID_EMAIL_WARNING =
 	'Invoice was marked as paid, but the receipt email could not be delivered. You can retry from this invoice.';
 const PAID_EMAIL_MISSING_WARNING =
 	'Invoice was marked as paid, but no recipient email is available. Add a contact or company email before retrying.';
+
+/** The last instant of the UTC day `value` falls on. */
+function endOfUtcDay(value: Date): Date {
+	const end = new Date(value);
+	end.setUTCHours(23, 59, 59, 999);
+	return end;
+}
 
 function isRecordNotFoundError(error: unknown): boolean {
 	return (
@@ -879,6 +888,63 @@ export const InvoiceService = {
 			return await tx.invoice.delete({
 				where: { id: invoiceId, userId },
 			});
+		});
+	},
+
+	/**
+	 * Get the narrow invoice projection shared by downloadable exports.
+	 */
+	async getForExport(
+		userId: string,
+		input: ExportInvoicesInput
+	): Promise<ExportRow[]> {
+		const statuses: InvoiceStatus[] =
+			input.payment === 'PAID'
+				? [InvoiceStatus.PAID]
+				: input.payment === 'UNPAID'
+					? [InvoiceStatus.SENT, InvoiceStatus.OVERDUE]
+					: [
+							InvoiceStatus.PAID,
+							InvoiceStatus.SENT,
+							InvoiceStatus.OVERDUE,
+						];
+
+		if (input.includeDrafts) {
+			statuses.push(InvoiceStatus.DRAFT);
+		}
+		if (input.includeCancelled) {
+			statuses.push(InvoiceStatus.CANCELLED);
+		}
+
+		return await prisma.invoice.findMany({
+			where: {
+				userId,
+				status: { in: statuses },
+				issueDate: {
+					gte: input.from,
+					// End of the `to` day, not its midnight. Every issueDate today is
+					// exactly UTC midnight so `lte: input.to` happens to work, but one
+					// invoice with a time component would silently drop the last day
+					// of every range.
+					lte: endOfUtcDay(input.to),
+				},
+				...(input.clientId && { clientId: input.clientId }),
+			},
+			select: {
+				invoiceNumber: true,
+				status: true,
+				companyName: true,
+				clientName: true,
+				issueDate: true,
+				dueDate: true,
+				paidAt: true,
+				currency: true,
+				subtotal: true,
+				taxRate: true,
+				taxAmount: true,
+				totalAmount: true,
+			},
+			orderBy: [{ issueDate: 'asc' }, { invoiceNumber: 'asc' }],
 		});
 	},
 

@@ -11,6 +11,7 @@ import { InvoiceStatus } from '@prisma/client';
 const mocks = vi.hoisted(() => ({
 	events: [] as string[],
 	invoiceFindFirst: vi.fn(),
+	invoiceFindMany: vi.fn(),
 	invoiceFindUnique: vi.fn(),
 	invoiceCreate: vi.fn(),
 	invoiceUpdate: vi.fn(),
@@ -32,6 +33,7 @@ vi.mock('@/lib/prisma', () => {
 	const client = {
 		invoice: {
 			findFirst: mocks.invoiceFindFirst,
+			findMany: mocks.invoiceFindMany,
 			findUnique: mocks.invoiceFindUnique,
 			findUniqueOrThrow: mocks.invoiceFindUniqueOrThrow,
 			create: mocks.invoiceCreate,
@@ -158,6 +160,7 @@ beforeEach(() => {
 	vi.clearAllMocks();
 	mocks.events.length = 0;
 	mocks.invoiceFindFirst.mockResolvedValue(null);
+	mocks.invoiceFindMany.mockResolvedValue([]);
 	mocks.clientFindUnique.mockResolvedValue(null);
 	mocks.invoiceCreate.mockImplementation(async ({ data }) => ({
 		id: 'invoice-1',
@@ -693,5 +696,182 @@ describe('InvoiceService.update — currency follows the linked client', () => {
 			})
 		).rejects.toThrow('Client not found');
 		expect(mocks.invoiceUpdate).not.toHaveBeenCalled();
+	});
+});
+
+describe('InvoiceService.getForExport', () => {
+	const from = new Date('2026-05-01T00:00:00.000Z');
+	const to = new Date('2026-07-31T00:00:00.000Z');
+	// The service widens the end bound to the last instant of that UTC day so an
+	// invoice with a time component cannot fall out of the last day of a range.
+	const toEndOfDay = new Date('2026-07-31T23:59:59.999Z');
+
+	it.each([
+		{
+			payment: 'ALL' as const,
+			includeDrafts: false,
+			includeCancelled: false,
+			expected: [
+				InvoiceStatus.PAID,
+				InvoiceStatus.SENT,
+				InvoiceStatus.OVERDUE,
+			],
+		},
+		{
+			payment: 'ALL' as const,
+			includeDrafts: false,
+			includeCancelled: true,
+			expected: [
+				InvoiceStatus.PAID,
+				InvoiceStatus.SENT,
+				InvoiceStatus.OVERDUE,
+				InvoiceStatus.CANCELLED,
+			],
+		},
+		{
+			payment: 'ALL' as const,
+			includeDrafts: true,
+			includeCancelled: false,
+			expected: [
+				InvoiceStatus.PAID,
+				InvoiceStatus.SENT,
+				InvoiceStatus.OVERDUE,
+				InvoiceStatus.DRAFT,
+			],
+		},
+		{
+			payment: 'ALL' as const,
+			includeDrafts: true,
+			includeCancelled: true,
+			expected: [
+				InvoiceStatus.PAID,
+				InvoiceStatus.SENT,
+				InvoiceStatus.OVERDUE,
+				InvoiceStatus.DRAFT,
+				InvoiceStatus.CANCELLED,
+			],
+		},
+		{
+			payment: 'PAID' as const,
+			includeDrafts: false,
+			includeCancelled: false,
+			expected: [InvoiceStatus.PAID],
+		},
+		{
+			payment: 'PAID' as const,
+			includeDrafts: false,
+			includeCancelled: true,
+			expected: [InvoiceStatus.PAID, InvoiceStatus.CANCELLED],
+		},
+		{
+			payment: 'PAID' as const,
+			includeDrafts: true,
+			includeCancelled: false,
+			expected: [InvoiceStatus.PAID, InvoiceStatus.DRAFT],
+		},
+		{
+			payment: 'PAID' as const,
+			includeDrafts: true,
+			includeCancelled: true,
+			expected: [
+				InvoiceStatus.PAID,
+				InvoiceStatus.DRAFT,
+				InvoiceStatus.CANCELLED,
+			],
+		},
+		{
+			payment: 'UNPAID' as const,
+			includeDrafts: false,
+			includeCancelled: false,
+			expected: [InvoiceStatus.SENT, InvoiceStatus.OVERDUE],
+		},
+		{
+			payment: 'UNPAID' as const,
+			includeDrafts: false,
+			includeCancelled: true,
+			expected: [
+				InvoiceStatus.SENT,
+				InvoiceStatus.OVERDUE,
+				InvoiceStatus.CANCELLED,
+			],
+		},
+		{
+			payment: 'UNPAID' as const,
+			includeDrafts: true,
+			includeCancelled: false,
+			expected: [
+				InvoiceStatus.SENT,
+				InvoiceStatus.OVERDUE,
+				InvoiceStatus.DRAFT,
+			],
+		},
+		{
+			payment: 'UNPAID' as const,
+			includeDrafts: true,
+			includeCancelled: true,
+			expected: [
+				InvoiceStatus.SENT,
+				InvoiceStatus.OVERDUE,
+				InvoiceStatus.DRAFT,
+				InvoiceStatus.CANCELLED,
+			],
+		},
+	])(
+		'resolves $payment with drafts=$includeDrafts and cancelled=$includeCancelled',
+		async ({ payment, includeDrafts, includeCancelled, expected }) => {
+			await InvoiceService.getForExport('user-1', {
+				from,
+				to,
+				payment,
+				includeDrafts,
+				includeCancelled,
+			});
+
+			expect(
+				mocks.invoiceFindMany.mock.calls[0][0].where.status.in
+			).toEqual(expected);
+		}
+	);
+
+	it('applies ownership, date, client, projection, and stable ordering', async () => {
+		await InvoiceService.getForExport('user-1', {
+			from,
+			to,
+			payment: 'ALL',
+			includeDrafts: false,
+			includeCancelled: true,
+			clientId: 'client-1',
+		});
+
+		expect(mocks.invoiceFindMany).toHaveBeenCalledWith({
+			where: {
+				userId: 'user-1',
+				status: {
+					in: [
+						InvoiceStatus.PAID,
+						InvoiceStatus.SENT,
+						InvoiceStatus.OVERDUE,
+						InvoiceStatus.CANCELLED,
+					],
+				},
+				issueDate: { gte: from, lte: toEndOfDay },
+				clientId: 'client-1',
+			},
+			select: {
+				invoiceNumber: true,
+				status: true,
+				companyName: true,
+				clientName: true,
+				issueDate: true,
+				dueDate: true,
+				paidAt: true,
+				currency: true,
+				subtotal: true,
+				taxRate: true,
+				taxAmount: true,
+				totalAmount: true,
+			},
+			orderBy: [{ issueDate: 'asc' }, { invoiceNumber: 'asc' }],
+		});
 	});
 });

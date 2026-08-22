@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
 	createInvoiceSchema,
+	exportInvoicesSchema,
 	markAsPaidSchema,
 	markAsSentSchema,
 	updateInvoiceSchema,
@@ -85,5 +86,57 @@ describe('invoice transition schemas', () => {
 				sendEmail: 'yes',
 			}).success
 		).toBe(false);
+	});
+});
+
+describe('invoice export schema', () => {
+	it('applies export defaults for omitted query filters', () => {
+		const result = exportInvoicesSchema.parse({
+			from: '2026-08-01',
+			to: '2026-08-31',
+		});
+
+		expect(result).toMatchObject({
+			payment: 'ALL',
+			includeDrafts: false,
+			includeCancelled: true,
+		});
+	});
+
+	it('parses false-like checkbox query strings as false', () => {
+		const result = exportInvoicesSchema.parse({
+			from: '2026-08-01',
+			to: '2026-08-31',
+			includeDrafts: 'false',
+			includeCancelled: '0',
+		});
+
+		expect(result.includeDrafts).toBe(false);
+		expect(result.includeCancelled).toBe(false);
+	});
+
+	it.each(['true', '1'])('parses %s as true', (value) => {
+		const result = exportInvoicesSchema.parse({
+			from: '2026-08-01',
+			to: '2026-08-31',
+			includeDrafts: value,
+		});
+
+		expect(result.includeDrafts).toBe(true);
+	});
+
+	it('rejects an end date before the start date', () => {
+		const result = exportInvoicesSchema.safeParse({
+			from: '2026-08-31',
+			to: '2026-08-01',
+		});
+
+		expect(result.success).toBe(false);
+		if (!result.success) {
+			expect(result.error.issues[0]).toMatchObject({
+				message: 'End date must be on or after start date',
+				path: ['to'],
+			});
+		}
 	});
 });

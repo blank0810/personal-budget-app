@@ -93,6 +93,29 @@ export const getInvoicesSchema = z.object({
 
 export type GetInvoicesInput = z.infer<typeof getInvoicesSchema>;
 
+// z.coerce.boolean() treats every non-empty query string, including 'false', as
+// true. Normalize URL values explicitly so checkbox query params remain reliable.
+const queryBooleanSchema = z.preprocess(
+	(value) => value === true || value === 'true' || value === '1',
+	z.boolean()
+);
+
+export const exportInvoicesSchema = z
+	.object({
+		from: z.coerce.date(),
+		to: z.coerce.date(),
+		payment: z.enum(['ALL', 'PAID', 'UNPAID']).default('ALL'),
+		includeDrafts: queryBooleanSchema.default(false),
+		includeCancelled: queryBooleanSchema.default(true),
+		clientId: z.string().optional(),
+	})
+	.refine((data) => data.to >= data.from, {
+		message: 'End date must be on or after start date',
+		path: ['to'],
+	});
+
+export type ExportInvoicesInput = z.infer<typeof exportInvoicesSchema>;
+
 export const generateFromEntriesSchema = z.object({
 	clientId: z.string().min(1, 'Client is required'),
 	workEntryIds: z.array(z.string()).min(1, 'Select at least one entry'),

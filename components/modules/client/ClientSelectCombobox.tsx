@@ -9,6 +9,7 @@ import {
 } from '@/components/ui/select';
 
 interface ClientSelectComboboxProps {
+	id?: string;
 	clients: { id: string; name: string }[];
 	value: string;
 	onChange: (clientId: string) => void;
@@ -16,6 +17,7 @@ interface ClientSelectComboboxProps {
 }
 
 export function ClientSelectCombobox({
+	id,
 	clients,
 	value,
 	onChange,
@@ -23,7 +25,7 @@ export function ClientSelectCombobox({
 }: ClientSelectComboboxProps) {
 	return (
 		<Select value={value} onValueChange={onChange}>
-			<SelectTrigger className='w-full'>
+			<SelectTrigger id={id} className='w-full'>
 				<SelectValue placeholder={placeholder} />
 			</SelectTrigger>
 			<SelectContent>
