@@ -5,6 +5,11 @@ import Link from 'next/link';
 import { format } from 'date-fns';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
+	SortableHeader,
+	TablePagination,
+	useTableSort,
+} from '@/components/common/data-table';
+import {
 	Table,
 	TableBody,
 	TableCell,
@@ -34,10 +39,8 @@ import {
 	Download,
 	XCircle,
 	Trash2,
-	ArrowUpDown,
 } from 'lucide-react';
 import { InvoiceStatus } from '@prisma/client';
-import { cn } from '@/lib/utils';
 import { billedPartyName } from '@/lib/invoice-party';
 
 export interface InvoiceRow {
@@ -67,46 +70,19 @@ const STATUS_TABS: { value: string; label: string }[] = [
 
 const PAGE_SIZE = 10;
 
-interface SortableHeaderProps {
-	field: string;
-	label: string;
-	sortField: string;
-	onSort: (field: string) => void;
-}
-
-function SortableHeader({
-	field,
-	label,
-	sortField,
-	onSort,
-}: SortableHeaderProps) {
-	const isActive = sortField === field;
-	return (
-		<TableHead>
-			<Button
-				variant='ghost'
-				size='sm'
-				className='-ml-3 h-8'
-				onClick={() => onSort(field)}
-			>
-				{label}
-				<ArrowUpDown
-					className={cn(
-						'ml-1 h-3 w-3',
-						isActive ? 'opacity-100' : 'opacity-40',
-					)}
-				/>
-			</Button>
-		</TableHead>
-	);
-}
+type SortField =
+	| 'invoiceNumber'
+	| 'clientName'
+	| 'totalAmount'
+	| 'issueDate'
+	| 'dueDate';
 
 export function InvoiceList({ invoices }: InvoiceListProps) {
 	const [activeTab, setActiveTab] = useState('ALL');
 	const [isPending, startTransition] = useTransition();
 	const [loadingId, setLoadingId] = useState<string | null>(null);
-	const [sortField, setSortField] = useState<string>('issueDate');
-	const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
+	const { sortField, sortDir, toggleSort } =
+		useTableSort<SortField>('issueDate');
 	const [page, setPage] = useState(0);
 
 	const filtered =
@@ -176,15 +152,6 @@ export function InvoiceList({ invoices }: InvoiceListProps) {
 		});
 	}
 
-	function handleSort(field: string) {
-		if (sortField === field) {
-			setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
-		} else {
-			setSortField(field);
-			setSortDir('desc');
-		}
-	}
-
 	return (
 		<div className='space-y-4'>
 			<Tabs value={activeTab} onValueChange={handleTabChange}>
@@ -212,31 +179,31 @@ export function InvoiceList({ invoices }: InvoiceListProps) {
 									field='invoiceNumber'
 									label='Invoice #'
 									sortField={sortField}
-									onSort={handleSort}
+									onSort={toggleSort}
 								/>
 								<SortableHeader
 									field='clientName'
 									label='Billed To'
 									sortField={sortField}
-									onSort={handleSort}
+									onSort={toggleSort}
 								/>
 								<SortableHeader
 									field='totalAmount'
 									label='Total'
 									sortField={sortField}
-									onSort={handleSort}
+									onSort={toggleSort}
 								/>
 								<SortableHeader
 									field='issueDate'
 									label='Issue Date'
 									sortField={sortField}
-									onSort={handleSort}
+									onSort={toggleSort}
 								/>
 								<SortableHeader
 									field='dueDate'
 									label='Due Date'
 									sortField={sortField}
-									onSort={handleSort}
+									onSort={toggleSort}
 								/>
 								<TableHead>Status</TableHead>
 								<TableHead className='w-[80px] text-right'>
@@ -399,33 +366,13 @@ export function InvoiceList({ invoices }: InvoiceListProps) {
 							))}
 						</TableBody>
 					</Table>
-					<div className='flex items-center justify-between px-2 py-4'>
-						<p className='text-sm text-muted-foreground'>
-							{sorted.length} invoice
-							{sorted.length !== 1 ? 's' : ''}
-						</p>
-						<div className='flex items-center gap-2'>
-							<p className='text-sm text-muted-foreground'>
-								Page {page + 1} of {totalPages}
-							</p>
-							<Button
-								variant='outline'
-								size='sm'
-								disabled={page === 0}
-								onClick={() => setPage((p) => p - 1)}
-							>
-								Previous
-							</Button>
-							<Button
-								variant='outline'
-								size='sm'
-								disabled={page >= totalPages - 1}
-								onClick={() => setPage((p) => p + 1)}
-							>
-								Next
-							</Button>
-						</div>
-					</div>
+					<TablePagination
+						page={page}
+						totalPages={totalPages}
+						totalRows={sorted.length}
+						rowLabel='invoice'
+						onPageChange={setPage}
+					/>
 				</div>
 			)}
 		</div>

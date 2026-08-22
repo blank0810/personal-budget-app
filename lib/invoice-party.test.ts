@@ -42,8 +42,7 @@ describe('hasContactDetails', () => {
 			hasContactDetails({
 				clientName: null,
 				clientEmail: null,
-				clientPhone: null,
-				clientAddress: '   ',
+				clientPhone: '   ',
 			})
 		).toBe(false);
 	});
@@ -57,8 +56,7 @@ describe('hasContactDetails', () => {
 		expect(hasContactDetails({ clientEmail: 'jane@acme.com' })).toBe(true);
 	});
 
-	it('is true when only the phone or address is set', () => {
+	it('is true when only the phone is set', () => {
 		expect(hasContactDetails({ clientPhone: '+63 917 000 0000' })).toBe(true);
-		expect(hasContactDetails({ clientAddress: '12 Rizal St' })).toBe(true);
 	});
 });

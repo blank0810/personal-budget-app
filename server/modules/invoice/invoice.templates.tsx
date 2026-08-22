@@ -645,16 +645,12 @@ function FromBillToSection({ invoice }: { invoice: InvoicePDFData }) {
 								{invoice.clientPhone ? (
 									<Text style={styles.clientDetail}>{invoice.clientPhone}</Text>
 								) : null}
-								{invoice.clientAddress ? (
-									<MultiLineText
-										text={invoice.clientAddress}
-										style={styles.clientDetail}
-									/>
-								) : null}
 							</>
 						) : null}
 					</>
 				) : (
+					// No company: clientAddress is this invoice's only address. Newer
+					// invoices never set it, but historical ones carry it here.
 					<>
 						{invoice.clientEmail ? (
 							<Text style={styles.clientDetail}>{invoice.clientEmail}</Text>

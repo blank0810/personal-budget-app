@@ -20,7 +20,6 @@ const invoiceBaseSchema = z.object({
 	companyPhone: z.string().optional(),
 	clientName: z.string().max(200).optional(),
 	clientEmail: z.string().email().optional().or(z.literal('')),
-	clientAddress: z.string().optional(),
 	clientPhone: z.string().optional(),
 	clientId: z.string().optional(),
 	issueDate: z.coerce.date(),

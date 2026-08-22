@@ -270,11 +270,6 @@ function InvoicePreview({
 														{invoice.clientPhone}
 													</p>
 												)}
-												{invoice.clientAddress && (
-													<p className='whitespace-pre-line text-xs text-[#4b5563]'>
-														{invoice.clientAddress}
-													</p>
-												)}
 											</div>
 										)}
 									</>

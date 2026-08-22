@@ -6,7 +6,12 @@ import Link from 'next/link';
 import { format, parseISO, startOfWeek, endOfWeek } from 'date-fns';
 import { toast } from 'sonner';
 import { useServerAction } from '@/hooks/use-server-action';
-import { Pencil, Trash2, FileText, Loader2, ArrowUpDown } from 'lucide-react';
+import { Pencil, Trash2, FileText, Loader2 } from 'lucide-react';
+import {
+	SortableHeader,
+	TablePagination,
+	useTableSort,
+} from '@/components/common/data-table';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
@@ -120,36 +125,6 @@ function formatGroupDate(dateKey: string): string {
 const PAGE_SIZE = 20;
 
 type SortField = 'date' | 'client' | 'amount';
-
-interface SortableHeaderProps {
-	field: SortField;
-	label: string;
-	sortField: SortField;
-	onSort: (field: SortField) => void;
-	className?: string;
-}
-
-function SortableHeader({ field, label, sortField, onSort, className }: SortableHeaderProps) {
-	const isActive = sortField === field;
-	return (
-		<TableHead className={className}>
-			<Button
-				variant='ghost'
-				size='sm'
-				className='-ml-3 h-8'
-				onClick={() => onSort(field)}
-			>
-				{label}
-				<ArrowUpDown
-					className={cn(
-						'ml-1 h-3 w-3',
-						isActive ? 'opacity-100' : 'opacity-40',
-					)}
-				/>
-			</Button>
-		</TableHead>
-	);
-}
 
 interface EditDialogProps {
 	entry: WorkEntryRow;
@@ -327,8 +302,8 @@ export function WorkEntryList({ initialEntries, unbilledCounts, clients }: WorkE
 	);
 
 	// Sort state — default to date descending
-	const [sortField, setSortField] = useState<SortField>('date');
-	const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
+	const { sortField, sortDir, toggleSort } =
+		useTableSort<SortField>('date');
 
 	// Pagination
 	const [page, setPage] = useState(0);
@@ -448,15 +423,6 @@ export function WorkEntryList({ initialEntries, unbilledCounts, clients }: WorkE
 			setLoadingInvoiceClientId(null);
 		}
 	}, []);
-
-	function handleSort(field: SortField) {
-		if (sortField === field) {
-			setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
-		} else {
-			setSortField(field);
-			setSortDir('desc');
-		}
-	}
 
 	const generateClient = generateClientId
 		? clients.find((c) => c.id === generateClientId) ?? null
@@ -595,14 +561,14 @@ export function WorkEntryList({ initialEntries, unbilledCounts, clients }: WorkE
 									field='date'
 									label='Date'
 									sortField={sortField}
-									onSort={handleSort}
+									onSort={toggleSort}
 									className='hidden sm:table-cell'
 								/>
 								<SortableHeader
 									field='client'
 									label='Client'
 									sortField={sortField}
-									onSort={handleSort}
+									onSort={toggleSort}
 									className='hidden sm:table-cell'
 								/>
 								<TableHead className='hidden sm:table-cell'>Description</TableHead>
@@ -610,7 +576,7 @@ export function WorkEntryList({ initialEntries, unbilledCounts, clients }: WorkE
 									field='amount'
 									label='Amount'
 									sortField={sortField}
-									onSort={handleSort}
+									onSort={toggleSort}
 									className='hidden sm:table-cell text-right'
 								/>
 								<TableHead className='hidden sm:table-cell'>Status</TableHead>
@@ -781,34 +747,15 @@ export function WorkEntryList({ initialEntries, unbilledCounts, clients }: WorkE
 					</Table>
 
 					{/* Pagination bar */}
-					<div className='flex items-center justify-between px-2 py-3'>
-						<p className='text-sm text-muted-foreground'>
-							{sorted.length} {sorted.length === 1 ? 'entry' : 'entries'}
-						</p>
-						{totalPages > 1 && (
-							<div className='flex items-center gap-2'>
-								<span className='text-sm text-muted-foreground'>
-									Page {page + 1} of {totalPages}
-								</span>
-								<Button
-									variant='outline'
-									size='sm'
-									disabled={page === 0}
-									onClick={() => setPage((p) => p - 1)}
-								>
-									Previous
-								</Button>
-								<Button
-									variant='outline'
-									size='sm'
-									disabled={page >= totalPages - 1}
-									onClick={() => setPage((p) => p + 1)}
-								>
-									Next
-								</Button>
-							</div>
-						)}
-					</div>
+					<TablePagination
+						page={page}
+						totalPages={totalPages}
+						totalRows={sorted.length}
+						rowLabel='entry'
+						onPageChange={setPage}
+						className='py-3'
+						hideSinglePageControls
+					/>
 				</div>
 			)}
 

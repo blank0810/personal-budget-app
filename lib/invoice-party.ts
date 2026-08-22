@@ -7,7 +7,6 @@ type PartyContact = {
 	clientName?: string | null;
 	clientEmail?: string | null;
 	clientPhone?: string | null;
-	clientAddress?: string | null;
 };
 
 type PartyEmails = {
@@ -46,7 +45,6 @@ export function hasContactDetails(party: PartyContact): boolean {
 	return Boolean(
 		party.clientName?.trim() ||
 			party.clientEmail?.trim() ||
-			party.clientPhone?.trim() ||
-			party.clientAddress?.trim()
+			party.clientPhone?.trim()
 	);
 }

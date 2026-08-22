@@ -1,9 +1,14 @@
 'use client';
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import { format } from 'date-fns';
 import { Pencil, FileText, Mail, Phone, MapPin, DollarSign, Banknote } from 'lucide-react';
+import {
+	SortableHeader,
+	TablePagination,
+	useTableSort,
+} from '@/components/common/data-table';
 import { GenerateInvoiceDialog } from '@/components/modules/work-entry/GenerateInvoiceDialog';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -12,7 +17,6 @@ import {
 	Table,
 	TableBody,
 	TableCell,
-	TableHead,
 	TableHeader,
 	TableRow,
 } from '@/components/ui/table';
@@ -73,6 +77,43 @@ export interface ClientDetailProps {
 	invoices: InvoiceRow[];
 }
 
+type EntryStatusFilter = 'ALL' | 'UNBILLED' | 'BILLED';
+type EntrySortField =
+	| 'date'
+	| 'description'
+	| 'quantity'
+	| 'unitPrice'
+	| 'amount'
+	| 'status';
+type InvoiceSortField =
+	| 'invoiceNumber'
+	| 'totalAmount'
+	| 'issueDate'
+	| 'dueDate'
+	| 'status';
+
+const ENTRY_STATUS_TABS: { value: EntryStatusFilter; label: string }[] = [
+	{ value: 'ALL', label: 'All' },
+	{ value: 'UNBILLED', label: 'Unbilled' },
+	{ value: 'BILLED', label: 'Billed' },
+];
+
+const PAGE_SIZE = 10;
+
+function compareNullable<T>(
+	left: T | null | undefined,
+	right: T | null | undefined,
+	compare: (leftValue: T, rightValue: T) => number,
+	direction: 'asc' | 'desc',
+) {
+	if (left == null && right == null) return 0;
+	if (left == null) return 1;
+	if (right == null) return -1;
+
+	const result = compare(left, right);
+	return direction === 'asc' ? result : -result;
+}
+
 function StatCard({
 	label,
 	value,
@@ -109,8 +150,147 @@ function StatCard({
 export function ClientDetail({ client, entries, invoices }: ClientDetailProps) {
 	const [editOpen, setEditOpen] = useState(false);
 	const [showGenerateDialog, setShowGenerateDialog] = useState(false);
+	const [entryStatusFilter, setEntryStatusFilter] =
+		useState<EntryStatusFilter>('ALL');
+	const {
+		sortField: entrySortField,
+		sortDir: entrySortDir,
+		toggleSort: toggleEntrySort,
+	} = useTableSort<EntrySortField>('date');
+	const [entryPage, setEntryPage] = useState(0);
+	const {
+		sortField: invoiceSortField,
+		sortDir: invoiceSortDir,
+		toggleSort: toggleInvoiceSort,
+	} = useTableSort<InvoiceSortField>('issueDate');
+	const [invoicePage, setInvoicePage] = useState(0);
 
-	const unbilledEntries = entries.filter(e => e.status === 'UNBILLED');
+	const unbilledEntries = entries.filter((entry) => entry.status === 'UNBILLED');
+	const filteredEntries = useMemo(() => {
+		if (entryStatusFilter === 'ALL') return entries;
+		return entries.filter((entry) => entry.status === entryStatusFilter);
+	}, [entries, entryStatusFilter]);
+
+	const sortedEntries = useMemo(() => {
+		return [...filteredEntries].sort((a, b) => {
+			switch (entrySortField) {
+				case 'date':
+					return compareNullable(
+						a.date,
+						b.date,
+						(left, right) =>
+							new Date(left).getTime() - new Date(right).getTime(),
+						entrySortDir,
+					);
+				case 'description':
+					return compareNullable(
+						a.description,
+						b.description,
+						(left, right) => left.localeCompare(right),
+						entrySortDir,
+					);
+				case 'quantity':
+					return compareNullable(
+						a.quantity,
+						b.quantity,
+						(left, right) => left - right,
+						entrySortDir,
+					);
+				case 'unitPrice':
+					return compareNullable(
+						a.unitPrice,
+						b.unitPrice,
+						(left, right) => left - right,
+						entrySortDir,
+					);
+				case 'amount':
+					return compareNullable(
+						a.amount,
+						b.amount,
+						(left, right) => left - right,
+						entrySortDir,
+					);
+				case 'status':
+					return compareNullable(
+						a.status,
+						b.status,
+						(left, right) => left.localeCompare(right),
+						entrySortDir,
+					);
+			}
+		});
+	}, [filteredEntries, entrySortField, entrySortDir]);
+
+	const entryTotalPages = Math.ceil(sortedEntries.length / PAGE_SIZE);
+	const pagedEntries = sortedEntries.slice(
+		entryPage * PAGE_SIZE,
+		(entryPage + 1) * PAGE_SIZE,
+	);
+
+	const sortedInvoices = useMemo(() => {
+		return [...invoices].sort((a, b) => {
+			switch (invoiceSortField) {
+				case 'invoiceNumber':
+					return compareNullable(
+						a.invoiceNumber,
+						b.invoiceNumber,
+						(left, right) => left.localeCompare(right),
+						invoiceSortDir,
+					);
+				case 'totalAmount':
+					return compareNullable(
+						a.totalAmount,
+						b.totalAmount,
+						(left, right) => left - right,
+						invoiceSortDir,
+					);
+				case 'issueDate':
+					return compareNullable(
+						a.issueDate,
+						b.issueDate,
+						(left, right) =>
+							new Date(left).getTime() - new Date(right).getTime(),
+						invoiceSortDir,
+					);
+				case 'dueDate':
+					return compareNullable(
+						a.dueDate,
+						b.dueDate,
+						(left, right) =>
+							new Date(left).getTime() - new Date(right).getTime(),
+						invoiceSortDir,
+					);
+				case 'status':
+					return compareNullable(
+						a.status,
+						b.status,
+						(left, right) => left.localeCompare(right),
+						invoiceSortDir,
+					);
+			}
+		});
+	}, [invoices, invoiceSortField, invoiceSortDir]);
+
+	const invoiceTotalPages = Math.ceil(sortedInvoices.length / PAGE_SIZE);
+	const pagedInvoices = sortedInvoices.slice(
+		invoicePage * PAGE_SIZE,
+		(invoicePage + 1) * PAGE_SIZE,
+	);
+
+	function handleEntryStatusChange(value: string) {
+		setEntryStatusFilter(value as EntryStatusFilter);
+		setEntryPage(0);
+	}
+
+	function handleEntrySort(field: EntrySortField) {
+		toggleEntrySort(field);
+		setEntryPage(0);
+	}
+
+	function handleInvoiceSort(field: InvoiceSortField) {
+		toggleInvoiceSort(field);
+		setInvoicePage(0);
+	}
 
 	const fmt = (amount: number) => formatCurrency(amount, { currency: client.currency });
 
@@ -220,52 +400,116 @@ export function ClientDetail({ client, entries, invoices }: ClientDetailProps) {
 				</TabsList>
 
 				<TabsContent value='entries' className='mt-4'>
-					{entries.length === 0 ? (
-						<div className='rounded-lg border border-dashed p-8 text-center'>
-							<p className='text-sm text-muted-foreground'>
-								No billable entries yet.
-							</p>
-						</div>
-					) : (
-						<div className='rounded-md border'>
-							<Table>
-								<TableHeader>
-									<TableRow>
-										<TableHead>Date</TableHead>
-										<TableHead>Description</TableHead>
-										<TableHead className='text-right'>Hours / Qty</TableHead>
-										<TableHead className='text-right'>Rate</TableHead>
-										<TableHead className='text-right'>Amount</TableHead>
-										<TableHead>Status</TableHead>
-									</TableRow>
-								</TableHeader>
-								<TableBody>
-									{entries.map((entry) => (
-										<TableRow key={entry.id}>
-											<TableCell className='text-sm text-muted-foreground whitespace-nowrap'>
-												{format(new Date(entry.date), 'MMM d, yyyy')}
-											</TableCell>
-											<TableCell>{entry.description}</TableCell>
-											<TableCell className='text-right text-sm'>
-												{Number(entry.quantity)}
-											</TableCell>
-											<TableCell className='text-right text-sm'>
-												{fmt(Number(entry.unitPrice))}
-											</TableCell>
-											<TableCell className='text-right font-medium'>
-												{fmt(Number(entry.amount))}
-											</TableCell>
-											<TableCell>
-												<WorkEntryStatusBadge
-													status={entry.status}
-												/>
-											</TableCell>
+					<div className='space-y-4'>
+						<Tabs
+							value={entryStatusFilter}
+							onValueChange={handleEntryStatusChange}
+						>
+							<TabsList className='flex-wrap h-auto'>
+								{ENTRY_STATUS_TABS.map((tab) => (
+									<TabsTrigger
+										key={tab.value}
+										value={tab.value}
+									>
+										{tab.label}
+									</TabsTrigger>
+								))}
+							</TabsList>
+						</Tabs>
+
+						{entries.length === 0 ? (
+							<div className='rounded-lg border border-dashed p-8 text-center'>
+								<p className='text-sm text-muted-foreground'>
+									No billable entries yet.
+								</p>
+							</div>
+						) : filteredEntries.length === 0 ? (
+							<div className='rounded-lg border border-dashed p-8 text-center'>
+								<p className='text-sm text-muted-foreground'>
+									No billable entries match the current filter.
+								</p>
+							</div>
+						) : (
+							<div className='rounded-md border'>
+								<Table>
+									<TableHeader>
+										<TableRow>
+											<SortableHeader
+												field='date'
+												label='Date'
+												sortField={entrySortField}
+												onSort={handleEntrySort}
+											/>
+											<SortableHeader
+												field='description'
+												label='Description'
+												sortField={entrySortField}
+												onSort={handleEntrySort}
+											/>
+											<SortableHeader
+												field='quantity'
+												label='Hours / Qty'
+												sortField={entrySortField}
+												onSort={handleEntrySort}
+												className='text-right'
+											/>
+											<SortableHeader
+												field='unitPrice'
+												label='Rate'
+												sortField={entrySortField}
+												onSort={handleEntrySort}
+												className='text-right'
+											/>
+											<SortableHeader
+												field='amount'
+												label='Amount'
+												sortField={entrySortField}
+												onSort={handleEntrySort}
+												className='text-right'
+											/>
+											<SortableHeader
+												field='status'
+												label='Status'
+												sortField={entrySortField}
+												onSort={handleEntrySort}
+											/>
 										</TableRow>
-									))}
-								</TableBody>
-							</Table>
-						</div>
-					)}
+									</TableHeader>
+									<TableBody>
+										{pagedEntries.map((entry) => (
+											<TableRow key={entry.id}>
+												<TableCell className='text-sm text-muted-foreground whitespace-nowrap'>
+													{format(new Date(entry.date), 'MMM d, yyyy')}
+												</TableCell>
+												<TableCell>{entry.description}</TableCell>
+												<TableCell className='text-right text-sm'>
+													{Number(entry.quantity)}
+												</TableCell>
+												<TableCell className='text-right text-sm'>
+													{fmt(Number(entry.unitPrice))}
+												</TableCell>
+												<TableCell className='text-right font-medium'>
+													{fmt(Number(entry.amount))}
+												</TableCell>
+												<TableCell>
+													<WorkEntryStatusBadge
+														status={entry.status}
+													/>
+												</TableCell>
+											</TableRow>
+										))}
+									</TableBody>
+								</Table>
+								<TablePagination
+									page={entryPage}
+									totalPages={entryTotalPages}
+									totalRows={sortedEntries.length}
+									rowLabel='entry'
+									onPageChange={setEntryPage}
+								/>
+							</div>
+						)}
+					</div>
 				</TabsContent>
 
 				<TabsContent value='invoices' className='mt-4'>
@@ -280,15 +524,40 @@ export function ClientDetail({ client, entries, invoices }: ClientDetailProps) {
 							<Table>
 								<TableHeader>
 									<TableRow>
-										<TableHead>Invoice #</TableHead>
-										<TableHead>Amount</TableHead>
-										<TableHead>Issue Date</TableHead>
-										<TableHead>Due Date</TableHead>
-										<TableHead>Status</TableHead>
+										<SortableHeader
+											field='invoiceNumber'
+											label='Invoice #'
+											sortField={invoiceSortField}
+											onSort={handleInvoiceSort}
+										/>
+										<SortableHeader
+											field='totalAmount'
+											label='Amount'
+											sortField={invoiceSortField}
+											onSort={handleInvoiceSort}
+										/>
+										<SortableHeader
+											field='issueDate'
+											label='Issue Date'
+											sortField={invoiceSortField}
+											onSort={handleInvoiceSort}
+										/>
+										<SortableHeader
+											field='dueDate'
+											label='Due Date'
+											sortField={invoiceSortField}
+											onSort={handleInvoiceSort}
+										/>
+										<SortableHeader
+											field='status'
+											label='Status'
+											sortField={invoiceSortField}
+											onSort={handleInvoiceSort}
+										/>
 									</TableRow>
 								</TableHeader>
 								<TableBody>
-									{invoices.map((invoice) => (
+									{pagedInvoices.map((invoice) => (
 										<TableRow key={invoice.id}>
 											<TableCell className='font-mono text-sm font-medium'>
 												<Link
@@ -314,6 +583,13 @@ export function ClientDetail({ client, entries, invoices }: ClientDetailProps) {
 									))}
 								</TableBody>
 							</Table>
+							<TablePagination
+								page={invoicePage}
+								totalPages={invoiceTotalPages}
+								totalRows={sortedInvoices.length}
+								rowLabel='invoice'
+								onPageChange={setInvoicePage}
+							/>
 						</div>
 					)}
 				</TabsContent>

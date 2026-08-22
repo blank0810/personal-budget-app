@@ -60,7 +60,6 @@ const invoiceFormSchema = z
 		companyPhone: z.string().optional(),
 		clientName: z.string().max(200).optional(),
 		clientEmail: z.string().email('Invalid email').optional().or(z.literal('')),
-		clientAddress: z.string().optional(),
 		clientPhone: z.string().optional(),
 		clientId: z.string().optional(),
 		issueDate: z.string().min(1, 'Issue date is required'),
@@ -91,7 +90,6 @@ export interface ExistingInvoice {
 	companyPhone: string | null;
 	clientName: string | null;
 	clientEmail: string | null;
-	clientAddress: string | null;
 	clientPhone: string | null;
 	clientId: string | null;
 	issueDate: string | Date;
@@ -163,7 +161,6 @@ export function InvoiceForm({
 						companyPhone: invoice.companyPhone ?? '',
 						clientName: invoice.clientName ?? '',
 						clientEmail: invoice.clientEmail ?? '',
-						clientAddress: invoice.clientAddress ?? '',
 						clientPhone: invoice.clientPhone ?? '',
 						clientId: invoice.clientId ?? '',
 						issueDate: formatDateInput(invoice.issueDate),
@@ -189,7 +186,6 @@ export function InvoiceForm({
 						companyPhone: '',
 						clientName: '',
 						clientEmail: '',
-						clientAddress: '',
 						clientPhone: '',
 						clientId: '',
 						issueDate: new Date().toISOString().slice(0, 10),
@@ -273,7 +269,6 @@ export function InvoiceForm({
 		form.setValue('clientPhone', client.contactPhone ?? '', {
 			shouldDirty: true,
 		});
-		form.setValue('clientAddress', '', { shouldDirty: true });
 	}
 
 	function onSubmit(values: InvoiceFormValues) {
@@ -507,24 +502,6 @@ export function InvoiceForm({
 								)}
 							/>
 						</div>
-						<FormField
-							control={form.control}
-							name='clientAddress'
-							render={({ field }) => (
-								<FormItem>
-									<FormLabel>Contact Address</FormLabel>
-									<FormControl>
-										<Textarea
-											placeholder='Optional contact address'
-											rows={3}
-											{...field}
-											value={field.value ?? ''}
-										/>
-									</FormControl>
-									<FormMessage />
-								</FormItem>
-							)}
-						/>
 					</CardContent>
 				</Card>
 

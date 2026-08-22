@@ -278,7 +278,6 @@ export const InvoiceService = {
 				companyPhone: data.companyPhone || null,
 				clientName: data.clientName || null,
 				clientEmail: data.clientEmail || null,
-				clientAddress: data.clientAddress,
 				clientPhone: data.clientPhone,
 				clientId: data.clientId || null,
 				currency,
@@ -378,7 +377,6 @@ export const InvoiceService = {
 						companyPhone: client.phone,
 						clientName: client.contactName,
 						clientEmail: client.contactEmail,
-						clientAddress: null,
 						clientPhone: client.contactPhone,
 						currency: client.currency,
 						issueDate: data.issueDate,
@@ -567,9 +565,6 @@ export const InvoiceService = {
 					}),
 					...(updateData.clientEmail !== undefined && {
 						clientEmail: updateData.clientEmail || null,
-					}),
-					...(updateData.clientAddress !== undefined && {
-						clientAddress: updateData.clientAddress,
 					}),
 					...(updateData.clientPhone !== undefined && {
 						clientPhone: updateData.clientPhone,
