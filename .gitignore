@@ -31,12 +31,13 @@ yarn-error.log*
 .pnpm-debug.log*
 
 # env files (can opt-in for committing if needed)
-# env files (can opt-in for committing if needed)
 .env*
 .env.local
 .env.production
 .env.*.local
 *.env
+# ...except the template, which exists to be shared. It holds no real values.
+!.env.example
 
 # vercel
 .vercel
