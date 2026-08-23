@@ -1,7 +1,6 @@
 import { AccountsDebtSummary } from '@/components/modules/dashboard/AccountsDebtSummary';
 import { BudgetPressure } from '@/components/modules/dashboard/BudgetPressure';
 import { CashFlowTrend } from '@/components/modules/dashboard/CashFlowTrend';
-import { DashboardEvidenceStrip } from '@/components/modules/dashboard/DashboardEvidenceStrip';
 import { DashboardHeader } from '@/components/modules/dashboard/DashboardHeader';
 import {
 	DashboardEmptyState,
@@ -40,12 +39,12 @@ export default async function DashboardPage() {
 					<DashboardEmptyState />
 				) : (
 					<>
-						<FinancialHealthVerdict health={overview.health} />
-						<HealthLedger pillars={overview.health.pillars} />
-						<DashboardEvidenceStrip
+						<FinancialHealthVerdict
+							health={overview.health}
 							evidence={overview.evidence}
 							currency={overview.currency}
 						/>
+						<HealthLedger pillars={overview.health.pillars} />
 						<div className='grid gap-5 lg:grid-cols-[minmax(0,1.65fr)_minmax(18rem,0.75fr)]'>
 							<CashFlowTrend
 								cashFlow={overview.cashFlow}

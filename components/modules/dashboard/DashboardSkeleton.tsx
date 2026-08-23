@@ -19,30 +19,34 @@ export function DashboardSkeleton() {
 					))}
 				</div>
 			</div>
-			<div className='grid gap-5 border-y bg-muted/20 py-4 sm:px-6 xl:grid-cols-[10rem_minmax(0,1fr)_minmax(19rem,0.75fr)]'>
-				<Block className='h-20 w-28' />
-				<Block className='h-20 w-full' />
-				<Block className='h-20 w-full' />
+			<div className='border-y bg-muted/20 py-4 sm:px-6'>
+				<div className='grid gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(19rem,0.75fr)] xl:items-center'>
+					<div className='space-y-2'>
+						<Block className='h-3 w-20' />
+						<Block className='h-12 w-72' />
+						<Block className='h-5 w-full max-w-[36rem]' />
+					</div>
+					<Block className='h-16 w-full' />
+				</div>
+				<div className='-mb-4 mt-4 grid border-t sm:-mx-6 sm:grid-cols-3'>
+					{Array.from({ length: 3 }).map((_, index) => (
+						<div key={index} className='space-y-2 py-3 sm:px-6'>
+							<Block className='h-3 w-24' />
+							<Block className='h-7 w-32' />
+						</div>
+					))}
+				</div>
 			</div>
 			<div className='space-y-3'>
 				<Block className='h-7 w-40' />
 				{Array.from({ length: 5 }).map((_, index) => (
 					<div
 						key={index}
-						className='grid gap-3 border-b py-3 md:grid-cols-[minmax(12rem,1.2fr)_7rem_minmax(12rem,1fr)_auto] md:items-center md:gap-6'
+						className='grid gap-3 border-b py-3 md:grid-cols-[minmax(0,1.2fr)_7rem_minmax(0,1fr)] md:items-center md:gap-x-6 md:pr-8'
 					>
 						<Block className='h-11 w-full' />
 						<Block className='h-6 w-20' />
 						<Block className='h-5 w-full' />
-						<Block className='h-8 w-28' />
-					</div>
-				))}
-			</div>
-			<div className='grid border-y sm:grid-cols-2 lg:grid-cols-4'>
-				{Array.from({ length: 4 }).map((_, index) => (
-					<div key={index} className='space-y-2 py-3 sm:px-5'>
-						<Block className='h-3 w-24' />
-						<Block className='h-7 w-32' />
 					</div>
 				))}
 			</div>
