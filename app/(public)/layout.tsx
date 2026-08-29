@@ -1,29 +1,50 @@
 import type { Metadata, Viewport } from 'next';
-import { Plus_Jakarta_Sans, Inter } from 'next/font/google';
-import { LazyMotionProvider } from '@/components/modules/landing/ui/LazyMotionProvider';
+import { Public_Sans, Martian_Mono } from 'next/font/google';
+import localFont from 'next/font/local';
 import { LandingSessionProvider } from '@/components/modules/landing/ui/LandingSessionProvider';
-import { LagoonNav } from '@/components/modules/landing/lagoon/LagoonNav';
-import { LagoonFooter } from '@/components/modules/landing/lagoon/LagoonFooter';
-import '@/components/modules/landing/lagoon/lagoon.css';
+import { InstrumentNav } from '@/components/modules/landing/instrument/InstrumentNav';
+import { InstrumentFooter } from '@/components/modules/landing/instrument/InstrumentFooter';
+import '@/components/modules/landing/instrument/instrument.css';
 import { APP_URL } from '@/lib/url';
 
 /**
- * Display heading font — Plus Jakarta Sans (700, 800).
- * Exposed as --lagoon-font-heading so server-rendered h* can use it.
+ * Public Sans carries the whole public surface.
+ *
+ * Chosen against the brief's three voice words — blunt, precise,
+ * unglamorous. It is the typeface of US federal government forms,
+ * which is exactly the register for a product whose pitch is that it
+ * does not flatter you. Deliberately not Inter / DM Sans / Plus
+ * Jakarta: those read as "a website made in 2024", which is the
+ * impression this redesign exists to remove.
  */
-const plusJakarta = Plus_Jakarta_Sans({
+const publicSans = Public_Sans({
 	subsets: ['latin'],
-	weight: ['700', '800'],
-	variable: '--lagoon-font-heading',
+	variable: '--in-font-sans-base',
 	display: 'swap',
 });
 
-/** Body font — Inter (400, 500, 600). Swiss-style workhorse for 14–17px. */
-const inter = Inter({
+/**
+ * Martian Mono is the instrument readout: numerals, grades, column
+ * labels. It never sets body copy — monospace as shorthand for
+ * "technical" is costume, but a gauge reading genuinely is a readout.
+ */
+const martianMono = Martian_Mono({
 	subsets: ['latin'],
-	weight: ['400', '500', '600'],
-	variable: '--lagoon-font-body',
+	variable: '--in-font-mono-base',
 	display: 'swap',
+});
+
+/**
+ * Neither face carries U+20B1, so the peso falls back to whatever the
+ * system offers and sits visibly wrong beside the figures. Scoping
+ * this to the single codepoint fixes the glyph without touching
+ * anything else. Same asset the PDF renderer already uses.
+ */
+const currencyFallback = localFont({
+	src: '../../public/fonts/CurrencyFallback.ttf',
+	variable: '--in-font-currency',
+	display: 'swap',
+	declarations: [{ prop: 'unicode-range', value: 'U+20B1' }],
 });
 
 const BASE_DESCRIPTION =
@@ -92,7 +113,12 @@ const SITEWIDE_JSON_LD = {
 };
 
 export const viewport: Viewport = {
-	themeColor: '#0d9488',
+	/* Matches --canvas in each theme; the browser chrome should not
+	   announce a colour the page never uses. */
+	themeColor: [
+		{ media: '(prefers-color-scheme: light)', color: '#fcfbfa' },
+		{ media: '(prefers-color-scheme: dark)', color: '#000000' },
+	],
 };
 
 export const metadata: Metadata = {
@@ -134,23 +160,14 @@ export const metadata: Metadata = {
 /**
  * Public layout — shared shell for the multi-page marketing site.
  *
- * Design system: the "Lagoon" landing kit (light-first, teal accent, with a
- * self-contained dark mode via the `data-lagoon-theme` attribute + the
- * no-flash inline script below). This is INDEPENDENT of the app's global
- * next-themes `.dark` class — the two never collide because Lagoon reads its
- * own attribute and paints its own `.lagoon-root` canvas.
+ * Design system: "Instrument" (`instrument.css`). Dual theme with a
+ * true-black dark mode, carried on the `data-in-theme` attribute plus
+ * the no-flash script below — INDEPENDENT of the authenticated app's
+ * next-themes `.dark` class, so the two can never collide.
  *
- * The header (LagoonNav) and footer (LagoonFooter) render identically on every
- * public route (/, /features, /how-it-works, /pricing, /faq, /invoicing,
- * /ai-advisor). Each route only renders its page body into <main>.
- *
- * STATIC: no auth() call here — pages stay cacheable for crawlers. The navbar
- * is auth-aware client-side via useSession (post-hydration swap), and the
- * logged-in → /dashboard redirect lives in middleware.ts.
- *
- * Title template lives on metadata above (`%s · Budget Planner`); each route
- * exports its own honest title/description. opengraph-image.tsx and
- * twitter-image.tsx remain file-convention based.
+ * STATIC: no auth() call here, so pages stay cacheable for crawlers.
+ * The navbar is auth-aware client-side via useSession (post-hydration
+ * swap), and the logged-in redirect lives in middleware.ts.
  */
 export default function PublicLayout({
 	children,
@@ -159,11 +176,13 @@ export default function PublicLayout({
 }) {
 	return (
 		<div
-			className={`lagoon-root ${plusJakarta.variable} ${inter.variable}`}
+			className={`in-root ${publicSans.variable} ${martianMono.variable} ${currencyFallback.variable}`}
 			style={{
-				fontFamily: 'var(--lagoon-font-body), Inter, system-ui, sans-serif',
-				WebkitFontSmoothing: 'antialiased',
-				MozOsxFontSmoothing: 'grayscale',
+				// The currency face is listed first so it wins for U+20B1 only.
+				['--in-font-sans' as string]:
+					'var(--in-font-currency), var(--in-font-sans-base)',
+				['--in-font-mono' as string]:
+					'var(--in-font-currency), var(--in-font-mono-base)',
 			}}
 		>
 			{/* Sitewide structured data — first in the body so it lands in initial HTML */}
@@ -175,43 +194,27 @@ export default function PublicLayout({
 			/>
 
 			{/*
-			 * No-flash theme script — runs synchronously before paint.
-			 * Reads localStorage['lagoon-theme'] and applies data-lagoon-theme to
-			 * <html> so dark-mode CSS variables take effect before React hydrates.
-			 * Default is 'light' when no preference is stored.
+			 * No-flash theme script — runs synchronously before paint. Applies an
+			 * explicit choice if one exists, otherwise follows the operating
+			 * system. A public page that forces light on someone whose machine is
+			 * dark is a small rudeness, and it also leaves the product
+			 * screenshots mismatched against the page around them.
 			 */}
 			<script
 				dangerouslySetInnerHTML={{
-					__html: `(function(){try{var t=localStorage.getItem('lagoon-theme');document.documentElement.setAttribute('data-lagoon-theme',t==='dark'?'dark':'light');}catch(e){document.documentElement.setAttribute('data-lagoon-theme','light');}})()`,
+					__html: `(function(){try{var k=localStorage.getItem('bp-public-theme');document.documentElement.setAttribute('data-in-theme',k||(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light'));}catch(e){document.documentElement.setAttribute('data-in-theme','dark');}})()`,
 				}}
 			/>
 
-			{/* Heading font injection — scoped to .lagoon-root */}
-			<style>{`
-				.lagoon-root h1,
-				.lagoon-root h2,
-				.lagoon-root h3,
-				.lagoon-root h4 {
-					font-family: var(--lagoon-font-heading), 'Plus Jakarta Sans', system-ui, sans-serif;
-				}
-			`}</style>
-
-			{/* Skip to content — WCAG 2.1 */}
-			<a
-				href='#main-content'
-				className='sr-only focus-visible:not-sr-only focus-visible:fixed focus-visible:left-4 focus-visible:top-4 focus-visible:z-[100] focus-visible:rounded-lg focus-visible:px-4 focus-visible:py-2 focus-visible:text-sm focus-visible:font-semibold focus-visible:outline-2 focus-visible:outline-white'
-				style={{ background: 'var(--lagoon-accent)', color: 'var(--lagoon-on-accent)' }}
-			>
+			<a href='#main-content' className='skip'>
 				Skip to main content
 			</a>
 
-			<LazyMotionProvider>
-				<LandingSessionProvider>
-					<LagoonNav />
-					<main id='main-content'>{children}</main>
-					<LagoonFooter />
-				</LandingSessionProvider>
-			</LazyMotionProvider>
+			<LandingSessionProvider>
+				<InstrumentNav />
+				<main id='main-content'>{children}</main>
+				<InstrumentFooter />
+			</LandingSessionProvider>
 		</div>
 	);
 }

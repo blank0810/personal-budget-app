@@ -26,6 +26,11 @@ const eslintConfig = defineConfig([
     "next-env.d.ts",
     // Worktrees are read-only copies; skip linting them.
     ".worktrees/**",
+    // Static design mockups — hand-written HTML/CSS/JS artifacts kept as
+    // the visual reference for the public design system. They are never
+    // imported by the app and are deliberately not written to its
+    // TypeScript conventions.
+    "mockups/**",
   ]),
 ]);
 

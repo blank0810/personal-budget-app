@@ -1,5 +1,5 @@
 /**
- * /how-it-works OG image — re-exports the root Lagoon brand card.
+ * /how-it-works OG image — re-exports the root brand card.
  */
 export {
 	default,

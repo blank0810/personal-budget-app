@@ -3,7 +3,7 @@
  *
  * No 'use client' directive — this module is plain data, importable by both
  * server components (faq/page.tsx for JSON-LD generation) and client
- * components (LagoonFaqAccordion) without forcing either to change runtime.
+ * components (the Faq list) without forcing either to change runtime.
  *
  * Honesty rules:
  * - AI Advisor answer is future-tense only ("not yet … in active development").
