@@ -1,0 +1,203 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Option A — Plain Statement · Budget Planner mockup</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..800&family=Geist+Mono:wght@400..600&display=swap" rel="stylesheet">
+<style>
+/* ── Option A · "Plain Statement" ───────────────────────────────────
+   Bone canvas, near-black ink, ONE signal red-orange spent at roughly
+   a tenth of the surface. Hierarchy from scale and hairline rules, not
+   from cards, glass or gradients. The marketing face of the app's own
+   Health Ledger.
+   Colour authored in OKLCH, committed as hex; every pairing measured.
+   ─────────────────────────────────────────────────────────────────── */
+:root{
+  --canvas:#fcfaf9; --sunk:#f5f1f1;
+  --ink:#1a120f;      /* 17.7:1 on canvas */
+  --ink2:#433b39;     /* 10.5:1 */
+  --body:#4d4644;     /*  8.9:1 */
+  --muted:#6e6765;    /*  5.3:1 */
+  --rule:#e0dbda; --rule-strong:#c3bcba; --rule-ui:#8c8482; /* 3.5:1 */
+  --signal:#c43518;   /*  5.2:1 on canvas, 5.4:1 white-on-signal */
+  --signal-deep:#a3260b;
+  --ease:cubic-bezier(.16,1,.3,1);
+  --shell:76rem;
+  --gutter:clamp(1.25rem,4vw,2.5rem);
+  --section:clamp(4rem,8vw,7rem);
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{
+  margin:0;background:var(--canvas);color:var(--ink);
+  font-family:Archivo,system-ui,sans-serif;font-synthesis-weight:none;
+  -webkit-font-smoothing:antialiased;
+}
+a{color:inherit}
+.shell{max-width:var(--shell);margin-inline:auto;padding-inline:var(--gutter)}
+.mono{font-family:"Geist Mono",ui-monospace,monospace;font-variant-numeric:tabular-nums}
+.micro{font-family:"Geist Mono",ui-monospace,monospace;font-size:.6875rem;letter-spacing:.11em;text-transform:uppercase;color:var(--muted);font-weight:500}
+
+/* Nav — a rule and a row of type. No pill, no glass. */
+nav{border-bottom:1px solid var(--rule);position:sticky;top:0;background:color-mix(in srgb,var(--canvas) 90%,transparent);backdrop-filter:blur(10px);z-index:10}
+.nav-in{display:flex;align-items:center;justify-content:space-between;gap:1.5rem;height:4.25rem}
+.wordmark{font-weight:700;letter-spacing:-.035em;font-size:1.0625rem}
+.nav-links{display:none;gap:1.75rem}
+.nav-links a{text-decoration:none;color:var(--body);font-size:.9375rem;font-weight:500}
+.nav-links a:hover{color:var(--ink)}
+@media(min-width:62rem){.nav-links{display:flex}}
+
+.btn{display:inline-flex;align-items:center;justify-content:center;min-height:2.875rem;padding-inline:1.375rem;
+  font:600 .9375rem/1 Archivo,system-ui,sans-serif;border:1px solid transparent;border-radius:2px;text-decoration:none;cursor:pointer}
+.btn-signal{background:var(--signal);color:#fff}
+.btn-signal:hover{background:var(--signal-deep)}
+.btn-ghost{border-color:var(--rule-ui);color:var(--ink)}
+.btn-ghost:hover{border-color:var(--ink);background:var(--sunk)}
+.btn-lg{min-height:3.25rem;padding-inline:1.75rem;font-size:1rem}
+
+/* Hero — left-weighted, the reading in the right column. Not centred,
+   no announcement badge, no radial glow. */
+.hero{padding-block:clamp(3.5rem,7vw,5.5rem) clamp(3rem,6vw,4.5rem);border-bottom:1px solid var(--rule)}
+.hero-grid{display:grid;gap:clamp(2.5rem,5vw,4rem);align-items:start}
+@media(min-width:62rem){.hero-grid{grid-template-columns:minmax(0,1fr) minmax(20rem,25rem)}}
+h1{
+  margin:0;font-size:clamp(2.75rem,1.55rem + 5.35vw,5.25rem);line-height:.98;
+  letter-spacing:-.035em;font-weight:700;font-stretch:96%;text-wrap:balance;max-width:15ch;
+}
+.lead{font-size:clamp(1.125rem,1.06rem + .3vw,1.25rem);line-height:1.55;color:var(--body);max-width:46ch;margin:1.75rem 0 0;text-wrap:pretty}
+.cta-row{display:flex;flex-wrap:wrap;gap:.75rem;margin-top:2.25rem}
+.trust{display:flex;flex-wrap:wrap;gap:.5rem 1.5rem;margin:1.75rem 0 0;padding:0;list-style:none;color:var(--muted);font-size:.875rem}
+
+/* The reading — the page's one instrument. */
+.reading{border-top:1px solid var(--rule);padding-top:1.5rem}
+@media(min-width:62rem){.reading{border-top:0;border-left:1px solid var(--rule);padding:.25rem 0 0 2rem}}
+.reading-head{display:flex;justify-content:space-between;gap:1rem}
+.score-row{display:flex;align-items:flex-end;gap:.75rem;margin-top:1rem}
+.score{font-family:"Geist Mono",ui-monospace,monospace;font-variant-numeric:tabular-nums;
+  font-size:clamp(4.25rem,3rem + 5vw,6rem);line-height:.85;font-weight:600;letter-spacing:-.05em}
+.score-of{color:var(--muted);font-size:1.05rem;padding-bottom:.25rem}
+.score-label{margin-left:auto;padding-bottom:.3rem;font-weight:600;font-size:.9375rem;color:var(--signal)}
+.track{height:2px;background:var(--rule-strong);margin-top:1rem;position:relative;overflow:hidden}
+.track span{position:absolute;inset-block:0;left:0;width:68%;background:var(--signal);transform-origin:left;animation:fill 900ms var(--ease) both}
+@keyframes fill{from{transform:scaleX(0)}to{transform:scaleX(1)}}
+.pillars{margin:.25rem 0 0;padding:0}
+.pillar{display:flex;align-items:center;gap:1rem;border-bottom:1px solid var(--rule);padding-block:.6875rem}
+.pillar dt{flex:1;min-width:0}
+.pillar b{display:block;font-size:.9375rem;font-weight:600;line-height:1.2}
+.pillar small{display:block;font-size:.8125rem;color:var(--muted);line-height:1.35}
+.pillar dd{margin:0;display:flex;align-items:center;gap:.75rem}
+.meter{display:inline-flex;gap:3px}
+.meter i{width:14px;height:8px;background:var(--rule-strong);transform-origin:left;display:block}
+.meter i.on{background:var(--signal);animation:seg 320ms var(--ease) backwards}
+.meter i.on:nth-child(1){animation-delay:.22s}.meter i.on:nth-child(2){animation-delay:.27s}
+.meter i.on:nth-child(3){animation-delay:.32s}.meter i.on:nth-child(4){animation-delay:.37s}
+@keyframes seg{from{transform:scaleX(0)}to{transform:scaleX(1)}}
+.grade{font-family:"Geist Mono",ui-monospace,monospace;font-weight:600;font-size:.875rem;width:1.1rem;text-align:right;color:var(--ink2)}
+.note{font-size:.8125rem;line-height:1.45;color:var(--muted);margin:1rem 0 0}
+
+/* Sections — narrow rail left, substance right. */
+section{padding-block:var(--section)}
+.sunk{background:var(--sunk)}
+.split{display:grid;gap:clamp(1.75rem,4vw,3rem)}
+@media(min-width:62rem){.split{grid-template-columns:minmax(15rem,21rem) minmax(0,1fr);gap:clamp(3rem,6vw,5rem)}}
+h2{margin:0;font-size:clamp(1.9rem,1.25rem + 2.9vw,3rem);line-height:1.04;letter-spacing:-.03em;font-weight:700;text-wrap:balance}
+.rail p{color:var(--body);font-size:1rem;line-height:1.6;margin:1.25rem 0 0;max-width:38ch}
+h3{margin:0;font-size:clamp(1.3rem,1.13rem + .75vw,1.55rem);line-height:1.15;letter-spacing:-.02em;font-weight:650}
+
+/* Ledger — the recurring object, in place of a card grid. */
+.ledger{border-top:1px solid var(--ink)}
+.row{display:grid;gap:.5rem;padding-block:clamp(1.25rem,2.5vw,1.6rem);border-bottom:1px solid var(--rule)}
+@media(min-width:52rem){.row{grid-template-columns:minmax(0,18rem) minmax(0,1fr);gap:clamp(1.5rem,4vw,3rem);align-items:baseline}}
+.row p{margin:0;color:var(--body);font-size:1rem;line-height:1.6;max-width:56ch}
+
+/* Screenshot — flat, hairline, captioned. Evidence, not decoration. */
+figure{margin:0;border:1px solid var(--rule-strong);background:var(--canvas)}
+figure img{display:block;width:100%;height:auto}
+figcaption{display:flex;flex-wrap:wrap;gap:.5rem 1rem;justify-content:space-between;border-top:1px solid var(--rule);padding:.625rem .875rem;background:var(--sunk)}
+
+/* The close — the one place the signal takes the whole surface. */
+.close{background:var(--signal);color:#fff}
+.close h2{color:#fff;max-width:16ch}
+.close p{color:rgba(255,255,255,.85);font-size:1.15rem;line-height:1.5;margin:0;max-width:44ch}
+.btn-inverse{background:#fff;color:var(--signal)}
+.btn-inverse:hover{background:var(--sunk)}
+footer{border-top:1px solid var(--rule);background:var(--sunk);padding-block:2.5rem;color:var(--muted);font-size:.875rem}
+
+@media(prefers-reduced-motion:reduce){*{animation-duration:.01ms !important;transition-duration:.01ms !important}}
+</style>
+</head>
+<body>
+
+<nav><div class="shell nav-in">
+  <span class="wordmark">Budget Planner</span>
+  <div class="nav-links"><a href="#">Features</a><a href="#">How it works</a><a href="#">Invoicing</a><a href="#">Pricing</a><a href="#">FAQ</a></div>
+  <a class="btn btn-signal" href="#">Start for free</a>
+</div></nav>
+
+<header class="hero"><div class="shell hero-grid">
+  <div>
+    <h1>Your money has a number. You just haven&rsquo;t seen it.</h1>
+    <p class="lead">Log what you earn and spend. Budget Planner grades five pillars of your finances and returns one score out of 100 &mdash; built from what you actually recorded, not guessed from a bank feed.</p>
+    <div class="cta-row">
+      <a class="btn btn-signal btn-lg" href="#">Start for free</a>
+      <a class="btn btn-ghost btn-lg" href="#">See how it works</a>
+    </div>
+    <ul class="trust"><li>No bank linking</li><li>Free to start</li><li>First score in minutes</li></ul>
+  </div>
+
+  <div class="reading">
+    <div class="reading-head"><span class="micro">Sample reading</span><span class="micro">Weighted &middot; 5 pillars</span></div>
+    <div class="score-row">
+      <span class="score">68</span><span class="score-of mono">/100</span><span class="score-label">Fair</span>
+    </div>
+    <div class="track"><span></span></div>
+    <dl class="pillars">
+      <div class="pillar"><dt><b>Solvency</b><small>Can you cover what you owe?</small></dt>
+        <dd><span class="meter"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i></span><span class="grade">C</span></dd></div>
+      <div class="pillar"><dt><b>Liquidity</b><small>Can you survive an emergency?</small></dt>
+        <dd><span class="meter"><i class="on"></i><i class="on"></i><i></i><i></i><i></i></span><span class="grade">D</span></dd></div>
+      <div class="pillar"><dt><b>Savings</b><small>Are you keeping enough of what you earn?</small></dt>
+        <dd><span class="meter"><i class="on"></i><i class="on"></i><i class="on"></i><i></i><i></i></span><span class="grade">D</span></dd></div>
+      <div class="pillar"><dt><b>Debt Management</b><small>Is your debt under control?</small></dt>
+        <dd><span class="meter"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i></span><span class="grade">B</span></dd></div>
+      <div class="pillar"><dt><b>Cash Flow</b><small>Is more coming in than going out?</small></dt>
+        <dd><span class="meter"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i></span><span class="grade">C</span></dd></div>
+    </dl>
+    <p class="note">Sample figures, shown to explain the output. Your score is computed from the transactions and balances you log &mdash; nothing is estimated from a bank feed.</p>
+  </div>
+</div></header>
+
+<section><div class="shell split">
+  <div class="rail"><h2>You log it. You own it.</h2>
+    <p>Budget Planner does not connect to your bank and never asks for your banking credentials. That is a deliberate trade: you do the logging, and in exchange nothing about your money passes through a third-party aggregator.</p></div>
+  <div class="ledger">
+    <div class="row"><h3>Envelope budgets</h3><p>Assign the month before it starts, by category. Every transaction you log moves the envelope, so &ldquo;what is left&rdquo; is a fact rather than an estimate.</p></div>
+    <div class="row"><h3>Unified transactions</h3><p>Income, expenses, transfers between your own accounts, and payments toward a liability &mdash; one table, one filter set.</p></div>
+    <div class="row"><h3>Savings goals</h3><p>Link a goal to the account that actually holds the money. Progress is read from the balance, not typed in by hand.</p></div>
+    <div class="row"><h3>CSV import with undo</h3><p>Map your bank&rsquo;s columns once. Likely duplicates are flagged before they land, and the whole batch rolls back in one action.</p></div>
+  </div>
+</div></section>
+
+<section class="sunk"><div class="shell split">
+  <div class="rail"><h2>The actual product.</h2>
+    <p>Screenshots of the running app on a demo account, not illustrations of one. The month below is in deficit and the dashboard says so on the first line &mdash; that is the whole idea.</p></div>
+  <figure>
+    <img src="../public/shots/dashboard-light.png" alt="Budget Planner dashboard: net worth ₱204,440, a Fair 67 out of 100 score, and the Health Ledger grading five pillars." width="2880" height="1800">
+    <figcaption><span class="micro">One verdict, five graded pillars</span><span class="micro">Dashboard</span></figcaption>
+  </figure>
+</div></section>
+
+<section class="close"><div class="shell split">
+  <h2>Find out where you actually stand.</h2>
+  <div>
+    <p>Free to start. No credit card, no bank connection, no ads.</p>
+    <div class="cta-row"><a class="btn btn-inverse btn-lg" href="#">Create your free account</a></div>
+  </div>
+</div></section>
+
+<footer><div class="shell">Option A &mdash; &ldquo;Plain Statement&rdquo; &middot; bone / ink / signal red-orange &middot; Archivo + Geist Mono</div></footer>
+</body>
+</html>

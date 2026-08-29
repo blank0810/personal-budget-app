@@ -1,0 +1,198 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Option C — Instrument · Budget Planner mockup</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700;800&family=Martian+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* ── Option C · "Instrument" ────────────────────────────────────────
+   The brand as a precision measuring device — a Braun gauge, not a
+   developer terminal. Graphite (not black, not navy), bone dial face,
+   one safety orange for the needle and the live reading.
+   Public Sans is the US government's form typeface: blunt, precise,
+   unglamorous. Martian Mono is the readout, which is the one honest
+   use for monospace here.
+   ─────────────────────────────────────────────────────────────────── */
+:root{
+  --graphite:#1c1d1f; --panel:#242629; --panel-2:#2c2f33;
+  --bone:#e8e6e3;                /* 12.4:1 on graphite */
+  --bone-dim:#b8b5b1;            /*  7.9:1 */
+  --bone-mute:#8e8b87;           /*  4.8:1 */
+  --rule:rgba(232,230,227,.14); --rule-strong:rgba(232,230,227,.28);
+  --orange:#ff5c1a;              /*  6.2:1 on graphite */
+  --orange-deep:#e04a0d;
+  --ease:cubic-bezier(.16,1,.3,1);
+  --shell:74rem;
+  --gutter:clamp(1.25rem,4vw,2.5rem);
+  --section:clamp(3.5rem,7vw,6rem);
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--graphite);color:var(--bone);
+  font-family:"Public Sans",system-ui,sans-serif;-webkit-font-smoothing:antialiased;letter-spacing:.005em}
+a{color:inherit}
+.shell{max-width:var(--shell);margin-inline:auto;padding-inline:var(--gutter)}
+.readout{font-family:"Martian Mono",ui-monospace,monospace;font-variant-numeric:tabular-nums}
+.micro{font-family:"Martian Mono",ui-monospace,monospace;font-size:.625rem;letter-spacing:.1em;text-transform:uppercase;color:var(--bone-mute)}
+
+nav{position:sticky;top:0;z-index:10;background:color-mix(in srgb,var(--graphite) 92%,transparent);backdrop-filter:blur(10px);border-bottom:1px solid var(--rule)}
+.nav-in{display:flex;align-items:center;justify-content:space-between;gap:1.5rem;height:4rem}
+.wordmark{font-weight:800;letter-spacing:-.02em;font-size:1.0625rem}
+.nav-links{display:none;gap:1.75rem}
+.nav-links a{text-decoration:none;color:var(--bone-dim);font-size:.9375rem;font-weight:500}
+.nav-links a:hover{color:var(--bone)}
+@media(min-width:62rem){.nav-links{display:flex}}
+
+.btn{display:inline-flex;align-items:center;justify-content:center;min-height:2.875rem;padding-inline:1.375rem;
+  font:600 .9375rem/1 "Public Sans",system-ui,sans-serif;text-decoration:none;border:1px solid transparent;border-radius:3px}
+.btn-orange{background:var(--orange);color:#180a04}
+.btn-orange:hover{background:var(--orange-deep)}
+.btn-outline{border-color:var(--rule-strong);color:var(--bone)}
+.btn-outline:hover{border-color:var(--bone);background:rgba(232,230,227,.06)}
+.btn-lg{min-height:3.25rem;padding-inline:1.75rem;font-size:1rem}
+
+/* Hero — the gauge is the hero object, and the needle settles once. */
+.hero{padding-block:clamp(2.5rem,5vw,4rem) clamp(3rem,6vw,4.5rem);border-bottom:1px solid var(--rule)}
+.hero-grid{display:grid;gap:clamp(2.5rem,5vw,4rem);align-items:center}
+@media(min-width:62rem){.hero-grid{grid-template-columns:minmax(0,1fr) minmax(19rem,24rem)}}
+h1{margin:0;font-size:clamp(2.5rem,1.6rem + 4.2vw,4.25rem);line-height:1.02;letter-spacing:-.03em;font-weight:800;max-width:16ch;text-wrap:balance}
+.lead{font-size:clamp(1.0625rem,1rem + .35vw,1.2rem);line-height:1.6;color:var(--bone-dim);max-width:46ch;margin:1.5rem 0 0;text-wrap:pretty}
+.cta-row{display:flex;flex-wrap:wrap;gap:.75rem;margin-top:2rem}
+.spec{display:grid;grid-template-columns:repeat(auto-fit,minmax(9rem,1fr));gap:1px;margin-top:2.25rem;background:var(--rule);border:1px solid var(--rule)}
+.spec div{background:var(--graphite);padding:.875rem 1rem}
+.spec b{display:block;font-family:"Martian Mono",ui-monospace,monospace;font-size:1rem;font-weight:600;color:var(--bone)}
+.spec span{display:block;font-size:.75rem;color:var(--bone-mute);margin-top:.3rem}
+
+.gauge-panel{background:var(--panel);border:1px solid var(--rule);border-radius:4px;padding:1.5rem}
+.gauge-head{display:flex;justify-content:space-between;gap:1rem;margin-bottom:.5rem}
+svg.gauge{display:block;width:100%;height:auto}
+.needle{transform-box:view-box;transform-origin:100px 100px;animation:swing 1300ms var(--ease) both}
+@keyframes swing{0%{transform:rotate(-110deg)}62%{transform:rotate(48.6deg)}100%{transform:rotate(39.6deg)}}
+.gauge-read{display:flex;align-items:baseline;justify-content:center;gap:.5rem;margin-top:-.5rem}
+.gauge-read b{font-family:"Martian Mono",ui-monospace,monospace;font-size:2.75rem;font-weight:600;letter-spacing:-.04em}
+.gauge-read span{font-family:"Martian Mono",ui-monospace,monospace;color:var(--bone-mute);font-size:.9rem}
+.gauge-state{text-align:center;margin:.5rem 0 0;font-weight:600;color:var(--orange);font-size:.9375rem}
+.channels{margin:1.5rem 0 0;border-top:1px solid var(--rule)}
+.chan{display:flex;align-items:center;gap:.75rem;padding-block:.625rem;border-bottom:1px solid var(--rule)}
+.chan b{flex:1;font-size:.875rem;font-weight:600}
+.chan .bar{width:72px;height:4px;background:var(--rule-strong);position:relative;overflow:hidden}
+.chan .bar i{position:absolute;inset-block:0;left:0;background:var(--orange);transform-origin:left;animation:fill 700ms var(--ease) both}
+@keyframes fill{from{transform:scaleX(0)}to{transform:scaleX(1)}}
+.chan .g{font-family:"Martian Mono",ui-monospace,monospace;font-size:.75rem;color:var(--bone-dim);width:1.5rem;text-align:right}
+
+section{padding-block:var(--section)}
+.band{background:var(--panel)}
+h2{margin:0;font-size:clamp(1.75rem,1.2rem + 2.4vw,2.75rem);line-height:1.06;letter-spacing:-.025em;font-weight:800;text-wrap:balance}
+.split{display:grid;gap:clamp(1.75rem,4vw,3rem)}
+@media(min-width:62rem){.split{grid-template-columns:minmax(13rem,19rem) minmax(0,1fr);gap:clamp(2.5rem,5vw,4.5rem)}}
+.rail p{color:var(--bone-dim);line-height:1.6;margin:1.125rem 0 0;max-width:36ch}
+.ledger{border-top:1px solid var(--rule-strong)}
+.row{display:grid;gap:.5rem;padding-block:1.375rem;border-bottom:1px solid var(--rule)}
+@media(min-width:52rem){.row{grid-template-columns:minmax(0,16rem) minmax(0,1fr);gap:2.5rem;align-items:baseline}}
+.row h3{margin:0;font-size:1.0625rem;font-weight:700;letter-spacing:-.01em}
+.row p{margin:0;color:var(--bone-dim);line-height:1.6;max-width:54ch;font-size:.9875rem}
+
+figure{margin:0;border:1px solid var(--rule-strong);border-radius:4px;overflow:hidden;background:var(--panel)}
+figure img{display:block;width:100%;height:auto;opacity:.94}
+figcaption{display:flex;flex-wrap:wrap;justify-content:space-between;gap:.5rem 1rem;padding:.625rem .875rem;background:var(--panel-2);border-top:1px solid var(--rule)}
+
+.close{background:var(--orange);color:#180a04}
+.close h2{color:#180a04;max-width:15ch}
+.close p{color:rgba(24,10,4,.78);font-size:1.1rem;line-height:1.55;margin:0;max-width:42ch}
+.btn-dark{background:#180a04;color:var(--bone)}
+.btn-dark:hover{background:#000}
+footer{background:var(--panel);border-top:1px solid var(--rule);padding-block:2.5rem;color:var(--bone-mute);font-size:.875rem}
+@media(prefers-reduced-motion:reduce){*{animation-duration:.01ms !important;transition-duration:.01ms !important}
+  .needle{transform:rotate(39.6deg)}}
+</style>
+</head>
+<body>
+
+<nav><div class="shell nav-in">
+  <span class="wordmark">Budget Planner</span>
+  <div class="nav-links"><a href="#">Features</a><a href="#">How it works</a><a href="#">Invoicing</a><a href="#">Pricing</a><a href="#">FAQ</a></div>
+  <a class="btn btn-orange" href="#">Start for free</a>
+</div></nav>
+
+<header class="hero"><div class="shell hero-grid">
+  <div>
+    <h1>An instrument for your own money.</h1>
+    <p class="lead">You log what moves. It reads five pillars of your finances and returns one calibrated score out of 100 &mdash; measured from your own entries, never estimated from a bank feed.</p>
+    <div class="cta-row">
+      <a class="btn btn-orange btn-lg" href="#">Start for free</a>
+      <a class="btn btn-outline btn-lg" href="#">See how it works</a>
+    </div>
+    <div class="spec">
+      <div><b>0</b><span>Bank connections</span></div>
+      <div><b>5</b><span>Weighted pillars</span></div>
+      <div><b>&#8369;0</b><span>To start</span></div>
+    </div>
+  </div>
+
+  <div class="gauge-panel">
+    <div class="gauge-head"><span class="micro">Sample reading</span><span class="micro">Weighted</span></div>
+    <!-- Geometry computed: theta(v) = 200deg - 2.2deg*v over a 220deg sweep. -->
+    <svg class="gauge" viewBox="0 0 200 146" role="img" aria-label="Sample financial health reading: 68 out of 100, rated Fair.">
+      <!-- Track: v=0 → v=100, a 220° sweep, so large-arc-flag=1. -->
+      <path d="M 22.9 128.0 A 82 82 0 1 1 177.1 128.0" fill="none" stroke="rgba(232,230,227,.28)" stroke-width="2"/>
+      <!-- Reading: v=0 → v=68, a 149.6° sweep, so large-arc-flag=0. -->
+      <path d="M 22.9 128.0 A 82 82 0 0 1 152.3 36.8" fill="none" stroke="#ff5c1a" stroke-width="4"/>
+      <g stroke="rgba(232,230,227,.45)" stroke-width="1.5">
+        <line x1="31.4" y1="125.0" x2="22.9" y2="128.0"/>
+        <line x1="40.2" y1="58.1" x2="32.8" y2="53.0"/>
+        <line x1="100.0" y1="27.0" x2="100.0" y2="18.0"/>
+        <line x1="159.8" y1="58.1" x2="167.2" y2="53.0"/>
+        <line x1="168.6" y1="125.0" x2="177.1" y2="128.0"/>
+      </g>
+      <g class="needle">
+        <line x1="100" y1="100" x2="100" y2="30" stroke="#ff5c1a" stroke-width="3" stroke-linecap="round"/>
+        <circle cx="100" cy="100" r="6" fill="#e8e6e3"/>
+      </g>
+    </svg>
+    <div class="gauge-read"><b>68</b><span>/100</span></div>
+    <p class="gauge-state">Fair</p>
+
+    <div class="channels">
+      <div class="chan"><b>Solvency</b><span class="bar"><i style="width:78%"></i></span><span class="g">C</span></div>
+      <div class="chan"><b>Liquidity</b><span class="bar"><i style="width:45%"></i></span><span class="g">D</span></div>
+      <div class="chan"><b>Savings</b><span class="bar"><i style="width:58%"></i></span><span class="g">D</span></div>
+      <div class="chan"><b>Debt</b><span class="bar"><i style="width:82%"></i></span><span class="g">B</span></div>
+      <div class="chan"><b>Cash flow</b><span class="bar"><i style="width:77%"></i></span><span class="g">C</span></div>
+    </div>
+  </div>
+</div></header>
+
+<section><div class="shell split">
+  <div class="rail"><h2>Calibrated on what you enter</h2>
+    <p>No bank credentials, no aggregator. You do the logging &mdash; that is the cost, and the reading is exact because of it.</p></div>
+  <div class="ledger">
+    <div class="row"><h3>Envelope budgets</h3><p>A limit per category per month. Logged expenses move the envelope, so &ldquo;what is left&rdquo; is read from your ledger rather than estimated.</p></div>
+    <div class="row"><h3>Unified transactions</h3><p>Income, expenses, transfers between your own accounts, and payments toward a liability &mdash; one table, one filter set.</p></div>
+    <div class="row"><h3>Savings goals</h3><p>Link a goal to the account that holds the money. Progress comes from the balance, so it cannot drift.</p></div>
+    <div class="row"><h3>CSV import with undo</h3><p>Map your bank&rsquo;s columns once. Duplicates flagged before they land, whole batch reversible in one action.</p></div>
+  </div>
+</div></section>
+
+<section class="band"><div class="shell split">
+  <div class="rail"><h2>The instrument itself</h2>
+    <p>A real screenshot on a demo account. The month is in deficit and the first line of the dashboard says so.</p></div>
+  <figure>
+    <img src="../public/shots/dashboard-light.png" alt="Budget Planner dashboard: net worth ₱204,440, a Fair 67 out of 100 score, and the Health Ledger grading five pillars." width="2880" height="1800">
+    <figcaption><span class="micro">One verdict, five graded pillars</span><span class="micro">Dashboard</span></figcaption>
+  </figure>
+</div></section>
+
+<section class="close"><div class="shell split">
+  <h2>Take a reading.</h2>
+  <div>
+    <p>Free to start. No credit card, no bank connection, no ads.</p>
+    <div class="cta-row"><a class="btn btn-dark btn-lg" href="#">Create your free account</a></div>
+  </div>
+</div></section>
+
+<footer><div class="shell">Option C &mdash; &ldquo;Instrument&rdquo; &middot; graphite / bone / safety orange &middot; Public Sans + Martian Mono</div></footer>
+</body>
+</html>

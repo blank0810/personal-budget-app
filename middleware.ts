@@ -36,12 +36,6 @@ export default auth(async function middleware(req: NextRequest & { auth: Session
 		pathname === '/sitemap.xml' ||
 		pathname === '/robots.txt' ||
 		pathname === '/logo.svg' ||
-		// Product screenshots used by the public marketing pages. next/image
-		// fetches these over HTTP to optimise them, so a 307 here does not
-		// just hide an image from crawlers — the optimiser reports
-		// "The requested resource isn't a valid image ... received null"
-		// and EVERY shot on the landing page fails, logged out.
-		pathname.startsWith('/shots/') ||
 		// Static ownership / verification files served from public/. These
 		// MUST be reachable by anonymous verification bots - otherwise the
 		// middleware 307s them to /login and the crawler reads the login

@@ -1,0 +1,252 @@
+/* ================================================================
+   lagoon.css — Lagoon landing concept
+   Exclusive to /. All classes prefixed .lagoon-
+   Do NOT import from any other route.
+   ================================================================ */
+
+/* ── CSS custom properties — LIGHT defaults ─────────────── */
+.lagoon-root {
+	/* Surfaces */
+	--lagoon-canvas:        #f8fafc;   /* page background */
+	--lagoon-surface:       #ffffff;   /* card / section fill */
+	--lagoon-surface-2:     #f1f5f9;   /* track / divider bg */
+
+	/* Text */
+	--lagoon-ink:           #0f172a;   /* primary headings */
+	--lagoon-ink-2:         #334155;   /* secondary / negative amounts */
+	--lagoon-ink-3:         #64748b;   /* tertiary / disabled */
+	--lagoon-body:          #475569;   /* body paragraphs */
+	--lagoon-muted:         #64748b;   /* muted labels / meta — slate-500, 4.76:1 on white (WCAG AA) */
+
+	/* Borders */
+	--lagoon-border:        #e2e8f0;
+	--lagoon-border-soft:   #cbd5e1;   /* hover border */
+
+	/* Accent — teal
+	   Light-mode --lagoon-accent is #0c8074 (not the brand #0d9488).
+	   Rationale: #0d9488 on white = 3.75:1 — fails WCAG AA (4.5:1) for both
+	   white text on teal-fill buttons AND teal text on white (e.g. eyebrow labels).
+	   Some buttons use inline style={{ background: 'var(--lagoon-accent)' }} in
+	   TSX files this file does not own, so the token itself must be safe.
+	   #0c8074 on white = 4.82:1. Dark-mode override keeps #2dd4bf unchanged. */
+	--lagoon-accent:        #0c8074;
+	--lagoon-accent-strong: #0f766e;   /* hover / active — 5.47:1 on white (already passes) */
+	--lagoon-accent-tint:   #ccfbf1;   /* subtle teal bg */
+	--lagoon-accent-border: #99f6e4;   /* badge / fine-line teal */
+	--lagoon-accent-bg:     #f0fdfa;   /* very-light teal bg for badges */
+	--lagoon-on-accent:     #ffffff;   /* text/icon on teal fills */
+
+	/* Glows & overlays */
+	--lagoon-glow-color:    #ccfbf1;                        /* hero radial glow */
+	--lagoon-grid-line:     rgba(13, 148, 136, 0.038);      /* grid overlay lines */
+	--lagoon-browser-glow:  rgba(13, 148, 136, 0.14);       /* browser teal glow */
+	--lagoon-shadow-teal:   rgba(13, 148, 136, 0.10);       /* card hover teal glow */
+	--lagoon-shadow-dark:   rgba(0, 0, 0, 0.06);            /* browser mid shadow */
+	--lagoon-shadow-deep:   rgba(0, 0, 0, 0.10);            /* browser deep shadow */
+	--lagoon-featured-glow: rgba(13, 148, 136, 0.12);       /* pricing featured shadow */
+
+	/* Page shell */
+	background-color: var(--lagoon-canvas);
+	color:            var(--lagoon-ink);
+	min-height:       100vh;
+
+	/* Smooth colour transitions when toggling theme.
+	   Only background/color/border; excludes transforms to prevent jank. */
+	transition:
+		background-color 250ms ease,
+		color            250ms ease,
+		border-color     250ms ease;
+}
+
+/* ── DARK override ───────────────────────────────────────── */
+[data-lagoon-theme='dark'] .lagoon-root {
+	--lagoon-canvas:        #0b1120;
+	--lagoon-surface:       #131c30;
+	--lagoon-surface-2:     #1b2740;
+
+	--lagoon-ink:           #f1f5f9;
+	--lagoon-ink-2:         #cbd5e1;
+	--lagoon-ink-3:         #8b9bb0;
+	--lagoon-body:          #aeb9c9;
+	--lagoon-muted:         #7a8a9e;   /* nudged to meet AA on dark canvas */
+
+	--lagoon-border:        rgba(255, 255, 255, 0.10);
+	--lagoon-border-soft:   rgba(255, 255, 255, 0.20); /* hover border — more visible than default */
+
+	--lagoon-accent:        #2dd4bf;   /* brighter teal — pops on dark */
+	--lagoon-accent-strong: #14b8a6;
+	--lagoon-accent-tint:   rgba(45, 212, 191, 0.14);
+	--lagoon-accent-border: rgba(45, 212, 191, 0.30);
+	--lagoon-accent-bg:     rgba(45, 212, 191, 0.08);
+	--lagoon-on-accent:     #ffffff;
+
+	--lagoon-glow-color:    rgba(20, 184, 166, 0.20);
+	--lagoon-grid-line:     rgba(45, 212, 191, 0.05);
+	--lagoon-browser-glow:  rgba(20, 184, 166, 0.22);
+	--lagoon-shadow-teal:   rgba(45, 212, 191, 0.15);
+	--lagoon-shadow-dark:   rgba(0, 0, 0, 0.30);
+	--lagoon-shadow-deep:   rgba(0, 0, 0, 0.40);
+	--lagoon-featured-glow: rgba(45, 212, 191, 0.18);
+}
+
+html:has(.lagoon-root) {
+	scroll-behavior: smooth;
+}
+
+/* ── Typography scales ──────────────────────────────────── */
+.lagoon-hero-title {
+	font-size: clamp(48px, 7.5vw, 88px);
+	line-height: 1.03;
+	letter-spacing: -0.045em;
+	font-weight: 800;
+}
+
+.lagoon-section-title {
+	font-size: clamp(30px, 3.5vw, 48px);
+	line-height: 1.1;
+	letter-spacing: -0.03em;
+	font-weight: 700;
+}
+
+.lagoon-feature-title {
+	font-size: clamp(17px, 1.5vw, 20px);
+	line-height: 1.25;
+	letter-spacing: -0.02em;
+	font-weight: 700;
+}
+
+/* ── Contained teal hero glow ───────────────────────────── */
+.lagoon-hero-glow {
+	position: absolute;
+	inset: 0;
+	pointer-events: none;
+	background: radial-gradient(
+		ellipse 960px 520px at 50% -2%,
+		var(--lagoon-glow-color) 0%,
+		transparent 68%
+	);
+	z-index: 0;
+}
+
+/* ── Subtle teal-tinted grid overlay ────────────────────── */
+.lagoon-grid-overlay {
+	position: relative;
+	isolation: isolate;
+}
+
+.lagoon-grid-overlay::before {
+	content: '';
+	position: absolute;
+	inset: 0;
+	pointer-events: none;
+	z-index: -1;
+	background-image:
+		linear-gradient(var(--lagoon-grid-line) 1px, transparent 1px),
+		linear-gradient(90deg, var(--lagoon-grid-line) 1px, transparent 1px);
+	background-size: 48px 48px;
+	background-position: center top;
+}
+
+/* ── Browser chrome mock ────────────────────────────────── */
+.lagoon-browser {
+	border-radius: 12px;
+	overflow: hidden;
+	border: 1px solid var(--lagoon-border);
+	box-shadow:
+		0 0 0 1px rgba(0, 0, 0, 0.03),
+		0 8px 24px -4px var(--lagoon-shadow-dark),
+		0 32px 80px -12px var(--lagoon-shadow-deep),
+		0 60px 120px -20px var(--lagoon-browser-glow);
+	background: var(--lagoon-surface);
+}
+
+/* ── Feature cards ──────────────────────────────────────── */
+.lagoon-feature-card {
+	background: var(--lagoon-surface);
+	border: 1px solid var(--lagoon-border);
+	border-radius: 16px;
+	padding: 28px;
+	transition: transform 220ms ease, box-shadow 220ms ease;
+	will-change: transform;
+	cursor: default;
+}
+
+.lagoon-feature-card:hover {
+	transform: translateY(-3px);
+	box-shadow:
+		0 8px 32px var(--lagoon-shadow-teal),
+		0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.lagoon-feature-card:hover {
+		transform: none;
+	}
+	.lagoon-feature-card {
+		transition: box-shadow 220ms ease;
+	}
+}
+
+/* ── Step connector ─────────────────────────────────────── */
+.lagoon-step-connector {
+	flex: 1;
+	height: 1px;
+	background: linear-gradient(90deg, var(--lagoon-accent) 0%, var(--lagoon-accent-tint) 100%);
+	margin: 0 20px;
+}
+
+@media (max-width: 768px) {
+	.lagoon-step-connector {
+		display: none;
+	}
+}
+
+/* ── Teal gradient panel (CTA) ──────────────────────────── */
+/*    Stays teal in both modes; slightly deeper in dark.    */
+.lagoon-teal-panel {
+	background: linear-gradient(135deg, #0c8074 0%, #0f766e 100%); /* #0c8074=4.82:1, #0f766e=5.47:1 — both pass AA with white text */
+	color: #ffffff;
+	border-radius: 28px;
+}
+
+[data-lagoon-theme='dark'] .lagoon-root .lagoon-teal-panel {
+	background: linear-gradient(135deg, #0a7c74 0%, #0c5e58 100%);
+}
+
+/* ── Button hover states (server-component-safe CSS) ────── */
+.lagoon-btn-teal {
+	background: var(--lagoon-accent);
+	color: var(--lagoon-on-accent);
+	transition: background 200ms ease;
+}
+.lagoon-btn-teal:hover {
+	background: var(--lagoon-accent-strong);
+}
+
+/* ── Pricing cards ──────────────────────────────────────── */
+.lagoon-pricing-card {
+	background: var(--lagoon-surface);
+	border: 1px solid var(--lagoon-border);
+	border-radius: 20px;
+	padding: 36px;
+}
+
+.lagoon-pricing-card.featured {
+	border-color: var(--lagoon-accent);
+	box-shadow:
+		0 0 0 1px var(--lagoon-accent),
+		0 8px 32px var(--lagoon-featured-glow);
+}
+
+/* ── Stat divider ───────────────────────────────────────── */
+.lagoon-stat-divider {
+	width: 1px;
+	align-self: stretch;
+	background: var(--lagoon-border);
+}
+
+@media (max-width: 640px) {
+	.lagoon-stat-divider {
+		display: none;
+	}
+}
