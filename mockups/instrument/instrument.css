@@ -27,22 +27,74 @@
   font-display:swap;
 }
 
+/* ── Themes ─────────────────────────────────────────────────────────
+   Dark is TRUE BLACK. Elevation is carried by surface lightness, never
+   by shadow — panel and panel-2 step up from #000 rather than sitting
+   on it. Light is a bone dial face with graphite ink.
+
+   The accent cannot be one value across both. #ff5c1a reads 6.8:1 on
+   black but only 3.0:1 on the light canvas, so light mode carries a
+   deeper --orange-text for type and a slightly deepened --orange for
+   fills. Every pairing below was measured; ratios are in comments.
+   ────────────────────────────────────────────────────────────────── */
+:root[data-theme="dark"]{
+  --canvas:#000000;
+  --panel:#0c0908;
+  --panel-2:#181412;
+
+  --ink:#f4f1f0;        /* 18.7:1 on canvas */
+  --ink-dim:#bfb9b7;    /* 10.8:1 */
+  --ink-mute:#97918e;   /*  6.8:1 / 5.9:1 on panel-2 */
+
+  --rule:#27211f;
+  --rule-strong:#48403d;
+  --rule-ui:#645c58;    /*  3.2:1 — interactive borders only */
+
+  --orange:#ff5c1a;     /*  6.8:1 on canvas */
+  --orange-text:#ff5c1a;
+  --on-orange:#180a04;  /*  6.3:1 on the fill */
+  --on-orange-dim:#3c2019;
+  --orange-wash:var(--orange-wash);
+  --orange-edge:var(--orange-edge);
+  --tick:rgba(244,241,240,.45);
+  --track:rgba(244,241,240,.28);
+  --hover-veil:rgba(244,241,240,.06);
+  --shot-opacity:.94;
+  color-scheme:dark;
+}
+
+:root[data-theme="light"]{
+  --canvas:#fcfbfa;
+  --panel:#f6f3f1;
+  --panel-2:#eeeae8;
+
+  --ink:#1c1613;        /* 17.3:1 on canvas */
+  --ink-dim:#4d4643;    /*  8.9:1 */
+  --ink-mute:#6e6765;   /*  5.4:1 / 4.6:1 on panel-2 */
+
+  --rule:#e0dbd9;
+  --rule-strong:#c3bcb9;
+  --rule-ui:#8c8481;    /*  3.5:1 — interactive borders only */
+
+  --orange:#f3562e;     /*  3.3:1 vs canvas as a control surface */
+  --orange-text:#c03c19; /* 5.2:1 — the accent when it is TYPE */
+  --orange-deep:#a83214;
+  --on-orange:#180a04;  /*  5.7:1 on the fill */
+  --on-orange-dim:#3c2019;
+  --orange-wash:rgba(192,60,25,.10);
+  --orange-edge:rgba(192,60,25,.30);
+  --tick:rgba(28,22,19,.40);
+  --track:rgba(28,22,19,.22);
+  --hover-veil:rgba(28,22,19,.05);
+  --shot-opacity:1;
+  color-scheme:light;
+}
+
 :root{
-  --graphite:#1c1d1f;
-  --panel:#242629;
-  --panel-2:#2c2f33;
 
-  --bone:#e8e6e3;        /* 13.5:1 on graphite, 12.2:1 on panel */
-  --bone-dim:#b8b5b1;    /*  8.3:1 / 7.4:1 */
-  --bone-mute:#9c9795;   /*  5.8:1 / 5.3:1 / 4.7:1 on panel-2 */
 
-  --rule:rgba(232,230,227,.13);
-  --rule-strong:rgba(232,230,227,.28);
 
-  --orange:#ff5c1a;      /*  5.5:1 on graphite, 4.9:1 on panel */
-  --orange-deep:#e04a0d;
-  --on-orange:#180a04;   /*  6.3:1 on orange */
-  --on-orange-dim:#3c2019; /* 4.8:1 on orange — the CTA band's body copy */
+
 
   --ease:cubic-bezier(.16,1,.3,1);
   --shell:74rem;
@@ -57,7 +109,7 @@ html{-webkit-text-size-adjust:100%;scroll-behavior:smooth}
 @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
 
 body{
-  margin:0;background:var(--graphite);color:var(--bone);
+  margin:0;background:var(--canvas);color:var(--ink);
   font-family:"Currency Fallback","Public Sans",system-ui,-apple-system,sans-serif;
   /* Light type on a dark ground reads lighter than it is: compensate
      on tracking and leading, not just colour. */
@@ -84,28 +136,28 @@ h1,h2,h3{margin:0;text-wrap:balance}
 h1{font-size:clamp(2.4rem,1.55rem + 4vw,4.15rem);line-height:1.02;letter-spacing:-.03em;font-weight:800;max-width:16ch}
 h2{font-size:clamp(1.75rem,1.2rem + 2.4vw,2.7rem);line-height:1.06;letter-spacing:-.025em;font-weight:800}
 h3{font-size:clamp(1.05rem,1rem + .25vw,1.15rem);line-height:1.25;letter-spacing:-.012em;font-weight:700}
-.lead{font-size:clamp(1.0625rem,1rem + .35vw,1.2rem);line-height:1.6;color:var(--bone-dim);max-width:46ch;margin:1.5rem 0 0;text-wrap:pretty}
-.prose{color:var(--bone-dim);max-width:62ch;text-wrap:pretty}
+.lead{font-size:clamp(1.0625rem,1rem + .35vw,1.2rem);line-height:1.6;color:var(--ink-dim);max-width:46ch;margin:1.5rem 0 0;text-wrap:pretty}
+.prose{color:var(--ink-dim);max-width:62ch;text-wrap:pretty}
 .prose p{margin:0 0 1rem}
 .prose p:last-child{margin-bottom:0}
-.rail p{color:var(--bone-dim);margin:1.125rem 0 0;max-width:36ch;font-size:1rem}
-.fine{color:var(--bone-mute);font-size:.9rem;line-height:1.55;max-width:56ch}
+.rail p{color:var(--ink-dim);margin:1.125rem 0 0;max-width:36ch;font-size:1rem}
+.fine{color:var(--ink-mute);font-size:.9rem;line-height:1.55;max-width:56ch}
 
 .readout{font-family:"Currency Fallback","Martian Mono",ui-monospace,monospace;font-variant-numeric:tabular-nums}
 .micro{font-family:"Currency Fallback","Martian Mono",ui-monospace,monospace;font-size:.625rem;
-  letter-spacing:.1em;text-transform:uppercase;color:var(--bone-mute);font-weight:500}
+  letter-spacing:.1em;text-transform:uppercase;color:var(--ink-mute);font-weight:500}
 
 /* ── Nav ────────────────────────────────────────────────────────── */
 .nav{position:sticky;top:0;z-index:var(--z-nav);border-bottom:1px solid var(--rule);
-  background:color-mix(in srgb,var(--graphite) 92%,transparent);backdrop-filter:blur(10px)}
-@supports not (backdrop-filter:blur(1px)){.nav{background:var(--graphite)}}
+  background:color-mix(in srgb,var(--canvas) 88%,transparent);backdrop-filter:blur(10px)}
+@supports not (backdrop-filter:blur(1px)){.nav{background:var(--canvas)}}
 .nav-in{display:flex;align-items:center;justify-content:space-between;gap:1.5rem;height:4rem}
 .wordmark{font-weight:800;letter-spacing:-.02em;font-size:1.0625rem;text-decoration:none}
 .nav-links{display:none;gap:1.6rem}
 @media(min-width:64rem){.nav-links{display:flex}}
-.nav-link{position:relative;text-decoration:none;color:var(--bone-dim);font-size:.9375rem;font-weight:500;padding-block:.35rem}
-.nav-link:hover{color:var(--bone)}
-.nav-link[aria-current="page"]{color:var(--bone);font-weight:600}
+.nav-link{position:relative;text-decoration:none;color:var(--ink-dim);font-size:.9375rem;font-weight:500;padding-block:.35rem}
+.nav-link:hover{color:var(--ink)}
+.nav-link[aria-current="page"]{color:var(--ink);font-weight:600}
 .nav-link[aria-current="page"]::after{content:"";position:absolute;left:0;right:0;bottom:-.1rem;height:2px;background:var(--orange)}
 .nav-cta{display:flex;gap:.5rem;align-items:center}
 
@@ -117,29 +169,29 @@ h3{font-size:clamp(1.05rem,1rem + .25vw,1.15rem);line-height:1.25;letter-spacing
 .btn:focus-visible{outline:2px solid var(--orange);outline-offset:2px}
 .btn--orange{background:var(--orange);color:var(--on-orange)}
 .btn--orange:hover{background:var(--orange-deep)}
-.btn--outline{border-color:var(--rule-strong);color:var(--bone)}
-.btn--outline:hover{border-color:var(--bone);background:rgba(232,230,227,.06)}
-.btn--dark{background:var(--on-orange);color:var(--bone)}
+.btn--outline{border-color:var(--rule-strong);color:var(--ink)}
+.btn--outline:hover{border-color:var(--ink);background:var(--hover-veil)}
+.btn--dark{background:var(--on-orange);color:var(--ink)}
 .btn--dark:hover{background:#000}
 .btn--lg{min-height:3.25rem;padding-inline:1.75rem;font-size:1rem}
 .btn-row{display:flex;flex-wrap:wrap;gap:.75rem;margin-top:2rem}
 
-.link{color:var(--bone);text-decoration:underline;text-decoration-color:var(--rule-strong);
+.link{color:var(--ink);text-decoration:underline;text-decoration-color:var(--rule-strong);
   text-underline-offset:.22em;text-decoration-thickness:1px}
-.link:hover{color:var(--orange);text-decoration-color:var(--orange)}
+.link:hover{color:var(--orange-text);text-decoration-color:var(--orange-text)}
 
 /* ── Status marker — the only chip in the system ────────────────── */
 .marker{display:inline-flex;align-items:center;gap:.5rem;padding:.35rem .6rem;border-radius:2px;
-  background:rgba(255,92,26,.14);border:1px solid rgba(255,92,26,.35);color:var(--orange);
+  background:var(--orange-wash);border:1px solid var(--orange-edge);color:var(--orange-text);
   font-family:"Currency Fallback","Martian Mono",ui-monospace,monospace;font-size:.625rem;letter-spacing:.1em;text-transform:uppercase;font-weight:600}
 
 /* ── Spec strip — hairline-divided readouts, not stat cards ─────── */
 .spec{display:grid;grid-template-columns:repeat(auto-fit,minmax(9rem,1fr));gap:1px;
   margin-top:2.25rem;background:var(--rule);border:1px solid var(--rule)}
-.spec div{background:var(--graphite);padding:.875rem 1rem}
+.spec div{background:var(--canvas);padding:.875rem 1rem}
 .band .spec div{background:var(--panel)}
 .spec b{display:block;font-family:"Currency Fallback","Martian Mono",ui-monospace,monospace;font-size:1rem;font-weight:600}
-.spec span{display:block;font-size:.75rem;color:var(--bone-mute);margin-top:.3rem}
+.spec span{display:block;font-size:.75rem;color:var(--ink-mute);margin-top:.3rem}
 
 /* ── Gauge ──────────────────────────────────────────────────────── */
 .gauge-panel{background:var(--panel);border:1px solid var(--rule);border-radius:4px;padding:1.5rem}
@@ -149,18 +201,18 @@ h3{font-size:clamp(1.05rem,1rem + .25vw,1.15rem);line-height:1.25;letter-spacing
 @keyframes swing{0%{transform:rotate(-110deg)}62%{transform:rotate(48.6deg)}100%{transform:rotate(39.6deg)}}
 .gauge-read{display:flex;align-items:baseline;justify-content:center;gap:.5rem;margin-top:-.5rem}
 .gauge-read b{font-family:"Currency Fallback","Martian Mono",ui-monospace,monospace;font-size:2.75rem;font-weight:600;letter-spacing:-.04em}
-.gauge-read span{font-family:"Currency Fallback","Martian Mono",ui-monospace,monospace;color:var(--bone-mute);font-size:.9rem}
-.gauge-state{text-align:center;margin:.4rem 0 0;font-weight:600;color:var(--orange);font-size:.9375rem}
+.gauge-read span{font-family:"Currency Fallback","Martian Mono",ui-monospace,monospace;color:var(--ink-mute);font-size:.9rem}
+.gauge-state{text-align:center;margin:.4rem 0 0;font-weight:600;color:var(--orange-text);font-size:.9375rem}
 .channels{margin:1.5rem 0 0;border-top:1px solid var(--rule)}
 .chan{display:flex;align-items:center;gap:.75rem;padding-block:.625rem;border-bottom:1px solid var(--rule)}
 .chan b{flex:1;font-size:.875rem;font-weight:600}
-.chan .bar{width:72px;height:4px;background:var(--rule-strong);position:relative;overflow:hidden;flex:none}
+.chan .bar{width:72px;height:4px;background:var(--track);position:relative;overflow:hidden;flex:none}
 .chan .bar i{position:absolute;inset-block:0;left:0;background:var(--orange);transform-origin:left;animation:fill 700ms var(--ease) both}
 .chan:nth-child(1) .bar i{animation-delay:.30s}.chan:nth-child(2) .bar i{animation-delay:.38s}
 .chan:nth-child(3) .bar i{animation-delay:.46s}.chan:nth-child(4) .bar i{animation-delay:.54s}
 .chan:nth-child(5) .bar i{animation-delay:.62s}
 @keyframes fill{from{transform:scaleX(0)}to{transform:scaleX(1)}}
-.chan .g{font-family:"Currency Fallback","Martian Mono",ui-monospace,monospace;font-size:.75rem;color:var(--bone-dim);width:1.5rem;text-align:right;flex:none}
+.chan .g{font-family:"Currency Fallback","Martian Mono",ui-monospace,monospace;font-size:.75rem;color:var(--ink-dim);width:1.5rem;text-align:right;flex:none}
 
 /* ── Ledger — the recurring object, in place of card grids ──────── */
 .ledger{border-top:1px solid var(--rule-strong)}
@@ -169,16 +221,16 @@ h3{font-size:clamp(1.05rem,1rem + .25vw,1.15rem);line-height:1.25;letter-spacing
   .row{grid-template-columns:minmax(0,15rem) minmax(0,1fr);gap:2.5rem;align-items:baseline}
   .row--3{grid-template-columns:minmax(0,13rem) minmax(0,1fr) auto}
 }
-.row p{margin:0;color:var(--bone-dim);line-height:1.6;max-width:54ch;font-size:.9875rem}
+.row p{margin:0;color:var(--ink-dim);line-height:1.6;max-width:54ch;font-size:.9875rem}
 .row .fig{font-family:"Currency Fallback","Martian Mono",ui-monospace,monospace;font-variant-numeric:tabular-nums;
-  color:var(--orange);font-size:.9rem;white-space:nowrap}
+  color:var(--orange-text);font-size:.9rem;white-space:nowrap}
 
 /* ── Steps — numbered because the order carries information ─────── */
 .steps{list-style:none;margin:0;padding:0;border-top:1px solid var(--rule-strong)}
 .steps li{display:grid;gap:.4rem 1.5rem;padding-block:1.75rem;border-bottom:1px solid var(--rule)}
 @media(min-width:40rem){.steps li{grid-template-columns:auto minmax(0,1fr)}}
-.steps .n{font-family:"Currency Fallback","Martian Mono",ui-monospace,monospace;font-size:.8125rem;font-weight:600;color:var(--orange);line-height:1.6}
-.steps p{margin:.4rem 0 0;color:var(--bone-dim);max-width:56ch;font-size:.9875rem;line-height:1.6}
+.steps .n{font-family:"Currency Fallback","Martian Mono",ui-monospace,monospace;font-size:.8125rem;font-weight:600;color:var(--orange-text);line-height:1.6}
+.steps p{margin:.4rem 0 0;color:var(--ink-dim);max-width:56ch;font-size:.9875rem;line-height:1.6}
 
 /* ── Screenshot ─────────────────────────────────────────────────── */
 figure{margin:0;border:1px solid var(--rule-strong);border-radius:4px;overflow:hidden;background:var(--panel)}
@@ -195,14 +247,14 @@ figcaption{display:flex;flex-wrap:wrap;justify-content:space-between;gap:.5rem 1
 .faq summary{display:flex;gap:1.25rem;align-items:baseline;justify-content:space-between;
   padding-block:1.125rem;cursor:pointer;list-style:none;font-weight:600;font-size:1.0625rem;min-height:2.75rem}
 .faq summary::-webkit-details-marker{display:none}
-.faq summary:hover{color:var(--orange)}
+.faq summary:hover{color:var(--orange-text)}
 .faq summary:focus-visible{outline:2px solid var(--orange);outline-offset:-2px}
 .faq .sign{flex:none;width:.875rem;height:.875rem;position:relative;translate:0 -.05em}
 .faq .sign::before,.faq .sign::after{content:"";position:absolute;inset-block-start:50%;inset-inline-start:0;
   width:100%;height:1.5px;background:currentColor;translate:0 -50%}
 .faq .sign::after{rotate:90deg;transition:opacity 200ms var(--ease)}
 .faq details[open] .sign::after{opacity:0}
-.faq .answer{margin:0;padding-block:0 1.375rem;color:var(--bone-dim);max-width:62ch;font-size:1rem}
+.faq .answer{margin:0;padding-block:0 1.375rem;color:var(--ink-dim);max-width:62ch;font-size:1rem}
 
 /* ── Closing band — the accent takes the whole surface, once ────── */
 .close{background:var(--orange);color:var(--on-orange)}
@@ -217,12 +269,118 @@ figcaption{display:flex;flex-wrap:wrap;justify-content:space-between;gap:.5rem 1
 .foot-cols{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:2rem}
 @media(min-width:34rem){.foot-cols{grid-template-columns:repeat(3,auto);gap:3rem}}
 .foot ul{list-style:none;margin:.75rem 0 0;padding:0}
-.foot a{display:inline-block;padding-block:.3rem;color:var(--bone-dim);text-decoration:none;font-size:.9375rem}
-.foot a:hover{color:var(--orange)}
+.foot a{display:inline-block;padding-block:.3rem;color:var(--ink-dim);text-decoration:none;font-size:.9375rem}
+.foot a:hover{color:var(--orange-text)}
 .foot-base{display:flex;flex-wrap:wrap;justify-content:space-between;gap:.75rem;
-  margin-top:2.5rem;padding-top:1.5rem;border-top:1px solid var(--rule);color:var(--bone-mute);font-size:.875rem}
+  margin-top:2.5rem;padding-top:1.5rem;border-top:1px solid var(--rule);color:var(--ink-mute);font-size:.875rem}
 
 @media(prefers-reduced-motion:reduce){
   *,*::before,*::after{animation-duration:.01ms !important;animation-iteration-count:1 !important;transition-duration:.01ms !important}
   .needle{transform:rotate(39.6deg)}
 }
+
+/* ══ Motion ═════════════════════════════════════════════════════════
+   The budget is spent on three things, not sprinkled everywhere:
+
+     1. one orchestrated page-load above the fold
+     2. the theme switch, which is the page's most-used control
+     3. interaction feedback
+
+   There are deliberately NO scroll-triggered section reveals. Fade-and-
+   rise on every scrolled block is the saturated AI default and reads as
+   a tell rather than as choreography.
+
+   Every entrance is pure CSS with `backwards` fill, so the resting
+   style IS the visible one. No JS gates visibility, nothing can ship
+   blank in a background tab or a headless render, and reduced-motion
+   simply lands on the final frame.
+   ══════════════════════════════════════════════════════════════════ */
+
+@keyframes rise{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+@keyframes lift{from{opacity:0;transform:translateY(22px) scale(.985)}to{opacity:1;transform:none}}
+@keyframes wipe{from{clip-path:inset(0 100% 0 0)}to{clip-path:inset(0 0 0 0)}}
+
+/* Hero choreography — a single sequence, ~900ms end to end. */
+.hero-grid > div > h1,
+.section--tight h1{animation:rise 620ms var(--ease) 60ms backwards}
+.section--tight .lead{animation:rise 620ms var(--ease) 150ms backwards}
+.section--tight .btn-row{animation:rise 620ms var(--ease) 230ms backwards}
+.section--tight .spec{animation:rise 620ms var(--ease) 310ms backwards}
+.gauge-panel{animation:lift 760ms var(--ease) 260ms backwards}
+
+/* The rule under a section heading draws itself in once, on load. */
+.ledger,.steps,.faq{animation:wipe 700ms var(--ease) 220ms backwards}
+
+/* ── Theme switch ───────────────────────────────────────────────────
+   Two mechanisms. Browsers with the View Transitions API get a circular
+   wipe from the toggle itself (driven in instrument.js); everything
+   else falls back to a plain token cross-fade. The `.theming` class is
+   only present for the duration of the fallback, so these transitions
+   never tax ordinary scrolling.
+   ────────────────────────────────────────────────────────────────── */
+.theming,
+.theming *,
+.theming *::before,
+.theming *::after{
+  transition:background-color 420ms var(--ease),color 420ms var(--ease),
+             border-color 420ms var(--ease),fill 420ms var(--ease),
+             stroke 420ms var(--ease),opacity 420ms var(--ease) !important;
+}
+
+::view-transition-old(root),
+::view-transition-new(root){animation:none;mix-blend-mode:normal}
+::view-transition-old(root){z-index:1}
+::view-transition-new(root){z-index:2}
+
+/* ── Theme toggle ───────────────────────────────────────────────────
+   44px hit area around an 18px glyph. The two icons are stacked and
+   cross-faded rather than swapped, so the control never jumps.
+   ────────────────────────────────────────────────────────────────── */
+.toggle{
+  position:relative;display:inline-flex;align-items:center;justify-content:center;
+  width:2.75rem;height:2.75rem;border:0;border-radius:3px;background:transparent;
+  color:var(--ink-dim);cursor:pointer;
+  transition:color 160ms var(--ease),background-color 160ms var(--ease);
+}
+.toggle:hover{color:var(--ink);background:var(--hover-veil)}
+.toggle:focus-visible{outline:2px solid var(--orange);outline-offset:-2px}
+.toggle svg{position:absolute;width:18px;height:18px;
+  transition:opacity 260ms var(--ease),transform 380ms var(--ease)}
+:root[data-theme="dark"] .toggle .i-sun{opacity:1;transform:none}
+:root[data-theme="dark"] .toggle .i-moon{opacity:0;transform:rotate(-45deg) scale(.7)}
+:root[data-theme="light"] .toggle .i-sun{opacity:0;transform:rotate(45deg) scale(.7)}
+:root[data-theme="light"] .toggle .i-moon{opacity:1;transform:none}
+
+/* ── Interaction feedback ───────────────────────────────────────── */
+.btn{will-change:auto}
+.btn:active{transform:translateY(1px)}
+.btn--orange{box-shadow:0 0 0 0 var(--orange-edge);transition:background-color 140ms var(--ease),box-shadow 260ms var(--ease),transform 90ms var(--ease)}
+.btn--orange:hover{box-shadow:0 0 0 4px var(--orange-edge)}
+
+.nav-link::after{transition:transform 220ms var(--ease)}
+.nav-link[aria-current="page"]::after{transform-origin:left;animation:wipe-bar 420ms var(--ease) backwards}
+@keyframes wipe-bar{from{transform:scaleX(0)}to{transform:scaleX(1)}}
+
+.row,.steps li{transition:background-color 200ms var(--ease)}
+.row:hover,.steps li:hover{background:var(--hover-veil)}
+
+figure{transition:border-color 220ms var(--ease)}
+figure:hover{border-color:var(--rule-ui)}
+figure img{opacity:var(--shot-opacity)}
+
+.faq summary{transition:color 160ms var(--ease)}
+.faq .answer{animation:rise 320ms var(--ease) backwards}
+
+@media(prefers-reduced-motion:reduce){
+  .theming,.theming *,.theming *::before,.theming *::after{transition-duration:.01ms !important}
+  ::view-transition-old(root),::view-transition-new(root){animation:none !important}
+  .btn:active{transform:none}
+}
+
+/* Gauge parts are styled here rather than with SVG presentation
+   attributes, so they follow the theme tokens like everything else. */
+.g-track{stroke:var(--track)}
+.g-fill{stroke:var(--orange)}
+.g-ticks{stroke:var(--tick)}
+.g-needle{stroke:var(--orange)}
+.g-hub{fill:var(--ink)}

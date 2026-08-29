@@ -8,12 +8,13 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700;800&amp;family=Martian+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
 <link rel="stylesheet" href="instrument.css">
+<script>(function(){try{var k=localStorage.getItem("bp-instrument-theme");document.documentElement.setAttribute("data-theme",k||(matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"));}catch(e){document.documentElement.setAttribute("data-theme","dark");}})();</script>
 </head>
 <body>
 <header class="nav"><div class="shell nav-in">
   <a class="wordmark" href="index.html">Budget Planner</a>
   <nav class="nav-links" aria-label="Primary"><a class="nav-link" href="features.html">Features</a><a class="nav-link" href="how-it-works.html" aria-current="page">How it works</a><a class="nav-link" href="invoicing.html">Invoicing</a><a class="nav-link" href="pricing.html">Pricing</a><a class="nav-link" href="faq.html">FAQ</a></nav>
-  <div class="nav-cta"><a class="btn btn--orange" href="#">Start for free</a></div>
+  <div class="nav-cta"><button class="toggle" type="button" aria-label="Switch between light and dark theme"><svg class="i-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.2v2.4M12 19.4v2.4M4.1 4.1l1.7 1.7M18.2 18.2l1.7 1.7M2.2 12h2.4M19.4 12h2.4M4.1 19.9l1.7-1.7M18.2 5.8l1.7-1.7"/></svg><svg class="i-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.5 14.6A8.6 8.6 0 1 1 9.4 3.5a6.9 6.9 0 0 0 11.1 11.1Z"/></svg></button><a class="btn btn--orange" href="#">Start for free</a></div>
 </div></header>
 <main>
 <section class="section section--tight" style="border-bottom:1px solid var(--rule)"><div class="shell"><div><h1>You log it. Nothing is guessed on your behalf.</h1><p class="lead">Budget Planner has no connection to your bank. You record what moves, and the app turns that into budgets, goals, reports and a graded score. Here is the whole loop.</p><div class="btn-row"><a class="btn btn--orange btn--lg" href="#">Start for free</a><a class="btn btn--outline btn--lg" href="how-it-works.html">See how it works</a></div></div></div></section>
@@ -34,4 +35,5 @@
   </div>
   <div class="foot-base"><span>Option C &mdash; &ldquo;Instrument&rdquo; mockup</span><span>graphite / bone / safety orange &middot; Public Sans + Martian Mono</span></div>
 </div></footer>
+<script src="instrument.js"></script>
 </body></html>
