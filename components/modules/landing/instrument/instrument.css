@@ -188,8 +188,10 @@ h3{font-size:clamp(1.05rem,1rem + .25vw,1.15rem);line-height:1.25;letter-spacing
 .btn--orange:hover{background:var(--orange-deep)}
 .btn--outline{border-color:var(--rule-strong);color:var(--ink)}
 .btn--outline:hover{border-color:var(--ink);background:var(--hover-veil)}
-.btn--dark{background:var(--on-orange);color:var(--ink)}
-.btn--dark:hover{background:#000}
+/* The band button. Its colours are band-local (see .close) because the
+   band it sits on does not change with the theme. */
+.btn--band{background:var(--band-surface);color:var(--band-ink)}
+.btn--band:hover{background:#fff}
 .btn--lg{min-height:3.25rem;padding-inline:1.75rem;font-size:1rem}
 .btn-row{display:flex;flex-wrap:wrap;gap:.75rem;margin-top:2rem}
 
@@ -276,10 +278,32 @@ figcaption{display:flex;flex-wrap:wrap;justify-content:space-between;gap:.5rem 1
 .faq .answer{margin:0;padding-block:0 1.375rem;color:var(--ink-dim);max-width:62ch;font-size:1rem}
 
 /* ── Closing band — the accent takes the whole surface, once ────── */
-.close{background:var(--orange);color:var(--on-orange)}
-.close h2{max-width:15ch}
-.close p{color:var(--on-orange-dim);font-size:1.1rem;line-height:1.55;margin:0;max-width:44ch}
-.close .btn:focus-visible{outline-color:var(--on-orange)}
+/* One fixed orange in BOTH themes, with band-local tokens for
+   everything inside it.
+
+   This is the fix for a real bug: the CTA button referenced --ink,
+   which is bone in dark mode but near-black in light, so on a band
+   whose background never changes it rendered a black label on a black
+   button — invisible in both themes, since the label also lost to the
+   inherited --on-orange. A block whose background is theme-independent
+   must not contain anything that is theme-dependent.
+
+   Measured against the band: ink 5.70:1, dim 4.64:1, button surface
+   3.02:1 as a control boundary, label on button 17.24:1. */
+.close{
+  --band:#f3562e;
+  --band-ink:#180a04;
+  --band-ink-dim:#391a15;
+  --band-surface:#f4f1f0;
+  background:var(--band);
+  color:var(--band-ink);
+}
+.close h2{max-width:15ch;color:var(--band-ink)}
+.close p{color:var(--band-ink-dim);font-size:1.1rem;line-height:1.55;margin:0;max-width:44ch}
+/* Two classes deep so it beats the inherited band colour outright. */
+.close .btn--band{background:var(--band-surface);color:var(--band-ink)}
+.close .btn--band:hover{background:#fff}
+.close .btn:focus-visible{outline-color:var(--band-ink)}
 
 /* ── Footer ─────────────────────────────────────────────────────── */
 .foot{background:var(--panel);border-top:1px solid var(--rule);padding-block:3rem}

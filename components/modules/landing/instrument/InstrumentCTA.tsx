@@ -21,7 +21,7 @@ export function InstrumentCTA({
 				<div>
 					<p>{note}</p>
 					<div className='btn-row'>
-						<Link href='/register' className='btn btn--dark btn--lg'>
+						<Link href='/register' className='btn btn--band btn--lg'>
 							Create your free account
 						</Link>
 					</div>
