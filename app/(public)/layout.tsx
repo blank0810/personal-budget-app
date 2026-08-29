@@ -1,28 +1,29 @@
 import type { Metadata, Viewport } from 'next';
-import { Plus_Jakarta_Sans, Inter } from 'next/font/google';
-import { LazyMotionProvider } from '@/components/modules/landing/ui/LazyMotionProvider';
+import { Archivo } from 'next/font/google';
 import { LandingSessionProvider } from '@/components/modules/landing/ui/LandingSessionProvider';
-import { LagoonNav } from '@/components/modules/landing/lagoon/LagoonNav';
-import { LagoonFooter } from '@/components/modules/landing/lagoon/LagoonFooter';
-import '@/components/modules/landing/lagoon/lagoon.css';
+import { StatementNav } from '@/components/modules/landing/statement/StatementNav';
+import { StatementFooter } from '@/components/modules/landing/statement/StatementFooter';
+import '@/components/modules/landing/statement/statement.css';
 import { APP_URL } from '@/lib/url';
 
 /**
- * Display heading font — Plus Jakarta Sans (700, 800).
- * Exposed as --lagoon-font-heading so server-rendered h* can use it.
+ * Archivo — one family carries the entire public surface.
+ *
+ * Chosen against the brief's three voice words (blunt, precise,
+ * unglamorous): a grotesque with real width, no charm, and a `wdth`
+ * axis that lets display type run slightly condensed like a headline
+ * instead of a logotype. Deliberately not Inter / DM Sans / Plus Jakarta
+ * — those read as "a website made in 2024", which is the exact impression
+ * this redesign exists to remove.
+ *
+ * Financial figures reuse the app's own `--font-geist-mono`, already
+ * loaded by the root layout, so the marketing site sets money in the
+ * same face the product does — and costs zero extra bytes to do it.
  */
-const plusJakarta = Plus_Jakarta_Sans({
+const archivo = Archivo({
 	subsets: ['latin'],
-	weight: ['700', '800'],
-	variable: '--lagoon-font-heading',
-	display: 'swap',
-});
-
-/** Body font — Inter (400, 500, 600). Swiss-style workhorse for 14–17px. */
-const inter = Inter({
-	subsets: ['latin'],
-	weight: ['400', '500', '600'],
-	variable: '--lagoon-font-body',
+	axes: ['wdth'],
+	variable: '--st-font-sans',
 	display: 'swap',
 });
 
@@ -92,7 +93,12 @@ const SITEWIDE_JSON_LD = {
 };
 
 export const viewport: Viewport = {
-	themeColor: '#0d9488',
+	/* Matches --st-canvas in light mode; the browser chrome should not
+	   announce a colour the page never uses. */
+	themeColor: [
+		{ media: '(prefers-color-scheme: light)', color: '#fcfaf9' },
+		{ media: '(prefers-color-scheme: dark)', color: '#140f0e' },
+	],
 };
 
 export const metadata: Metadata = {
@@ -134,23 +140,16 @@ export const metadata: Metadata = {
 /**
  * Public layout — shared shell for the multi-page marketing site.
  *
- * Design system: the "Lagoon" landing kit (light-first, teal accent, with a
- * self-contained dark mode via the `data-lagoon-theme` attribute + the
- * no-flash inline script below). This is INDEPENDENT of the app's global
- * next-themes `.dark` class — the two never collide because Lagoon reads its
- * own attribute and paints its own `.lagoon-root` canvas.
+ * Design system: "Plain Statement" (`statement.css`). Light-first bone
+ * canvas, near-black ink, one signal red-orange, hairline rules, and
+ * the app's own Health Ledger as the recurring object. It carries its
+ * own dark mode through the `data-st-theme` attribute plus the
+ * no-flash script below — INDEPENDENT of the authenticated app's
+ * next-themes `.dark` class, so the two can never collide.
  *
- * The header (LagoonNav) and footer (LagoonFooter) render identically on every
- * public route (/, /features, /how-it-works, /pricing, /faq, /invoicing,
- * /ai-advisor). Each route only renders its page body into <main>.
- *
- * STATIC: no auth() call here — pages stay cacheable for crawlers. The navbar
- * is auth-aware client-side via useSession (post-hydration swap), and the
- * logged-in → /dashboard redirect lives in middleware.ts.
- *
- * Title template lives on metadata above (`%s · Budget Planner`); each route
- * exports its own honest title/description. opengraph-image.tsx and
- * twitter-image.tsx remain file-convention based.
+ * STATIC: no auth() call here — pages stay cacheable for crawlers. The
+ * navbar is auth-aware client-side via useSession (post-hydration swap),
+ * and the logged-in → /dashboard redirect lives in middleware.ts.
  */
 export default function PublicLayout({
 	children,
@@ -159,9 +158,11 @@ export default function PublicLayout({
 }) {
 	return (
 		<div
-			className={`lagoon-root ${plusJakarta.variable} ${inter.variable}`}
+			className={`st-root ${archivo.variable}`}
 			style={{
-				fontFamily: 'var(--lagoon-font-body), Inter, system-ui, sans-serif',
+				// Geist Mono is loaded once by the root layout; reuse it here.
+				['--st-font-mono' as string]: 'var(--font-geist-mono)',
+				fontFamily: 'var(--st-font-sans), system-ui, sans-serif',
 				WebkitFontSmoothing: 'antialiased',
 				MozOsxFontSmoothing: 'grayscale',
 			}}
@@ -175,43 +176,35 @@ export default function PublicLayout({
 			/>
 
 			{/*
-			 * No-flash theme script — runs synchronously before paint.
-			 * Reads localStorage['lagoon-theme'] and applies data-lagoon-theme to
-			 * <html> so dark-mode CSS variables take effect before React hydrates.
-			 * Default is 'light' when no preference is stored.
+			 * No-flash theme script — runs synchronously before paint. Reads the
+			 * current key, falls back to the retired Lagoon key so anyone who had
+			 * chosen dark mode keeps it, then applies data-st-theme to <html> so
+			 * the dark tokens take effect before React hydrates.
 			 */}
 			<script
 				dangerouslySetInnerHTML={{
-					__html: `(function(){try{var t=localStorage.getItem('lagoon-theme');document.documentElement.setAttribute('data-lagoon-theme',t==='dark'?'dark':'light');}catch(e){document.documentElement.setAttribute('data-lagoon-theme','light');}})()`,
+					__html: `(function(){try{var t=localStorage.getItem('bp-public-theme')||localStorage.getItem('lagoon-theme');document.documentElement.setAttribute('data-st-theme',t==='dark'?'dark':'light');}catch(e){document.documentElement.setAttribute('data-st-theme','light');}})()`,
 				}}
 			/>
-
-			{/* Heading font injection — scoped to .lagoon-root */}
-			<style>{`
-				.lagoon-root h1,
-				.lagoon-root h2,
-				.lagoon-root h3,
-				.lagoon-root h4 {
-					font-family: var(--lagoon-font-heading), 'Plus Jakarta Sans', system-ui, sans-serif;
-				}
-			`}</style>
 
 			{/* Skip to content — WCAG 2.1 */}
 			<a
 				href='#main-content'
-				className='sr-only focus-visible:not-sr-only focus-visible:fixed focus-visible:left-4 focus-visible:top-4 focus-visible:z-[100] focus-visible:rounded-lg focus-visible:px-4 focus-visible:py-2 focus-visible:text-sm focus-visible:font-semibold focus-visible:outline-2 focus-visible:outline-white'
-				style={{ background: 'var(--lagoon-accent)', color: 'var(--lagoon-on-accent)' }}
+				className='sr-only focus-visible:not-sr-only focus-visible:fixed focus-visible:left-4 focus-visible:top-4 focus-visible:z-[300] focus-visible:px-4 focus-visible:py-2 focus-visible:text-sm focus-visible:font-semibold focus-visible:outline-2'
+				style={{
+					background: 'var(--st-signal)',
+					color: 'var(--st-on-signal)',
+					outlineColor: 'var(--st-ink)',
+				}}
 			>
 				Skip to main content
 			</a>
 
-			<LazyMotionProvider>
-				<LandingSessionProvider>
-					<LagoonNav />
-					<main id='main-content'>{children}</main>
-					<LagoonFooter />
-				</LandingSessionProvider>
-			</LazyMotionProvider>
+			<LandingSessionProvider>
+				<StatementNav />
+				<main id='main-content'>{children}</main>
+				<StatementFooter />
+			</LandingSessionProvider>
 		</div>
 	);
 }

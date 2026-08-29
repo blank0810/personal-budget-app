@@ -1,5 +1,5 @@
 /**
- * /pricing OG image — re-exports the root Lagoon brand card.
+ * /pricing OG image — re-exports the root brand card.
  */
 export {
 	default,

@@ -1,41 +1,39 @@
-import { LagoonHero } from '@/components/modules/landing/lagoon/LagoonHero';
-import { LagoonStats } from '@/components/modules/landing/lagoon/LagoonStats';
-import { LagoonFeatureGrid } from '@/components/modules/landing/lagoon/LagoonFeatureGrid';
-import { LagoonHowItWorks } from '@/components/modules/landing/lagoon/LagoonHowItWorks';
-import { LagoonPricing } from '@/components/modules/landing/lagoon/LagoonPricing';
-import { LagoonCTA } from '@/components/modules/landing/lagoon/LagoonCTA';
+import { HomeHero } from '@/components/modules/landing/statement/home/HomeHero';
+import { HomeMethod } from '@/components/modules/landing/statement/home/HomeMethod';
+import { HomeSurfaces } from '@/components/modules/landing/statement/home/HomeSurfaces';
+import { HomeIndex } from '@/components/modules/landing/statement/home/HomeIndex';
+import { HomeInvoicing } from '@/components/modules/landing/statement/home/HomeInvoicing';
+import { HomePrice } from '@/components/modules/landing/statement/home/HomePrice';
+import { HomeAdvisor } from '@/components/modules/landing/statement/home/HomeAdvisor';
+import { StatementCTA } from '@/components/modules/landing/statement/StatementCTA';
 
 /**
- * Home (/) — Lagoon design, STATIC server component.
+ * Home (/) — "Plain Statement" design, STATIC server component.
  *
- * The shared LagoonNav + LagoonFooter live in app/(public)/layout.tsx; this
- * page renders only the body sections. The LagoonHero carries the page's
- * single <h1> (SSR-visible, never animated for LCP); every section below uses
- * <h2>, so heading order stays valid.
+ * The shared nav and footer live in app/(public)/layout.tsx; this page
+ * renders only the body. HomeHero carries the page's single <h1>
+ * (server-rendered, never animated, it is the LCP element); every
+ * section below uses <h2>, so heading order stays valid.
  *
- * No page-level metadata export — inherits the layout default (home title +
- * canonical '/'). No auth() — kept static for SEO.
+ * Narrative order: the verdict → how it is produced → the running
+ * product → what ships → the differentiator → what it costs → what
+ * isn't built yet → the ask. Nothing unbuilt is claimed in the
+ * present tense.
+ *
+ * No page-level metadata export — inherits the layout default (home
+ * title + canonical '/'). No auth() — kept static for SEO.
  */
 export default function HomePage() {
 	return (
 		<>
-			{/* 1. Hero — h1 SSR-visible, staged entrance for everything else */}
-			<LagoonHero />
-
-			{/* 2. Honest KPI stats with scroll-triggered count-up */}
-			<LagoonStats />
-
-			{/* 3. 6-feature grid — hover lift + scroll reveal */}
-			<LagoonFeatureGrid />
-
-			{/* 4. How it works — 3 numbered steps + step connectors */}
-			<LagoonHowItWorks />
-
-			{/* 5. Pricing — ₱0 free tier, Pro coming soon (no fake trial) */}
-			<LagoonPricing />
-
-			{/* 6. Final CTA — teal panel; distinct heading so it doesn't duplicate the hero <h1> */}
-			<LagoonCTA heading='Take control of your money — start free.' />
+			<HomeHero />
+			<HomeMethod />
+			<HomeSurfaces />
+			<HomeIndex />
+			<HomeInvoicing />
+			<HomePrice />
+			<HomeAdvisor />
+			<StatementCTA heading='Find out where you actually stand.' />
 		</>
 	);
 }
