@@ -7,6 +7,7 @@ import {
 	updateBudgetSchema,
 	replicateBudgetsSchema,
 	ReplicateBudgetsInput,
+	advancedBudgetAnalyticsSchema,
 	budgetAnalyticsMonthSchema,
 	budgetMonthRouteParamSchema,
 } from './budget.types';
@@ -97,6 +98,33 @@ export async function getInferredEnvelopeOfferAction(data: unknown) {
 	} catch (error) {
 		console.error('Failed to load envelope history:', error);
 		return { error: 'Failed to load envelope history' };
+	}
+}
+
+/**
+ * Server Action: Load history-gated advanced budget analytics
+ */
+export async function getAdvancedBudgetAnalyticsAction(data: unknown) {
+	const userId = await getAuthenticatedUser();
+	const parsed = advancedBudgetAnalyticsSchema.safeParse(
+		coerceDateFields(data)
+	);
+	if (!parsed.success) {
+		return { error: 'Invalid analytics request' };
+	}
+
+	try {
+		const analytics = await BudgetAnalyticsService.getAdvancedAnalytics(
+			userId,
+			{
+				...parsed.data,
+				month: normalizeBudgetMonth(parsed.data.month),
+			}
+		);
+		return { success: true as const, data: analytics };
+	} catch (error) {
+		console.error('Failed to load advanced budget analytics:', error);
+		return { error: 'Failed to load budget analytics' };
 	}
 }
 
