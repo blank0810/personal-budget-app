@@ -6,6 +6,7 @@ const mocks = vi.hoisted(() => ({
 	expenseAggregate: vi.fn(),
 	accountFindUnique: vi.fn(),
 	accountUpdate: vi.fn(),
+	budgetFindMany: vi.fn(),
 	budgetFindUnique: vi.fn(),
 	categoryFindUnique: vi.fn(),
 	getThreshold: vi.fn(),
@@ -17,7 +18,10 @@ vi.mock('@/lib/prisma', () => ({
 	default: {
 		$transaction: mocks.transaction,
 		expense: { aggregate: mocks.expenseAggregate },
-		budget: { findUnique: mocks.budgetFindUnique },
+		budget: {
+			findMany: mocks.budgetFindMany,
+			findUnique: mocks.budgetFindUnique,
+		},
 		category: { findUnique: mocks.categoryFindUnique },
 	},
 }));
@@ -53,6 +57,8 @@ const BASE: CreateExpenseInput = {
 describe('ExpenseService large-expense alert', () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
+		mocks.budgetFindMany.mockResolvedValue([]);
+		mocks.budgetFindUnique.mockResolvedValue(null);
 		mocks.sendLargeExpenseAlert.mockResolvedValue(undefined);
 		mocks.categoryFindUnique.mockResolvedValue({ name: 'Equipment' });
 		mocks.transaction.mockImplementation(async (cb: (tx: unknown) => unknown) =>

@@ -9,21 +9,69 @@ import { CategoryService } from '../category/category.service';
 import { NotificationService } from '@/server/modules/notification/notification.service';
 import { UserService } from '@/server/modules/user/user.service';
 import { Prisma } from '@prisma/client';
+import { endOfMonth, startOfMonth } from 'date-fns';
+
+const budgetAlertSelect = {
+	id: true,
+	name: true,
+	amount: true,
+	month: true,
+} as const;
 
 export const ExpenseService = {
 	/**
 	 * Create a new expense entry
 	 */
 	async createExpense(userId: string, data: CreateExpenseInput) {
-		// If linking to a budget, capture the spent amount BEFORE this expense
-		let prevSpent = 0;
-		const budgetId = data.budgetId;
-		if (budgetId) {
+		let budgetId = data.budgetId;
+		let linkedBudget: {
+			id: string;
+			name: string;
+			amount: Prisma.Decimal;
+			month: Date;
+		} | null = null;
+
+		if (data.budgetId !== undefined) {
+			linkedBudget = await prisma.budget.findUnique({
+				where: { id: data.budgetId, userId },
+				select: budgetAlertSelect,
+			});
+		} else if (data.categoryId) {
+			const matchingBudgets = await prisma.budget.findMany({
+				where: {
+					userId,
+					categoryId: data.categoryId,
+					month: {
+						gte: startOfMonth(data.date),
+						lte: endOfMonth(data.date),
+					},
+				},
+				select: budgetAlertSelect,
+				take: 2,
+			});
+
+			if (matchingBudgets.length === 1) {
+				linkedBudget = matchingBudgets[0];
+				budgetId = linkedBudget.id;
+			}
+		}
+
+		// Capture exact linked spend before this expense, scoped to the
+		// envelope's own month so the alert uses the same spent definition.
+		let prevSpent = new Prisma.Decimal(0);
+		if (linkedBudget) {
 			const agg = await prisma.expense.aggregate({
-				where: { budgetId, userId },
+				where: {
+					budgetId: linkedBudget.id,
+					userId,
+					date: {
+						gte: startOfMonth(linkedBudget.month),
+						lte: endOfMonth(linkedBudget.month),
+					},
+				},
 				_sum: { amount: true },
 			});
-			prevSpent = agg._sum.amount?.toNumber() ?? 0;
+			prevSpent = agg._sum.amount ?? new Prisma.Decimal(0);
 		}
 
 		const expense = await prisma.$transaction(async (tx) => {
@@ -52,7 +100,7 @@ export const ExpenseService = {
 					notes: data.notes,
 					categoryId,
 					accountId: data.accountId,
-					budgetId: data.budgetId,
+					budgetId: budgetId ?? null,
 					userId,
 				},
 			});
@@ -79,25 +127,27 @@ export const ExpenseService = {
 		});
 
 		// Fire-and-forget budget alert (after transaction commits)
-		if (budgetId) {
+		if (linkedBudget) {
 			try {
-				const budget = await prisma.budget.findUnique({
-					where: { id: budgetId },
-				});
-				if (budget) {
-					const budgetAmount = budget.amount.toNumber();
-					const newSpent = prevSpent + data.amount;
-					const prevPct = budgetAmount > 0 ? (prevSpent / budgetAmount) * 100 : 0;
-					const newPct = budgetAmount > 0 ? (newSpent / budgetAmount) * 100 : 0;
+				const newSpent = prevSpent.plus(data.amount);
+				const prevPct = linkedBudget.amount.greaterThan(0)
+					? prevSpent.dividedBy(linkedBudget.amount).times(100)
+					: new Prisma.Decimal(0);
+				const newPct = linkedBudget.amount.greaterThan(0)
+					? newSpent.dividedBy(linkedBudget.amount).times(100)
+					: new Prisma.Decimal(0);
 
-					NotificationService.sendBudgetAlert(
-						userId,
-						{ id: budget.id, name: budget.name, amount: budgetAmount },
-						newSpent,
-						prevPct,
-						newPct
-					).catch(() => {});
-				}
+				NotificationService.sendBudgetAlert(
+					userId,
+					{
+						id: linkedBudget.id,
+						name: linkedBudget.name,
+						amount: linkedBudget.amount.toNumber(),
+					},
+					newSpent.toNumber(),
+					prevPct.toNumber(),
+					newPct.toNumber()
+				).catch(() => {});
 			} catch {
 				// Notification failure must never fail the main operation
 			}
