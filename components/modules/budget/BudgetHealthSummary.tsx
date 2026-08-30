@@ -28,7 +28,7 @@ export function BudgetHealthSummary({
 
 	// Determine overall health status
 	const getHealthStatus = () => {
-		if (health.totalBudgets === 0) return 'empty';
+		if (!health.hasBudgets) return 'empty';
 		if (health.over > 0) return 'danger';
 		if (health.warning > 0) return 'warning';
 		if (health.incomplete > 0) return 'incomplete';
@@ -87,7 +87,7 @@ export function BudgetHealthSummary({
 	const remaining = health.totalBudgeted - health.totalSpent;
 
 	// Empty state
-	if (health.totalBudgets === 0) {
+	if (!health.hasBudgets) {
 		return (
 			<Card className={cn('transition-all', style.bg, style.border)}>
 				<CardHeader className='flex flex-row items-center justify-between space-y-0 pb-2'>
@@ -108,7 +108,7 @@ export function BudgetHealthSummary({
 						No budgets set for {format(month, 'MMMM yyyy')}
 					</p>
 					<p className='text-xs text-muted-foreground mt-1'>
-						Create a budget to start tracking your spending
+						Your category spending analysis remains available below
 					</p>
 				</CardContent>
 			</Card>

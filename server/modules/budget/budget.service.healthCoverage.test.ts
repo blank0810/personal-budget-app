@@ -182,6 +182,7 @@ describe('BudgetService — coverage-aware health', () => {
 			}))
 		);
 		expect(summary).toMatchObject({
+			hasBudgets: true,
 			totalBudgets: 7,
 			onTrack: 3,
 			warning: 1,
@@ -201,6 +202,7 @@ describe('BudgetService — coverage-aware health', () => {
 		);
 
 		expect(summary).toEqual({
+			hasBudgets: false,
 			totalBudgets: 0,
 			onTrack: 0,
 			warning: 0,

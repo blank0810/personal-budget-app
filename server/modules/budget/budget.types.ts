@@ -28,6 +28,10 @@ export const getBudgetsSchema = z.object({
 
 export type GetBudgetsInput = z.infer<typeof getBudgetsSchema>;
 
+export const budgetAnalyticsMonthSchema = z.object({
+	month: z.date(),
+});
+
 // Budget Analytics Types
 
 export interface ProblemCategory {
@@ -39,6 +43,7 @@ export interface ProblemCategory {
 }
 
 export interface BudgetHealthSummary {
+	hasBudgets: boolean;
 	totalBudgets: number;
 	onTrack: number; // < 80% spent with full or undefined coverage
 	warning: number; // 80-100% spent
@@ -61,6 +66,12 @@ export interface MonthlyTrend {
 	totalCategories: number;
 }
 
+export type BudgetRecommendationState =
+	| 'increase'
+	| 'decrease'
+	| 'stable'
+	| 'insufficient_history';
+
 export interface CategoryRecommendation {
 	categoryId: string;
 	categoryName: string;
@@ -70,7 +81,7 @@ export interface CategoryRecommendation {
 	variance: number; // (avgSpent - avgBudget) / avgBudget * 100
 	monthsOver: number; // times spent > budget
 	monthsUnder: number; // times spent < 60% of budget
-	recommendation: 'increase' | 'decrease' | 'stable';
+	recommendation: BudgetRecommendationState;
 	suggestedAmount: number | null; // null if stable
 	trend: string; // e.g., "Over 4/6 months"
 }
@@ -99,7 +110,7 @@ export interface BudgetReplicationItem {
 	amount: number;
 	categoryId: string;
 	categoryName: string;
-	recommendation: 'increase' | 'decrease' | 'stable';
+	recommendation: BudgetRecommendationState;
 	suggestedAmount: number | null;
 	trend: string;
 }
