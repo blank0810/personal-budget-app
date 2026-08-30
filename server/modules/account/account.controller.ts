@@ -127,6 +127,8 @@ export async function adjustAccountBalanceAction(data: unknown) {
 			CACHE_TAGS.ACCOUNTS,
 			CACHE_TAGS.INCOMES,
 			CACHE_TAGS.EXPENSES,
+			CACHE_TAGS.BUDGETS,
+			CACHE_TAGS.CATEGORIES,
 			CACHE_TAGS.DASHBOARD,
 			CACHE_TAGS.LEDGER
 		);

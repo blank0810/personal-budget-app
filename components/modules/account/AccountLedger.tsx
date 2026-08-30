@@ -43,15 +43,28 @@ interface Transaction {
 }
 
 import { EditAccountDialog } from './EditAccountDialog';
-import { AdjustBalanceDialog } from './AdjustBalanceDialog';
+import {
+	AdjustBalanceDialog,
+	type AdjustBalanceBudgetOption,
+	type AdjustBalanceCategoryOption,
+} from './AdjustBalanceDialog';
 import { Account } from '@prisma/client';
 
 interface AccountLedgerProps {
 	account: Account;
 	transactions: Transaction[];
+	incomeCategories: AdjustBalanceCategoryOption[];
+	expenseCategories: AdjustBalanceCategoryOption[];
+	budgets: AdjustBalanceBudgetOption[];
 }
 
-export function AccountLedger({ account, transactions }: AccountLedgerProps) {
+export function AccountLedger({
+	account,
+	transactions,
+	incomeCategories,
+	expenseCategories,
+	budgets,
+}: AccountLedgerProps) {
 	const { formatCurrency } = useCurrency();
 
 	const handleExportCSV = () => {
@@ -187,7 +200,12 @@ export function AccountLedger({ account, transactions }: AccountLedgerProps) {
 					</div>
 				</div>
 				<div className='flex items-center gap-2 flex-wrap'>
-					<AdjustBalanceDialog account={account} />
+					<AdjustBalanceDialog
+						account={account}
+						incomeCategories={incomeCategories}
+						expenseCategories={expenseCategories}
+						budgets={budgets}
+					/>
 					<EditAccountDialog account={account} />
 					<Button
 						onClick={handleExportCSV}

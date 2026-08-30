@@ -85,6 +85,28 @@ export const BudgetService = {
 	},
 
 	/**
+	 * Lean budget list for pickers — id/name/category only.
+	 *
+	 * `getBudgets` eagerly loads every linked expense to compute `spent`; callers
+	 * that only need to render a dropdown must not pay for that.
+	 */
+	async getBudgetOptions(userId: string, month: Date) {
+		return await prisma.budget.findMany({
+			where: {
+				userId,
+				month: { gte: startOfMonth(month), lte: endOfMonth(month) },
+			},
+			select: {
+				id: true,
+				name: true,
+				categoryId: true,
+				category: { select: { name: true } },
+			},
+			orderBy: { name: 'asc' },
+		});
+	},
+
+	/**
 	 * Get a single budget by ID
 	 */
 	async getBudgetById(userId: string, budgetId: string) {

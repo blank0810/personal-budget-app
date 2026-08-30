@@ -8,6 +8,7 @@ import {
 import { Prisma } from '@prisma/client';
 import { IncomeService } from '../income/income.service';
 import { ExpenseService } from '../expense/expense.service';
+import { startOfMonth } from 'date-fns';
 
 export const AccountService = {
 	/**
@@ -289,19 +290,78 @@ export const AccountService = {
 		const needsIncome = account.isLiability ? diff < 0 : diff > 0;
 		const amount = Math.abs(diff);
 		const date = new Date();
-		const description = 'Manual Balance Adjustment';
-		const categoryName = 'Initial Balance/Adjustment';
+		const description =
+			data.description?.trim() || 'Manual Balance Adjustment';
+		const categoryType = needsIncome ? 'INCOME' : 'EXPENSE';
+		let categoryId: string | undefined;
+		let categoryName = data.categoryName?.trim() || undefined;
+
+		if (data.categoryId) {
+			const category = await prisma.category.findUnique({
+				where: { id: data.categoryId, userId },
+				select: { id: true, type: true },
+			});
+
+			if (!category) {
+				throw new Error('Category not found');
+			}
+
+			if (category.type !== categoryType) {
+				throw new Error(
+					'Category type does not match the adjustment direction'
+				);
+			}
+
+			categoryId = category.id;
+			categoryName = undefined;
+		} else if (!categoryName) {
+			categoryName = 'Initial Balance/Adjustment';
+		}
+
+		let budgetId: string | undefined;
+		if (data.budgetId) {
+			if (needsIncome) {
+				throw new Error(
+					'A budget can only be linked to an expense adjustment'
+				);
+			}
+
+			const budget = await prisma.budget.findUnique({
+				where: { id: data.budgetId, userId },
+				select: { id: true, categoryId: true, month: true },
+			});
+
+			if (!budget) {
+				throw new Error('Budget not found');
+			}
+
+			if (
+				startOfMonth(budget.month).getTime() !==
+				startOfMonth(date).getTime()
+			) {
+				throw new Error('Budget is not for the current month');
+			}
+
+			budgetId = budget.id;
+			categoryId = budget.categoryId;
+			categoryName = undefined;
+		}
+
+		const categoryInput = categoryId
+			? { categoryId }
+			: { categoryName: categoryName ?? 'Initial Balance/Adjustment' };
 
 		// IMPORTANT: `titheEnabled` and `emergencyFundEnabled` MUST stay false
 		// here. A manual balance adjustment must not trigger tithe / EF child
 		// transfers — otherwise reconciling a single-digit rounding error
 		// would move money between unrelated accounts and goals.
+		// Choosing an income category does not re-enable either setting.
 		if (needsIncome) {
 			await IncomeService.createIncome(userId, {
 				amount,
 				date,
 				description,
-				categoryName,
+				...categoryInput,
 				accountId: data.accountId,
 				titheEnabled: false,
 				tithePercentage: 0,
@@ -313,8 +373,9 @@ export const AccountService = {
 				amount,
 				date,
 				description,
-				categoryName,
+				...categoryInput,
 				accountId: data.accountId,
+				...(budgetId ? { budgetId } : {}),
 			});
 		}
 

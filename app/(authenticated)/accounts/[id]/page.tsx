@@ -3,6 +3,8 @@ import { auth } from '@/auth';
 import { redirect, notFound } from 'next/navigation';
 import { AccountLedger } from '@/components/modules/account/AccountLedger';
 import { serialize } from '@/lib/serialization';
+import { CategoryService } from '@/server/modules/category/category.service';
+import { BudgetService } from '@/server/modules/budget/budget.service';
 
 interface PageProps {
 	params: Promise<{ id: string }>;
@@ -15,10 +17,14 @@ export default async function AccountLedgerPage({ params }: PageProps) {
 	}
 
 	const { id } = await params;
-	const accountData = await AccountService.getAccountWithTransactions(
-		session.user.id,
-		id
-	);
+	const userId = session.user.id;
+	const [accountData, incomeCategories, expenseCategories, budgets] =
+		await Promise.all([
+			AccountService.getAccountWithTransactions(userId, id),
+			CategoryService.getCategories(userId, 'INCOME'),
+			CategoryService.getCategories(userId, 'EXPENSE'),
+			BudgetService.getBudgetOptions(userId, new Date()),
+		]);
 
 	if (!accountData) {
 		notFound();
@@ -29,6 +35,18 @@ export default async function AccountLedgerPage({ params }: PageProps) {
 			<AccountLedger
 				account={serialize(accountData)}
 				transactions={serialize(accountData.transactions)}
+				incomeCategories={incomeCategories.map((category) => ({
+					id: category.id,
+					name: category.name,
+				}))}
+				expenseCategories={expenseCategories.map((category) => ({
+					id: category.id,
+					name: category.name,
+				}))}
+				budgets={budgets.map(({ category, ...budget }) => ({
+					...budget,
+					categoryName: category.name,
+				}))}
 			/>
 		</div>
 	);

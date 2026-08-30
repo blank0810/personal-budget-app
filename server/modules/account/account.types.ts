@@ -36,6 +36,10 @@ export type GetAccountsInput = z.infer<typeof getAccountsSchema>;
 export const adjustBalanceSchema = z.object({
 	accountId: z.string().min(1, 'Account ID is required'),
 	newBalance: z.number(),
+	description: z.string().trim().max(120).optional(),
+	categoryId: z.string().optional(),
+	categoryName: z.string().trim().max(100).optional(),
+	budgetId: z.string().optional(),
 });
 
 export type AdjustBalanceInput = z.infer<typeof adjustBalanceSchema>;
