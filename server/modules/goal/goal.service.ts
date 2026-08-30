@@ -9,6 +9,11 @@ import type {
 	GoalHealthStatus,
 } from './goal.types';
 import { NotificationService } from '@/server/modules/notification/notification.service';
+import { endOfMonth, startOfMonth, subMonths } from 'date-fns';
+
+// Exclude the current month: partial-month dilution understates the expense
+// baseline and flatters the emergency fund's months of coverage.
+const BASELINE_MONTHS = 3;
 
 /**
  * Translate a goal's before/after saved amount into a milestone notification.
@@ -325,22 +330,14 @@ export const GoalService = {
 
 		// 2. Get expense baseline (hybrid: actual trailing average, fallback to budget)
 		const now = new Date();
-		const windowStart = new Date(now.getFullYear(), now.getMonth() - 3, 1);
-		const endCurrentMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+		const windowStart = startOfMonth(subMonths(now, BASELINE_MONTHS));
+		const windowEnd = endOfMonth(subMonths(now, 1));
 		const currentMonth = new Date(now.getFullYear(), now.getMonth(), 1);
 		const nextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
 
-		// The window runs from the 1st of `windowStart` to the last day of the
-		// current month inclusive — derive the divisor from the window instead of
-		// hardcoding it, or the average is inflated by the extra month.
-		const windowMonths =
-			(endCurrentMonth.getFullYear() - windowStart.getFullYear()) * 12 +
-			(endCurrentMonth.getMonth() - windowStart.getMonth()) +
-			1;
-
 		const [expenseAgg, budgets] = await Promise.all([
 			prisma.expense.aggregate({
-				where: { userId, date: { gte: windowStart, lte: endCurrentMonth } },
+				where: { userId, date: { gte: windowStart, lte: windowEnd } },
 				_sum: { amount: true },
 			}),
 			prisma.budget.findMany({
@@ -349,8 +346,13 @@ export const GoalService = {
 		]);
 
 		const avgMonthlyExpense =
-			(expenseAgg._sum.amount?.toNumber() || 0) / windowMonths;
-		const totalMonthlyBudget = budgets.reduce((sum, b) => sum + Number(b.amount), 0);
+			expenseAgg._sum.amount?.div(BASELINE_MONTHS).toNumber() ?? 0;
+		const totalMonthlyBudget = budgets
+			.reduce(
+				(sum, budget) => sum.plus(budget.amount),
+				new Prisma.Decimal(0)
+			)
+			.toNumber();
 
 		const expenseSource: 'actual' | 'budget' | null =
 			avgMonthlyExpense > 0 ? 'actual' : totalMonthlyBudget > 0 ? 'budget' : null;
