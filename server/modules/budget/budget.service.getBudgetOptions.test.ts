@@ -34,15 +34,15 @@ describe('BudgetService.getBudgetOptions', () => {
 	it('selects only current-month picker fields ordered by name', async () => {
 		const result = await BudgetService.getBudgetOptions(
 			'user-1',
-			new Date(2026, 7, 16, 9, 30)
+			new Date(Date.UTC(2026, 7, 16, 9, 30, 0, 0))
 		);
 
 		expect(mocks.budgetFindMany).toHaveBeenCalledWith({
 			where: {
 				userId: 'user-1',
 				month: {
-					gte: new Date(2026, 7, 1),
-					lte: new Date(2026, 7, 31, 23, 59, 59, 999),
+					gte: new Date(Date.UTC(2026, 7, 1, 0, 0, 0, 0)),
+					lte: new Date(Date.UTC(2026, 7, 31, 23, 59, 59, 999)),
 				},
 			},
 			select: {

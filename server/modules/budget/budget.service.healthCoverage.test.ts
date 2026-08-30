@@ -31,10 +31,10 @@ vi.mock('./budget.analytics.service', () => ({
 import { BudgetService } from './budget.service';
 import type { BudgetHealthSummary } from './budget.types';
 
-const august = new Date(2026, 7, 1);
+const august = new Date(Date.UTC(2026, 7, 1, 0, 0, 0, 0));
 const augustWindow = {
-	gte: new Date(2026, 7, 1),
-	lte: new Date(2026, 7, 31, 23, 59, 59, 999),
+	gte: new Date(Date.UTC(2026, 7, 1, 0, 0, 0, 0)),
+	lte: new Date(Date.UTC(2026, 7, 31, 23, 59, 59, 999)),
 };
 
 function budget(
@@ -152,7 +152,7 @@ describe('BudgetService — coverage-aware health', () => {
 
 		const summary = await BudgetService.getBudgetHealthSummary(
 			'user-1',
-			new Date(2026, 7, 16)
+			new Date(Date.UTC(2026, 7, 16, 0, 0, 0, 0))
 		);
 
 		expect(mocks.budgetFindMany).toHaveBeenNthCalledWith(1, {
@@ -198,7 +198,7 @@ describe('BudgetService — coverage-aware health', () => {
 
 		const summary = await BudgetService.getBudgetHealthSummary(
 			'user-1',
-			new Date(2026, 7, 16)
+			new Date(Date.UTC(2026, 7, 16, 0, 0, 0, 0))
 		);
 
 		expect(summary).toEqual({
@@ -234,7 +234,7 @@ describe('BudgetService — coverage-aware health', () => {
 		]);
 
 		const result = await BudgetService.getBudgetsWithCoverage('user-1', {
-			month: new Date(2026, 7, 16),
+			month: new Date(Date.UTC(2026, 7, 16, 0, 0, 0, 0)),
 		});
 
 		expect(mocks.getCoverageRatios).toHaveBeenCalledWith('user-1', [

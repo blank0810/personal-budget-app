@@ -5,18 +5,15 @@ import {
 	computeSafeToSpend,
 } from './budget.burn';
 
-function buildLocalMonthBoundaries(year: number, monthIndex: number) {
-	const monthStart = new Date(year, monthIndex, 1);
-	const monthEnd = new Date(monthStart);
-	monthEnd.setMonth(monthEnd.getMonth() + 1);
-	monthEnd.setDate(0);
-	monthEnd.setHours(23, 59, 59, 999);
-	return { monthStart, monthEnd };
+function buildUtcMonthBoundaries(year: number, monthIndex: number) {
+	return {
+		monthStart: new Date(Date.UTC(year, monthIndex, 1, 0, 0, 0, 0)),
+		monthEnd: new Date(Date.UTC(year, monthIndex + 1, 0, 23, 59, 59, 999)),
+	};
 }
 
 describe('computeBurnMetrics', () => {
-	const monthStart = new Date(2026, 0, 1);
-	const monthEnd = new Date(2026, 0, 31);
+	const { monthStart, monthEnd } = buildUtcMonthBoundaries(2026, 0);
 
 	it('clamps daysElapsed to the month length for past months', () => {
 		const m = computeBurnMetrics({
@@ -24,7 +21,7 @@ describe('computeBurnMetrics', () => {
 			monthEnd,
 			totalSpent: 24000,
 			budgetLimit: 8000,
-			today: new Date(2026, 7, 30),
+			today: new Date(Date.UTC(2026, 7, 30, 0, 0, 0, 0)),
 		});
 
 		expect(m.daysElapsed).toBe(31);
@@ -39,7 +36,7 @@ describe('computeBurnMetrics', () => {
 			monthEnd,
 			totalSpent: 4000,
 			budgetLimit: 8000,
-			today: new Date(2026, 7, 30),
+			today: new Date(Date.UTC(2026, 7, 30, 0, 0, 0, 0)),
 		});
 
 		expect(m.daysElapsed).toBe(31);
@@ -48,11 +45,11 @@ describe('computeBurnMetrics', () => {
 
 	it('keeps a future month with no spend at insufficient data', () => {
 		const m = computeBurnMetrics({
-			monthStart: new Date(2026, 9, 1),
-			monthEnd: new Date(2026, 9, 31),
+			monthStart: new Date(Date.UTC(2026, 9, 1, 0, 0, 0, 0)),
+			monthEnd: new Date(Date.UTC(2026, 9, 31, 23, 59, 59, 999)),
 			totalSpent: 0,
 			budgetLimit: 8000,
-			today: new Date(2026, 7, 30),
+			today: new Date(Date.UTC(2026, 7, 30, 0, 0, 0, 0)),
 		});
 
 		expect(m.daysElapsed).toBe(1);
@@ -61,11 +58,11 @@ describe('computeBurnMetrics', () => {
 
 	it('reports an actual overrun during the first week', () => {
 		const m = computeBurnMetrics({
-			monthStart: new Date(2026, 7, 1),
-			monthEnd: new Date(2026, 7, 31),
+			monthStart: new Date(Date.UTC(2026, 7, 1, 0, 0, 0, 0)),
+			monthEnd: new Date(Date.UTC(2026, 7, 31, 23, 59, 59, 999)),
 			totalSpent: 12000,
 			budgetLimit: 8000,
-			today: new Date(2026, 7, 4),
+			today: new Date(Date.UTC(2026, 7, 4, 0, 0, 0, 0)),
 		});
 
 		expect(m.burnStatus).toBe('overpace');
@@ -73,11 +70,11 @@ describe('computeBurnMetrics', () => {
 
 	it('still suppresses pace extrapolation early when the limit is intact', () => {
 		const m = computeBurnMetrics({
-			monthStart: new Date(2026, 7, 1),
-			monthEnd: new Date(2026, 7, 31),
+			monthStart: new Date(Date.UTC(2026, 7, 1, 0, 0, 0, 0)),
+			monthEnd: new Date(Date.UTC(2026, 7, 31, 23, 59, 59, 999)),
 			totalSpent: 1600,
 			budgetLimit: 8000,
-			today: new Date(2026, 7, 4),
+			today: new Date(Date.UTC(2026, 7, 4, 0, 0, 0, 0)),
 		});
 
 		expect(m.burnStatus).toBe('insufficient_data');
@@ -87,33 +84,25 @@ describe('computeBurnMetrics', () => {
 
 	it('gives a verdict once past day 7', () => {
 		const m = computeBurnMetrics({
-			monthStart: new Date(2026, 7, 1),
-			monthEnd: new Date(2026, 7, 31),
+			monthStart: new Date(Date.UTC(2026, 7, 1, 0, 0, 0, 0)),
+			monthEnd: new Date(Date.UTC(2026, 7, 31, 23, 59, 59, 999)),
 			totalSpent: 6000,
 			budgetLimit: 8000,
-			today: new Date(2026, 7, 10),
+			today: new Date(Date.UTC(2026, 7, 10, 0, 0, 0, 0)),
 		});
 
 		expect(m.daysElapsed).toBe(10);
 		expect(m.burnStatus).toBe('overpace');
 	});
 
-	it('reads month length with local getters, matching how callers build the dates', () => {
-		// Regression: monthStart/monthEnd are built with local setters in
-		// budget.service.ts. Reading monthEnd as UTC collapses daysInMonth to 1
-		// under any negative-offset timezone, which zeroes daysRemaining and
-		// pins expectedPercentage at 100.
-		const localMonthEnd = new Date(2026, 0, 1);
-		localMonthEnd.setMonth(localMonthEnd.getMonth() + 1);
-		localMonthEnd.setDate(0);
-		localMonthEnd.setHours(23, 59, 59, 999);
-
+	it('reads month length and elapsed days from UTC calendar bounds', () => {
+		const january = buildUtcMonthBoundaries(2026, 0);
 		const m = computeBurnMetrics({
-			monthStart: new Date(2026, 0, 1),
-			monthEnd: localMonthEnd,
+			monthStart: january.monthStart,
+			monthEnd: january.monthEnd,
 			totalSpent: 0,
 			budgetLimit: 8000,
-			today: new Date(2026, 0, 15),
+			today: new Date(Date.UTC(2026, 0, 15, 23, 30, 0, 0)),
 		});
 
 		expect(m.daysInMonth).toBe(31);
@@ -122,13 +111,13 @@ describe('computeBurnMetrics', () => {
 	});
 
 	it('computes daysInMonth=29 for a leap February (2028)', () => {
-		const { monthStart, monthEnd } = buildLocalMonthBoundaries(2028, 1);
+		const { monthStart, monthEnd } = buildUtcMonthBoundaries(2028, 1);
 		const m = computeBurnMetrics({
 			monthStart,
 			monthEnd,
 			totalSpent: 0,
 			budgetLimit: 8000,
-			today: new Date(2028, 5, 1),
+			today: new Date(Date.UTC(2028, 5, 1, 0, 0, 0, 0)),
 		});
 
 		expect(m.daysInMonth).toBe(29);
@@ -136,47 +125,47 @@ describe('computeBurnMetrics', () => {
 	});
 
 	it('computes daysInMonth=28 for a non-leap February (2027)', () => {
-		const { monthStart, monthEnd } = buildLocalMonthBoundaries(2027, 1);
+		const { monthStart, monthEnd } = buildUtcMonthBoundaries(2027, 1);
 		const m = computeBurnMetrics({
 			monthStart,
 			monthEnd,
 			totalSpent: 0,
 			budgetLimit: 8000,
-			today: new Date(2027, 5, 1),
+			today: new Date(Date.UTC(2027, 5, 1, 0, 0, 0, 0)),
 		});
 
 		expect(m.daysInMonth).toBe(28);
 	});
 
 	it('computes daysInMonth=30 for April', () => {
-		const { monthStart, monthEnd } = buildLocalMonthBoundaries(2026, 3);
+		const { monthStart, monthEnd } = buildUtcMonthBoundaries(2026, 3);
 		const m = computeBurnMetrics({
 			monthStart,
 			monthEnd,
 			totalSpent: 0,
 			budgetLimit: 8000,
-			today: new Date(2026, 5, 1),
+			today: new Date(Date.UTC(2026, 5, 1, 0, 0, 0, 0)),
 		});
 
 		expect(m.daysInMonth).toBe(30);
 	});
 
 	it('computes daysInMonth=31 for December', () => {
-		const { monthStart, monthEnd } = buildLocalMonthBoundaries(2026, 11);
+		const { monthStart, monthEnd } = buildUtcMonthBoundaries(2026, 11);
 		const m = computeBurnMetrics({
 			monthStart,
 			monthEnd,
 			totalSpent: 0,
 			budgetLimit: 8000,
-			today: new Date(2027, 1, 1),
+			today: new Date(Date.UTC(2027, 1, 1, 0, 0, 0, 0)),
 		});
 
 		expect(m.daysInMonth).toBe(31);
 	});
 
 	it('never reports insufficient_data for a completed past month, regardless of spend', () => {
-		const { monthStart, monthEnd } = buildLocalMonthBoundaries(2026, 0);
-		const today = new Date(2026, 7, 30);
+		const { monthStart, monthEnd } = buildUtcMonthBoundaries(2026, 0);
+		const today = new Date(Date.UTC(2026, 7, 30, 0, 0, 0, 0));
 
 		const zeroSpend = computeBurnMetrics({
 			monthStart,

@@ -12,10 +12,17 @@ import {
 	BudgetReplicationItem,
 } from './budget.types';
 import { CategoryService } from '../category/category.service';
-import { startOfMonth, endOfMonth, subMonths, format, eachMonthOfInterval } from 'date-fns';
 import { computeBurnMetrics, computeSafeToSpend } from './budget.burn';
 import { BudgetAnalyticsService } from './budget.analytics.service';
 import { getDecimalMedian } from './budget.analytics.math';
+import {
+	addUtcMonths,
+	eachUtcMonth,
+	formatUtcMonth,
+	getUtcMonthBounds,
+	getUtcMonthKey,
+	normalizeBudgetMonth,
+} from './budget.month';
 
 type BudgetMonthReference = {
 	id: string;
@@ -23,30 +30,6 @@ type BudgetMonthReference = {
 };
 
 const MIN_MONTHS_FOR_BUDGET_RECOMMENDATION = 3;
-
-/**
- * Budget months are stored as UTC-midnight anchors, while burn metrics operate
- * on local calendar boundaries. Test fixtures and older data may already be
- * local dates, so only reinterpret an exact UTC month anchor.
- */
-function getBudgetMonthBounds(month: Date) {
-	const isUtcMonthAnchor =
-		month.getUTCDate() === 1 &&
-		month.getUTCHours() === 0 &&
-		month.getUTCMinutes() === 0 &&
-		month.getUTCSeconds() === 0 &&
-		month.getUTCMilliseconds() === 0;
-	const year = isUtcMonthAnchor
-		? month.getUTCFullYear()
-		: month.getFullYear();
-	const monthIndex = isUtcMonthAnchor
-		? month.getUTCMonth()
-		: month.getMonth();
-	const monthStart = new Date(year, monthIndex, 1, 0, 0, 0, 0);
-	const monthEnd = new Date(year, monthIndex + 1, 0, 23, 59, 59, 999);
-
-	return { monthStart, monthEnd };
-}
 
 async function getSpendByBudgetMonth(
 	userId: string,
@@ -65,13 +48,13 @@ async function getSpendByBudgetMonth(
 			// Pair every envelope with its own month inside one query. A global
 			// window alone would still count a misdated expense linked to another
 			// month's envelope.
-			OR: budgets.map((budget) => ({
-				budgetId: budget.id,
-				date: {
-					gte: startOfMonth(budget.month),
-					lte: endOfMonth(budget.month),
-				},
-			})),
+			OR: budgets.map((budget) => {
+				const { start, end } = getUtcMonthBounds(budget.month);
+				return {
+					budgetId: budget.id,
+					date: { gte: start, lte: end },
+				};
+			}),
 		},
 		_sum: { amount: true },
 	});
@@ -127,8 +110,7 @@ export const BudgetService = {
 	 */
 	async getBudgets(userId: string, filters?: GetBudgetsInput) {
 		const month = filters?.month ?? new Date();
-		const monthStart = startOfMonth(month);
-		const monthEnd = endOfMonth(month);
+		const { start: monthStart, end: monthEnd } = getUtcMonthBounds(month);
 		const today = new Date();
 		const where = {
 			userId,
@@ -175,10 +157,10 @@ export const BudgetService = {
 			const spent = (
 				spentMap.get(budget.id) ?? new Prisma.Decimal(0)
 			).toNumber();
-			const budgetMonth = getBudgetMonthBounds(budget.month);
+			const budgetMonth = getUtcMonthBounds(budget.month);
 			const burn = computeBurnMetrics({
-				monthStart: budgetMonth.monthStart,
-				monthEnd: budgetMonth.monthEnd,
+				monthStart: budgetMonth.start,
+				monthEnd: budgetMonth.end,
 				totalSpent: spent,
 				budgetLimit: amount,
 				today,
@@ -244,10 +226,11 @@ export const BudgetService = {
 	 * that only need to render a dropdown must not pay for that.
 	 */
 	async getBudgetOptions(userId: string, month: Date) {
+		const { start, end } = getUtcMonthBounds(month);
 		return await prisma.budget.findMany({
 			where: {
 				userId,
-				month: { gte: startOfMonth(month), lte: endOfMonth(month) },
+				month: { gte: start, lte: end },
 			},
 			select: {
 				id: true,
@@ -284,7 +267,9 @@ export const BudgetService = {
 		if (!budget) return null;
 
 		// Define month boundaries for time-based metrics
-		const { monthStart, monthEnd } = getBudgetMonthBounds(budget.month);
+		const { start: monthStart, end: monthEnd } = getUtcMonthBounds(
+			budget.month
+		);
 
 		// Fetch only expenses linked to THIS specific budget (envelope isolation)
 		const expenses = await prisma.expense.findMany({
@@ -392,7 +377,7 @@ export const BudgetService = {
 		userId: string,
 		month?: Date
 	): Promise<BudgetHealthSummary> {
-		const targetMonth = month ? startOfMonth(month) : startOfMonth(new Date());
+		const targetMonth = normalizeBudgetMonth(month ?? new Date());
 
 		// Get current month budgets with calculated metrics
 		const currentBudgets = await this.getBudgetsWithCoverage(userId, {
@@ -441,13 +426,14 @@ export const BudgetService = {
 		const totalSpent = currentBudgets.reduce((sum, b) => sum + b.spent, 0);
 
 		// Get 6 months of history for problem detection
-		const sixMonthsAgo = startOfMonth(subMonths(targetMonth, 5));
+		const sixMonthsAgo = addUtcMonths(targetMonth, -5);
+		const targetMonthEnd = getUtcMonthBounds(targetMonth).end;
 		const historicalBudgets = await prisma.budget.findMany({
 			where: {
 				userId,
 				month: {
 					gte: sixMonthsAgo,
-					lte: endOfMonth(targetMonth),
+					lte: targetMonthEnd,
 				},
 			},
 			include: {
@@ -458,7 +444,7 @@ export const BudgetService = {
 			userId,
 			historicalBudgets,
 			sixMonthsAgo,
-			endOfMonth(targetMonth)
+			targetMonthEnd
 		);
 
 		// Group by category and analyze patterns
@@ -558,17 +544,8 @@ export const BudgetService = {
 		to: Date
 	): Promise<MonthlyTrend[]> {
 		const trends: MonthlyTrend[] = [];
-
-		// Helper to get UTC-based month key (avoids timezone issues)
-		const getMonthKey = (date: Date): string => {
-			const year = date.getUTCFullYear();
-			const month = String(date.getUTCMonth() + 1).padStart(2, '0');
-			return `${year}-${month}`;
-		};
-
-		// Normalize dates - use endOfMonth for 'to' to capture all times within the month
-		const startDate = startOfMonth(from);
-		const endDate = endOfMonth(to);
+		const startDate = normalizeBudgetMonth(from);
+		const endDate = getUtcMonthBounds(to).end;
 
 		const allBudgets = await prisma.budget.findMany({
 			where: {
@@ -593,23 +570,23 @@ export const BudgetService = {
 		// Group budgets by month using UTC to avoid timezone shifts
 		const budgetsByMonth = new Map<string, typeof allBudgets>();
 		for (const budget of allBudgets) {
-			const monthKey = getMonthKey(budget.month);
+			const monthKey = getUtcMonthKey(budget.month);
 			const existing = budgetsByMonth.get(monthKey) || [];
 			existing.push(budget);
 			budgetsByMonth.set(monthKey, existing);
 		}
 
 		// Build trends array for each month in the range
-		const monthsInRange = eachMonthOfInterval({ start: startDate, end: endDate });
+		const monthsInRange = eachUtcMonth(startDate, endDate);
 		for (const monthDate of monthsInRange) {
-			const monthKey = getMonthKey(monthDate);
+			const monthKey = getUtcMonthKey(monthDate);
 			const monthBudgets = budgetsByMonth.get(monthKey) || [];
 
 			if (monthBudgets.length === 0) {
 				// No budgets for this month
 				trends.push({
 					month: monthDate,
-					monthLabel: format(monthDate, 'MMM yyyy'),
+					monthLabel: formatUtcMonth(monthDate),
 					totalBudgeted: 0,
 					totalSpent: 0,
 					savings: 0,
@@ -654,7 +631,7 @@ export const BudgetService = {
 
 			trends.push({
 				month: monthDate,
-				monthLabel: format(monthDate, 'MMM yyyy'),
+				monthLabel: formatUtcMonth(monthDate),
 				totalBudgeted: totalBudgeted.toNumber(),
 				totalSpent: totalSpent.toNumber(),
 				savings: savings.toNumber(),
@@ -677,8 +654,8 @@ export const BudgetService = {
 		months: number = 6
 	): Promise<CategoryRecommendation[]> {
 		const now = new Date();
-		const startDate = startOfMonth(subMonths(now, months - 1));
-		const endDate = endOfMonth(now);
+		const startDate = addUtcMonths(now, -(months - 1));
+		const endDate = getUtcMonthBounds(now).end;
 
 		// Get all budgets in the date range
 		const allBudgets = await prisma.budget.findMany({
@@ -842,17 +819,9 @@ export const BudgetService = {
 		userId: string,
 		sourceMonth: Date
 	): Promise<BudgetReplicationItem[]> {
-		// Normalize to UTC midnight on 1st of month to match stored format
-		const monthStart = new Date(Date.UTC(
-			sourceMonth.getFullYear(),
-			sourceMonth.getMonth(),
-			1, 0, 0, 0, 0
-		));
-		const monthEnd = new Date(Date.UTC(
-			sourceMonth.getFullYear(),
-			sourceMonth.getMonth() + 1,
-			0, 23, 59, 59, 999
-		));
+		const { start: monthStart, end: monthEnd } = getUtcMonthBounds(
+			sourceMonth
+		);
 
 		// Get budgets for the source month
 		const budgets = await prisma.budget.findMany({
@@ -903,30 +872,8 @@ export const BudgetService = {
 		userId: string,
 		input: ReplicateBudgetsInput
 	): Promise<{ success: boolean; created: number; skipped: string[] }> {
-		// Use UTC methods to avoid timezone issues
-		// The input date should already be UTC midnight on 1st of month
-		const targetMonthStart = new Date(
-			Date.UTC(
-				input.targetMonth.getUTCFullYear(),
-				input.targetMonth.getUTCMonth(),
-				1,
-				0,
-				0,
-				0,
-				0
-			)
-		);
-		const targetMonthEnd = new Date(
-			Date.UTC(
-				input.targetMonth.getUTCFullYear(),
-				input.targetMonth.getUTCMonth() + 1,
-				0,
-				23,
-				59,
-				59,
-				999
-			)
-		);
+		const { start: targetMonthStart, end: targetMonthEnd } =
+			getUtcMonthBounds(input.targetMonth);
 
 		// Get existing budgets in target month to check for duplicates
 		const existingBudgets = await prisma.budget.findMany({

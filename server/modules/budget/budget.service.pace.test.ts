@@ -39,7 +39,7 @@ describe('BudgetService.getBudgets — pace metrics', () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
 		vi.useFakeTimers();
-		vi.setSystemTime(new Date(2026, 7, 16, 12));
+		vi.setSystemTime(new Date(Date.UTC(2026, 7, 16, 12, 0, 0, 0)));
 	});
 
 	afterEach(() => {
@@ -48,8 +48,16 @@ describe('BudgetService.getBudgets — pace metrics', () => {
 
 	it('computes every unfiltered envelope against its own month', async () => {
 		mocks.budgetFindMany.mockResolvedValue([
-			budget('january', new Date(2026, 0, 1), 1000),
-			budget('october', new Date(2026, 9, 1), 900),
+			budget(
+				'january',
+				new Date(Date.UTC(2026, 0, 1, 0, 0, 0, 0)),
+				1000
+			),
+			budget(
+				'october',
+				new Date(Date.UTC(2026, 9, 1, 0, 0, 0, 0)),
+				900
+			),
 		]);
 		mocks.expenseGroupBy.mockResolvedValue([
 			{
@@ -101,7 +109,11 @@ describe('BudgetService.getBudgets — pace metrics', () => {
 
 	it('returns current-month pace and safe-to-spend on a filtered call', async () => {
 		mocks.budgetFindMany.mockResolvedValue([
-			budget('august', new Date(2026, 7, 1), 1000),
+			budget(
+				'august',
+				new Date(Date.UTC(2026, 7, 1, 0, 0, 0, 0)),
+				1000
+			),
 		]);
 		mocks.expenseGroupBy.mockResolvedValue([
 			{
@@ -111,15 +123,15 @@ describe('BudgetService.getBudgets — pace metrics', () => {
 		]);
 
 		const result = await BudgetService.getBudgets('user-1', {
-			month: new Date(2026, 7, 16, 9, 30),
+			month: new Date(Date.UTC(2026, 7, 16, 9, 30, 0, 0)),
 		});
 
 		expect(mocks.budgetFindMany).toHaveBeenCalledWith({
 			where: {
 				userId: 'user-1',
 				month: {
-					gte: new Date(2026, 7, 1),
-					lte: new Date(2026, 7, 31, 23, 59, 59, 999),
+					gte: new Date(Date.UTC(2026, 7, 1, 0, 0, 0, 0)),
+					lte: new Date(Date.UTC(2026, 7, 31, 23, 59, 59, 999)),
 				},
 			},
 			include: { category: true },
@@ -131,8 +143,8 @@ describe('BudgetService.getBudgets — pace metrics', () => {
 				userId: 'user-1',
 				budgetId: { not: null },
 				date: {
-					gte: new Date(2026, 7, 1),
-					lte: new Date(2026, 7, 31, 23, 59, 59, 999),
+					gte: new Date(Date.UTC(2026, 7, 1, 0, 0, 0, 0)),
+					lte: new Date(Date.UTC(2026, 7, 31, 23, 59, 59, 999)),
 				},
 			},
 			_sum: { amount: true },

@@ -34,7 +34,7 @@ describe('BudgetService — month-scoped analytics spend', () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
 		vi.useFakeTimers();
-		vi.setSystemTime(new Date(2026, 7, 30, 12));
+		vi.setSystemTime(new Date(Date.UTC(2026, 7, 30, 12, 0, 0, 0)));
 		mocks.getCoverageRatios.mockImplementation(
 			async (
 				_userId: string,
@@ -59,20 +59,23 @@ describe('BudgetService — month-scoped analytics spend', () => {
 			id: 'budget-january',
 			name: 'Groceries',
 			amount: new Prisma.Decimal(1000),
-			month: new Date(2026, 0, 1),
+			month: new Date(Date.UTC(2026, 0, 1, 0, 0, 0, 0)),
 			categoryId: 'category-food',
 			userId: 'user-1',
 			category: { id: 'category-food', name: 'Food' },
 			// Regression fixture: this linked expense belongs to February and must
 			// not be read from an eager relation on the January envelope.
 			expenses: [
-				{ date: new Date(2026, 1, 2), amount: new Prisma.Decimal(900) },
+				{
+					date: new Date(Date.UTC(2026, 1, 2, 0, 0, 0, 0)),
+					amount: new Prisma.Decimal(900),
+				},
 			],
 		};
 		const februaryBudget = {
 			...januaryBudget,
 			id: 'budget-february',
-			month: new Date(2026, 1, 1),
+			month: new Date(Date.UTC(2026, 1, 1, 0, 0, 0, 0)),
 			expenses: [],
 		};
 		mocks.budgetFindMany.mockResolvedValue([
@@ -92,16 +95,16 @@ describe('BudgetService — month-scoped analytics spend', () => {
 
 		const result = await BudgetService.getBudgetTrends(
 			'user-1',
-			new Date(2026, 0, 12),
-			new Date(2026, 1, 12)
+			new Date(Date.UTC(2026, 0, 12, 0, 0, 0, 0)),
+			new Date(Date.UTC(2026, 1, 12, 0, 0, 0, 0))
 		);
 
 		expect(mocks.budgetFindMany).toHaveBeenCalledWith({
 			where: {
 				userId: 'user-1',
 				month: {
-					gte: new Date(2026, 0, 1),
-					lte: new Date(2026, 1, 28, 23, 59, 59, 999),
+					gte: new Date(Date.UTC(2026, 0, 1, 0, 0, 0, 0)),
+					lte: new Date(Date.UTC(2026, 1, 28, 23, 59, 59, 999)),
 				},
 			},
 			include: { category: true },
@@ -113,22 +116,26 @@ describe('BudgetService — month-scoped analytics spend', () => {
 				userId: 'user-1',
 				budgetId: { in: ['budget-january', 'budget-february'] },
 				date: {
-					gte: new Date(2026, 0, 1),
-					lte: new Date(2026, 1, 28, 23, 59, 59, 999),
+					gte: new Date(Date.UTC(2026, 0, 1, 0, 0, 0, 0)),
+					lte: new Date(Date.UTC(2026, 1, 28, 23, 59, 59, 999)),
 				},
 				OR: [
 					{
 						budgetId: 'budget-january',
 						date: {
-							gte: new Date(2026, 0, 1),
-							lte: new Date(2026, 0, 31, 23, 59, 59, 999),
+							gte: new Date(Date.UTC(2026, 0, 1, 0, 0, 0, 0)),
+							lte: new Date(
+								Date.UTC(2026, 0, 31, 23, 59, 59, 999)
+							),
 						},
 					},
 					{
 						budgetId: 'budget-february',
 						date: {
-							gte: new Date(2026, 1, 1),
-							lte: new Date(2026, 1, 28, 23, 59, 59, 999),
+							gte: new Date(Date.UTC(2026, 1, 1, 0, 0, 0, 0)),
+							lte: new Date(
+								Date.UTC(2026, 1, 28, 23, 59, 59, 999)
+							),
 						},
 					},
 				],
@@ -144,13 +151,19 @@ describe('BudgetService — month-scoped analytics spend', () => {
 				id: 'budget-july',
 				name: 'Groceries',
 				amount: new Prisma.Decimal(1000),
-				month: new Date(2026, 6, 1),
+				month: new Date(Date.UTC(2026, 6, 1, 0, 0, 0, 0)),
 				categoryId: 'category-food',
 				userId: 'user-1',
 				category: { id: 'category-food', name: 'Food' },
 				expenses: [
-					{ date: new Date(2026, 6, 12), amount: new Prisma.Decimal(400) },
-					{ date: new Date(2026, 7, 2), amount: new Prisma.Decimal(900) },
+					{
+						date: new Date(Date.UTC(2026, 6, 12, 0, 0, 0, 0)),
+						amount: new Prisma.Decimal(400),
+					},
+					{
+						date: new Date(Date.UTC(2026, 7, 2, 0, 0, 0, 0)),
+						amount: new Prisma.Decimal(900),
+					},
 				],
 			},
 		]);
@@ -167,8 +180,8 @@ describe('BudgetService — month-scoped analytics spend', () => {
 			where: {
 				userId: 'user-1',
 				month: {
-					gte: new Date(2026, 2, 1),
-					lte: new Date(2026, 7, 31, 23, 59, 59, 999),
+					gte: new Date(Date.UTC(2026, 2, 1, 0, 0, 0, 0)),
+					lte: new Date(Date.UTC(2026, 7, 31, 23, 59, 59, 999)),
 				},
 			},
 			include: { category: true },
@@ -179,15 +192,17 @@ describe('BudgetService — month-scoped analytics spend', () => {
 				userId: 'user-1',
 				budgetId: { in: ['budget-july'] },
 				date: {
-					gte: new Date(2026, 2, 1),
-					lte: new Date(2026, 7, 31, 23, 59, 59, 999),
+					gte: new Date(Date.UTC(2026, 2, 1, 0, 0, 0, 0)),
+					lte: new Date(Date.UTC(2026, 7, 31, 23, 59, 59, 999)),
 				},
 				OR: [
 					{
 						budgetId: 'budget-july',
 						date: {
-							gte: new Date(2026, 6, 1),
-							lte: new Date(2026, 6, 31, 23, 59, 59, 999),
+							gte: new Date(Date.UTC(2026, 6, 1, 0, 0, 0, 0)),
+							lte: new Date(
+								Date.UTC(2026, 6, 31, 23, 59, 59, 999)
+							),
 						},
 					},
 				],
@@ -205,36 +220,45 @@ describe('BudgetService — month-scoped analytics spend', () => {
 				id: 'budget-june',
 				name: 'Groceries',
 				amount: new Prisma.Decimal(100),
-				month: new Date(2026, 5, 1),
+				month: new Date(Date.UTC(2026, 5, 1, 0, 0, 0, 0)),
 				categoryId: 'category-food',
 				userId: 'user-1',
 				category,
 				expenses: [
-					{ date: new Date(2026, 6, 1), amount: new Prisma.Decimal(200) },
+					{
+						date: new Date(Date.UTC(2026, 6, 1, 0, 0, 0, 0)),
+						amount: new Prisma.Decimal(200),
+					},
 				],
 			},
 			{
 				id: 'budget-july',
 				name: 'Groceries',
 				amount: new Prisma.Decimal(100),
-				month: new Date(2026, 6, 1),
+				month: new Date(Date.UTC(2026, 6, 1, 0, 0, 0, 0)),
 				categoryId: 'category-food',
 				userId: 'user-1',
 				category,
 				expenses: [
-					{ date: new Date(2026, 7, 1), amount: new Prisma.Decimal(200) },
+					{
+						date: new Date(Date.UTC(2026, 7, 1, 0, 0, 0, 0)),
+						amount: new Prisma.Decimal(200),
+					},
 				],
 			},
 			{
 				id: 'budget-august',
 				name: 'Groceries',
 				amount: new Prisma.Decimal(100),
-				month: new Date(2026, 7, 1),
+				month: new Date(Date.UTC(2026, 7, 1, 0, 0, 0, 0)),
 				categoryId: 'category-food',
 				userId: 'user-1',
 				category,
 				expenses: [
-					{ date: new Date(2026, 8, 1), amount: new Prisma.Decimal(200) },
+					{
+						date: new Date(Date.UTC(2026, 8, 1, 0, 0, 0, 0)),
+						amount: new Prisma.Decimal(200),
+					},
 				],
 			},
 		];
@@ -257,15 +281,15 @@ describe('BudgetService — month-scoped analytics spend', () => {
 
 		const result = await BudgetService.getBudgetHealthSummary(
 			'user-1',
-			new Date(2026, 7, 16)
+			new Date(Date.UTC(2026, 7, 16, 0, 0, 0, 0))
 		);
 
 		expect(mocks.budgetFindMany).toHaveBeenNthCalledWith(2, {
 			where: {
 				userId: 'user-1',
 				month: {
-					gte: new Date(2026, 2, 1),
-					lte: new Date(2026, 7, 31, 23, 59, 59, 999),
+					gte: new Date(Date.UTC(2026, 2, 1, 0, 0, 0, 0)),
+					lte: new Date(Date.UTC(2026, 7, 31, 23, 59, 59, 999)),
 				},
 			},
 			include: { category: true },
@@ -278,29 +302,35 @@ describe('BudgetService — month-scoped analytics spend', () => {
 					in: ['budget-june', 'budget-july', 'budget-august'],
 				},
 				date: {
-					gte: new Date(2026, 2, 1),
-					lte: new Date(2026, 7, 31, 23, 59, 59, 999),
+					gte: new Date(Date.UTC(2026, 2, 1, 0, 0, 0, 0)),
+					lte: new Date(Date.UTC(2026, 7, 31, 23, 59, 59, 999)),
 				},
 				OR: [
 					{
 						budgetId: 'budget-june',
 						date: {
-							gte: new Date(2026, 5, 1),
-							lte: new Date(2026, 5, 30, 23, 59, 59, 999),
+							gte: new Date(Date.UTC(2026, 5, 1, 0, 0, 0, 0)),
+							lte: new Date(
+								Date.UTC(2026, 5, 30, 23, 59, 59, 999)
+							),
 						},
 					},
 					{
 						budgetId: 'budget-july',
 						date: {
-							gte: new Date(2026, 6, 1),
-							lte: new Date(2026, 6, 31, 23, 59, 59, 999),
+							gte: new Date(Date.UTC(2026, 6, 1, 0, 0, 0, 0)),
+							lte: new Date(
+								Date.UTC(2026, 6, 31, 23, 59, 59, 999)
+							),
 						},
 					},
 					{
 						budgetId: 'budget-august',
 						date: {
-							gte: new Date(2026, 7, 1),
-							lte: new Date(2026, 7, 31, 23, 59, 59, 999),
+							gte: new Date(Date.UTC(2026, 7, 1, 0, 0, 0, 0)),
+							lte: new Date(
+								Date.UTC(2026, 7, 31, 23, 59, 59, 999)
+							),
 						},
 					},
 				],
@@ -315,7 +345,7 @@ describe('BudgetService — month-scoped analytics spend', () => {
 			id: 'budget-january',
 			name: 'Groceries',
 			amount: new Prisma.Decimal(1000),
-			month: new Date(2026, 0, 1),
+			month: new Date(Date.UTC(2026, 0, 1, 0, 0, 0, 0)),
 			categoryId: 'category-food',
 			userId: 'user-1',
 			category: { id: 'category-food', name: 'Food' },
@@ -328,11 +358,11 @@ describe('BudgetService — month-scoped analytics spend', () => {
 		// gains 700. If Decimal precision is lost, it drifts off 1.47.
 		const candidateExpenses = [
 			{
-				date: new Date(2026, 0, 31, 23, 59, 59, 999),
+				date: new Date(Date.UTC(2026, 0, 31, 23, 59, 59, 999)),
 				amount: new Prisma.Decimal('0.07').times(21),
 			},
 			{
-				date: new Date(2026, 1, 1, 0, 0, 0, 0),
+				date: new Date(Date.UTC(2026, 1, 1, 0, 0, 0, 0)),
 				amount: new Prisma.Decimal(700),
 			},
 		];
@@ -361,8 +391,8 @@ describe('BudgetService — month-scoped analytics spend', () => {
 
 		const result = await BudgetService.getBudgetTrends(
 			'user-1',
-			new Date(2026, 0, 1),
-			new Date(2026, 0, 31)
+			new Date(Date.UTC(2026, 0, 1, 0, 0, 0, 0)),
+			new Date(Date.UTC(2026, 0, 31, 0, 0, 0, 0))
 		);
 
 		expect(result[0].totalSpent).toBe(1.47);

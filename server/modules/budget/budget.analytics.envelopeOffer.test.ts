@@ -28,20 +28,20 @@ describe('BudgetAnalyticsService.getInferredEnvelopeOffer', () => {
 
 	it('withholds the offer before 42 days of recorded expense history', async () => {
 		mocks.expenseAggregate.mockResolvedValue({
-			_min: { date: new Date(2026, 6, 1) },
-			_max: { date: new Date(2026, 7, 11) },
+			_min: { date: new Date(Date.UTC(2026, 6, 1, 0, 0, 0, 0)) },
+			_max: { date: new Date(Date.UTC(2026, 7, 11, 0, 0, 0, 0)) },
 		});
 
 		const result = await BudgetAnalyticsService.getInferredEnvelopeOffer(
 			'user-1',
-			new Date(2026, 7, 16)
+			new Date(Date.UTC(2026, 7, 16, 0, 0, 0, 0))
 		);
 
 		expect(mocks.expenseAggregate).toHaveBeenCalledWith({
 			where: {
 				userId: 'user-1',
 				date: {
-					lte: new Date(2026, 7, 31, 23, 59, 59, 999),
+					lte: new Date(Date.UTC(2026, 7, 31, 23, 59, 59, 999)),
 				},
 			},
 			_min: { date: true },
@@ -59,8 +59,8 @@ describe('BudgetAnalyticsService.getInferredEnvelopeOffer', () => {
 
 	it('offers category envelopes from trailing Decimal medians after the threshold', async () => {
 		mocks.expenseAggregate.mockResolvedValue({
-			_min: { date: new Date(2026, 2, 1) },
-			_max: { date: new Date(2026, 7, 12) },
+			_min: { date: new Date(Date.UTC(2026, 2, 1, 0, 0, 0, 0)) },
+			_max: { date: new Date(Date.UTC(2026, 7, 12, 0, 0, 0, 0)) },
 		});
 		mocks.expenseGroupBy
 			.mockResolvedValueOnce([
@@ -105,14 +105,14 @@ describe('BudgetAnalyticsService.getInferredEnvelopeOffer', () => {
 
 		const result = await BudgetAnalyticsService.getInferredEnvelopeOffer(
 			'user-1',
-			new Date(2026, 7, 16)
+			new Date(Date.UTC(2026, 7, 16, 0, 0, 0, 0))
 		);
 
 		expect(mocks.expenseAggregate).toHaveBeenCalledWith({
 			where: {
 				userId: 'user-1',
 				date: {
-					lte: new Date(2026, 7, 31, 23, 59, 59, 999),
+					lte: new Date(Date.UTC(2026, 7, 31, 23, 59, 59, 999)),
 				},
 			},
 			_min: { date: true },
@@ -121,28 +121,28 @@ describe('BudgetAnalyticsService.getInferredEnvelopeOffer', () => {
 
 		const expectedWindows = [
 			{
-				gte: new Date(2026, 2, 1),
-				lte: new Date(2026, 2, 31, 23, 59, 59, 999),
+				gte: new Date(Date.UTC(2026, 2, 1, 0, 0, 0, 0)),
+				lte: new Date(Date.UTC(2026, 2, 31, 23, 59, 59, 999)),
 			},
 			{
-				gte: new Date(2026, 3, 1),
-				lte: new Date(2026, 3, 30, 23, 59, 59, 999),
+				gte: new Date(Date.UTC(2026, 3, 1, 0, 0, 0, 0)),
+				lte: new Date(Date.UTC(2026, 3, 30, 23, 59, 59, 999)),
 			},
 			{
-				gte: new Date(2026, 4, 1),
-				lte: new Date(2026, 4, 31, 23, 59, 59, 999),
+				gte: new Date(Date.UTC(2026, 4, 1, 0, 0, 0, 0)),
+				lte: new Date(Date.UTC(2026, 4, 31, 23, 59, 59, 999)),
 			},
 			{
-				gte: new Date(2026, 5, 1),
-				lte: new Date(2026, 5, 30, 23, 59, 59, 999),
+				gte: new Date(Date.UTC(2026, 5, 1, 0, 0, 0, 0)),
+				lte: new Date(Date.UTC(2026, 5, 30, 23, 59, 59, 999)),
 			},
 			{
-				gte: new Date(2026, 6, 1),
-				lte: new Date(2026, 6, 31, 23, 59, 59, 999),
+				gte: new Date(Date.UTC(2026, 6, 1, 0, 0, 0, 0)),
+				lte: new Date(Date.UTC(2026, 6, 31, 23, 59, 59, 999)),
 			},
 			{
-				gte: new Date(2026, 7, 1),
-				lte: new Date(2026, 7, 31, 23, 59, 59, 999),
+				gte: new Date(Date.UTC(2026, 7, 1, 0, 0, 0, 0)),
+				lte: new Date(Date.UTC(2026, 7, 31, 23, 59, 59, 999)),
 			},
 		];
 		for (const [index, date] of expectedWindows.entries()) {

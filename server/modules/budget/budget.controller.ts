@@ -13,6 +13,7 @@ import { invalidateTags } from '@/server/actions/cache';
 import { CACHE_TAGS } from '@/server/lib/cache-tags';
 import { coerceDateFields } from '@/server/lib/action-utils';
 import { BudgetAnalyticsService } from './budget.analytics.service';
+import { normalizeBudgetMonth } from './budget.month';
 
 /**
  * Server Action: Get current budget health summary
@@ -75,14 +76,6 @@ export async function getInferredEnvelopeOfferAction(data: unknown) {
 }
 
 /**
- * Normalize a date to UTC midnight on the 1st of the month
- * This ensures consistent storage regardless of client timezone
- */
-function normalizeMonthToUTC(date: Date): Date {
-	return new Date(Date.UTC(date.getFullYear(), date.getMonth(), 1, 0, 0, 0, 0));
-}
-
-/**
  * Server Action: Create Budget
  */
 export async function createBudgetAction(data: unknown) {
@@ -94,7 +87,7 @@ export async function createBudgetAction(data: unknown) {
 	}
 
 	// Normalize month to UTC midnight on the 1st
-	parsed.data.month = normalizeMonthToUTC(parsed.data.month);
+	parsed.data.month = normalizeBudgetMonth(parsed.data.month);
 
 	try {
 		await BudgetService.createBudget(userId, parsed.data);
@@ -119,7 +112,7 @@ export async function updateBudgetAction(data: unknown) {
 
 	// Normalize month to UTC midnight on the 1st if provided
 	if (parsed.data.month) {
-		parsed.data.month = normalizeMonthToUTC(parsed.data.month);
+		parsed.data.month = normalizeBudgetMonth(parsed.data.month);
 	}
 
 	try {

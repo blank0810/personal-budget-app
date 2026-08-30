@@ -47,7 +47,7 @@ describe('getInferredEnvelopeOfferAction', () => {
 		expect(mocks.getAuthenticatedUser).toHaveBeenCalledOnce();
 		expect(mocks.getInferredEnvelopeOffer).toHaveBeenCalledWith(
 			'user-1',
-			new Date('2026-08-16T00:00:00.000Z')
+			new Date(Date.UTC(2026, 7, 16, 0, 0, 0, 0))
 		);
 	});
 
@@ -68,7 +68,7 @@ describe('getInferredEnvelopeOfferAction', () => {
 
 		await expect(
 			getInferredEnvelopeOfferAction({
-				month: new Date(2026, 7, 16),
+				month: new Date(Date.UTC(2026, 7, 16, 0, 0, 0, 0)),
 			})
 		).resolves.toEqual({ error: 'Failed to load envelope history' });
 		expect(consoleError).toHaveBeenCalledWith(

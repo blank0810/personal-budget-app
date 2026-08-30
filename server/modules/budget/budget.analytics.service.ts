@@ -1,11 +1,12 @@
 import prisma from '@/lib/prisma';
 import { Prisma } from '@prisma/client';
 import {
-	differenceInCalendarDays,
-	endOfMonth,
-	startOfMonth,
-	subMonths,
-} from 'date-fns';
+	addUtcMonths,
+	differenceInUtcCalendarDays,
+	getUtcCategoryMonthKey,
+	getUtcMonthBounds,
+	normalizeBudgetMonth,
+} from './budget.month';
 import type {
 	BudgetCoverage,
 	BudgetCoverageEnvelope,
@@ -17,20 +18,12 @@ import { getDecimalMedian } from './budget.analytics.math';
 export const MIN_LOGGING_DAYS_FOR_ENVELOPE_OFFER = 42;
 const ENVELOPE_OFFER_TRAILING_MONTHS = 6;
 
-function monthKey(date: Date): string {
-	return startOfMonth(date).getTime().toString();
-}
-
-function categoryMonthKey(categoryId: string, date: Date): string {
-	return `${categoryId}:${monthKey(date)}`;
-}
-
 export const BudgetAnalyticsService = {
 	async getInferredEnvelopeOffer(
 		userId: string,
 		month: Date
 	): Promise<InferredEnvelopeOffer> {
-		const targetMonthEnd = endOfMonth(month);
+		const targetMonthEnd = getUtcMonthBounds(month).end;
 		const historyBounds = await prisma.expense.aggregate({
 			where: {
 				userId,
@@ -45,7 +38,10 @@ export const BudgetAnalyticsService = {
 			firstExpenseDate && lastExpenseDate
 				? Math.max(
 						0,
-						differenceInCalendarDays(lastExpenseDate, firstExpenseDate)
+						differenceInUtcCalendarDays(
+							lastExpenseDate,
+							firstExpenseDate
+						)
 					)
 				: 0;
 
@@ -58,27 +54,30 @@ export const BudgetAnalyticsService = {
 			};
 		}
 
+		const targetMonth = normalizeBudgetMonth(month);
 		const monthStarts = Array.from(
 			{ length: ENVELOPE_OFFER_TRAILING_MONTHS },
 			(_, index) =>
-				startOfMonth(
-					subMonths(month, ENVELOPE_OFFER_TRAILING_MONTHS - index - 1)
+				addUtcMonths(
+					targetMonth,
+					-(ENVELOPE_OFFER_TRAILING_MONTHS - index - 1)
 				)
 		);
 		const monthlyGroups = await Promise.all(
-			monthStarts.map((monthStart) =>
-				prisma.expense.groupBy({
+			monthStarts.map((monthStart) => {
+				const { end: monthEnd } = getUtcMonthBounds(monthStart);
+				return prisma.expense.groupBy({
 					by: ['categoryId'],
 					where: {
 						userId,
 						date: {
 							gte: monthStart,
-							lte: endOfMonth(monthStart),
+							lte: monthEnd,
 						},
 					},
 					_sum: { amount: true },
-				})
-			)
+				});
+			})
 		);
 
 		const totalsByCategory = new Map<string, Prisma.Decimal[]>();
@@ -143,11 +142,14 @@ export const BudgetAnalyticsService = {
 		userId: string,
 		month: Date
 	): Promise<CategorySpendComparison[]> {
-		const currentMonthStart = startOfMonth(month);
-		const currentMonthEnd = endOfMonth(month);
-		const previousMonth = subMonths(currentMonthStart, 1);
-		const previousMonthStart = startOfMonth(previousMonth);
-		const previousMonthEnd = endOfMonth(previousMonth);
+		const {
+			start: currentMonthStart,
+			end: currentMonthEnd,
+		} = getUtcMonthBounds(month);
+		const {
+			start: previousMonthStart,
+			end: previousMonthEnd,
+		} = getUtcMonthBounds(addUtcMonths(currentMonthStart, -1));
 
 		const [currentGroups, previousGroups] = await Promise.all([
 			prisma.expense.groupBy({
@@ -252,7 +254,10 @@ export const BudgetAnalyticsService = {
 			{ categoryId: string; month: Date }
 		>();
 		for (const envelope of envelopes) {
-			const key = categoryMonthKey(envelope.categoryId, envelope.month);
+			const key = getUtcCategoryMonthKey(
+				envelope.categoryId,
+				envelope.month
+			);
 			if (!categoryMonths.has(key)) {
 				categoryMonths.set(key, {
 					categoryId: envelope.categoryId,
@@ -266,13 +271,13 @@ export const BudgetAnalyticsService = {
 				by: ['budgetId'],
 				where: {
 					userId,
-					OR: envelopes.map((envelope) => ({
-						budgetId: envelope.id,
-						date: {
-							gte: startOfMonth(envelope.month),
-							lte: endOfMonth(envelope.month),
-						},
-					})),
+					OR: envelopes.map((envelope) => {
+						const { start, end } = getUtcMonthBounds(envelope.month);
+						return {
+							budgetId: envelope.id,
+							date: { gte: start, lte: end },
+						};
+					}),
 				},
 				_sum: { amount: true },
 			}),
@@ -281,13 +286,15 @@ export const BudgetAnalyticsService = {
 				where: {
 					userId,
 					budgetId: null,
-					OR: Array.from(categoryMonths.values()).map((categoryMonth) => ({
-						categoryId: categoryMonth.categoryId,
-						date: {
-							gte: startOfMonth(categoryMonth.month),
-							lte: endOfMonth(categoryMonth.month),
-						},
-					})),
+					OR: Array.from(categoryMonths.values()).map((categoryMonth) => {
+						const { start, end } = getUtcMonthBounds(
+							categoryMonth.month
+						);
+						return {
+							categoryId: categoryMonth.categoryId,
+							date: { gte: start, lte: end },
+						};
+					}),
 				},
 				_sum: { amount: true },
 				_count: { id: true },
@@ -309,7 +316,7 @@ export const BudgetAnalyticsService = {
 			{ spend: Prisma.Decimal; count: number }
 		>();
 		for (const group of unlinkedGroups) {
-			const key = categoryMonthKey(group.categoryId, group.date);
+			const key = getUtcCategoryMonthKey(group.categoryId, group.date);
 			if (!categoryMonths.has(key)) continue;
 
 			const existing = unlinkedByCategoryMonth.get(key) ?? {
@@ -328,7 +335,7 @@ export const BudgetAnalyticsService = {
 			const linkedSpend =
 				linkedByBudget.get(envelope.id) ?? new Prisma.Decimal(0);
 			const unlinked = unlinkedByCategoryMonth.get(
-				categoryMonthKey(envelope.categoryId, envelope.month)
+				getUtcCategoryMonthKey(envelope.categoryId, envelope.month)
 			) ?? { spend: new Prisma.Decimal(0), count: 0 };
 			const categorySpend = linkedSpend.plus(unlinked.spend);
 

@@ -39,20 +39,20 @@ describe('BudgetService — zero-amount budgets', () => {
 		id: 'budget-zero',
 		name: 'Zero envelope',
 		amount: new Prisma.Decimal(0),
-		month: new Date(2026, 7, 1),
+		month: new Date(Date.UTC(2026, 7, 1, 0, 0, 0, 0)),
 		categoryId: 'category-1',
 		userId: 'user-1',
 		category: { id: 'category-1', name: 'Unallocated' },
 	};
 	const augustWindow = {
-		gte: new Date(2026, 7, 1),
-		lte: new Date(2026, 7, 31, 23, 59, 59, 999),
+		gte: new Date(Date.UTC(2026, 7, 1, 0, 0, 0, 0)),
+		lte: new Date(Date.UTC(2026, 7, 31, 23, 59, 59, 999)),
 	};
 
 	beforeEach(() => {
 		vi.clearAllMocks();
 		vi.useFakeTimers();
-		vi.setSystemTime(new Date(2026, 7, 4, 12));
+		vi.setSystemTime(new Date(Date.UTC(2026, 7, 4, 12, 0, 0, 0)));
 		mocks.getCoverageRatios.mockResolvedValue([
 			{
 				budgetId: 'budget-zero',
@@ -78,11 +78,11 @@ describe('BudgetService — zero-amount budgets', () => {
 		]);
 
 		const budgets = await BudgetService.getBudgets('user-1', {
-			month: new Date(2026, 7, 16),
+			month: new Date(Date.UTC(2026, 7, 16, 0, 0, 0, 0)),
 		});
 		const summary = await BudgetService.getBudgetHealthSummary(
 			'user-1',
-			new Date(2026, 7, 16)
+			new Date(Date.UTC(2026, 7, 16, 0, 0, 0, 0))
 		);
 
 		expect(mocks.budgetFindMany).toHaveBeenNthCalledWith(1, {
@@ -125,7 +125,7 @@ describe('BudgetService — zero-amount budgets', () => {
 				{
 					id: 'expense-1',
 					amount: new Prisma.Decimal(10),
-					date: new Date(2026, 7, 2),
+					date: new Date(Date.UTC(2026, 7, 2, 0, 0, 0, 0)),
 				},
 			])
 			.mockResolvedValueOnce([]);

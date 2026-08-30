@@ -31,14 +31,14 @@ describe('BudgetService.getBudgets — spent definition', () => {
 				id: 'budget-1',
 				name: 'Groceries',
 				amount: new Prisma.Decimal(1000),
-				month: new Date(2026, 7, 1),
+				month: new Date(Date.UTC(2026, 7, 1, 0, 0, 0, 0)),
 				categoryId: 'category-1',
 				userId: 'user-1',
 				category: { id: 'category-1', name: 'Food' },
 				expenses: [
 					{
 						amount: new Prisma.Decimal(900),
-						date: new Date(2026, 8, 1),
+						date: new Date(Date.UTC(2026, 8, 1, 0, 0, 0, 0)),
 					},
 				],
 			},
@@ -53,7 +53,7 @@ describe('BudgetService.getBudgets — spent definition', () => {
 
 	it('uses only linked expenses dated inside the envelope month', async () => {
 		const result = await BudgetService.getBudgets('user-1', {
-			month: new Date(2026, 7, 16, 9, 30),
+			month: new Date(Date.UTC(2026, 7, 16, 9, 30, 0, 0)),
 		});
 
 		expect(mocks.expenseGroupBy).toHaveBeenCalledWith({
@@ -62,8 +62,8 @@ describe('BudgetService.getBudgets — spent definition', () => {
 				userId: 'user-1',
 				budgetId: { not: null },
 				date: {
-					gte: new Date(2026, 7, 1),
-					lte: new Date(2026, 7, 31, 23, 59, 59, 999),
+					gte: new Date(Date.UTC(2026, 7, 1, 0, 0, 0, 0)),
+					lte: new Date(Date.UTC(2026, 7, 31, 23, 59, 59, 999)),
 				},
 			},
 			_sum: { amount: true },
@@ -72,8 +72,8 @@ describe('BudgetService.getBudgets — spent definition', () => {
 			where: {
 				userId: 'user-1',
 				month: {
-					gte: new Date(2026, 7, 1),
-					lte: new Date(2026, 7, 31, 23, 59, 59, 999),
+					gte: new Date(Date.UTC(2026, 7, 1, 0, 0, 0, 0)),
+					lte: new Date(Date.UTC(2026, 7, 31, 23, 59, 59, 999)),
 				},
 			},
 			include: { category: true },
@@ -94,7 +94,7 @@ describe('BudgetService.getBudgets — spent definition', () => {
 				id: 'budget-past',
 				name: 'Groceries',
 				amount: new Prisma.Decimal(1000),
-				month: new Date(2026, 0, 1),
+				month: new Date(Date.UTC(2026, 0, 1, 0, 0, 0, 0)),
 				categoryId: 'category-1',
 				userId: 'user-1',
 				category: { id: 'category-1', name: 'Food' },

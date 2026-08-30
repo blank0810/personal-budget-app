@@ -54,7 +54,7 @@ describe('BudgetAnalyticsService.getCategorySpendComparison', () => {
 
 		const result = await BudgetAnalyticsService.getCategorySpendComparison(
 			'user-1',
-			new Date(2026, 7, 16)
+			new Date(Date.UTC(2026, 7, 16, 0, 0, 0, 0))
 		);
 
 		expect(mocks.expenseGroupBy).toHaveBeenNthCalledWith(1, {
@@ -62,8 +62,8 @@ describe('BudgetAnalyticsService.getCategorySpendComparison', () => {
 			where: {
 				userId: 'user-1',
 				date: {
-					gte: new Date(2026, 7, 1),
-					lte: new Date(2026, 7, 31, 23, 59, 59, 999),
+					gte: new Date(Date.UTC(2026, 7, 1, 0, 0, 0, 0)),
+					lte: new Date(Date.UTC(2026, 7, 31, 23, 59, 59, 999)),
 				},
 			},
 			_sum: { amount: true },
@@ -73,8 +73,8 @@ describe('BudgetAnalyticsService.getCategorySpendComparison', () => {
 			where: {
 				userId: 'user-1',
 				date: {
-					gte: new Date(2026, 6, 1),
-					lte: new Date(2026, 6, 31, 23, 59, 59, 999),
+					gte: new Date(Date.UTC(2026, 6, 1, 0, 0, 0, 0)),
+					lte: new Date(Date.UTC(2026, 6, 31, 23, 59, 59, 999)),
 				},
 			},
 			_sum: { amount: true },
@@ -125,7 +125,7 @@ describe('BudgetAnalyticsService.getCategorySpendComparison', () => {
 		await expect(
 			BudgetAnalyticsService.getCategorySpendComparison(
 				'user-1',
-				new Date(2026, 7, 16)
+				new Date(Date.UTC(2026, 7, 16, 0, 0, 0, 0))
 			)
 		).resolves.toEqual([]);
 		expect(mocks.categoryFindMany).not.toHaveBeenCalled();

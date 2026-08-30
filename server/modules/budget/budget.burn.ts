@@ -1,4 +1,4 @@
-const MS_PER_DAY = 1000 * 60 * 60 * 24;
+import { differenceInUtcCalendarDays } from './budget.month';
 
 /** Minimum elapsed days before a pace verdict is statistically honest. */
 export const MIN_DAYS_FOR_VERDICT = 7;
@@ -49,13 +49,11 @@ export function computeBurnMetrics({
 	budgetLimit,
 	today = new Date(),
 }: BurnMetricsInput): BurnMetrics {
-	// `monthStart`/`monthEnd` are built with local-time setters by the callers,
-	// so they must be read with local getters. Reading them as UTC collapses
-	// `daysInMonth` to 1 for any negative-offset timezone.
-	const daysInMonth = monthEnd.getDate();
+	// Budget bounds are UTC calendar boundaries, so both the month length and
+	// elapsed-day count must be read in UTC as well.
+	const daysInMonth = monthEnd.getUTCDate();
 
-	const rawElapsed =
-		Math.floor((today.getTime() - monthStart.getTime()) / MS_PER_DAY) + 1;
+	const rawElapsed = differenceInUtcCalendarDays(today, monthStart) + 1;
 	const daysElapsed = Math.min(daysInMonth, Math.max(1, rawElapsed));
 	const daysRemaining = Math.max(0, daysInMonth - daysElapsed);
 

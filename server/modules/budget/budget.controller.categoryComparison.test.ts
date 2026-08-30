@@ -45,7 +45,7 @@ describe('getCategorySpendComparisonAction', () => {
 		expect(mocks.getAuthenticatedUser).toHaveBeenCalledOnce();
 		expect(mocks.getCategorySpendComparison).toHaveBeenCalledWith(
 			'user-1',
-			new Date('2026-08-16T00:00:00.000Z')
+			new Date(Date.UTC(2026, 7, 16, 0, 0, 0, 0))
 		);
 	});
 
@@ -66,7 +66,7 @@ describe('getCategorySpendComparisonAction', () => {
 
 		await expect(
 			getCategorySpendComparisonAction({
-				month: new Date(2026, 7, 16),
+				month: new Date(Date.UTC(2026, 7, 16, 0, 0, 0, 0)),
 			})
 		).resolves.toEqual({ error: 'Failed to load category spending' });
 		expect(consoleError).toHaveBeenCalledWith(

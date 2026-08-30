@@ -19,7 +19,7 @@ describe('BudgetAnalyticsService.getCoverageRatios', () => {
 	const augustEnvelope = {
 		id: 'budget-groceries-august',
 		categoryId: 'category-groceries',
-		month: new Date(2026, 7, 1),
+		month: new Date(Date.UTC(2026, 7, 1, 0, 0, 0, 0)),
 	};
 
 	beforeEach(() => {
@@ -37,7 +37,7 @@ describe('BudgetAnalyticsService.getCoverageRatios', () => {
 			.mockResolvedValueOnce([
 				{
 					categoryId: augustEnvelope.categoryId,
-					date: new Date(2026, 7, 12),
+					date: new Date(Date.UTC(2026, 7, 12, 0, 0, 0, 0)),
 					_sum: { amount: new Prisma.Decimal(200) },
 					_count: { id: 2 },
 				},
@@ -56,8 +56,10 @@ describe('BudgetAnalyticsService.getCoverageRatios', () => {
 					{
 						budgetId: augustEnvelope.id,
 						date: {
-							gte: new Date(2026, 7, 1),
-							lte: new Date(2026, 7, 31, 23, 59, 59, 999),
+							gte: new Date(Date.UTC(2026, 7, 1, 0, 0, 0, 0)),
+							lte: new Date(
+								Date.UTC(2026, 7, 31, 23, 59, 59, 999)
+							),
 						},
 					},
 				],
@@ -73,8 +75,10 @@ describe('BudgetAnalyticsService.getCoverageRatios', () => {
 					{
 						categoryId: augustEnvelope.categoryId,
 						date: {
-							gte: new Date(2026, 7, 1),
-							lte: new Date(2026, 7, 31, 23, 59, 59, 999),
+							gte: new Date(Date.UTC(2026, 7, 1, 0, 0, 0, 0)),
+							lte: new Date(
+								Date.UTC(2026, 7, 31, 23, 59, 59, 999)
+							),
 						},
 					},
 				],
@@ -123,7 +127,7 @@ describe('BudgetAnalyticsService.getCoverageRatios', () => {
 			.mockResolvedValueOnce([
 				{
 					categoryId: 'category-transport',
-					date: new Date(2026, 7, 12),
+					date: new Date(Date.UTC(2026, 7, 12, 0, 0, 0, 0)),
 					_sum: { amount: new Prisma.Decimal(200) },
 					_count: { id: 2 },
 				},
@@ -149,7 +153,7 @@ describe('BudgetAnalyticsService.getCoverageRatios', () => {
 			.mockResolvedValueOnce([
 				{
 					categoryId: augustEnvelope.categoryId,
-					date: new Date(2026, 8, 1),
+					date: new Date(Date.UTC(2026, 8, 1, 0, 0, 0, 0)),
 					_sum: { amount: new Prisma.Decimal(200) },
 					_count: { id: 2 },
 				},

@@ -28,7 +28,7 @@ describe('Reports BudgetAnalytics recommendation history gate', () => {
 				<BudgetAnalytics
 					trends={[
 						{
-							month: new Date(2026, 7, 1),
+							month: new Date(Date.UTC(2026, 7, 1, 0, 0, 0, 0)),
 							monthLabel: 'Aug 2026',
 							totalBudgeted: 500,
 							totalSpent: 400,

@@ -24,7 +24,7 @@ describe('getBudgetHealthSummaryAction', () => {
 	});
 
 	it('authenticates and returns the month-scoped health summary', async () => {
-		const month = new Date(2026, 7, 1);
+		const month = new Date(Date.UTC(2026, 7, 1, 0, 0, 0, 0));
 		const health = {
 			totalBudgets: 4,
 			onTrack: 1,

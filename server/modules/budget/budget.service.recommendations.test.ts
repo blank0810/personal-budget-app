@@ -34,7 +34,7 @@ describe('BudgetService.getBudgetRecommendations', () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
 		vi.useFakeTimers();
-		vi.setSystemTime(new Date(2026, 7, 30, 12));
+		vi.setSystemTime(new Date(Date.UTC(2026, 7, 30, 12, 0, 0, 0)));
 	});
 
 	afterEach(() => {
@@ -47,7 +47,7 @@ describe('BudgetService.getBudgetRecommendations', () => {
 				id: 'budget-july',
 				name: 'Groceries',
 				amount: new Prisma.Decimal('500.00'),
-				month: new Date(2026, 6, 1),
+				month: new Date(Date.UTC(2026, 6, 1, 0, 0, 0, 0)),
 				categoryId: 'category-food',
 				userId: 'user-1',
 				category: { id: 'category-food', name: 'Food' },
@@ -66,8 +66,8 @@ describe('BudgetService.getBudgetRecommendations', () => {
 			where: {
 				userId: 'user-1',
 				month: {
-					gte: new Date(2026, 2, 1),
-					lte: new Date(2026, 7, 31, 23, 59, 59, 999),
+					gte: new Date(Date.UTC(2026, 2, 1, 0, 0, 0, 0)),
+					lte: new Date(Date.UTC(2026, 7, 31, 23, 59, 59, 999)),
 				},
 			},
 			include: { category: true },
@@ -78,15 +78,17 @@ describe('BudgetService.getBudgetRecommendations', () => {
 				userId: 'user-1',
 				budgetId: { in: ['budget-july'] },
 				date: {
-					gte: new Date(2026, 2, 1),
-					lte: new Date(2026, 7, 31, 23, 59, 59, 999),
+					gte: new Date(Date.UTC(2026, 2, 1, 0, 0, 0, 0)),
+					lte: new Date(Date.UTC(2026, 7, 31, 23, 59, 59, 999)),
 				},
 				OR: [
 					{
 						budgetId: 'budget-july',
 						date: {
-							gte: new Date(2026, 6, 1),
-							lte: new Date(2026, 6, 31, 23, 59, 59, 999),
+							gte: new Date(Date.UTC(2026, 6, 1, 0, 0, 0, 0)),
+							lte: new Date(
+								Date.UTC(2026, 6, 31, 23, 59, 59, 999)
+							),
 						},
 					},
 				],
@@ -116,7 +118,7 @@ describe('BudgetService.getBudgetRecommendations', () => {
 				id: 'budget-june',
 				name: 'Groceries',
 				amount: new Prisma.Decimal('50.00'),
-				month: new Date(2026, 5, 1),
+				month: new Date(Date.UTC(2026, 5, 1, 0, 0, 0, 0)),
 				categoryId: 'category-food',
 				userId: 'user-1',
 				category: { id: 'category-food', name: 'Food' },
@@ -125,7 +127,7 @@ describe('BudgetService.getBudgetRecommendations', () => {
 				id: 'budget-july',
 				name: 'Groceries',
 				amount: new Prisma.Decimal('50.00'),
-				month: new Date(2026, 6, 1),
+				month: new Date(Date.UTC(2026, 6, 1, 0, 0, 0, 0)),
 				categoryId: 'category-food',
 				userId: 'user-1',
 				category: { id: 'category-food', name: 'Food' },
@@ -134,7 +136,7 @@ describe('BudgetService.getBudgetRecommendations', () => {
 				id: 'budget-august',
 				name: 'Groceries',
 				amount: new Prisma.Decimal('50.00'),
-				month: new Date(2026, 7, 1),
+				month: new Date(Date.UTC(2026, 7, 1, 0, 0, 0, 0)),
 				categoryId: 'category-food',
 				userId: 'user-1',
 				category: { id: 'category-food', name: 'Food' },
@@ -162,8 +164,8 @@ describe('BudgetService.getBudgetRecommendations', () => {
 			where: {
 				userId: 'user-1',
 				month: {
-					gte: new Date(2026, 2, 1),
-					lte: new Date(2026, 7, 31, 23, 59, 59, 999),
+					gte: new Date(Date.UTC(2026, 2, 1, 0, 0, 0, 0)),
+					lte: new Date(Date.UTC(2026, 7, 31, 23, 59, 59, 999)),
 				},
 			},
 			include: { category: true },
@@ -176,29 +178,35 @@ describe('BudgetService.getBudgetRecommendations', () => {
 					in: ['budget-june', 'budget-july', 'budget-august'],
 				},
 				date: {
-					gte: new Date(2026, 2, 1),
-					lte: new Date(2026, 7, 31, 23, 59, 59, 999),
+					gte: new Date(Date.UTC(2026, 2, 1, 0, 0, 0, 0)),
+					lte: new Date(Date.UTC(2026, 7, 31, 23, 59, 59, 999)),
 				},
 				OR: [
 					{
 						budgetId: 'budget-june',
 						date: {
-							gte: new Date(2026, 5, 1),
-							lte: new Date(2026, 5, 30, 23, 59, 59, 999),
+							gte: new Date(Date.UTC(2026, 5, 1, 0, 0, 0, 0)),
+							lte: new Date(
+								Date.UTC(2026, 5, 30, 23, 59, 59, 999)
+							),
 						},
 					},
 					{
 						budgetId: 'budget-july',
 						date: {
-							gte: new Date(2026, 6, 1),
-							lte: new Date(2026, 6, 31, 23, 59, 59, 999),
+							gte: new Date(Date.UTC(2026, 6, 1, 0, 0, 0, 0)),
+							lte: new Date(
+								Date.UTC(2026, 6, 31, 23, 59, 59, 999)
+							),
 						},
 					},
 					{
 						budgetId: 'budget-august',
 						date: {
-							gte: new Date(2026, 7, 1),
-							lte: new Date(2026, 7, 31, 23, 59, 59, 999),
+							gte: new Date(Date.UTC(2026, 7, 1, 0, 0, 0, 0)),
+							lte: new Date(
+								Date.UTC(2026, 7, 31, 23, 59, 59, 999)
+							),
 						},
 					},
 				],

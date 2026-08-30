@@ -34,7 +34,7 @@ describe('BudgetService.getBudgets — spent edge cases', () => {
 				id: 'budget-1',
 				name: 'Groceries',
 				amount: new Prisma.Decimal(500),
-				month: new Date(2026, 7, 1),
+				month: new Date(Date.UTC(2026, 7, 1, 0, 0, 0, 0)),
 				categoryId: 'category-1',
 				userId: 'user-1',
 				category: { id: 'category-1', name: 'Food' },
@@ -43,7 +43,7 @@ describe('BudgetService.getBudgets — spent edge cases', () => {
 				id: 'budget-2',
 				name: 'Transport',
 				amount: new Prisma.Decimal(200),
-				month: new Date(2026, 7, 1),
+				month: new Date(Date.UTC(2026, 7, 1, 0, 0, 0, 0)),
 				categoryId: 'category-2',
 				userId: 'user-1',
 				category: { id: 'category-2', name: 'Transport' },
@@ -52,7 +52,7 @@ describe('BudgetService.getBudgets — spent edge cases', () => {
 		mocks.expenseGroupBy.mockResolvedValue([]);
 
 		const result = await BudgetService.getBudgets('user-1', {
-			month: new Date(2026, 7, 16),
+			month: new Date(Date.UTC(2026, 7, 16, 0, 0, 0, 0)),
 		});
 
 		expect(result[0].spent).toBe(0);
@@ -66,7 +66,7 @@ describe('BudgetService.getBudgets — spent edge cases', () => {
 				id: 'budget-1',
 				name: 'Groceries',
 				amount: new Prisma.Decimal(500),
-				month: new Date(2026, 7, 1),
+				month: new Date(Date.UTC(2026, 7, 1, 0, 0, 0, 0)),
 				categoryId: 'category-1',
 				userId: 'user-1',
 				category: { id: 'category-1', name: 'Food' },
@@ -77,7 +77,7 @@ describe('BudgetService.getBudgets — spent edge cases', () => {
 		]);
 
 		const result = await BudgetService.getBudgets('user-1', {
-			month: new Date(2026, 7, 16),
+			month: new Date(Date.UTC(2026, 7, 16, 0, 0, 0, 0)),
 		});
 
 		expect(result[0].spent).toBe(0);
@@ -93,7 +93,7 @@ describe('BudgetService.getBudgets — spent edge cases', () => {
 				id: 'budget-1',
 				name: 'Coffee',
 				amount: new Prisma.Decimal(100),
-				month: new Date(2026, 7, 1),
+				month: new Date(Date.UTC(2026, 7, 1, 0, 0, 0, 0)),
 				categoryId: 'category-1',
 				userId: 'user-1',
 				category: { id: 'category-1', name: 'Food' },
@@ -104,7 +104,7 @@ describe('BudgetService.getBudgets — spent edge cases', () => {
 		]);
 
 		const result = await BudgetService.getBudgets('user-1', {
-			month: new Date(2026, 7, 16),
+			month: new Date(Date.UTC(2026, 7, 16, 0, 0, 0, 0)),
 		});
 
 		expect(result[0].spent).toBe(1.47);
