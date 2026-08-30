@@ -5,7 +5,7 @@ const mocks = vi.hoisted(() => ({
 	getDashboardData: vi.fn(),
 	getFinancialHealthScore: vi.fn(),
 	getIncomeExpenseTrend: vi.fn(),
-	getBudgets: vi.fn(),
+	getBudgetsWithCoverage: vi.fn(),
 	getUnifiedTransactions: vi.fn(),
 	getCurrency: vi.fn(),
 	getCategories: vi.fn(),
@@ -23,7 +23,9 @@ vi.mock('./dashboard.service', () => ({
 	},
 }));
 vi.mock('@/server/modules/budget/budget.service', () => ({
-	BudgetService: { getBudgets: mocks.getBudgets },
+	BudgetService: {
+		getBudgetsWithCoverage: mocks.getBudgetsWithCoverage,
+	},
 }));
 vi.mock('@/server/modules/transaction/transaction.service', () => ({
 	TransactionService: {
@@ -86,7 +88,7 @@ describe('getDashboardOverviewAction', () => {
 			pillars: [],
 		});
 		mocks.getIncomeExpenseTrend.mockResolvedValue([]);
-		mocks.getBudgets.mockResolvedValue([
+		mocks.getBudgetsWithCoverage.mockResolvedValue([
 			{
 				id: 'b1',
 				name: 'Food',
@@ -95,6 +97,7 @@ describe('getDashboardOverviewAction', () => {
 				amount: '1000',
 				spent: 500,
 				percentage: 50,
+				unlinkedExpenseCount: 2,
 			},
 		]);
 		mocks.getUnifiedTransactions.mockResolvedValue({
@@ -126,9 +129,12 @@ describe('getDashboardOverviewAction', () => {
 			sortBy: 'date',
 			sortOrder: 'desc',
 		});
-		expect(mocks.getBudgets).toHaveBeenCalledWith('user-1', {
-			month: new Date(2026, 7, 16, 9, 0, 0),
-		});
+		expect(mocks.getBudgetsWithCoverage).toHaveBeenCalledWith(
+			'user-1',
+			{
+				month: new Date(2026, 7, 16, 9, 0, 0),
+			}
+		);
 		expect(mocks.buildDashboardOverview).toHaveBeenCalledWith(
 			expect.objectContaining({
 				currency: 'PHP',
@@ -137,7 +143,13 @@ describe('getDashboardOverviewAction', () => {
 						expect.objectContaining({ id: 'a1', balance: 1200.5 }),
 					],
 				}),
-				budgets: [expect.objectContaining({ id: 'b1', amount: 1000 })],
+				budgets: [
+					expect.objectContaining({
+						id: 'b1',
+						amount: 1000,
+						unlinkedExpenseCount: 2,
+					}),
+				],
 			}),
 			new Date(2026, 7, 16, 9, 0, 0)
 		);

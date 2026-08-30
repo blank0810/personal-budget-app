@@ -18,7 +18,7 @@ export default async function BudgetsPage() {
 	const currentMonth = startOfMonth(new Date());
 
 	const [budgets, categories] = await Promise.all([
-		BudgetService.getBudgets(session.user.id),
+		BudgetService.getBudgetsWithCoverage(session.user.id),
 		CategoryService.getCategories(session.user.id, 'EXPENSE'),
 	]);
 

@@ -160,6 +160,7 @@ export interface DashboardOverview {
 			amount: number;
 			spent: number;
 			percentage: number;
+			unlinkedExpenseCount: number;
 		}>;
 	};
 	accountsDebt: {

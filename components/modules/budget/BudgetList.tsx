@@ -5,7 +5,14 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { format } from 'date-fns';
-import { Copy, FileText, PlusCircle, Trash2, Wallet } from 'lucide-react';
+import {
+	AlertTriangle,
+	Copy,
+	FileText,
+	PlusCircle,
+	Trash2,
+	Wallet,
+} from 'lucide-react';
 import { ReplicateBudgetDialog } from './ReplicateBudgetDialog';
 import { deleteBudgetAction } from '@/server/modules/budget/budget.controller';
 import { useCurrency } from '@/lib/contexts/currency-context';
@@ -19,6 +26,7 @@ interface BudgetWithStats extends Budget {
 	spent: number;
 	remaining: number;
 	percentage: number;
+	unlinkedExpenseCount: number;
 }
 
 interface BudgetListProps {
@@ -58,9 +66,20 @@ export function BudgetList({ budgets, availableMonths = [] }: BudgetListProps) {
 			header: 'Category',
 			searchable: true,
 			render: (budget) => (
-				<Badge variant='outline' className='text-xs'>
-					{budget.category.name}
-				</Badge>
+				<div className='flex flex-wrap items-center gap-1.5'>
+					<Badge variant='outline' className='text-xs'>
+						{budget.category.name}
+					</Badge>
+					{budget.unlinkedExpenseCount > 0 && (
+						<Badge
+							variant='outline'
+							className='gap-1 border-amber-300 bg-amber-50 text-amber-800 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-300'
+						>
+							<AlertTriangle className='h-3 w-3' />
+							{budget.unlinkedExpenseCount} unlinked
+						</Badge>
+					)}
+				</div>
 			),
 		},
 		{

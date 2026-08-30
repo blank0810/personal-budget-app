@@ -1,15 +1,19 @@
+'use client';
+
 import Link from 'next/link';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { formatCurrency } from '@/lib/formatters';
+import { useCurrency } from '@/lib/contexts/currency-context';
 import type { DashboardOverview } from '@/server/modules/dashboard/dashboard.types';
+import { AlertTriangle } from 'lucide-react';
 
 export function BudgetPressure({
 	data,
-	currency,
 }: {
 	data: DashboardOverview['budgetPressure'];
-	currency: string;
 }) {
+	const { formatCurrency } = useCurrency();
+
 	if (!data.hasBudgets) {
 		return (
 			<section
@@ -40,8 +44,8 @@ export function BudgetPressure({
 						Budget pressure
 					</h2>
 					<p className='mt-1 text-sm text-muted-foreground'>
-						{formatCurrency(data.totalSpent, { currency })} of{' '}
-						{formatCurrency(data.totalBudgeted, { currency })} used
+						{formatCurrency(data.totalSpent)} of{' '}
+						{formatCurrency(data.totalBudgeted)} used
 					</p>
 				</div>
 				<span className='font-mono text-xl font-semibold tabular-nums'>
@@ -52,7 +56,18 @@ export function BudgetPressure({
 				{data.items.map((budget) => (
 					<li key={budget.id} className='py-4 first:pt-0 last:pb-0'>
 						<div className='flex items-center justify-between gap-4 text-sm'>
-							<span className='font-medium'>{budget.name}</span>
+							<div className='flex min-w-0 flex-wrap items-center gap-2'>
+								<span className='font-medium'>{budget.name}</span>
+								{budget.unlinkedExpenseCount > 0 && (
+									<Badge
+										variant='outline'
+										className='gap-1 border-amber-300 bg-amber-50 text-amber-800 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-300'
+									>
+										<AlertTriangle className='h-3 w-3' />
+										{budget.unlinkedExpenseCount} unlinked
+									</Badge>
+								)}
+							</div>
 							<span className='font-mono tabular-nums text-muted-foreground'>
 								{Math.round(budget.percentage)}%
 							</span>

@@ -10,6 +10,11 @@ import {
 } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import {
+	Alert,
+	AlertDescription,
+	AlertTitle,
+} from '@/components/ui/alert';
 import { Progress } from '@/components/ui/progress';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { format } from 'date-fns';
@@ -75,6 +80,11 @@ export function BudgetLedger({
 	categories,
 }: BudgetLedgerProps) {
 	const { formatCurrency } = useCurrency();
+	const unlinkedTotal = unlinkedExpenses.reduce(
+		(sum, expense) => sum + Number(expense.amount),
+		0
+	);
+	const trueCategoryTotal = metrics.spent + unlinkedTotal;
 
 	const handleExportCSV = () => {
 		const headers = [
@@ -370,61 +380,86 @@ export function BudgetLedger({
 
 			{/* Unlinked Expenses in Same Category */}
 			{unlinkedExpenses.length > 0 && (
-				<div className='space-y-3'>
-					<div className='flex items-center gap-2'>
-						<h3 className='text-sm font-semibold text-muted-foreground'>
-							Unlinked {budget.category.name} Expenses
-						</h3>
-						<Badge variant='secondary' className='text-xs'>
-							{unlinkedExpenses.length} expense{unlinkedExpenses.length !== 1 ? 's' : ''}
+				<Alert className='border-amber-400/70 bg-amber-50/80 text-amber-950 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-100 [&>svg]:text-amber-700 dark:[&>svg]:text-amber-300'>
+					<AlertTriangle className='h-4 w-4' />
+					<AlertTitle className='text-amber-900 dark:text-amber-100'>
+						Spent total is incomplete
+					</AlertTitle>
+					<AlertDescription className='text-amber-900 dark:text-amber-200'>
+						<Badge
+							variant='outline'
+							className='mb-2 border-amber-400 bg-amber-100 text-amber-900 dark:border-amber-700 dark:bg-amber-950/60 dark:text-amber-200'
+						>
+							{unlinkedExpenses.length} unlinked expense
+							{unlinkedExpenses.length !== 1 ? 's' : ''}
 						</Badge>
-					</div>
-					<p className='text-xs text-muted-foreground'>
-						These expenses are in the same category but not linked to any budget. They are not counted in the metrics above.
-					</p>
-					<div className='rounded-md border bg-card/50 overflow-x-auto'>
-						<Table>
-							<TableHeader>
-								<TableRow>
-									<TableHead className='w-[120px]'>Date</TableHead>
-									<TableHead>Description</TableHead>
-									<TableHead>Account</TableHead>
-									<TableHead className='text-right'>Amount</TableHead>
-								</TableRow>
-							</TableHeader>
-							<TableBody>
-								{unlinkedExpenses.map((expense) => (
-									<TableRow key={expense.id} className='text-muted-foreground'>
-										<TableCell>
-											{format(new Date(expense.date), 'MMM d, yyyy')}
+						<p>
+							These {budget.category.name} expenses are not linked to an
+							envelope, so the official spent figure above is only a floor.
+						</p>
+						<dl className='mt-3 grid gap-2 sm:grid-cols-2'>
+							<div className='border border-amber-300/80 bg-background/80 px-3 py-2 dark:border-amber-800'>
+								<dt className='text-xs font-medium text-amber-800 dark:text-amber-300'>
+									Official spent
+								</dt>
+								<dd className='font-mono text-base font-semibold tabular-nums text-foreground'>
+									{formatCurrency(metrics.spent)}
+								</dd>
+							</div>
+							<div className='border border-amber-400 bg-amber-100/80 px-3 py-2 dark:border-amber-700 dark:bg-amber-950/60'>
+								<dt className='text-xs font-medium text-amber-900 dark:text-amber-200'>
+									True category total
+								</dt>
+								<dd className='font-mono text-base font-semibold tabular-nums text-amber-950 dark:text-amber-100'>
+									{formatCurrency(trueCategoryTotal)}
+								</dd>
+							</div>
+						</dl>
+						<div className='mt-4 overflow-x-auto rounded-md border border-amber-300 bg-background/90 text-foreground dark:border-amber-800'>
+							<Table>
+								<TableHeader>
+									<TableRow>
+										<TableHead className='w-[120px]'>Date</TableHead>
+										<TableHead>Description</TableHead>
+										<TableHead>Account</TableHead>
+										<TableHead className='text-right'>Amount</TableHead>
+									</TableRow>
+								</TableHeader>
+								<TableBody>
+									{unlinkedExpenses.map((expense) => (
+										<TableRow key={expense.id}>
+											<TableCell>
+												{format(new Date(expense.date), 'MMM d, yyyy')}
+											</TableCell>
+											<TableCell>
+												{expense.description || '-'}
+											</TableCell>
+											<TableCell>
+												<Badge variant='outline' className='text-xs'>
+													{expense.account?.name || '-'}
+												</Badge>
+											</TableCell>
+											<TableCell className='text-right font-medium'>
+												-{formatCurrency(Number(expense.amount))}
+											</TableCell>
+										</TableRow>
+									))}
+									<TableRow className='bg-amber-100/60 dark:bg-amber-950/50'>
+										<TableCell
+											colSpan={3}
+											className='text-right text-xs font-semibold'
+										>
+											Unlinked total
 										</TableCell>
-										<TableCell>
-											{expense.description || '-'}
-										</TableCell>
-										<TableCell>
-											<Badge variant='outline' className='text-xs'>
-												{expense.account?.name || '-'}
-											</Badge>
-										</TableCell>
-										<TableCell className='text-right font-medium'>
-											-{formatCurrency(Number(expense.amount))}
+										<TableCell className='text-right font-mono text-sm font-bold tabular-nums'>
+											-{formatCurrency(unlinkedTotal)}
 										</TableCell>
 									</TableRow>
-								))}
-								<TableRow className='bg-muted/50'>
-									<TableCell colSpan={3} className='text-right text-xs font-semibold'>
-										Unlinked Total
-									</TableCell>
-									<TableCell className='text-right font-bold text-sm'>
-										-{formatCurrency(
-											unlinkedExpenses.reduce((sum, e) => sum + Number(e.amount), 0)
-										)}
-									</TableCell>
-								</TableRow>
-							</TableBody>
-						</Table>
-					</div>
-				</div>
+								</TableBody>
+							</Table>
+						</div>
+					</AlertDescription>
+				</Alert>
 			)}
 		</div>
 	);

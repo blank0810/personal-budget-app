@@ -107,6 +107,7 @@ function makeSource(): DashboardOverviewSource {
 				amount: 10000,
 				spent: 9500,
 				percentage: 95,
+				unlinkedExpenseCount: 2,
 			},
 			{
 				id: 'b2',
@@ -116,6 +117,7 @@ function makeSource(): DashboardOverviewSource {
 				amount: 15000,
 				spent: 12000,
 				percentage: 80,
+				unlinkedExpenseCount: 0,
 			},
 			{
 				id: 'b3',
@@ -125,6 +127,7 @@ function makeSource(): DashboardOverviewSource {
 				amount: 5000,
 				spent: 5500,
 				percentage: 110,
+				unlinkedExpenseCount: 1,
 			},
 			{
 				id: 'b4',
@@ -134,6 +137,7 @@ function makeSource(): DashboardOverviewSource {
 				amount: 4000,
 				spent: 2000,
 				percentage: 50,
+				unlinkedExpenseCount: 0,
 			},
 		],
 		incomeCategories: [{ id: 'income-cat', name: 'Salary' }],
@@ -304,6 +308,16 @@ describe('buildDashboardOverview', () => {
 			'b3',
 			'b1',
 			'b2',
+		]);
+		expect(
+			result.budgetPressure.items.map((budget) => ({
+				id: budget.id,
+				unlinkedExpenseCount: budget.unlinkedExpenseCount,
+			}))
+		).toEqual([
+			{ id: 'b3', unlinkedExpenseCount: 1 },
+			{ id: 'b1', unlinkedExpenseCount: 2 },
+			{ id: 'b2', unlinkedExpenseCount: 0 },
 		]);
 	});
 

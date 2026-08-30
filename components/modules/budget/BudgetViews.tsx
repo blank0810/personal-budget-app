@@ -27,6 +27,7 @@ interface BudgetWithRelations extends Budget {
 	spent: number;
 	remaining: number;
 	percentage: number;
+	unlinkedExpenseCount: number;
 }
 
 interface BudgetViewsProps {

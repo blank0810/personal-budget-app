@@ -31,7 +31,7 @@ export async function getDashboardOverviewAction(): Promise<DashboardOverviewRes
 			DashboardService.getDashboardData(userId),
 			DashboardService.getFinancialHealthScore(userId),
 			DashboardService.getIncomeExpenseTrend(userId),
-			BudgetService.getBudgets(userId, { month: now }),
+			BudgetService.getBudgetsWithCoverage(userId, { month: now }),
 			TransactionService.getUnifiedTransactions(userId, {
 				page: 1,
 				pageSize: 8,
@@ -97,6 +97,7 @@ export async function getDashboardOverviewAction(): Promise<DashboardOverviewRes
 					amount: Number(budget.amount),
 					spent: budget.spent,
 					percentage: budget.percentage,
+					unlinkedExpenseCount: budget.unlinkedExpenseCount,
 				})),
 				incomeCategories: incomeCategories.map((category) => ({
 					id: category.id,

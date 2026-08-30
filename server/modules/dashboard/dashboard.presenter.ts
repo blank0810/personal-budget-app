@@ -59,6 +59,7 @@ interface DashboardSourceBudget {
 	amount: number;
 	spent: number;
 	percentage: number;
+	unlinkedExpenseCount: number;
 }
 
 type DashboardSourceTransaction =
@@ -454,6 +455,7 @@ export function buildDashboardOverview(
 					amount: budget.amount,
 					spent: budget.spent,
 					percentage: budget.percentage,
+					unlinkedExpenseCount: budget.unlinkedExpenseCount,
 				})),
 		},
 		accountsDebt: {

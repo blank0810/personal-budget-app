@@ -50,10 +50,7 @@ export default async function DashboardPage() {
 								cashFlow={overview.cashFlow}
 								currency={overview.currency}
 							/>
-							<BudgetPressure
-								data={overview.budgetPressure}
-								currency={overview.currency}
-							/>
+							<BudgetPressure data={overview.budgetPressure} />
 						</div>
 						<div className='grid gap-5 lg:grid-cols-[minmax(18rem,0.75fr)_minmax(0,1.65fr)]'>
 							<AccountsDebtSummary
