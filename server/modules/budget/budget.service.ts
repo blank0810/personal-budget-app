@@ -12,6 +12,7 @@ import {
 } from './budget.types';
 import { CategoryService } from '../category/category.service';
 import { startOfMonth, endOfMonth, subMonths, format, eachMonthOfInterval } from 'date-fns';
+import { computeBurnMetrics } from './budget.burn';
 
 export const BudgetService = {
 	/**
@@ -178,20 +179,12 @@ export const BudgetService = {
 		const remaining = budgetLimit - totalSpent;
 		const percentage = (totalSpent / budgetLimit) * 100;
 
-		// Calculate burn rate
-		const today = new Date();
-		const daysElapsed = Math.max(
-			1,
-			Math.ceil(
-				(today.getTime() - monthStart.getTime()) /
-					(1000 * 60 * 60 * 24)
-			)
-		);
-		const daysInMonth = monthEnd.getDate();
-		const daysRemaining = Math.max(0, daysInMonth - daysElapsed);
-
-		const dailyBurnRate = totalSpent / daysElapsed;
-		const allowedDailyRate = budgetLimit / daysInMonth;
+		const burn = computeBurnMetrics({
+			monthStart,
+			monthEnd,
+			totalSpent,
+			budgetLimit,
+		});
 
 		// Add running total to expenses
 		let runningTotal = 0;
@@ -213,16 +206,8 @@ export const BudgetService = {
 				spent: totalSpent,
 				remaining,
 				percentage,
-				daysElapsed,
-				daysRemaining,
-				daysInMonth,
-				dailyBurnRate,
-				allowedDailyRate,
+				...burn,
 				isOverBudget: percentage > 100,
-				burnStatus:
-					dailyBurnRate > allowedDailyRate
-						? ('overpace' as const)
-						: ('ontrack' as const),
 			},
 		};
 	},

@@ -21,6 +21,7 @@ import {
 	Wallet,
 	Target,
 	AlertTriangle,
+	Clock3,
 } from 'lucide-react';
 import Link from 'next/link';
 import { useCurrency } from '@/lib/contexts/currency-context';
@@ -45,7 +46,7 @@ interface BudgetMetrics {
 	dailyBurnRate: number;
 	allowedDailyRate: number;
 	isOverBudget: boolean;
-	burnStatus: 'overpace' | 'ontrack';
+	burnStatus: 'overpace' | 'ontrack' | 'insufficient_data';
 }
 
 // Extended Budget type with name field (matches Prisma schema)
@@ -220,33 +221,48 @@ export function BudgetLedger({
 						<CardTitle className='text-sm font-medium'>
 							Daily Pace
 						</CardTitle>
-						{metrics.burnStatus === 'overpace' ? (
+						{metrics.burnStatus === 'insufficient_data' ? (
+							<Clock3 className='h-4 w-4 text-muted-foreground' />
+						) : metrics.burnStatus === 'overpace' ? (
 							<TrendingUp className='h-4 w-4 text-red-600' />
 						) : (
 							<TrendingDown className='h-4 w-4 text-green-600' />
 						)}
 					</CardHeader>
 					<CardContent>
-						<div
-							className={cn(
-								'text-2xl font-bold',
-								metrics.burnStatus === 'overpace'
-									? 'text-red-600'
-									: 'text-green-600'
-							)}
-						>
-							{formatCurrency(metrics.dailyBurnRate, {
-								decimals: 0,
-							})}
-							/day
-						</div>
-						<p className='text-xs text-muted-foreground'>
-							Target:{' '}
-							{formatCurrency(metrics.allowedDailyRate, {
-								decimals: 0,
-							})}
-							/day
-						</p>
+						{metrics.burnStatus === 'insufficient_data' ? (
+							<>
+								<div className='text-2xl font-bold text-muted-foreground'>
+									Building…
+								</div>
+								<p className='text-xs text-muted-foreground'>
+									Not enough data for a pace verdict
+								</p>
+							</>
+						) : (
+							<>
+								<div
+									className={cn(
+										'text-2xl font-bold',
+										metrics.burnStatus === 'overpace'
+											? 'text-red-600'
+											: 'text-green-600'
+									)}
+								>
+									{formatCurrency(metrics.dailyBurnRate, {
+										decimals: 0,
+									})}
+									/day
+								</div>
+								<p className='text-xs text-muted-foreground'>
+									Target:{' '}
+									{formatCurrency(metrics.allowedDailyRate, {
+										decimals: 0,
+									})}
+									/day
+								</p>
+							</>
+						)}
 					</CardContent>
 				</Card>
 			</div>
