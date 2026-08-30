@@ -20,6 +20,7 @@ import {
 	Copy,
 } from 'lucide-react';
 import { ReplicateBudgetDialog } from './ReplicateBudgetDialog';
+import { useCurrency } from '@/lib/contexts/currency-context';
 
 interface BudgetWithRelations extends Budget {
 	category: Category;
@@ -41,6 +42,7 @@ function getInitialMonth(): Date {
 }
 
 export function BudgetViews({ budgets, initialMonth }: BudgetViewsProps) {
+	const { formatCurrency } = useCurrency();
 	const [viewMode, setViewMode] = useState<'months' | 'list'>('list');
 	const [selectedMonth, setSelectedMonth] = useState<Date>(
 		initialMonth ?? getInitialMonth()
@@ -219,14 +221,9 @@ export function BudgetViews({ budgets, initialMonth }: BudgetViewsProps) {
 												Budget:
 											</span>
 											<span className='font-bold'>
-												$
-												{month.totalBudget.toLocaleString(
-													'en-US',
-													{
-														minimumFractionDigits: 0,
-														maximumFractionDigits: 0,
-													}
-												)}
+												{formatCurrency(month.totalBudget, {
+													decimals: 0,
+												})}
 											</span>
 										</div>
 										<div className='flex justify-between items-end'>
@@ -240,14 +237,9 @@ export function BudgetViews({ budgets, initialMonth }: BudgetViewsProps) {
 														: 'text-green-600'
 												}`}
 											>
-												$
-												{month.totalSpent.toLocaleString(
-													'en-US',
-													{
-														minimumFractionDigits: 0,
-														maximumFractionDigits: 0,
-													}
-												)}
+												{formatCurrency(month.totalSpent, {
+													decimals: 0,
+												})}
 											</span>
 										</div>
 									</div>

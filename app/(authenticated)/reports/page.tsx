@@ -19,6 +19,7 @@ import { serialize } from '@/lib/serialization';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Wallet, TrendingDown, PiggyBank } from 'lucide-react';
 import { SendReportDialog } from '@/components/modules/reports/SendReportDialog';
+import { formatCurrency as formatCurrencyUtil } from '@/lib/formatters';
 
 export default async function ReportsPage({
 	searchParams,
@@ -64,6 +65,7 @@ export default async function ReportsPage({
 		cashFlowWaterfall,
 		transactionStatement,
 		userPrefs,
+		currency,
 	] = await Promise.all([
 		ReportService.getCategoryBreakdown(userId, from, to),
 		ReportService.getMonthlyComparison(userId, subMonths(to, 5), to),
@@ -75,15 +77,11 @@ export default async function ReportsPage({
 		ReportService.getCashFlowWaterfall(userId, from, to),
 		ReportService.getTransactionStatement(userId, from, to),
 		UserService.getEmailAndCreatedAt(userId),
+		UserService.getCurrency(userId),
 	]);
 
-	const formatCurrency = (val: number) => {
-		return new Intl.NumberFormat('en-US', {
-			style: 'currency',
-			currency: 'USD',
-			maximumFractionDigits: 0,
-		}).format(val);
-	};
+	const formatCurrency = (val: number) =>
+		formatCurrencyUtil(val, { currency, decimals: 0 });
 
 	// Budget Summary Calculations
 	const budgetSummary = budgetTrends.reduce(
