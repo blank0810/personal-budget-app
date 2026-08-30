@@ -1,14 +1,7 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState } from 'react';
 import { Budget, Category } from '@prisma/client';
-import {
-	format,
-	isSameMonth,
-	startOfYear,
-	addMonths,
-	startOfMonth,
-} from 'date-fns';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { BudgetList } from './BudgetList';
@@ -25,6 +18,13 @@ import type {
 	BurnStatus,
 	BurnStatusReason,
 } from '@/server/modules/budget/budget.burn';
+import type { BudgetYearOverviewMonth } from '@/server/modules/budget/budget.types';
+import {
+	formatUtcMonth,
+	normalizeBudgetMonth,
+} from '@/server/modules/budget/budget.month';
+import { useRouter } from 'next/navigation';
+import { getBudgetMonthHref, getBudgetYearHref } from './budget-navigation';
 
 interface BudgetWithRelations extends Budget {
 	category: Category;
@@ -41,103 +41,42 @@ interface BudgetWithRelations extends Budget {
 
 interface BudgetViewsProps {
 	budgets: BudgetWithRelations[];
-	initialMonth?: Date;
+	yearOverview: BudgetYearOverviewMonth[];
+	availableMonths: Date[];
+	initialMonth: Date;
 }
 
-// Get stable initial month (first of current month) - avoids hydration mismatch
-function getInitialMonth(): Date {
-	const now = new Date();
-	return startOfMonth(now);
-}
-
-export function BudgetViews({ budgets, initialMonth }: BudgetViewsProps) {
+export function BudgetViews({
+	budgets,
+	yearOverview,
+	availableMonths,
+	initialMonth,
+}: BudgetViewsProps) {
 	const { formatCurrency } = useCurrency();
+	const router = useRouter();
 	const [viewMode, setViewMode] = useState<'months' | 'list'>('list');
-	const [selectedMonth, setSelectedMonth] = useState<Date>(
-		initialMonth ?? getInitialMonth()
+	const selectedMonth = normalizeBudgetMonth(initialMonth);
+	const selectedYear = selectedMonth.getUTCFullYear();
+	const selectedMonthLabel = formatUtcMonth(selectedMonth, 'long');
+	const selectedMonthName = selectedMonthLabel.replace(
+		` ${selectedYear}`,
+		''
 	);
-	const [selectedYear, setSelectedYear] = useState<number>(
-		(initialMonth ?? getInitialMonth()).getFullYear()
-	);
-
-	// Generate all 12 months for the selected year
-	const allMonthsData = useMemo(() => {
-		const yearStart = startOfYear(new Date(selectedYear, 0, 1));
-		const months = [];
-
-		for (let i = 0; i < 12; i++) {
-			const monthDate = addMonths(yearStart, i);
-
-			// Filter budgets for this month
-			const monthBudgets = budgets.filter((budget) =>
-				isSameMonth(new Date(budget.month), monthDate)
-			);
-
-			const totalBudget = monthBudgets.reduce(
-				(sum, budget) => sum + Number(budget.amount),
-				0
-			);
-
-			const totalSpent = monthBudgets.reduce(
-				(sum, budget) => sum + budget.spent,
-				0
-			);
-
-			months.push({
-				date: monthDate,
-				totalBudget,
-				totalSpent,
-				count: monthBudgets.length,
-				isOverBudget: totalSpent > totalBudget,
-			});
-		}
-
-		return months;
-	}, [budgets, selectedYear]);
-
-	// Filter budgets for the selected month
-	const filteredBudgets = useMemo(() => {
-		return budgets.filter((budget) =>
-			isSameMonth(new Date(budget.month), selectedMonth)
-		);
-	}, [budgets, selectedMonth]);
-
-	// Get unique months that have budgets (for replication source)
-	const availableMonths = useMemo(() => {
-		const monthSet = new Map<string, Date>();
-		for (const budget of budgets) {
-			const budgetDate = new Date(budget.month);
-			// Normalize to UTC midnight on 1st of month
-			const month = new Date(Date.UTC(
-				budgetDate.getUTCFullYear(),
-				budgetDate.getUTCMonth(),
-				1, 0, 0, 0, 0
-			));
-			const key = month.toISOString();
-			if (!monthSet.has(key)) {
-				monthSet.set(key, month);
-			}
-		}
-		// Sort descending (most recent first)
-		return Array.from(monthSet.values()).sort(
-			(a, b) => b.getTime() - a.getTime()
-		);
-	}, [budgets]);
 
 	const handleMonthClick = (date: Date) => {
-		setSelectedMonth(date);
 		setViewMode('list');
+		router.push(getBudgetMonthHref(date));
 	};
 
 	const handlePreviousYear = () => {
-		setSelectedYear((prev) => prev - 1);
+		router.push(getBudgetYearHref(selectedMonth, selectedYear - 1));
 	};
 
 	const handleNextYear = () => {
-		setSelectedYear((prev) => prev + 1);
+		router.push(getBudgetYearHref(selectedMonth, selectedYear + 1));
 	};
 
-	const currentYear = new Date().getFullYear();
+	const currentYear = new Date().getUTCFullYear();
 	// Allow navigating up to 5 years in the future (matches BudgetForm)
 	const maxYear = currentYear + 4;
 
@@ -146,7 +85,7 @@ export function BudgetViews({ budgets, initialMonth }: BudgetViewsProps) {
 			<div className='flex items-center justify-between'>
 				<h2 className='text-xl font-semibold tracking-tight'>
 					{viewMode === 'list'
-						? format(selectedMonth, 'MMMM yyyy')
+						? selectedMonthLabel
 						: `Budget Overview - ${selectedYear}`}
 				</h2>
 				{viewMode === 'list' && (
@@ -177,7 +116,7 @@ export function BudgetViews({ budgets, initialMonth }: BudgetViewsProps) {
 						onClick={() => setViewMode('list')}
 					>
 						<ArrowLeft className='mr-2 h-4 w-4' />
-						Back to {format(selectedMonth, 'MMMM')}
+						Back to {selectedMonthName}
 					</Button>
 				)}
 			</div>
@@ -190,6 +129,7 @@ export function BudgetViews({ budgets, initialMonth }: BudgetViewsProps) {
 							variant='outline'
 							size='icon'
 							onClick={handlePreviousYear}
+							aria-label={`View ${selectedYear - 1}`}
 						>
 							<ChevronLeft className='h-4 w-4' />
 						</Button>
@@ -201,6 +141,7 @@ export function BudgetViews({ budgets, initialMonth }: BudgetViewsProps) {
 							size='icon'
 							onClick={handleNextYear}
 							disabled={selectedYear >= maxYear}
+							aria-label={`View ${selectedYear + 1}`}
 						>
 							<ChevronRight className='h-4 w-4' />
 						</Button>
@@ -208,19 +149,34 @@ export function BudgetViews({ budgets, initialMonth }: BudgetViewsProps) {
 
 					{/* Month Cards Grid */}
 					<div className='grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4'>
-						{allMonthsData.map((month) => (
-							<Card
-								key={month.date.toISOString()}
-								className={`cursor-pointer hover:bg-accent/50 transition-all hover:scale-105 ${
+						{yearOverview.map((month) => {
+							const monthDate = new Date(month.month);
+							const monthName = month.monthLabel.replace(
+								` ${selectedYear}`,
+								''
+							);
+
+							return (
+								<Card
+								key={monthDate.toISOString()}
+								className={`cursor-pointer hover:bg-accent/50 transition-all hover:scale-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${
 									month.totalBudget === 0
 										? 'opacity-60 hover:opacity-100'
 										: ''
 								}`}
-								onClick={() => handleMonthClick(month.date)}
+								onClick={() => handleMonthClick(monthDate)}
+								onKeyDown={(event) => {
+									if (event.key === 'Enter' || event.key === ' ') {
+										event.preventDefault();
+										handleMonthClick(monthDate);
+									}
+								}}
+								role='link'
+								tabIndex={0}
 							>
 								<CardHeader className='pb-3'>
 									<CardTitle className='text-base font-medium text-muted-foreground'>
-										{format(month.date, 'MMMM')}
+										{monthName}
 									</CardTitle>
 								</CardHeader>
 								<CardContent>
@@ -260,13 +216,14 @@ export function BudgetViews({ budgets, initialMonth }: BudgetViewsProps) {
 											: 'No budgets set'}
 									</p>
 								</CardContent>
-							</Card>
-						))}
+								</Card>
+							);
+						})}
 					</div>
 				</>
 			) : (
 				<BudgetList
-					budgets={filteredBudgets}
+					budgets={budgets}
 					availableMonths={availableMonths}
 				/>
 			)}

@@ -8,12 +8,37 @@ import {
 	replicateBudgetsSchema,
 	ReplicateBudgetsInput,
 	budgetAnalyticsMonthSchema,
+	budgetMonthRouteParamSchema,
 } from './budget.types';
 import { invalidateTags } from '@/server/actions/cache';
 import { CACHE_TAGS } from '@/server/lib/cache-tags';
 import { coerceDateFields } from '@/server/lib/action-utils';
 import { BudgetAnalyticsService } from './budget.analytics.service';
 import { normalizeBudgetMonth } from './budget.month';
+
+/**
+ * Page read: one selected month, its bounded year overview, and the lean
+ * distinct-month list used by budget replication.
+ */
+export async function getBudgetsPageDataAction(monthParam: unknown) {
+	const userId = await getAuthenticatedUser();
+	const parsedMonth = budgetMonthRouteParamSchema.safeParse(monthParam);
+	const month = normalizeBudgetMonth(
+		parsedMonth.success ? parsedMonth.data : new Date()
+	);
+	const [budgets, yearOverview, availableMonths] = await Promise.all([
+		BudgetService.getBudgetsWithCoverage(userId, { month }),
+		BudgetService.getBudgetYearOverview(userId, month),
+		BudgetService.getMonthsWithBudgets(userId),
+	]);
+
+	return {
+		month,
+		budgets,
+		yearOverview,
+		availableMonths,
+	};
+}
 
 /**
  * Server Action: Get current budget health summary

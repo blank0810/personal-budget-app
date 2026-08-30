@@ -32,6 +32,11 @@ export const budgetAnalyticsMonthSchema = z.object({
 	month: z.date(),
 });
 
+export const budgetMonthRouteParamSchema = z
+	.string()
+	.regex(/^[1-9]\d{3}-(0[1-9]|1[0-2])$/)
+	.transform((value) => new Date(`${value}-01T00:00:00.000Z`));
+
 // Budget Analytics Types
 
 export interface ProblemCategory {
@@ -64,6 +69,15 @@ export interface MonthlyTrend {
 	categoriesOnTrack: number;
 	categoriesOver: number;
 	totalCategories: number;
+}
+
+export interface BudgetYearOverviewMonth {
+	month: Date;
+	monthLabel: string;
+	totalBudget: number;
+	totalSpent: number;
+	count: number;
+	isOverBudget: boolean;
 }
 
 export type BudgetRecommendationState =

@@ -10,6 +10,7 @@ import {
 	ProblemCategory,
 	ReplicateBudgetsInput,
 	BudgetReplicationItem,
+	BudgetYearOverviewMonth,
 } from './budget.types';
 import { CategoryService } from '../category/category.service';
 import { computeBurnMetrics, computeSafeToSpend } from './budget.burn';
@@ -21,6 +22,7 @@ import {
 	formatUtcMonth,
 	getUtcMonthBounds,
 	getUtcMonthKey,
+	getUtcYearBounds,
 	normalizeBudgetMonth,
 } from './budget.month';
 
@@ -218,6 +220,118 @@ export const BudgetService = {
 				unlinkedSameCategorySpend:
 					item?.unlinkedSameCategorySpend ?? 0,
 				unlinkedExpenseCount: item?.unlinkedExpenseCount ?? 0,
+			};
+		});
+	},
+
+	/**
+	 * Get the 12 bounded month summaries used by the budgets-page year grid.
+	 * Budget limits and linked spend stay Decimal until the return boundary.
+	 */
+	async getBudgetYearOverview(
+		userId: string,
+		month: Date
+	): Promise<BudgetYearOverviewMonth[]> {
+		const selectedMonth = normalizeBudgetMonth(month);
+		const { start, endExclusive } = getUtcYearBounds(
+			selectedMonth.getUTCFullYear()
+		);
+		const budgets = await prisma.budget.findMany({
+			where: {
+				userId,
+				month: {
+					gte: start,
+					lt: endExclusive,
+				},
+			},
+			select: {
+				id: true,
+				amount: true,
+				month: true,
+			},
+			orderBy: { month: 'asc' },
+		});
+
+		const spendGroups =
+			budgets.length === 0
+				? []
+				: await prisma.expense.groupBy({
+						by: ['budgetId'],
+						where: {
+							userId,
+							budgetId: {
+								in: budgets.map((budget) => budget.id),
+							},
+							date: {
+								gte: start,
+								lt: endExclusive,
+							},
+							OR: budgets.map((budget) => {
+								const bounds = getUtcMonthBounds(budget.month);
+								return {
+									budgetId: budget.id,
+									date: {
+										gte: bounds.start,
+										lte: bounds.end,
+									},
+								};
+							}),
+						},
+						_sum: { amount: true },
+					});
+
+		const spendByBudget = new Map<string, Prisma.Decimal>();
+		for (const group of spendGroups) {
+			if (group.budgetId) {
+				spendByBudget.set(
+					group.budgetId,
+					group._sum.amount ?? new Prisma.Decimal(0)
+				);
+			}
+		}
+
+		const totalsByMonth = new Map<
+			string,
+			{
+				totalBudget: Prisma.Decimal;
+				totalSpent: Prisma.Decimal;
+				count: number;
+			}
+		>();
+		for (const budget of budgets) {
+			const monthKey = getUtcMonthKey(budget.month);
+			const totals = totalsByMonth.get(monthKey) ?? {
+				totalBudget: new Prisma.Decimal(0),
+				totalSpent: new Prisma.Decimal(0),
+				count: 0,
+			};
+			totals.totalBudget = totals.totalBudget.plus(budget.amount);
+			totals.totalSpent = totals.totalSpent.plus(
+				spendByBudget.get(budget.id) ?? new Prisma.Decimal(0)
+			);
+			totals.count += 1;
+			totalsByMonth.set(monthKey, totals);
+		}
+
+		const finalMonth = normalizeBudgetMonth(
+			new Date(endExclusive.getTime() - 1)
+		);
+		return eachUtcMonth(start, finalMonth).map((monthDate) => {
+			const totals = totalsByMonth.get(getUtcMonthKey(monthDate)) ?? {
+				totalBudget: new Prisma.Decimal(0),
+				totalSpent: new Prisma.Decimal(0),
+				count: 0,
+			};
+
+			return {
+				month: monthDate,
+				monthLabel: formatUtcMonth(monthDate, 'long'),
+				totalBudget: totals.totalBudget.toNumber(),
+				totalSpent: totals.totalSpent.toNumber(),
+				count: totals.count,
+				isOverBudget: totals.totalSpent.greaterThan(
+					totals.totalBudget
+				),
 			};
 		});
 	},

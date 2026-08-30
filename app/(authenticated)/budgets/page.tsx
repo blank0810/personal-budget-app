@@ -1,39 +1,41 @@
 import { BudgetForm } from '@/components/modules/budget/BudgetForm';
 import { BudgetViews } from '@/components/modules/budget/BudgetViews';
-import { BudgetService } from '@/server/modules/budget/budget.service';
 import { CategoryService } from '@/server/modules/category/category.service';
 import { auth } from '@/auth';
 import { redirect } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { serialize } from '@/lib/serialization';
-import { startOfMonth } from 'date-fns';
 import { BudgetHealthSummary } from '@/components/modules/budget/BudgetHealthSummary';
 import { CategorySpendComparison } from '@/components/modules/budget/CategorySpendComparison';
 import {
+	getBudgetsPageDataAction,
 	getBudgetHealthSummaryAction,
 	getCategorySpendComparisonAction,
 	getInferredEnvelopeOfferAction,
 } from '@/server/modules/budget/budget.controller';
 
-export default async function BudgetsPage() {
+export default async function BudgetsPage({
+	searchParams,
+}: {
+	searchParams: Promise<{ month?: string | string[] }>;
+}) {
 	const session = await auth();
 	if (!session?.user?.id) {
 		redirect('/api/auth/signin');
 	}
 
-	// Get stable current month (first day) to avoid hydration mismatch
-	const currentMonth = startOfMonth(new Date());
-
-	const [budgets, categories, healthResult] = await Promise.all([
-		BudgetService.getBudgetsWithCoverage(session.user.id),
+	const params = await searchParams;
+	const [pageData, categories] = await Promise.all([
+		getBudgetsPageDataAction(params.month),
 		CategoryService.getCategories(session.user.id, 'EXPENSE'),
-		getBudgetHealthSummaryAction(currentMonth),
 	]);
+	const { month, budgets, yearOverview, availableMonths } = pageData;
+	const healthResult = await getBudgetHealthSummaryAction(month);
 	const noBudgetResults =
 		healthResult.success && !healthResult.data.hasBudgets
 			? await Promise.all([
-					getCategorySpendComparisonAction({ month: currentMonth }),
-					getInferredEnvelopeOfferAction({ month: currentMonth }),
+					getCategorySpendComparisonAction({ month }),
+					getInferredEnvelopeOfferAction({ month }),
 				])
 			: null;
 	const categoryComparisonResult = noBudgetResults?.[0] ?? null;
@@ -54,7 +56,7 @@ export default async function BudgetsPage() {
 				{healthResult.success && (
 					<BudgetHealthSummary
 						health={healthResult.data}
-						month={currentMonth}
+						month={month}
 					/>
 				)}
 			</header>
@@ -80,12 +82,14 @@ export default async function BudgetsPage() {
 					categoryComparisonResult?.success ? (
 						<CategorySpendComparison
 							items={categoryComparisonResult.data}
-							month={currentMonth}
+							month={month}
 						/>
 					) : (
 						<BudgetViews
 							budgets={serialize(budgets)}
-							initialMonth={currentMonth}
+							yearOverview={yearOverview}
+							availableMonths={availableMonths}
+							initialMonth={month}
 						/>
 					)}
 				</div>
