@@ -198,7 +198,8 @@ export function BudgetLedger({
 								{formatCurrency(metrics.safeToSpend)}
 							</div>
 							<p className='text-xs text-muted-foreground'>
-								Based on {metrics.daysRemaining} days remaining
+								Based on {metrics.daysRemaining}{' '}
+								{metrics.daysRemaining === 1 ? 'day' : 'days'} remaining
 							</p>
 						</CardContent>
 					</Card>
@@ -252,7 +253,8 @@ export function BudgetLedger({
 							{metrics.remaining < 0 && ' over'}
 						</div>
 						<p className='text-xs text-muted-foreground'>
-							{metrics.daysRemaining} days left
+							{metrics.daysRemaining}{' '}
+							{metrics.daysRemaining === 1 ? 'day' : 'days'} left
 						</p>
 					</CardContent>
 				</Card>
