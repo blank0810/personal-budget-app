@@ -97,6 +97,12 @@ export async function getDashboardOverviewAction(): Promise<DashboardOverviewRes
 					amount: Number(budget.amount),
 					spent: budget.spent,
 					percentage: budget.percentage,
+					daysElapsed: budget.daysElapsed,
+					daysInMonth: budget.daysInMonth,
+					expectedPercentage: budget.expectedPercentage,
+					burnStatus: budget.burnStatus,
+					burnStatusReason: budget.burnStatusReason,
+					safeToSpend: budget.safeToSpend,
 					unlinkedExpenseCount: budget.unlinkedExpenseCount,
 				})),
 				incomeCategories: incomeCategories.map((category) => ({

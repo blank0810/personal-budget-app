@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { computeBurnMetrics } from './budget.burn';
+import {
+	MIN_DAYS_FOR_VERDICT,
+	computeBurnMetrics,
+	computeSafeToSpend,
+} from './budget.burn';
 
 function buildLocalMonthBoundaries(year: number, monthIndex: number) {
 	const monthStart = new Date(year, monthIndex, 1);
@@ -77,6 +81,8 @@ describe('computeBurnMetrics', () => {
 		});
 
 		expect(m.burnStatus).toBe('insufficient_data');
+		expect(m.burnStatusReason).toBe('too_early');
+		expect(MIN_DAYS_FOR_VERDICT).toBe(7);
 	});
 
 	it('gives a verdict once past day 7', () => {
@@ -190,5 +196,47 @@ describe('computeBurnMetrics', () => {
 		expect(zeroSpend.burnStatus).not.toBe('insufficient_data');
 		expect(overSpend.burnStatus).not.toBe('insufficient_data');
 		expect(zeroSpend.daysRemaining).toBe(0);
+	});
+});
+
+describe('computeSafeToSpend', () => {
+	it('divides the remaining envelope amount across the remaining days', () => {
+		expect(
+			computeSafeToSpend({
+				budgetLimit: 1000,
+				totalSpent: 400,
+				daysRemaining: 10,
+			})
+		).toBe(60);
+	});
+
+	it('returns null when the month has no days remaining', () => {
+		expect(
+			computeSafeToSpend({
+				budgetLimit: 1000,
+				totalSpent: 400,
+				daysRemaining: 0,
+			})
+		).toBeNull();
+	});
+
+	it('returns null when spending has reached the limit', () => {
+		expect(
+			computeSafeToSpend({
+				budgetLimit: 1000,
+				totalSpent: 1000,
+				daysRemaining: 10,
+			})
+		).toBeNull();
+	});
+
+	it('returns null when spending is over the limit', () => {
+		expect(
+			computeSafeToSpend({
+				budgetLimit: 1000,
+				totalSpent: 1200,
+				daysRemaining: 10,
+			})
+		).toBeNull();
 	});
 });

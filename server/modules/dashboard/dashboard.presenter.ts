@@ -12,6 +12,10 @@ import type {
 	DashboardPillarRow,
 	DashboardTone,
 } from './dashboard.types';
+import type {
+	BurnStatus,
+	BurnStatusReason,
+} from '@/server/modules/budget/budget.burn';
 
 interface DashboardSourceAccount {
 	id: string;
@@ -59,6 +63,12 @@ interface DashboardSourceBudget {
 	amount: number;
 	spent: number;
 	percentage: number;
+	daysElapsed: number;
+	daysInMonth: number;
+	expectedPercentage: number;
+	burnStatus: BurnStatus;
+	burnStatusReason: BurnStatusReason;
+	safeToSpend: number | null;
 	unlinkedExpenseCount: number;
 }
 
@@ -336,6 +346,13 @@ export function buildDashboardOverview(
 		(sum, budget) => sum + budget.spent,
 		0
 	);
+	const safeToSpendValues = source.budgets.flatMap((budget) =>
+		budget.safeToSpend === null ? [] : [budget.safeToSpend]
+	);
+	const safeToSpendToday =
+		safeToSpendValues.length > 0
+			? safeToSpendValues.reduce((sum, value) => sum + value, 0)
+			: null;
 	const points = source.trend.map((point) => ({
 		month: point.month,
 		income: point.income,
@@ -445,6 +462,7 @@ export function buildDashboardOverview(
 			totalSpent,
 			utilizationPercent:
 				totalBudgeted > 0 ? (totalSpent / totalBudgeted) * 100 : null,
+			safeToSpendToday,
 			items: [...source.budgets]
 				.sort((a, b) => b.percentage - a.percentage)
 				.slice(0, 3)
@@ -455,6 +473,11 @@ export function buildDashboardOverview(
 					amount: budget.amount,
 					spent: budget.spent,
 					percentage: budget.percentage,
+					daysElapsed: budget.daysElapsed,
+					daysInMonth: budget.daysInMonth,
+					expectedPercentage: budget.expectedPercentage,
+					burnStatus: budget.burnStatus,
+					burnStatusReason: budget.burnStatusReason,
 					unlinkedExpenseCount: budget.unlinkedExpenseCount,
 				})),
 		},

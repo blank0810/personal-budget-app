@@ -1,4 +1,8 @@
 import type { HealthPillarName } from '@/lib/financial-health-copy';
+import type {
+	BurnStatus,
+	BurnStatusReason,
+} from '@/server/modules/budget/budget.burn';
 
 export interface NetWorthData {
 	netWorth: number;
@@ -153,6 +157,7 @@ export interface DashboardOverview {
 		totalBudgeted: number;
 		totalSpent: number;
 		utilizationPercent: number | null;
+		safeToSpendToday: number | null;
 		items: Array<{
 			id: string;
 			name: string;
@@ -160,6 +165,11 @@ export interface DashboardOverview {
 			amount: number;
 			spent: number;
 			percentage: number;
+			daysElapsed: number;
+			daysInMonth: number;
+			expectedPercentage: number;
+			burnStatus: BurnStatus;
+			burnStatusReason: BurnStatusReason;
 			unlinkedExpenseCount: number;
 		}>;
 	};

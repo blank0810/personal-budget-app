@@ -20,12 +20,22 @@ import { Budget, Category } from '@prisma/client';
 import { cn } from '@/lib/utils';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { PaceBadge } from './PaceBadge';
+import type {
+	BurnStatus,
+	BurnStatusReason,
+} from '@/server/modules/budget/budget.burn';
 
 interface BudgetWithStats extends Budget {
 	category: Category;
 	spent: number;
 	remaining: number;
 	percentage: number;
+	daysElapsed: number;
+	daysInMonth: number;
+	expectedPercentage: number;
+	burnStatus: BurnStatus;
+	burnStatusReason: BurnStatusReason;
 	unlinkedExpenseCount: number;
 }
 
@@ -95,9 +105,9 @@ export function BudgetList({ budgets, availableMonths = [] }: BudgetListProps) {
 			key: 'progress',
 			header: 'Progress',
 			sortable: false,
-			className: 'w-[200px]',
+			className: 'w-[250px]',
 			render: (budget) => (
-				<div className='space-y-1'>
+				<div className='space-y-2'>
 					<Progress
 						value={Math.min(budget.percentage, 100)}
 						className={cn(
@@ -109,7 +119,15 @@ export function BudgetList({ budgets, availableMonths = [] }: BudgetListProps) {
 								: '[&>div]:bg-green-600 bg-green-100'
 						)}
 					/>
-					<div className='flex justify-between text-xs text-muted-foreground'>
+					<PaceBadge
+						actualPercentage={budget.percentage}
+						expectedPercentage={budget.expectedPercentage}
+						daysElapsed={budget.daysElapsed}
+						daysInMonth={budget.daysInMonth}
+						burnStatus={budget.burnStatus}
+						burnStatusReason={budget.burnStatusReason}
+					/>
+					<div className='flex flex-wrap justify-between gap-x-3 text-xs text-muted-foreground'>
 						<span
 							className={cn(
 								budget.percentage > 100

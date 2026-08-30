@@ -107,6 +107,12 @@ function makeSource(): DashboardOverviewSource {
 				amount: 10000,
 				spent: 9500,
 				percentage: 95,
+				daysElapsed: 16,
+				daysInMonth: 31,
+				expectedPercentage: (16 / 31) * 100,
+				burnStatus: 'overpace',
+				burnStatusReason: null,
+				safeToSpend: 500 / 15,
 				unlinkedExpenseCount: 2,
 			},
 			{
@@ -117,6 +123,12 @@ function makeSource(): DashboardOverviewSource {
 				amount: 15000,
 				spent: 12000,
 				percentage: 80,
+				daysElapsed: 16,
+				daysInMonth: 31,
+				expectedPercentage: (16 / 31) * 100,
+				burnStatus: 'overpace',
+				burnStatusReason: null,
+				safeToSpend: 3000 / 15,
 				unlinkedExpenseCount: 0,
 			},
 			{
@@ -127,6 +139,12 @@ function makeSource(): DashboardOverviewSource {
 				amount: 5000,
 				spent: 5500,
 				percentage: 110,
+				daysElapsed: 16,
+				daysInMonth: 31,
+				expectedPercentage: (16 / 31) * 100,
+				burnStatus: 'overpace',
+				burnStatusReason: null,
+				safeToSpend: null,
 				unlinkedExpenseCount: 1,
 			},
 			{
@@ -137,6 +155,12 @@ function makeSource(): DashboardOverviewSource {
 				amount: 4000,
 				spent: 2000,
 				percentage: 50,
+				daysElapsed: 16,
+				daysInMonth: 31,
+				expectedPercentage: (16 / 31) * 100,
+				burnStatus: 'ontrack',
+				burnStatusReason: null,
+				safeToSpend: 2000 / 15,
 				unlinkedExpenseCount: 0,
 			},
 		],
@@ -319,6 +343,38 @@ describe('buildDashboardOverview', () => {
 			{ id: 'b1', unlinkedExpenseCount: 2 },
 			{ id: 'b2', unlinkedExpenseCount: 0 },
 		]);
+	});
+
+	it('pipes pace evidence and rolls up safe-to-spend across viable envelopes', () => {
+		const result = buildDashboardOverview(
+			makeSource(),
+			new Date(2026, 7, 16)
+		);
+
+		expect(result.budgetPressure.safeToSpendToday).toBeCloseTo(
+			500 / 15 + 3000 / 15 + 2000 / 15,
+			10
+		);
+		expect(result.budgetPressure.items[1]).toMatchObject({
+			id: 'b1',
+			daysElapsed: 16,
+			daysInMonth: 31,
+			expectedPercentage: (16 / 31) * 100,
+			burnStatus: 'overpace',
+			burnStatusReason: null,
+		});
+	});
+
+	it('returns no safe-to-spend rollup when every envelope is complete or blown', () => {
+		const source = makeSource();
+		source.budgets = source.budgets.map((budget) => ({
+			...budget,
+			safeToSpend: null,
+		}));
+
+		const result = buildDashboardOverview(source, new Date(2026, 7, 16));
+
+		expect(result.budgetPressure.safeToSpendToday).toBeNull();
 	});
 
 	it('preserves income, expense, transfer, and payment activity types', () => {

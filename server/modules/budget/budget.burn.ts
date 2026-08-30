@@ -1,9 +1,10 @@
 const MS_PER_DAY = 1000 * 60 * 60 * 24;
 
 /** Minimum elapsed days before a pace verdict is statistically honest. */
-const MIN_DAYS_FOR_VERDICT = 7;
+export const MIN_DAYS_FOR_VERDICT = 7;
 
 export type BurnStatus = 'ontrack' | 'overpace' | 'insufficient_data';
+export type BurnStatusReason = 'future_month' | 'too_early' | null;
 
 export interface BurnMetricsInput {
 	monthStart: Date;
@@ -21,6 +22,13 @@ export interface BurnMetrics {
 	allowedDailyRate: number;
 	expectedPercentage: number;
 	burnStatus: BurnStatus;
+	burnStatusReason: BurnStatusReason;
+}
+
+export interface SafeToSpendInput {
+	budgetLimit: number;
+	totalSpent: number;
+	daysRemaining: number;
 }
 
 /**
@@ -62,10 +70,15 @@ export function computeBurnMetrics({
 	const isOverLimit = budgetLimit > 0 && totalSpent >= budgetLimit;
 
 	let burnStatus: BurnStatus;
+	let burnStatusReason: BurnStatusReason = null;
 	if (isOverLimit) {
 		burnStatus = 'overpace';
-	} else if (isFuture || tooEarly) {
+	} else if (isFuture) {
 		burnStatus = 'insufficient_data';
+		burnStatusReason = 'future_month';
+	} else if (tooEarly) {
+		burnStatus = 'insufficient_data';
+		burnStatusReason = 'too_early';
 	} else {
 		burnStatus = dailyBurnRate > allowedDailyRate ? 'overpace' : 'ontrack';
 	}
@@ -78,5 +91,23 @@ export function computeBurnMetrics({
 		allowedDailyRate,
 		expectedPercentage,
 		burnStatus,
+		burnStatusReason,
 	};
+}
+
+/**
+ * Daily amount that remains available inside one envelope.
+ *
+ * A completed month has no remaining spending days, and an envelope at or over
+ * its limit has no honest daily allowance. Both cases return `null` so callers
+ * never render Infinity, NaN, or a misleading positive amount.
+ */
+export function computeSafeToSpend({
+	budgetLimit,
+	totalSpent,
+	daysRemaining,
+}: SafeToSpendInput): number | null {
+	if (daysRemaining <= 0 || totalSpent >= budgetLimit) return null;
+
+	return (budgetLimit - totalSpent) / daysRemaining;
 }

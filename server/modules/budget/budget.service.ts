@@ -13,13 +13,37 @@ import {
 } from './budget.types';
 import { CategoryService } from '../category/category.service';
 import { startOfMonth, endOfMonth, subMonths, format, eachMonthOfInterval } from 'date-fns';
-import { computeBurnMetrics } from './budget.burn';
+import { computeBurnMetrics, computeSafeToSpend } from './budget.burn';
 import { BudgetAnalyticsService } from './budget.analytics.service';
 
 type BudgetMonthReference = {
 	id: string;
 	month: Date;
 };
+
+/**
+ * Budget months are stored as UTC-midnight anchors, while burn metrics operate
+ * on local calendar boundaries. Test fixtures and older data may already be
+ * local dates, so only reinterpret an exact UTC month anchor.
+ */
+function getBudgetMonthBounds(month: Date) {
+	const isUtcMonthAnchor =
+		month.getUTCDate() === 1 &&
+		month.getUTCHours() === 0 &&
+		month.getUTCMinutes() === 0 &&
+		month.getUTCSeconds() === 0 &&
+		month.getUTCMilliseconds() === 0;
+	const year = isUtcMonthAnchor
+		? month.getUTCFullYear()
+		: month.getFullYear();
+	const monthIndex = isUtcMonthAnchor
+		? month.getUTCMonth()
+		: month.getMonth();
+	const monthStart = new Date(year, monthIndex, 1, 0, 0, 0, 0);
+	const monthEnd = new Date(year, monthIndex + 1, 0, 23, 59, 59, 999);
+
+	return { monthStart, monthEnd };
+}
 
 async function getSpendByBudgetMonth(
 	userId: string,
@@ -102,6 +126,7 @@ export const BudgetService = {
 		const month = filters?.month ?? new Date();
 		const monthStart = startOfMonth(month);
 		const monthEnd = endOfMonth(month);
+		const today = new Date();
 		const where = {
 			userId,
 			month: filters?.month
@@ -147,11 +172,32 @@ export const BudgetService = {
 			const spent = (
 				spentMap.get(budget.id) ?? new Prisma.Decimal(0)
 			).toNumber();
+			const budgetMonth = getBudgetMonthBounds(budget.month);
+			const burn = computeBurnMetrics({
+				monthStart: budgetMonth.monthStart,
+				monthEnd: budgetMonth.monthEnd,
+				totalSpent: spent,
+				budgetLimit: amount,
+				today,
+			});
+			const safeToSpend = computeSafeToSpend({
+				budgetLimit: amount,
+				totalSpent: spent,
+				daysRemaining: burn.daysRemaining,
+			});
+
 			return {
 				...budget,
 				spent,
 				remaining: amount - spent,
 				percentage: amount > 0 ? (spent / amount) * 100 : 0,
+				daysElapsed: burn.daysElapsed,
+				daysRemaining: burn.daysRemaining,
+				daysInMonth: burn.daysInMonth,
+				expectedPercentage: burn.expectedPercentage,
+				burnStatus: burn.burnStatus,
+				burnStatusReason: burn.burnStatusReason,
+				safeToSpend,
 			};
 		});
 	},
@@ -235,14 +281,7 @@ export const BudgetService = {
 		if (!budget) return null;
 
 		// Define month boundaries for time-based metrics
-		const monthStart = new Date(budget.month);
-		monthStart.setDate(1);
-		monthStart.setHours(0, 0, 0, 0);
-
-		const monthEnd = new Date(monthStart);
-		monthEnd.setMonth(monthEnd.getMonth() + 1);
-		monthEnd.setDate(0);
-		monthEnd.setHours(23, 59, 59, 999);
+		const { monthStart, monthEnd } = getBudgetMonthBounds(budget.month);
 
 		// Fetch only expenses linked to THIS specific budget (envelope isolation)
 		const expenses = await prisma.expense.findMany({
@@ -289,6 +328,11 @@ export const BudgetService = {
 			totalSpent,
 			budgetLimit,
 		});
+		const safeToSpend = computeSafeToSpend({
+			budgetLimit,
+			totalSpent,
+			daysRemaining: burn.daysRemaining,
+		});
 
 		// Add running total to expenses
 		let runningTotal = 0;
@@ -311,6 +355,7 @@ export const BudgetService = {
 				remaining,
 				percentage,
 				...burn,
+				safeToSpend,
 				isOverBudget: percentage > 100,
 			},
 		};

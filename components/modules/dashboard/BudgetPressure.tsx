@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { useCurrency } from '@/lib/contexts/currency-context';
 import type { DashboardOverview } from '@/server/modules/dashboard/dashboard.types';
 import { AlertTriangle } from 'lucide-react';
+import { PaceBadge } from '@/components/modules/budget/PaceBadge';
 
 export function BudgetPressure({
 	data,
@@ -47,6 +48,19 @@ export function BudgetPressure({
 						{formatCurrency(data.totalSpent)} of{' '}
 						{formatCurrency(data.totalBudgeted)} used
 					</p>
+					{data.safeToSpendToday !== null && (
+						<div className='mt-3'>
+							<p className='text-xs text-muted-foreground'>
+								Safe to spend today
+							</p>
+							<p className='font-mono text-lg font-semibold tabular-nums'>
+								{formatCurrency(data.safeToSpendToday, { decimals: 0 })}
+							</p>
+							<p className='text-xs leading-4 text-muted-foreground'>
+								Across envelopes still within their limits
+							</p>
+						</div>
+					)}
 				</div>
 				<span className='font-mono text-xl font-semibold tabular-nums'>
 					{Math.round(data.utilizationPercent ?? 0)}%
@@ -55,7 +69,7 @@ export function BudgetPressure({
 			<ul className='mt-6 divide-y'>
 				{data.items.map((budget) => (
 					<li key={budget.id} className='py-4 first:pt-0 last:pb-0'>
-						<div className='flex items-center justify-between gap-4 text-sm'>
+						<div className='flex items-start justify-between gap-4 text-sm'>
 							<div className='flex min-w-0 flex-wrap items-center gap-2'>
 								<span className='font-medium'>{budget.name}</span>
 								{budget.unlinkedExpenseCount > 0 && (
@@ -68,9 +82,15 @@ export function BudgetPressure({
 									</Badge>
 								)}
 							</div>
-							<span className='font-mono tabular-nums text-muted-foreground'>
-								{Math.round(budget.percentage)}%
-							</span>
+							<PaceBadge
+								actualPercentage={budget.percentage}
+								expectedPercentage={budget.expectedPercentage}
+								daysElapsed={budget.daysElapsed}
+								daysInMonth={budget.daysInMonth}
+								burnStatus={budget.burnStatus}
+								burnStatusReason={budget.burnStatusReason}
+								className='shrink-0 items-end text-right'
+							/>
 						</div>
 						<div
 							className='mt-2 h-1.5 overflow-hidden rounded-full bg-muted'
