@@ -21,12 +21,13 @@ import {
 	TableHeader,
 	TableRow,
 } from '@/components/ui/table';
-import { ArrowUp, ArrowDown, CheckCircle } from 'lucide-react';
+import { ArrowUp, ArrowDown, CheckCircle, History } from 'lucide-react';
 import { useCurrency } from '@/lib/contexts/currency-context';
 import { cn } from '@/lib/utils';
 import type {
 	MonthlyTrend,
 	CategoryRecommendation,
+	BudgetRecommendationState,
 } from '@/server/modules/budget/budget.types';
 
 interface BudgetAnalyticsProps {
@@ -204,6 +205,7 @@ export function BudgetAnalytics({
 											<RecommendationBadge
 												recommendation={rec.recommendation}
 												suggestedAmount={rec.suggestedAmount}
+												trend={rec.trend}
 											/>
 										</TableCell>
 									</TableRow>
@@ -225,9 +227,11 @@ export function BudgetAnalytics({
 function RecommendationBadge({
 	recommendation,
 	suggestedAmount,
+	trend,
 }: {
-	recommendation: 'increase' | 'decrease' | 'stable';
+	recommendation: BudgetRecommendationState;
 	suggestedAmount: number | null;
+	trend: string;
 }) {
 	const { formatCurrency } = useCurrency();
 
@@ -264,6 +268,16 @@ function RecommendationBadge({
 				>
 					<CheckCircle className='h-3 w-3' />
 					On track
+				</Badge>
+			);
+		case 'insufficient_history':
+			return (
+				<Badge
+					variant='outline'
+					className='flex w-fit items-center gap-1 border-border bg-muted/60 text-muted-foreground'
+				>
+					<History className='h-3 w-3' />
+					{trend}
 				</Badge>
 			);
 	}
