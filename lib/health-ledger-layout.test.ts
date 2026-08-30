@@ -45,12 +45,10 @@ describe('HealthLedger desktop layout', () => {
 			createElement(HealthLedger, { pillars }),
 		);
 
-		const explicitGridDefinitions = markup.match(
-			/md:grid-cols-\[minmax\(12rem,1\.2fr\)_7rem_minmax\(12rem,1fr\)_auto\]/g,
+		const sharedGridDefinitions = markup.match(
+			/md:grid-cols-\[minmax\(0,1\.2fr\)_7rem_minmax\(0,1fr\)\]/g,
 		);
-		const inheritedSubgrids = markup.match(/md:grid-cols-subgrid/g);
 
-		expect(explicitGridDefinitions).toHaveLength(1);
-		expect(inheritedSubgrids).toHaveLength(pillars.length + 2);
+		expect(sharedGridDefinitions).toHaveLength(pillars.length + 1);
 	});
 });

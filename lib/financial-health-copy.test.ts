@@ -43,9 +43,9 @@ describe('financial health copy contract', () => {
 			Excellent:
 				'Absolutely elite. Your finances are tighter than a NASA launch checklist. Banks wish they had your discipline.',
 			Good:
-				"You're doing well — genuinely. Most people would kill for this position. A couple of tweaks and you're untouchable.",
+				"You're doing well, genuinely. Most people would kill for this position. A couple of tweaks and you're untouchable.",
 			Fair:
-				"Not terrible, not great. You're the financial equivalent of a C+ student — passing, but nobody's putting you on the fridge.",
+				"Not terrible, not great. You're the financial equivalent of a C+ student: passing, but nobody's putting you on the fridge.",
 			'Needs Attention':
 				"Your finances are held together with duct tape and denial. This isn't a warning, it's an intervention.",
 			Critical:
