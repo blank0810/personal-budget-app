@@ -98,6 +98,11 @@ export function GoalHealthReport({ goalHealth }: GoalHealthReportProps) {
 									? 'Insufficient data'
 									: `${goalHealth.emergencyFundMonths?.toFixed(1)} months`}
 								</div>
+								{goalHealth.emergencyFundMonths !== null && (
+									<p className='text-xs text-muted-foreground'>
+										Based on your last 3 complete months
+									</p>
+								)}
 								<Badge
 									variant='outline'
 									className={
@@ -232,7 +237,12 @@ function GoalMetricCard({ goal }: { goal: GoalHealthMetric }) {
 				<div className='flex justify-between text-xs text-muted-foreground'>
 					{isMonthsCoverage && goal.monthsCoverage != null ? (
 						<>
-							<span>{goal.monthsCoverage.toFixed(1)} months coverage</span>
+							<div>
+								<p>{goal.monthsCoverage.toFixed(1)} months coverage</p>
+								<p className='mt-0.5 text-[10px] leading-tight'>
+									Based on your last 3 complete months
+								</p>
+							</div>
 							<span>{formatCurrency(goal.balance)}</span>
 						</>
 					) : isMonthsCoverage && goal.monthsCoverage === null ? (

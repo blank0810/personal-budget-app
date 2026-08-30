@@ -176,6 +176,18 @@ const styles = StyleSheet.create({
 		fontSize: 9,
 		color: GRAY_700,
 	},
+	coverageLabel: {
+		width: 100,
+	},
+	coverageLabelValue: {
+		fontSize: 9,
+		color: GRAY_700,
+	},
+	coverageBasis: {
+		fontSize: 7,
+		color: GRAY_500,
+		marginTop: 2,
+	},
 	progressBarTrack: {
 		flex: 1,
 		height: 8,
@@ -495,12 +507,19 @@ function GoalsSection({
 			<Text style={styles.sectionTitle}>Savings Goals</Text>
 			{data.accounts.map((goal) => (
 				<View key={goal.name} style={styles.progressBarContainer}>
-					<Text style={styles.progressLabel}>
-						{goal.name}
-						{goal.goalType === 'MONTHS_COVERAGE' && goal.monthsCoverage != null
-							? ` (${goal.monthsCoverage.toFixed(1)}mo)`
-							: ''}
-					</Text>
+					{goal.goalType === 'MONTHS_COVERAGE' &&
+					goal.monthsCoverage != null ? (
+						<View style={styles.coverageLabel}>
+							<Text style={styles.coverageLabelValue}>
+								{goal.name} ({goal.monthsCoverage.toFixed(1)}mo)
+							</Text>
+							<Text style={styles.coverageBasis}>
+								Based on your last 3 complete months
+							</Text>
+						</View>
+					) : (
+						<Text style={styles.progressLabel}>{goal.name}</Text>
+					)}
 					<View style={styles.progressBarTrack}>
 						<View
 							style={{
@@ -520,9 +539,14 @@ function GoalsSection({
 			))}
 			{data.emergencyFundMonths != null && (
 				<View style={styles.tableRow}>
-					<Text style={styles.tableLabel}>
-						Emergency Fund Coverage
-					</Text>
+					<View style={{ flex: 1 }}>
+						<Text style={styles.tableLabel}>
+							Emergency Fund Coverage
+						</Text>
+						<Text style={styles.coverageBasis}>
+							Based on your last 3 complete months
+						</Text>
+					</View>
 					<Text style={styles.tableValue}>
 						{data.emergencyFundMonths.toFixed(1)} months
 					</Text>

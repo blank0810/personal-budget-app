@@ -150,9 +150,18 @@ export function GoalCard({ goal, onClick, compact }: GoalCardProps) {
 					<Progress value={percentage} className='h-1.5 mt-1' />
 				</div>
 				{isMonthsCoverage && goal.monthsCoverage !== undefined ? (
-					<span className='text-xs text-muted-foreground whitespace-nowrap'>
-						{goal.monthsCoverage === null ? '\u2014' : `${goal.monthsCoverage.toFixed(1)}mo`}
-					</span>
+					<div className='shrink-0 text-right'>
+						<span className='text-xs text-muted-foreground whitespace-nowrap'>
+							{goal.monthsCoverage === null
+								? '\u2014'
+								: `${goal.monthsCoverage.toFixed(1)}mo`}
+						</span>
+						{goal.monthsCoverage !== null && (
+							<p className='mt-0.5 max-w-32 text-[10px] leading-tight text-muted-foreground'>
+								Based on your last 3 complete months
+							</p>
+						)}
+					</div>
 				) : (
 					<span className='text-xs text-muted-foreground whitespace-nowrap'>
 						{percentage.toFixed(0)}%
@@ -242,6 +251,11 @@ export function GoalCard({ goal, onClick, compact }: GoalCardProps) {
 							</>
 						)}
 					</div>
+					{isMonthsCoverage && goal.monthsCoverage != null && (
+						<p className='text-xs text-muted-foreground'>
+							Based on your last 3 complete months
+						</p>
+					)}
 					<Progress value={percentage} className='h-2' />
 				</div>
 

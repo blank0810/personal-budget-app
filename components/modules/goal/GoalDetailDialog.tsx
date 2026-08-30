@@ -177,6 +177,11 @@ export function GoalDetailDialog({ goal, onClose }: GoalDetailDialogProps) {
 									</>
 								)}
 							</div>
+							{isMonthsCoverage && goal.monthsCoverage != null && (
+								<p className='text-xs text-muted-foreground'>
+									Based on your last 3 complete months
+								</p>
+							)}
 							<Progress value={percentage} className='h-3' />
 						</div>
 
