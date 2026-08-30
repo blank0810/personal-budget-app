@@ -40,9 +40,10 @@ export interface ProblemCategory {
 
 export interface BudgetHealthSummary {
 	totalBudgets: number;
-	onTrack: number; // < 80% spent
+	onTrack: number; // < 80% spent with full or undefined coverage
 	warning: number; // 80-100% spent
 	over: number; // > 100% spent
+	incomplete: number; // < 80% spent with partial same-category coverage
 	totalBudgeted: number;
 	totalSpent: number;
 	problemCategories: ProblemCategory[];

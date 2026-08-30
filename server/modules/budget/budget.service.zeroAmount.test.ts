@@ -6,6 +6,7 @@ const mocks = vi.hoisted(() => ({
 	budgetFindMany: vi.fn(),
 	expenseFindMany: vi.fn(),
 	expenseGroupBy: vi.fn(),
+	getCoverageRatios: vi.fn(),
 }));
 
 vi.mock('@/lib/prisma', () => ({
@@ -23,6 +24,12 @@ vi.mock('@/lib/prisma', () => ({
 
 vi.mock('../category/category.service', () => ({
 	CategoryService: {},
+}));
+
+vi.mock('./budget.analytics.service', () => ({
+	BudgetAnalyticsService: {
+		getCoverageRatios: mocks.getCoverageRatios,
+	},
 }));
 
 import { BudgetService } from './budget.service';
@@ -46,6 +53,15 @@ describe('BudgetService — zero-amount budgets', () => {
 		vi.clearAllMocks();
 		vi.useFakeTimers();
 		vi.setSystemTime(new Date(2026, 7, 4, 12));
+		mocks.getCoverageRatios.mockResolvedValue([
+			{
+				budgetId: 'budget-zero',
+				linkedSpend: 0,
+				unlinkedSameCategorySpend: 0,
+				unlinkedExpenseCount: 0,
+				coverageRatio: null,
+			},
+		]);
 	});
 
 	afterEach(() => {
@@ -92,10 +108,14 @@ describe('BudgetService — zero-amount budgets', () => {
 			onTrack: 1,
 			warning: 0,
 			over: 0,
+			incomplete: 0,
 		});
-		expect(summary.onTrack + summary.warning + summary.over).toBe(
-			summary.totalBudgets
-		);
+		expect(
+			summary.onTrack +
+				summary.warning +
+				summary.over +
+				summary.incomplete
+		).toBe(summary.totalBudgets);
 	});
 
 	it('returns 0 percent for a zero-limit budget ledger', async () => {

@@ -4,6 +4,7 @@ import { Prisma } from '@prisma/client';
 const mocks = vi.hoisted(() => ({
 	budgetFindMany: vi.fn(),
 	expenseGroupBy: vi.fn(),
+	getCoverageRatios: vi.fn(),
 }));
 
 vi.mock('@/lib/prisma', () => ({
@@ -21,6 +22,12 @@ vi.mock('../category/category.service', () => ({
 	CategoryService: {},
 }));
 
+vi.mock('./budget.analytics.service', () => ({
+	BudgetAnalyticsService: {
+		getCoverageRatios: mocks.getCoverageRatios,
+	},
+}));
+
 import { BudgetService } from './budget.service';
 
 describe('BudgetService — month-scoped analytics spend', () => {
@@ -28,6 +35,19 @@ describe('BudgetService — month-scoped analytics spend', () => {
 		vi.clearAllMocks();
 		vi.useFakeTimers();
 		vi.setSystemTime(new Date(2026, 7, 30, 12));
+		mocks.getCoverageRatios.mockImplementation(
+			async (
+				_userId: string,
+				envelopes: Array<{ id: string }>
+			) =>
+				envelopes.map((envelope) => ({
+					budgetId: envelope.id,
+					linkedSpend: 0,
+					unlinkedSameCategorySpend: 0,
+					unlinkedExpenseCount: 0,
+					coverageRatio: null,
+				}))
+		);
 	});
 
 	afterEach(() => {

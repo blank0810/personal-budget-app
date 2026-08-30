@@ -14,6 +14,7 @@ import {
 import { CategoryService } from '../category/category.service';
 import { startOfMonth, endOfMonth, subMonths, format, eachMonthOfInterval } from 'date-fns';
 import { computeBurnMetrics } from './budget.burn';
+import { BudgetAnalyticsService } from './budget.analytics.service';
 
 type BudgetMonthReference = {
 	id: string;
@@ -151,6 +152,38 @@ export const BudgetService = {
 				spent,
 				remaining: amount - spent,
 				percentage: amount > 0 ? (spent / amount) * 100 : 0,
+			};
+		});
+	},
+
+	/**
+	 * Get budgets with same-category coverage evidence for UI and health rollups.
+	 * Coverage is resolved once for the complete result set, never per envelope.
+	 */
+	async getBudgetsWithCoverage(userId: string, filters?: GetBudgetsInput) {
+		const budgets = await this.getBudgets(userId, filters);
+		if (budgets.length === 0) return [];
+
+		const coverage = await BudgetAnalyticsService.getCoverageRatios(
+			userId,
+			budgets.map((budget) => ({
+				id: budget.id,
+				categoryId: budget.categoryId,
+				month: budget.month,
+			}))
+		);
+		const coverageByBudget = new Map(
+			coverage.map((item) => [item.budgetId, item])
+		);
+
+		return budgets.map((budget) => {
+			const item = coverageByBudget.get(budget.id);
+			return {
+				...budget,
+				coverageRatio: item?.coverageRatio ?? null,
+				unlinkedSameCategorySpend:
+					item?.unlinkedSameCategorySpend ?? 0,
+				unlinkedExpenseCount: item?.unlinkedExpenseCount ?? 0,
 			};
 		});
 	},
@@ -314,7 +347,9 @@ export const BudgetService = {
 		const targetMonth = month ? startOfMonth(month) : startOfMonth(new Date());
 
 		// Get current month budgets with calculated metrics
-		const currentBudgets = await this.getBudgets(userId, { month: targetMonth });
+		const currentBudgets = await this.getBudgetsWithCoverage(userId, {
+			month: targetMonth,
+		});
 
 		// If no budgets, return empty summary
 		if (currentBudgets.length === 0) {
@@ -323,6 +358,7 @@ export const BudgetService = {
 				onTrack: 0,
 				warning: 0,
 				over: 0,
+				incomplete: 0,
 				totalBudgeted: 0,
 				totalSpent: 0,
 				problemCategories: [],
@@ -330,11 +366,25 @@ export const BudgetService = {
 		}
 
 		// Calculate current month metrics
-		const onTrack = currentBudgets.filter((b) => b.percentage < 80).length;
-		const warning = currentBudgets.filter(
-			(b) => b.percentage >= 80 && b.percentage <= 100
-		).length;
-		const over = currentBudgets.filter((b) => b.percentage > 100).length;
+		const buckets = currentBudgets.reduce(
+			(counts, budget) => {
+				if (budget.percentage > 100) {
+					counts.over += 1;
+				} else if (budget.percentage >= 80) {
+					counts.warning += 1;
+				} else if (
+					budget.coverageRatio !== null &&
+					budget.coverageRatio < 1
+				) {
+					counts.incomplete += 1;
+				} else {
+					counts.onTrack += 1;
+				}
+
+				return counts;
+			},
+			{ onTrack: 0, warning: 0, over: 0, incomplete: 0 }
+		);
 		const totalBudgeted = currentBudgets.reduce(
 			(sum, b) => sum + Number(b.amount),
 			0
@@ -441,9 +491,7 @@ export const BudgetService = {
 
 		return {
 			totalBudgets: currentBudgets.length,
-			onTrack,
-			warning,
-			over,
+			...buckets,
 			totalBudgeted,
 			totalSpent,
 			problemCategories,
