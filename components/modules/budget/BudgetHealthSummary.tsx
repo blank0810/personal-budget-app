@@ -8,6 +8,7 @@ import {
 	AlertTriangle,
 	XCircle,
 	Wallet,
+	CircleDashed,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { useCurrency } from '@/lib/contexts/currency-context';
@@ -30,6 +31,7 @@ export function BudgetHealthSummary({
 		if (health.totalBudgets === 0) return 'empty';
 		if (health.over > 0) return 'danger';
 		if (health.warning > 0) return 'warning';
+		if (health.incomplete > 0) return 'incomplete';
 		return 'healthy';
 	};
 
@@ -57,6 +59,13 @@ export function BudgetHealthSummary({
 			icon: AlertTriangle,
 			iconColor: 'text-amber-600 dark:text-amber-400',
 			iconBg: 'bg-amber-100 dark:bg-amber-900',
+		},
+		incomplete: {
+			bg: 'bg-muted/30',
+			border: 'border-border',
+			icon: CircleDashed,
+			iconColor: 'text-muted-foreground',
+			iconBg: 'bg-muted',
 		},
 		danger: {
 			bg: 'bg-gradient-to-br from-red-50 to-white dark:from-red-950 dark:to-background',
@@ -128,7 +137,7 @@ export function BudgetHealthSummary({
 			</CardHeader>
 			<CardContent className='space-y-4'>
 				{/* Status Summary */}
-				<div className='flex items-center gap-3'>
+				<div className='flex flex-wrap items-center gap-3'>
 					<div className='flex items-center gap-1.5'>
 						<div className='h-2 w-2 rounded-full bg-emerald-500' />
 						<span className='text-sm font-medium'>{health.onTrack}</span>
@@ -146,6 +155,17 @@ export function BudgetHealthSummary({
 							<div className='h-2 w-2 rounded-full bg-red-500' />
 							<span className='text-sm font-medium'>{health.over}</span>
 							<span className='text-xs text-muted-foreground'>over</span>
+						</div>
+					)}
+					{health.incomplete > 0 && (
+						<div className='flex items-center gap-1.5'>
+							<div className='h-2 w-2 rounded-full bg-muted-foreground' />
+							<span className='text-sm font-medium'>
+								{health.incomplete}
+							</span>
+							<span className='text-xs text-muted-foreground'>
+								under 80% with partial coverage
+							</span>
 						</div>
 					)}
 				</div>

@@ -13,6 +13,21 @@ import { CACHE_TAGS } from '@/server/lib/cache-tags';
 import { coerceDateFields } from '@/server/lib/action-utils';
 
 /**
+ * Server Action: Get current budget health summary
+ */
+export async function getBudgetHealthSummaryAction(month?: Date) {
+	const userId = await getAuthenticatedUser();
+
+	try {
+		const health = await BudgetService.getBudgetHealthSummary(userId, month);
+		return { success: true as const, data: health };
+	} catch (error) {
+		console.error('Failed to load budget health:', error);
+		return { error: 'Failed to load budget health' };
+	}
+}
+
+/**
  * Normalize a date to UTC midnight on the 1st of the month
  * This ensures consistent storage regardless of client timezone
  */
