@@ -330,23 +330,45 @@ export const GoalService = {
 
 		// 2. Get expense baseline (hybrid: actual trailing average, fallback to budget)
 		const now = new Date();
-		const windowStart = startOfMonth(subMonths(now, BASELINE_MONTHS));
-		const windowEnd = endOfMonth(subMonths(now, 1));
 		const currentMonth = new Date(now.getFullYear(), now.getMonth(), 1);
 		const nextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
 
-		const [expenseAgg, budgets] = await Promise.all([
-			prisma.expense.aggregate({
-				where: { userId, date: { gte: windowStart, lte: windowEnd } },
-				_sum: { amount: true },
-			}),
+		// One aggregate per complete month in the window. Averaging over the
+		// months that actually contain data — rather than a fixed divisor —
+		// stops a user with a single month of history from having their
+		// baseline divided by 3, which would treble their apparent runway.
+		const monthWindows = Array.from({ length: BASELINE_MONTHS }, (_, i) => {
+			const month = subMonths(now, i + 1);
+			return { gte: startOfMonth(month), lte: endOfMonth(month) };
+		});
+
+		const [monthlyAggs, budgets] = await Promise.all([
+			Promise.all(
+				monthWindows.map((date) =>
+					prisma.expense.aggregate({
+						where: { userId, date },
+						_sum: { amount: true },
+					})
+				)
+			),
 			prisma.budget.findMany({
 				where: { userId, month: { gte: currentMonth, lt: nextMonth } },
 			}),
 		]);
 
-		const avgMonthlyExpense =
-			expenseAgg._sum.amount?.div(BASELINE_MONTHS).toNumber() ?? 0;
+		const monthsWithData = monthlyAggs.filter((agg) =>
+			(agg._sum.amount ?? new Prisma.Decimal(0)).greaterThan(0)
+		);
+
+		const avgMonthlyExpense = monthsWithData.length
+			? monthsWithData
+					.reduce(
+						(sum, agg) => sum.plus(agg._sum.amount ?? 0),
+						new Prisma.Decimal(0)
+					)
+					.div(monthsWithData.length)
+					.toNumber()
+			: 0;
 		const totalMonthlyBudget = budgets
 			.reduce(
 				(sum, budget) => sum.plus(budget.amount),
