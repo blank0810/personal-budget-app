@@ -33,6 +33,19 @@ type BudgetMonthReference = {
 
 const MIN_MONTHS_FOR_BUDGET_RECOMMENDATION = 3;
 
+type BudgetRevisionTransactionClient = Prisma.TransactionClient & {
+	budgetRevision: {
+		create(args: {
+			data: {
+				budgetId: string;
+				userId: string;
+				previousAmount: Prisma.Decimal;
+				newAmount: Prisma.Decimal;
+			};
+		}): Promise<unknown>;
+	};
+};
+
 async function getSpendByBudgetMonth(
 	userId: string,
 	budgets: BudgetMonthReference[],
@@ -478,9 +491,43 @@ export const BudgetService = {
 	 */
 	async updateBudget(userId: string, data: UpdateBudgetInput) {
 		const { id, ...updateData } = data;
-		return await prisma.budget.update({
-			where: { id, userId },
-			data: updateData,
+		return prisma.$transaction(async (tx) => {
+			// Schema changes are generated in Docker/postinstall. Keep this narrow
+			// bridge so source verification also works with a stale local client.
+			const revisionTx = tx as BudgetRevisionTransactionClient;
+			let previousAmount: Prisma.Decimal | null = null;
+			let nextAmount: Prisma.Decimal | null = null;
+
+			if (data.amount !== undefined) {
+				const current = await tx.budget.findUniqueOrThrow({
+					where: { id, userId },
+					select: { amount: true },
+				});
+				previousAmount = current.amount;
+				nextAmount = new Prisma.Decimal(data.amount);
+			}
+
+			const updated = await tx.budget.update({
+				where: { id, userId },
+				data: updateData,
+			});
+
+			if (
+				previousAmount !== null &&
+				nextAmount !== null &&
+				!nextAmount.equals(previousAmount)
+			) {
+				await revisionTx.budgetRevision.create({
+					data: {
+						budgetId: id,
+						userId,
+						previousAmount,
+						newAmount: nextAmount,
+					},
+				});
+			}
+
+			return updated;
 		});
 	},
 

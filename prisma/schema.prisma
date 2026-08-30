@@ -159,6 +159,7 @@ model User {
   expenses                Expense[]
   transfers               Transfer[]
   budgets                 Budget[]
+  budgetRevisions         BudgetRevision[]
   authAccounts            AuthAccount[]
   monthlyReports          MonthlyReport[]
   notificationPreferences UserNotificationPreference[]
@@ -343,6 +344,7 @@ model Expense {
 
   @@index([userId, date])
   @@index([userId, budgetId, date])
+  @@index([userId, categoryId, date])
   @@index([budgetId])
   @@index([importBatchId])
   @@map("expenses")
@@ -364,11 +366,27 @@ model Budget {
   category Category  @relation(fields: [categoryId], references: [id], onDelete: Restrict)
   user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   expenses Expense[] // Track expenses under this budget
+  revisions BudgetRevision[]
 
   @@unique([userId, name, month]) // Unique by name+month (allows multiple per category)
   @@index([userId, month])
   @@index([userId, categoryId]) // For querying budgets by category
   @@map("budgets")
+}
+
+model BudgetRevision {
+  id             String   @id @default(cuid())
+  budgetId       String
+  userId         String
+  previousAmount Decimal  @db.Decimal(10, 2)
+  newAmount      Decimal  @db.Decimal(10, 2)
+  changedAt      DateTime @default(now())
+
+  budget Budget @relation(fields: [budgetId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([budgetId, changedAt])
+  @@map("budget_revisions")
 }
 
 // Monthly Report - Generated PDF snapshots
