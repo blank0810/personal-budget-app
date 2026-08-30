@@ -323,16 +323,24 @@ export const GoalService = {
 			};
 		}
 
-		// 2. Get expense baseline (hybrid: actual 3-month avg, fallback to budget)
+		// 2. Get expense baseline (hybrid: actual trailing average, fallback to budget)
 		const now = new Date();
-		const threeMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 3, 1);
+		const windowStart = new Date(now.getFullYear(), now.getMonth() - 3, 1);
 		const endCurrentMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
 		const currentMonth = new Date(now.getFullYear(), now.getMonth(), 1);
 		const nextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
 
+		// The window runs from the 1st of `windowStart` to the last day of the
+		// current month inclusive — derive the divisor from the window instead of
+		// hardcoding it, or the average is inflated by the extra month.
+		const windowMonths =
+			(endCurrentMonth.getFullYear() - windowStart.getFullYear()) * 12 +
+			(endCurrentMonth.getMonth() - windowStart.getMonth()) +
+			1;
+
 		const [expenseAgg, budgets] = await Promise.all([
 			prisma.expense.aggregate({
-				where: { userId, date: { gte: threeMonthsAgo, lte: endCurrentMonth } },
+				where: { userId, date: { gte: windowStart, lte: endCurrentMonth } },
 				_sum: { amount: true },
 			}),
 			prisma.budget.findMany({
@@ -340,7 +348,8 @@ export const GoalService = {
 			}),
 		]);
 
-		const avgMonthlyExpense = (expenseAgg._sum.amount?.toNumber() || 0) / 3;
+		const avgMonthlyExpense =
+			(expenseAgg._sum.amount?.toNumber() || 0) / windowMonths;
 		const totalMonthlyBudget = budgets.reduce((sum, b) => sum + Number(b.amount), 0);
 
 		const expenseSource: 'actual' | 'budget' | null =
