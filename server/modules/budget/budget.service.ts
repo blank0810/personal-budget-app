@@ -15,11 +15,14 @@ import { CategoryService } from '../category/category.service';
 import { startOfMonth, endOfMonth, subMonths, format, eachMonthOfInterval } from 'date-fns';
 import { computeBurnMetrics, computeSafeToSpend } from './budget.burn';
 import { BudgetAnalyticsService } from './budget.analytics.service';
+import { getDecimalMedian } from './budget.analytics.math';
 
 type BudgetMonthReference = {
 	id: string;
 	month: Date;
 };
+
+const MIN_MONTHS_FOR_BUDGET_RECOMMENDATION = 3;
 
 /**
  * Budget months are stored as UTC-midnight anchors, while burn metrics operate
@@ -399,6 +402,7 @@ export const BudgetService = {
 		// If no budgets, return empty summary
 		if (currentBudgets.length === 0) {
 			return {
+				hasBudgets: false,
 				totalBudgets: 0,
 				onTrack: 0,
 				warning: 0,
@@ -535,6 +539,7 @@ export const BudgetService = {
 		});
 
 		return {
+			hasBudgets: true,
 			totalBudgets: currentBudgets.length,
 			...buckets,
 			totalBudgeted,
@@ -739,6 +744,9 @@ export const BudgetService = {
 					new Prisma.Decimal(0)
 				)
 				.dividedBy(monthsAnalyzed);
+			const medianSpent = getDecimalMedian(
+				data.budgets.map((budget) => budget.spent)
+			);
 			const variance =
 				avgBudget.greaterThan(0)
 					? avgSpent.minus(avgBudget).dividedBy(avgBudget).times(100)
@@ -758,27 +766,25 @@ export const BudgetService = {
 					: true
 			).length;
 
-			let recommendation: 'increase' | 'decrease' | 'stable';
+			let recommendation: CategoryRecommendation['recommendation'];
 			let suggestedAmount: number | null = null;
 			let trend: string;
 
 			// Determine recommendation based on patterns
-			if (monthsOver >= 3) {
-				// Consistently over budget - suggest increase
+			if (monthsAnalyzed < MIN_MONTHS_FOR_BUDGET_RECOMMENDATION) {
+				recommendation = 'insufficient_history';
+				trend = `Building history (${monthsAnalyzed}/${MIN_MONTHS_FOR_BUDGET_RECOMMENDATION} mo)`;
+			} else if (monthsOver >= 3) {
+				// Chronic overspend is evidence, not permission to raise the target
+				// above observed behavior. Use the robust historical midpoint itself.
 				recommendation = 'increase';
-				// Suggest 10% above average spending, rounded to nearest 10
-				suggestedAmount = avgSpent
-					.times('1.1')
-					.dividedBy(10)
-					.ceil()
-					.times(10)
-					.toNumber();
+				suggestedAmount = medianSpent.toDecimalPlaces(2).toNumber();
 				trend = `Over ${monthsOver}/${monthsAnalyzed} months`;
 			} else if (monthsUnder >= 3) {
 				// Consistently under-utilizing - suggest decrease
 				recommendation = 'decrease';
-				// Suggest average spending + 20% buffer, rounded to nearest 10
-				suggestedAmount = avgSpent
+				// Use the median so one blowout month cannot set the base.
+				suggestedAmount = medianSpent
 					.times('1.2')
 					.dividedBy(10)
 					.ceil()
@@ -810,7 +816,15 @@ export const BudgetService = {
 
 		// Sort by recommendation priority (increase first, then decrease, then stable)
 		recommendations.sort((a, b) => {
-			const priority = { increase: 0, decrease: 1, stable: 2 };
+			const priority: Record<
+				CategoryRecommendation['recommendation'],
+				number
+			> = {
+				increase: 0,
+				decrease: 1,
+				stable: 2,
+				insufficient_history: 3,
+			};
 			if (priority[a.recommendation] !== priority[b.recommendation]) {
 				return priority[a.recommendation] - priority[b.recommendation];
 			}
@@ -874,9 +888,9 @@ export const BudgetService = {
 				amount: Number(budget.amount),
 				categoryId: budget.categoryId,
 				categoryName: budget.category.name,
-				recommendation: rec?.recommendation ?? 'stable',
+				recommendation: rec?.recommendation ?? 'insufficient_history',
 				suggestedAmount: rec?.suggestedAmount ?? null,
-				trend: rec?.trend ?? 'No history',
+				trend: rec?.trend ?? 'Building history (0/3 mo)',
 			};
 		});
 	},

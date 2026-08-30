@@ -7,10 +7,12 @@ import {
 	updateBudgetSchema,
 	replicateBudgetsSchema,
 	ReplicateBudgetsInput,
+	budgetAnalyticsMonthSchema,
 } from './budget.types';
 import { invalidateTags } from '@/server/actions/cache';
 import { CACHE_TAGS } from '@/server/lib/cache-tags';
 import { coerceDateFields } from '@/server/lib/action-utils';
+import { BudgetAnalyticsService } from './budget.analytics.service';
 
 /**
  * Server Action: Get current budget health summary
@@ -24,6 +26,51 @@ export async function getBudgetHealthSummaryAction(month?: Date) {
 	} catch (error) {
 		console.error('Failed to load budget health:', error);
 		return { error: 'Failed to load budget health' };
+	}
+}
+
+/**
+ * Server Action: Compare category spending for adjacent months
+ */
+export async function getCategorySpendComparisonAction(data: unknown) {
+	const userId = await getAuthenticatedUser();
+	const parsed = budgetAnalyticsMonthSchema.safeParse(coerceDateFields(data));
+	if (!parsed.success) {
+		return { error: 'Invalid month' };
+	}
+
+	try {
+		const comparison =
+			await BudgetAnalyticsService.getCategorySpendComparison(
+				userId,
+				parsed.data.month
+			);
+		return { success: true as const, data: comparison };
+	} catch (error) {
+		console.error('Failed to load category spending:', error);
+		return { error: 'Failed to load category spending' };
+	}
+}
+
+/**
+ * Server Action: Load the history-gated envelope offer for non-budgeters
+ */
+export async function getInferredEnvelopeOfferAction(data: unknown) {
+	const userId = await getAuthenticatedUser();
+	const parsed = budgetAnalyticsMonthSchema.safeParse(coerceDateFields(data));
+	if (!parsed.success) {
+		return { error: 'Invalid month' };
+	}
+
+	try {
+		const offer = await BudgetAnalyticsService.getInferredEnvelopeOffer(
+			userId,
+			parsed.data.month
+		);
+		return { success: true as const, data: offer };
+	} catch (error) {
+		console.error('Failed to load envelope history:', error);
+		return { error: 'Failed to load envelope history' };
 	}
 }
 

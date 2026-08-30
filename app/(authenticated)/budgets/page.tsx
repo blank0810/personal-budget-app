@@ -8,7 +8,12 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { serialize } from '@/lib/serialization';
 import { startOfMonth } from 'date-fns';
 import { BudgetHealthSummary } from '@/components/modules/budget/BudgetHealthSummary';
-import { getBudgetHealthSummaryAction } from '@/server/modules/budget/budget.controller';
+import { CategorySpendComparison } from '@/components/modules/budget/CategorySpendComparison';
+import {
+	getBudgetHealthSummaryAction,
+	getCategorySpendComparisonAction,
+	getInferredEnvelopeOfferAction,
+} from '@/server/modules/budget/budget.controller';
 
 export default async function BudgetsPage() {
 	const session = await auth();
@@ -24,6 +29,19 @@ export default async function BudgetsPage() {
 		CategoryService.getCategories(session.user.id, 'EXPENSE'),
 		getBudgetHealthSummaryAction(currentMonth),
 	]);
+	const noBudgetResults =
+		healthResult.success && !healthResult.data.hasBudgets
+			? await Promise.all([
+					getCategorySpendComparisonAction({ month: currentMonth }),
+					getInferredEnvelopeOfferAction({ month: currentMonth }),
+				])
+			: null;
+	const categoryComparisonResult = noBudgetResults?.[0] ?? null;
+	const envelopeOfferResult = noBudgetResults?.[1] ?? null;
+	const envelopeSuggestions =
+		envelopeOfferResult?.success && envelopeOfferResult.data.eligible
+			? envelopeOfferResult.data.suggestions
+			: [];
 
 	return (
 		<div className='container mx-auto py-6 md:py-10 space-y-8'>
@@ -48,16 +66,28 @@ export default async function BudgetsPage() {
 							<CardTitle>Set Budget</CardTitle>
 						</CardHeader>
 						<CardContent>
-							<BudgetForm categories={serialize(categories)} />
+							<BudgetForm
+								categories={serialize(categories)}
+								envelopeSuggestions={envelopeSuggestions}
+							/>
 						</CardContent>
 					</Card>
 				</div>
 
 				<div className='min-w-0 space-y-6'>
-					<BudgetViews
-						budgets={serialize(budgets)}
-						initialMonth={currentMonth}
-					/>
+					{healthResult.success &&
+					!healthResult.data.hasBudgets &&
+					categoryComparisonResult?.success ? (
+						<CategorySpendComparison
+							items={categoryComparisonResult.data}
+							month={currentMonth}
+						/>
+					) : (
+						<BudgetViews
+							budgets={serialize(budgets)}
+							initialMonth={currentMonth}
+						/>
+					)}
 				</div>
 			</div>
 		</div>

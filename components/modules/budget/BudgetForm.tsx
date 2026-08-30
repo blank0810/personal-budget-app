@@ -30,12 +30,18 @@ import { createBudgetAction } from '@/server/modules/budget/budget.controller';
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { Category } from '@prisma/client';
+import { RecentEnvelopeOffers } from './RecentEnvelopeOffers';
+import type { InferredEnvelopeSuggestion } from '@/server/modules/budget/budget.analytics.types';
 
 interface BudgetFormProps {
 	categories: Category[];
+	envelopeSuggestions?: InferredEnvelopeSuggestion[];
 }
 
-export function BudgetForm({ categories }: BudgetFormProps) {
+export function BudgetForm({
+	categories,
+	envelopeSuggestions = [],
+}: BudgetFormProps) {
 	const router = useRouter();
 	const [isPending, startTransition] = useTransition();
 	const [showCustomCategoryInput, setShowCustomCategoryInput] =
@@ -74,9 +80,27 @@ export function BudgetForm({ categories }: BudgetFormProps) {
 		});
 	}
 
+	function handleSelectSuggestedCategory(
+		categoryId: string,
+		categoryName: string
+	) {
+		form.setValue('categoryId', categoryId, { shouldValidate: true });
+		form.setValue('categoryName', '');
+		form.setValue('name', `${categoryName} Budget`, {
+			shouldValidate: true,
+		});
+		setShowCustomCategoryInput(false);
+		form.setFocus('amount');
+	}
+
 	return (
 		<Form {...form}>
 			<form onSubmit={form.handleSubmit(onSubmit)} className='space-y-4'>
+				<RecentEnvelopeOffers
+					suggestions={envelopeSuggestions}
+					onSelectCategory={handleSelectSuggestedCategory}
+				/>
+
 				{/* Budget Name - Primary identifier */}
 				<FormField
 					control={form.control}
@@ -113,6 +137,9 @@ export function BudgetForm({ categories }: BudgetFormProps) {
 									placeholder='0.00'
 									value={field.value}
 									onChange={field.onChange}
+									onBlur={field.onBlur}
+									name={field.name}
+									ref={field.ref}
 								/>
 							</FormControl>
 							<FormMessage />
