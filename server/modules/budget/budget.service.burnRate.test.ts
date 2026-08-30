@@ -33,11 +33,11 @@ describe('computeBurnMetrics', () => {
 		expect(m.burnStatus).toBe('ontrack');
 	});
 
-	it('clamps to 1 day for a future month and suppresses the verdict', () => {
+	it('keeps a future month with no spend at insufficient data', () => {
 		const m = computeBurnMetrics({
 			monthStart: new Date(2026, 9, 1),
 			monthEnd: new Date(2026, 9, 31),
-			totalSpent: 500,
+			totalSpent: 0,
 			budgetLimit: 8000,
 			today: new Date(2026, 7, 30),
 		});
@@ -46,16 +46,27 @@ describe('computeBurnMetrics', () => {
 		expect(m.burnStatus).toBe('insufficient_data');
 	});
 
-	it('suppresses the verdict in the first week of the current month', () => {
+	it('reports an actual overrun during the first week', () => {
 		const m = computeBurnMetrics({
 			monthStart: new Date(2026, 7, 1),
 			monthEnd: new Date(2026, 7, 31),
-			totalSpent: 6000,
+			totalSpent: 12000,
 			budgetLimit: 8000,
-			today: new Date(2026, 7, 2),
+			today: new Date(2026, 7, 4),
 		});
 
-		// A day-1 rent posting must not produce a confident "overpace"
+		expect(m.burnStatus).toBe('overpace');
+	});
+
+	it('still suppresses pace extrapolation early when the limit is intact', () => {
+		const m = computeBurnMetrics({
+			monthStart: new Date(2026, 7, 1),
+			monthEnd: new Date(2026, 7, 31),
+			totalSpent: 1600,
+			budgetLimit: 8000,
+			today: new Date(2026, 7, 4),
+		});
+
 		expect(m.burnStatus).toBe('insufficient_data');
 	});
 

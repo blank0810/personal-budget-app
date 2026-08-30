@@ -30,9 +30,9 @@ export interface BurnMetrics {
  * month's elapsed days grow without bound, driving `dailyBurnRate` toward zero
  * and reporting "ontrack" for an envelope that blew its limit months ago.
  *
- * The verdict is suppressed below MIN_DAYS_FOR_VERDICT because straight-line
- * pacing is not honest early in a month — a single day-1 rent posting would
- * otherwise guarantee "overpace".
+ * The pace verdict is suppressed below MIN_DAYS_FOR_VERDICT because
+ * straight-line extrapolation is not honest early in a month. A limit already
+ * reached or exceeded is factual, though, so it is reported immediately.
  */
 export function computeBurnMetrics({
 	monthStart,
@@ -59,13 +59,16 @@ export function computeBurnMetrics({
 	// pace verdict — rawElapsed <= 0 means the month is in the future.
 	const isFuture = rawElapsed <= 0;
 	const tooEarly = daysElapsed < MIN_DAYS_FOR_VERDICT && daysRemaining > 0;
+	const isOverLimit = budgetLimit > 0 && totalSpent >= budgetLimit;
 
-	const burnStatus: BurnStatus =
-		isFuture || tooEarly
-			? 'insufficient_data'
-			: dailyBurnRate > allowedDailyRate
-				? 'overpace'
-				: 'ontrack';
+	let burnStatus: BurnStatus;
+	if (isOverLimit) {
+		burnStatus = 'overpace';
+	} else if (isFuture || tooEarly) {
+		burnStatus = 'insufficient_data';
+	} else {
+		burnStatus = dailyBurnRate > allowedDailyRate ? 'overpace' : 'ontrack';
+	}
 
 	return {
 		daysElapsed,
