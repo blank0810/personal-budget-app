@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 const mocks = vi.hoisted(() => ({
 	budgetFindFirst: vi.fn(),
 	expenseFindMany: vi.fn(),
+	expenseAggregate: vi.fn(),
 }));
 
 vi.mock('@/lib/prisma', () => ({
@@ -13,6 +14,7 @@ vi.mock('@/lib/prisma', () => ({
 		},
 		expense: {
 			findMany: mocks.expenseFindMany,
+			aggregate: mocks.expenseAggregate,
 		},
 	},
 }));
@@ -26,6 +28,7 @@ import { BudgetService } from './budget.service';
 describe('BudgetService — UTC month storage', () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
+		mocks.expenseAggregate.mockResolvedValue({ _sum: { amount: null } });
 		vi.useFakeTimers();
 		vi.setSystemTime(new Date(Date.UTC(2026, 7, 16, 12, 0, 0, 0)));
 	});
@@ -48,6 +51,11 @@ describe('BudgetService — UTC month storage', () => {
 			categoryId: 'category-food',
 			userId: 'user-1',
 			category: { id: 'category-food', name: 'Food' },
+		});
+		// spent is now totalled in SQL, so the aggregate carries the figure
+		// while findMany still supplies the ledger rows.
+		mocks.expenseAggregate.mockResolvedValue({
+			_sum: { amount: new Prisma.Decimal('125.00') },
 		});
 		mocks.expenseFindMany
 			.mockResolvedValueOnce([

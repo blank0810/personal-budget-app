@@ -256,4 +256,58 @@ describe('BudgetService — coverage-aware health', () => {
 			}),
 		]);
 	});
+
+	it('reduces health-summary money as Decimal before returning numbers', async () => {
+		const currentBudgets = [
+			budget('budget-1', 'category-1', 0.1),
+			budget('budget-2', 'category-2', 0.2),
+		];
+		mocks.budgetFindMany
+			.mockResolvedValueOnce(currentBudgets)
+			.mockResolvedValueOnce([]);
+		mocks.expenseGroupBy.mockResolvedValueOnce([
+			{
+				budgetId: 'budget-1',
+				_sum: { amount: new Prisma.Decimal('0.10') },
+			},
+			{
+				budgetId: 'budget-2',
+				_sum: { amount: new Prisma.Decimal('0.20') },
+			},
+		]);
+		mocks.getCoverageRatios.mockResolvedValue([]);
+
+		const summary = await BudgetService.getBudgetHealthSummary(
+			'user-1',
+			new Date(Date.UTC(2026, 7, 16, 0, 0, 0, 0))
+		);
+
+		expect(mocks.budgetFindMany).toHaveBeenNthCalledWith(1, {
+			where: {
+				userId: 'user-1',
+				month: augustWindow,
+			},
+			include: { category: true },
+			orderBy: { amount: 'desc' },
+		});
+		expect(mocks.expenseGroupBy).toHaveBeenNthCalledWith(1, {
+			by: ['budgetId'],
+			where: {
+				userId: 'user-1',
+				budgetId: { not: null },
+				date: augustWindow,
+			},
+			_sum: { amount: true },
+		});
+		expect(mocks.getCoverageRatios).toHaveBeenCalledWith(
+			'user-1',
+			currentBudgets.map((item) => ({
+				id: item.id,
+				categoryId: item.categoryId,
+				month: item.month,
+			}))
+		);
+		expect(summary.totalBudgeted).toBe(0.3);
+		expect(summary.totalSpent).toBe(0.3);
+	});
 });

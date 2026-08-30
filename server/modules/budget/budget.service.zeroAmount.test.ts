@@ -6,6 +6,7 @@ const mocks = vi.hoisted(() => ({
 	budgetFindMany: vi.fn(),
 	expenseFindMany: vi.fn(),
 	expenseGroupBy: vi.fn(),
+	expenseAggregate: vi.fn(),
 	getCoverageRatios: vi.fn(),
 }));
 
@@ -18,6 +19,7 @@ vi.mock('@/lib/prisma', () => ({
 		expense: {
 			findMany: mocks.expenseFindMany,
 			groupBy: mocks.expenseGroupBy,
+			aggregate: mocks.expenseAggregate,
 		},
 	},
 }));
@@ -51,6 +53,7 @@ describe('BudgetService — zero-amount budgets', () => {
 
 	beforeEach(() => {
 		vi.clearAllMocks();
+		mocks.expenseAggregate.mockResolvedValue({ _sum: { amount: null } });
 		vi.useFakeTimers();
 		vi.setSystemTime(new Date(Date.UTC(2026, 7, 4, 12, 0, 0, 0)));
 		mocks.getCoverageRatios.mockResolvedValue([

@@ -153,10 +153,13 @@ export const BudgetService = {
 
 		// Calculate spent amount for each budget
 		return budgets.map((budget) => {
-			const amount = budget.amount.toNumber();
-			const spent = (
-				spentMap.get(budget.id) ?? new Prisma.Decimal(0)
-			).toNumber();
+			const amount = budget.amount;
+			const spent =
+				spentMap.get(budget.id) ?? new Prisma.Decimal(0);
+			const remaining = amount.minus(spent);
+			const percentage = amount.greaterThan(0)
+				? spent.dividedBy(amount).times(100)
+				: new Prisma.Decimal(0);
 			const budgetMonth = getUtcMonthBounds(budget.month);
 			const burn = computeBurnMetrics({
 				monthStart: budgetMonth.start,
@@ -173,9 +176,9 @@ export const BudgetService = {
 
 			return {
 				...budget,
-				spent,
-				remaining: amount - spent,
-				percentage: amount > 0 ? (spent / amount) * 100 : 0,
+				spent: spent.toNumber(),
+				remaining: remaining.toNumber(),
+				percentage: percentage.toNumber(),
 				daysElapsed: burn.daysElapsed,
 				daysRemaining: burn.daysRemaining,
 				daysInMonth: burn.daysInMonth,
@@ -271,44 +274,51 @@ export const BudgetService = {
 			budget.month
 		);
 
-		// Fetch only expenses linked to THIS specific budget (envelope isolation)
-		const expenses = await prisma.expense.findMany({
-			where: {
-				userId,
-				budgetId: budget.id,
-				date: {
-					gte: monthStart,
-					lte: monthEnd,
-				},
+		const linkedWhere = {
+			userId,
+			budgetId: budget.id,
+			date: {
+				gte: monthStart,
+				lte: monthEnd,
 			},
-			orderBy: { date: 'asc' },
-			include: { account: true },
-		});
+		};
 
-		// Fetch unlinked expenses in the same category for transparency
-		const unlinkedExpenses = await prisma.expense.findMany({
-			where: {
-				userId,
-				categoryId: budget.categoryId,
-				budgetId: null,
-				date: {
-					gte: monthStart,
-					lte: monthEnd,
+		const [expenses, unlinkedExpenses, spentAggregate] = await Promise.all([
+			// Fetch only expenses linked to THIS specific budget (envelope isolation)
+			prisma.expense.findMany({
+				where: linkedWhere,
+				orderBy: { date: 'asc' },
+				include: { account: true },
+			}),
+			// Fetch unlinked expenses in the same category for transparency
+			prisma.expense.findMany({
+				where: {
+					userId,
+					categoryId: budget.categoryId,
+					budgetId: null,
+					date: {
+						gte: monthStart,
+						lte: monthEnd,
+					},
 				},
-			},
-			orderBy: { date: 'asc' },
-			include: { account: true },
-		});
+				orderBy: { date: 'asc' },
+				include: { account: true },
+			}),
+			// Let PostgreSQL total exact NUMERIC values rather than accumulating
+			// binary floats in application code.
+			prisma.expense.aggregate({
+				where: linkedWhere,
+				_sum: { amount: true },
+			}),
+		]);
 
-		// Calculate metrics based on budget-linked expenses only
-		const totalSpent = expenses.reduce(
-			(sum, e) => sum + Number(e.amount),
-			0
-		);
-		const budgetLimit = Number(budget.amount);
-		const remaining = budgetLimit - totalSpent;
-		const percentage =
-			budgetLimit > 0 ? (totalSpent / budgetLimit) * 100 : 0;
+		const totalSpent =
+			spentAggregate._sum.amount ?? new Prisma.Decimal(0);
+		const budgetLimit = budget.amount;
+		const remaining = budgetLimit.minus(totalSpent);
+		const percentage = budgetLimit.greaterThan(0)
+			? totalSpent.dividedBy(budgetLimit).times(100)
+			: new Prisma.Decimal(0);
 
 		const burn = computeBurnMetrics({
 			monthStart,
@@ -323,13 +333,13 @@ export const BudgetService = {
 		});
 
 		// Add running total to expenses
-		let runningTotal = 0;
+		let runningTotal = new Prisma.Decimal(0);
 		const expensesWithRunning = expenses.map((expense) => {
-			runningTotal += Number(expense.amount);
+			runningTotal = runningTotal.plus(expense.amount);
 			return {
 				...expense,
-				runningTotal,
-				isOverBudget: runningTotal > budgetLimit,
+				runningTotal: runningTotal.toNumber(),
+				isOverBudget: runningTotal.greaterThan(budgetLimit),
 			};
 		});
 
@@ -338,13 +348,13 @@ export const BudgetService = {
 			expenses: expensesWithRunning,
 			unlinkedExpenses,
 			metrics: {
-				limit: budgetLimit,
-				spent: totalSpent,
-				remaining,
-				percentage,
+				limit: budgetLimit.toNumber(),
+				spent: totalSpent.toNumber(),
+				remaining: remaining.toNumber(),
+				percentage: percentage.toNumber(),
 				...burn,
 				safeToSpend,
-				isOverBudget: percentage > 100,
+				isOverBudget: percentage.greaterThan(100),
 			},
 		};
 	},
@@ -402,9 +412,15 @@ export const BudgetService = {
 		// Calculate current month metrics
 		const buckets = currentBudgets.reduce(
 			(counts, budget) => {
-				if (budget.percentage > 100) {
+				const amount = budget.amount;
+				const spent = new Prisma.Decimal(budget.spent);
+				const percentage = amount.greaterThan(0)
+					? spent.dividedBy(amount).times(100)
+					: new Prisma.Decimal(0);
+
+				if (percentage.greaterThan(100)) {
 					counts.over += 1;
-				} else if (budget.percentage >= 80) {
+				} else if (percentage.greaterThanOrEqualTo(80)) {
 					counts.warning += 1;
 				} else if (
 					budget.coverageRatio !== null &&
@@ -420,10 +436,13 @@ export const BudgetService = {
 			{ onTrack: 0, warning: 0, over: 0, incomplete: 0 }
 		);
 		const totalBudgeted = currentBudgets.reduce(
-			(sum, b) => sum + Number(b.amount),
-			0
+			(sum, budget) => sum.plus(budget.amount),
+			new Prisma.Decimal(0)
 		);
-		const totalSpent = currentBudgets.reduce((sum, b) => sum + b.spent, 0);
+		const totalSpent = currentBudgets.reduce(
+			(sum, budget) => sum.plus(budget.spent),
+			new Prisma.Decimal(0)
+		);
 
 		// Get 6 months of history for problem detection
 		const sixMonthsAgo = addUtcMonths(targetMonth, -5);
@@ -482,12 +501,20 @@ export const BudgetService = {
 			const currentBudget = currentBudgets.find(
 				(b) => b.categoryId === categoryId
 			);
+			const currentPercentage = currentBudget
+				? currentBudget.amount.greaterThan(0)
+					? new Prisma.Decimal(currentBudget.spent)
+							.dividedBy(currentBudget.amount)
+							.times(100)
+					: new Prisma.Decimal(0)
+				: null;
 			const isCurrentWarning =
-				currentBudget &&
-				currentBudget.percentage >= 80 &&
-				currentBudget.percentage <= 100;
+				currentPercentage !== null &&
+				currentPercentage.greaterThanOrEqualTo(80) &&
+				currentPercentage.lessThanOrEqualTo(100);
 			const isCurrentOver =
-				currentBudget && currentBudget.percentage > 100;
+				currentPercentage !== null &&
+				currentPercentage.greaterThan(100);
 
 			// Flag if over 3+ months historically OR current status is concerning
 			if (monthsOver >= 3) {
@@ -503,7 +530,7 @@ export const BudgetService = {
 					categoryId,
 					name: data.name,
 					status: 'over',
-					detail: `at ${currentBudget.percentage.toFixed(0)}%`,
+					detail: `at ${currentPercentage.toFixed(0)}%`,
 					monthsOver,
 				});
 			} else if (isCurrentWarning) {
@@ -511,7 +538,7 @@ export const BudgetService = {
 					categoryId,
 					name: data.name,
 					status: 'warning',
-					detail: `at ${currentBudget.percentage.toFixed(0)}%`,
+					detail: `at ${currentPercentage.toFixed(0)}%`,
 					monthsOver,
 				});
 			}
@@ -528,8 +555,8 @@ export const BudgetService = {
 			hasBudgets: true,
 			totalBudgets: currentBudgets.length,
 			...buckets,
-			totalBudgeted,
-			totalSpent,
+			totalBudgeted: totalBudgeted.toNumber(),
+			totalSpent: totalSpent.toNumber(),
 			problemCategories,
 		};
 	},

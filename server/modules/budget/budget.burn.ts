@@ -1,3 +1,4 @@
+import { Prisma } from '@prisma/client';
 import { differenceInUtcCalendarDays } from './budget.month';
 
 /** Minimum elapsed days before a pace verdict is statistically honest. */
@@ -9,8 +10,8 @@ export type BurnStatusReason = 'future_month' | 'too_early' | null;
 export interface BurnMetricsInput {
 	monthStart: Date;
 	monthEnd: Date;
-	totalSpent: number;
-	budgetLimit: number;
+	totalSpent: Prisma.Decimal.Value;
+	budgetLimit: Prisma.Decimal.Value;
 	today?: Date;
 }
 
@@ -26,8 +27,8 @@ export interface BurnMetrics {
 }
 
 export interface SafeToSpendInput {
-	budgetLimit: number;
-	totalSpent: number;
+	budgetLimit: Prisma.Decimal.Value;
+	totalSpent: Prisma.Decimal.Value;
 	daysRemaining: number;
 }
 
@@ -49,6 +50,8 @@ export function computeBurnMetrics({
 	budgetLimit,
 	today = new Date(),
 }: BurnMetricsInput): BurnMetrics {
+	const spent = new Prisma.Decimal(totalSpent);
+	const limit = new Prisma.Decimal(budgetLimit);
 	// Budget bounds are UTC calendar boundaries, so both the month length and
 	// elapsed-day count must be read in UTC as well.
 	const daysInMonth = monthEnd.getUTCDate();
@@ -57,15 +60,18 @@ export function computeBurnMetrics({
 	const daysElapsed = Math.min(daysInMonth, Math.max(1, rawElapsed));
 	const daysRemaining = Math.max(0, daysInMonth - daysElapsed);
 
-	const dailyBurnRate = totalSpent / daysElapsed;
-	const allowedDailyRate = budgetLimit > 0 ? budgetLimit / daysInMonth : 0;
+	const dailyBurnRate = spent.dividedBy(daysElapsed);
+	const allowedDailyRate = limit.greaterThan(0)
+		? limit.dividedBy(daysInMonth)
+		: new Prisma.Decimal(0);
 	const expectedPercentage = (daysElapsed / daysInMonth) * 100;
 
 	// A month that has not started yet, or has barely started, cannot support a
 	// pace verdict — rawElapsed <= 0 means the month is in the future.
 	const isFuture = rawElapsed <= 0;
 	const tooEarly = daysElapsed < MIN_DAYS_FOR_VERDICT && daysRemaining > 0;
-	const isOverLimit = budgetLimit > 0 && totalSpent >= budgetLimit;
+	const isOverLimit =
+		limit.greaterThan(0) && spent.greaterThanOrEqualTo(limit);
 
 	let burnStatus: BurnStatus;
 	let burnStatusReason: BurnStatusReason = null;
@@ -78,15 +84,17 @@ export function computeBurnMetrics({
 		burnStatus = 'insufficient_data';
 		burnStatusReason = 'too_early';
 	} else {
-		burnStatus = dailyBurnRate > allowedDailyRate ? 'overpace' : 'ontrack';
+		burnStatus = dailyBurnRate.greaterThan(allowedDailyRate)
+			? 'overpace'
+			: 'ontrack';
 	}
 
 	return {
 		daysElapsed,
 		daysRemaining,
 		daysInMonth,
-		dailyBurnRate,
-		allowedDailyRate,
+		dailyBurnRate: dailyBurnRate.toNumber(),
+		allowedDailyRate: allowedDailyRate.toNumber(),
 		expectedPercentage,
 		burnStatus,
 		burnStatusReason,
@@ -105,7 +113,9 @@ export function computeSafeToSpend({
 	totalSpent,
 	daysRemaining,
 }: SafeToSpendInput): number | null {
-	if (daysRemaining <= 0 || totalSpent >= budgetLimit) return null;
+	const spent = new Prisma.Decimal(totalSpent);
+	const limit = new Prisma.Decimal(budgetLimit);
+	if (daysRemaining <= 0 || spent.greaterThanOrEqualTo(limit)) return null;
 
-	return (budgetLimit - totalSpent) / daysRemaining;
+	return limit.minus(spent).dividedBy(daysRemaining).toNumber();
 }
