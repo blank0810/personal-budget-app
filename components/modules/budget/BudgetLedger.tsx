@@ -84,7 +84,10 @@ export function BudgetLedger({
 		(sum, expense) => sum + Number(expense.amount),
 		0
 	);
-	const trueCategoryTotal = metrics.spent + unlinkedTotal;
+	// Deliberately NOT the category total: the schema permits several envelopes
+	// per category+month, and a sibling envelope's linked spend is not counted
+	// here. Labelled to match what it actually is.
+	const envelopePlusUnlinked = metrics.spent + unlinkedTotal;
 
 	const handleExportCSV = () => {
 		const headers = [
@@ -408,10 +411,10 @@ export function BudgetLedger({
 							</div>
 							<div className='border border-amber-400 bg-amber-100/80 px-3 py-2 dark:border-amber-700 dark:bg-amber-950/60'>
 								<dt className='text-xs font-medium text-amber-900 dark:text-amber-200'>
-									True category total
+									This envelope + unlinked
 								</dt>
 								<dd className='font-mono text-base font-semibold tabular-nums text-amber-950 dark:text-amber-100'>
-									{formatCurrency(trueCategoryTotal)}
+									{formatCurrency(envelopePlusUnlinked)}
 								</dd>
 							</div>
 						</dl>
