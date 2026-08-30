@@ -83,4 +83,38 @@ describe('BudgetService.getBudgets — spent definition', () => {
 		expect(result[0].remaining).toBe(750);
 		expect(result[0].percentage).toBe(25);
 	});
+
+	it('does not date-scope the spend aggregate when no month filter is given', async () => {
+		// Regression: app/(authenticated)/budgets/page.tsx calls getBudgets with
+		// no filter to render the whole-year grid. Scoping the groupBy to the
+		// current month while returning budgets for ALL months reported
+		// spent: 0 for every historical envelope.
+		mocks.budgetFindMany.mockResolvedValue([
+			{
+				id: 'budget-past',
+				name: 'Groceries',
+				amount: new Prisma.Decimal(1000),
+				month: new Date(2026, 0, 1),
+				categoryId: 'category-1',
+				userId: 'user-1',
+				category: { id: 'category-1', name: 'Food' },
+			},
+		]);
+		mocks.expenseGroupBy.mockResolvedValue([
+			{ budgetId: 'budget-past', _sum: { amount: new Prisma.Decimal(750) } },
+		]);
+
+		const result = await BudgetService.getBudgets('user-1');
+
+		expect(mocks.expenseGroupBy).toHaveBeenCalledWith({
+			by: ['budgetId'],
+			where: {
+				userId: 'user-1',
+				budgetId: { not: null },
+				date: undefined,
+			},
+			_sum: { amount: true },
+		});
+		expect(result[0].spent).toBe(750);
+	});
 });

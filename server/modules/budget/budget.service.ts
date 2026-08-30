@@ -76,7 +76,12 @@ export const BudgetService = {
 				where: {
 					userId,
 					budgetId: { not: null },
-					date: { gte: monthStart, lte: monthEnd },
+					// Mirror the budget `where` above: an unfiltered call returns
+					// budgets across ALL months, so date-scoping the aggregate
+					// would report spent: 0 for every non-current envelope.
+					date: filters?.month
+						? { gte: monthStart, lte: monthEnd }
+						: undefined,
 				},
 				_sum: { amount: true },
 			}),
