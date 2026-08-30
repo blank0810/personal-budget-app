@@ -15,6 +15,52 @@ import { CategoryService } from '../category/category.service';
 import { startOfMonth, endOfMonth, subMonths, format, eachMonthOfInterval } from 'date-fns';
 import { computeBurnMetrics } from './budget.burn';
 
+type BudgetMonthReference = {
+	id: string;
+	month: Date;
+};
+
+async function getSpendByBudgetMonth(
+	userId: string,
+	budgets: BudgetMonthReference[],
+	windowStart: Date,
+	windowEnd: Date
+): Promise<Map<string, Prisma.Decimal>> {
+	if (budgets.length === 0) return new Map();
+
+	const spendGroups = await prisma.expense.groupBy({
+		by: ['budgetId'],
+		where: {
+			userId,
+			budgetId: { in: budgets.map((budget) => budget.id) },
+			date: { gte: windowStart, lte: windowEnd },
+			// Pair every envelope with its own month inside one query. A global
+			// window alone would still count a misdated expense linked to another
+			// month's envelope.
+			OR: budgets.map((budget) => ({
+				budgetId: budget.id,
+				date: {
+					gte: startOfMonth(budget.month),
+					lte: endOfMonth(budget.month),
+				},
+			})),
+		},
+		_sum: { amount: true },
+	});
+
+	const spendByBudget = new Map<string, Prisma.Decimal>();
+	for (const group of spendGroups) {
+		if (group.budgetId) {
+			spendByBudget.set(
+				group.budgetId,
+				group._sum.amount ?? new Prisma.Decimal(0)
+			);
+		}
+	}
+
+	return spendByBudget;
+}
+
 export const BudgetService = {
 	/**
 	 * Create a new budget (envelope-style)
@@ -306,9 +352,14 @@ export const BudgetService = {
 			},
 			include: {
 				category: true,
-				expenses: true,
 			},
 		});
+		const historicalSpend = await getSpendByBudgetMonth(
+			userId,
+			historicalBudgets,
+			sixMonthsAgo,
+			endOfMonth(targetMonth)
+		);
 
 		// Group by category and analyze patterns
 		const categoryHistory = new Map<
@@ -336,11 +387,9 @@ export const BudgetService = {
 
 		for (const [categoryId, data] of categoryHistory) {
 			const monthsOver = data.budgets.filter((b) => {
-				const spent = b.expenses.reduce(
-					(sum, e) => sum + Number(e.amount),
-					0
-				);
-				return spent > Number(b.amount);
+				const spent =
+					historicalSpend.get(b.id) ?? new Prisma.Decimal(0);
+				return spent.greaterThan(b.amount);
 			}).length;
 
 			// Check current month status for warning
@@ -432,10 +481,15 @@ export const BudgetService = {
 			},
 			include: {
 				category: true,
-				expenses: true,
 			},
 			orderBy: { month: 'asc' },
 		});
+		const spendByBudget = await getSpendByBudgetMonth(
+			userId,
+			allBudgets,
+			startDate,
+			endDate
+		);
 
 		// Group budgets by month using UTC to avoid timezone shifts
 		const budgetsByMonth = new Map<string, typeof allBudgets>();
@@ -468,42 +522,43 @@ export const BudgetService = {
 				continue;
 			}
 
-			let totalBudgeted = 0;
-			let totalSpent = 0;
+			let totalBudgeted = new Prisma.Decimal(0);
+			let totalSpent = new Prisma.Decimal(0);
 			let categoriesOnTrack = 0;
 			let categoriesOver = 0;
 
 			for (const budget of monthBudgets) {
-				const budgetAmount = Number(budget.amount);
-				const spent = budget.expenses.reduce(
-					(sum, e) => sum + Number(e.amount),
-					0
-				);
-				const percentage =
-					budgetAmount > 0 ? (spent / budgetAmount) * 100 : 0;
+				const spent =
+					spendByBudget.get(budget.id) ?? new Prisma.Decimal(0);
+				const percentage = budget.amount.greaterThan(0)
+					? spent.dividedBy(budget.amount).times(100)
+					: new Prisma.Decimal(0);
 
-				totalBudgeted += budgetAmount;
-				totalSpent += spent;
+				totalBudgeted = totalBudgeted.plus(budget.amount);
+				totalSpent = totalSpent.plus(spent);
 
-				if (percentage <= 100) {
+				if (percentage.lessThanOrEqualTo(100)) {
 					categoriesOnTrack++;
 				} else {
 					categoriesOver++;
 				}
 			}
 
-			const savings = totalBudgeted - totalSpent;
+			const savings = totalBudgeted.minus(totalSpent);
 			const adherencePercent =
-				totalBudgeted > 0
-					? Math.min(100, (totalSpent / totalBudgeted) * 100)
+				totalBudgeted.greaterThan(0)
+					? Math.min(
+							100,
+							totalSpent.dividedBy(totalBudgeted).times(100).toNumber()
+						)
 					: 0;
 
 			trends.push({
 				month: monthDate,
 				monthLabel: format(monthDate, 'MMM yyyy'),
-				totalBudgeted,
-				totalSpent,
-				savings,
+				totalBudgeted: totalBudgeted.toNumber(),
+				totalSpent: totalSpent.toNumber(),
+				savings: savings.toNumber(),
 				adherencePercent,
 				categoriesOnTrack,
 				categoriesOver,
@@ -537,9 +592,14 @@ export const BudgetService = {
 			},
 			include: {
 				category: true,
-				expenses: true,
 			},
 		});
+		const spendByBudget = await getSpendByBudgetMonth(
+			userId,
+			allBudgets,
+			startDate,
+			endDate
+		);
 
 		// Group by category
 		const categoryData = new Map<
@@ -547,28 +607,23 @@ export const BudgetService = {
 			{
 				name: string;
 				budgets: Array<{
-					amount: number;
-					spent: number;
-					percentage: number;
+					amount: Prisma.Decimal;
+					spent: Prisma.Decimal;
 				}>;
 			}
 		>();
 
 		for (const budget of allBudgets) {
-			const budgetAmount = Number(budget.amount);
-			const spent = budget.expenses.reduce(
-				(sum, e) => sum + Number(e.amount),
-				0
-			);
-			const percentage = budgetAmount > 0 ? (spent / budgetAmount) * 100 : 0;
+			const spent =
+				spendByBudget.get(budget.id) ?? new Prisma.Decimal(0);
 
 			const existing = categoryData.get(budget.categoryId);
 			if (existing) {
-				existing.budgets.push({ amount: budgetAmount, spent, percentage });
+				existing.budgets.push({ amount: budget.amount, spent });
 			} else {
 				categoryData.set(budget.categoryId, {
 					name: budget.category.name,
-					budgets: [{ amount: budgetAmount, spent, percentage }],
+					budgets: [{ amount: budget.amount, spent }],
 				});
 			}
 		}
@@ -578,15 +633,36 @@ export const BudgetService = {
 
 		for (const [categoryId, data] of categoryData) {
 			const monthsAnalyzed = data.budgets.length;
-			const avgBudget =
-				data.budgets.reduce((sum, b) => sum + b.amount, 0) / monthsAnalyzed;
-			const avgSpent =
-				data.budgets.reduce((sum, b) => sum + b.spent, 0) / monthsAnalyzed;
+			const avgBudget = data.budgets
+				.reduce(
+					(sum, budget) => sum.plus(budget.amount),
+					new Prisma.Decimal(0)
+				)
+				.dividedBy(monthsAnalyzed);
+			const avgSpent = data.budgets
+				.reduce(
+					(sum, budget) => sum.plus(budget.spent),
+					new Prisma.Decimal(0)
+				)
+				.dividedBy(monthsAnalyzed);
 			const variance =
-				avgBudget > 0 ? ((avgSpent - avgBudget) / avgBudget) * 100 : 0;
+				avgBudget.greaterThan(0)
+					? avgSpent.minus(avgBudget).dividedBy(avgBudget).times(100)
+					: new Prisma.Decimal(0);
 
-			const monthsOver = data.budgets.filter((b) => b.percentage > 100).length;
-			const monthsUnder = data.budgets.filter((b) => b.percentage < 60).length;
+			const monthsOver = data.budgets.filter(
+				(budget) =>
+					budget.amount.greaterThan(0) &&
+					budget.spent.greaterThan(budget.amount)
+			).length;
+			const monthsUnder = data.budgets.filter((budget) =>
+				budget.amount.greaterThan(0)
+					? budget.spent
+							.dividedBy(budget.amount)
+							.times(100)
+							.lessThan(60)
+					: true
+			).length;
 
 			let recommendation: 'increase' | 'decrease' | 'stable';
 			let suggestedAmount: number | null = null;
@@ -597,13 +673,23 @@ export const BudgetService = {
 				// Consistently over budget - suggest increase
 				recommendation = 'increase';
 				// Suggest 10% above average spending, rounded to nearest 10
-				suggestedAmount = Math.ceil((avgSpent * 1.1) / 10) * 10;
+				suggestedAmount = avgSpent
+					.times('1.1')
+					.dividedBy(10)
+					.ceil()
+					.times(10)
+					.toNumber();
 				trend = `Over ${monthsOver}/${monthsAnalyzed} months`;
 			} else if (monthsUnder >= 3) {
 				// Consistently under-utilizing - suggest decrease
 				recommendation = 'decrease';
 				// Suggest average spending + 20% buffer, rounded to nearest 10
-				suggestedAmount = Math.ceil((avgSpent * 1.2) / 10) * 10;
+				suggestedAmount = avgSpent
+					.times('1.2')
+					.dividedBy(10)
+					.ceil()
+					.times(10)
+					.toNumber();
 				trend = `Under ${monthsUnder}/${monthsAnalyzed} months`;
 			} else {
 				// Relatively stable
@@ -617,9 +703,9 @@ export const BudgetService = {
 				categoryId,
 				categoryName: data.name,
 				monthsAnalyzed,
-				avgBudget: Math.round(avgBudget * 100) / 100,
-				avgSpent: Math.round(avgSpent * 100) / 100,
-				variance: Math.round(variance * 10) / 10,
+				avgBudget: avgBudget.toDecimalPlaces(2).toNumber(),
+				avgSpent: avgSpent.toDecimalPlaces(2).toNumber(),
+				variance: variance.toDecimalPlaces(1).toNumber(),
 				monthsOver,
 				monthsUnder,
 				recommendation,

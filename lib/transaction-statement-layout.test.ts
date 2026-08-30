@@ -5,8 +5,8 @@ import { TransactionStatement } from '@/components/modules/reports/TransactionSt
 import type { TransactionStatement as TransactionStatementData } from '@/server/modules/report/report.types';
 
 const statement: TransactionStatementData = {
-	periodStart: new Date('2026-08-01T00:00:00.000Z'),
-	periodEnd: new Date('2026-08-31T00:00:00.000Z'),
+	periodStart: new Date(2026, 7, 1),
+	periodEnd: new Date(2026, 7, 31),
 	openingBalance: 1200,
 	closingBalance: 1350,
 	totalIncome: 300,
@@ -15,7 +15,7 @@ const statement: TransactionStatementData = {
 	transactions: [
 		{
 			id: 'transaction-1',
-			date: new Date('2026-08-15T00:00:00.000Z'),
+			date: new Date(2026, 7, 15),
 			description: 'Monthly groceries',
 			categoryId: 'category-1',
 			categoryName: 'Groceries',
