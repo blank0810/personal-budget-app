@@ -1,6 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import { computeBurnMetrics } from './budget.burn';
 
+function buildLocalMonthBoundaries(year: number, monthIndex: number) {
+	const monthStart = new Date(year, monthIndex, 1);
+	const monthEnd = new Date(monthStart);
+	monthEnd.setMonth(monthEnd.getMonth() + 1);
+	monthEnd.setDate(0);
+	monthEnd.setHours(23, 59, 59, 999);
+	return { monthStart, monthEnd };
+}
+
 describe('computeBurnMetrics', () => {
 	const monthStart = new Date(2026, 0, 1);
 	const monthEnd = new Date(2026, 0, 31);
@@ -104,5 +113,82 @@ describe('computeBurnMetrics', () => {
 		expect(m.daysInMonth).toBe(31);
 		expect(m.daysRemaining).toBe(16);
 		expect(m.expectedPercentage).toBeCloseTo((15 / 31) * 100, 5);
+	});
+
+	it('computes daysInMonth=29 for a leap February (2028)', () => {
+		const { monthStart, monthEnd } = buildLocalMonthBoundaries(2028, 1);
+		const m = computeBurnMetrics({
+			monthStart,
+			monthEnd,
+			totalSpent: 0,
+			budgetLimit: 8000,
+			today: new Date(2028, 5, 1),
+		});
+
+		expect(m.daysInMonth).toBe(29);
+		expect(m.daysElapsed).toBe(29);
+	});
+
+	it('computes daysInMonth=28 for a non-leap February (2027)', () => {
+		const { monthStart, monthEnd } = buildLocalMonthBoundaries(2027, 1);
+		const m = computeBurnMetrics({
+			monthStart,
+			monthEnd,
+			totalSpent: 0,
+			budgetLimit: 8000,
+			today: new Date(2027, 5, 1),
+		});
+
+		expect(m.daysInMonth).toBe(28);
+	});
+
+	it('computes daysInMonth=30 for April', () => {
+		const { monthStart, monthEnd } = buildLocalMonthBoundaries(2026, 3);
+		const m = computeBurnMetrics({
+			monthStart,
+			monthEnd,
+			totalSpent: 0,
+			budgetLimit: 8000,
+			today: new Date(2026, 5, 1),
+		});
+
+		expect(m.daysInMonth).toBe(30);
+	});
+
+	it('computes daysInMonth=31 for December', () => {
+		const { monthStart, monthEnd } = buildLocalMonthBoundaries(2026, 11);
+		const m = computeBurnMetrics({
+			monthStart,
+			monthEnd,
+			totalSpent: 0,
+			budgetLimit: 8000,
+			today: new Date(2027, 1, 1),
+		});
+
+		expect(m.daysInMonth).toBe(31);
+	});
+
+	it('never reports insufficient_data for a completed past month, regardless of spend', () => {
+		const { monthStart, monthEnd } = buildLocalMonthBoundaries(2026, 0);
+		const today = new Date(2026, 7, 30);
+
+		const zeroSpend = computeBurnMetrics({
+			monthStart,
+			monthEnd,
+			totalSpent: 0,
+			budgetLimit: 8000,
+			today,
+		});
+		const overSpend = computeBurnMetrics({
+			monthStart,
+			monthEnd,
+			totalSpent: 99999,
+			budgetLimit: 8000,
+			today,
+		});
+
+		expect(zeroSpend.burnStatus).not.toBe('insufficient_data');
+		expect(overSpend.burnStatus).not.toBe('insufficient_data');
+		expect(zeroSpend.daysRemaining).toBe(0);
 	});
 });

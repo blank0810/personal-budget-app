@@ -289,4 +289,62 @@ describe('BudgetService — month-scoped analytics spend', () => {
 		});
 		expect(result.problemCategories).toEqual([]);
 	});
+
+	it('includes an expense at the last millisecond of the envelope month, excludes one at the first millisecond of next month, with exact decimal precision', async () => {
+		const budget = {
+			id: 'budget-january',
+			name: 'Groceries',
+			amount: new Prisma.Decimal(1000),
+			month: new Date(2026, 0, 1),
+			categoryId: 'category-food',
+			userId: 'user-1',
+			category: { id: 'category-food', name: 'Food' },
+		};
+		mocks.budgetFindMany.mockResolvedValue([budget]);
+
+		// Twenty-one 0.07 charges land exactly at the last millisecond of
+		// January (IN); a single 700.00 charge lands at the first millisecond
+		// of February (OUT). If the boundary is wrong, totalSpent silently
+		// gains 700. If Decimal precision is lost, it drifts off 1.47.
+		const candidateExpenses = [
+			{
+				date: new Date(2026, 0, 31, 23, 59, 59, 999),
+				amount: new Prisma.Decimal('0.07').times(21),
+			},
+			{
+				date: new Date(2026, 1, 1, 0, 0, 0, 0),
+				amount: new Prisma.Decimal(700),
+			},
+		];
+
+		mocks.expenseGroupBy.mockImplementation(async (args) => {
+			const orClause = args.where.OR as Array<{
+				budgetId: string;
+				date: { gte: Date; lte: Date };
+			}>;
+			const rows: Array<{ budgetId: string; _sum: { amount: Prisma.Decimal } }> = [];
+			for (const clause of orClause) {
+				const sum = candidateExpenses
+					.filter(
+						(e) => e.date >= clause.date.gte && e.date <= clause.date.lte
+					)
+					.reduce(
+						(acc, e) => acc.plus(e.amount),
+						new Prisma.Decimal(0)
+					);
+				if (sum.greaterThan(0)) {
+					rows.push({ budgetId: clause.budgetId, _sum: { amount: sum } });
+				}
+			}
+			return rows;
+		});
+
+		const result = await BudgetService.getBudgetTrends(
+			'user-1',
+			new Date(2026, 0, 1),
+			new Date(2026, 0, 31)
+		);
+
+		expect(result[0].totalSpent).toBe(1.47);
+	});
 });
