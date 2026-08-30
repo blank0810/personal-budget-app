@@ -150,7 +150,7 @@ export const BudgetService = {
 				...budget,
 				spent,
 				remaining: amount - spent,
-				percentage: (spent / amount) * 100,
+				percentage: amount > 0 ? (spent / amount) * 100 : 0,
 			};
 		});
 	},
@@ -247,7 +247,8 @@ export const BudgetService = {
 		);
 		const budgetLimit = Number(budget.amount);
 		const remaining = budgetLimit - totalSpent;
-		const percentage = (totalSpent / budgetLimit) * 100;
+		const percentage =
+			budgetLimit > 0 ? (totalSpent / budgetLimit) * 100 : 0;
 
 		const burn = computeBurnMetrics({
 			monthStart,
