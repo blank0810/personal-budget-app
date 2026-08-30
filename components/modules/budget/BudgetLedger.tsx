@@ -27,6 +27,7 @@ import {
 	Target,
 	AlertTriangle,
 	Clock3,
+	CalendarClock,
 } from 'lucide-react';
 import Link from 'next/link';
 import { useCurrency } from '@/lib/contexts/currency-context';
@@ -50,6 +51,7 @@ interface BudgetMetrics {
 	daysInMonth: number;
 	dailyBurnRate: number;
 	allowedDailyRate: number;
+	safeToSpend: number | null;
 	isOverBudget: boolean;
 	burnStatus: 'overpace' | 'ontrack' | 'insufficient_data';
 }
@@ -161,7 +163,14 @@ export function BudgetLedger({
 			</div>
 
 			{/* Metrics Cards */}
-			<div className='grid grid-cols-2 gap-4 lg:grid-cols-4'>
+			<div
+				className={cn(
+					'grid grid-cols-2 gap-4',
+					metrics.safeToSpend === null
+						? 'lg:grid-cols-4'
+						: 'lg:grid-cols-5'
+				)}
+			>
 				<Card>
 					<CardHeader className='flex flex-row items-center justify-between pb-2'>
 						<CardTitle className='text-sm font-medium'>
@@ -175,6 +184,25 @@ export function BudgetLedger({
 						</div>
 					</CardContent>
 				</Card>
+
+				{metrics.safeToSpend !== null && (
+					<Card>
+						<CardHeader className='flex flex-row items-center justify-between pb-2'>
+							<CardTitle className='text-sm font-medium'>
+								Safe to Spend Today
+							</CardTitle>
+							<CalendarClock className='h-4 w-4 text-muted-foreground' />
+						</CardHeader>
+						<CardContent>
+							<div className='text-2xl font-bold'>
+								{formatCurrency(metrics.safeToSpend)}
+							</div>
+							<p className='text-xs text-muted-foreground'>
+								Based on {metrics.daysRemaining} days remaining
+							</p>
+						</CardContent>
+					</Card>
+				)}
 
 				<Card>
 					<CardHeader className='flex flex-row items-center justify-between pb-2'>

@@ -21,12 +21,21 @@ import {
 } from 'lucide-react';
 import { ReplicateBudgetDialog } from './ReplicateBudgetDialog';
 import { useCurrency } from '@/lib/contexts/currency-context';
+import type {
+	BurnStatus,
+	BurnStatusReason,
+} from '@/server/modules/budget/budget.burn';
 
 interface BudgetWithRelations extends Budget {
 	category: Category;
 	spent: number;
 	remaining: number;
 	percentage: number;
+	daysElapsed: number;
+	daysInMonth: number;
+	expectedPercentage: number;
+	burnStatus: BurnStatus;
+	burnStatusReason: BurnStatusReason;
 	unlinkedExpenseCount: number;
 }
 
