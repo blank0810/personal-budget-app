@@ -2,6 +2,10 @@ import prisma from '@/lib/prisma';
 import { ImportTransaction, ImportResult } from './import.types';
 import { createId } from '@paralleldrive/cuid2';
 import { NotificationService } from '@/server/modules/notification/notification.service';
+import {
+	getUtcCategoryMonthKey,
+	getUtcMonthBounds,
+} from '@/server/modules/budget/budget.month';
 
 export const ImportService = {
 	/**
@@ -27,6 +31,52 @@ export const ImportService = {
 		const expenses = transactions.filter((t) => t.type === 'EXPENSE');
 
 		await prisma.$transaction(async (tx) => {
+			const budgetIdsByCategoryMonth = new Map<string, string[]>();
+			if (expenses.length > 0) {
+				const categoryMonths = new Map<
+					string,
+					{ categoryId: string; date: Date }
+				>();
+				for (const expense of expenses) {
+					const key = getUtcCategoryMonthKey(
+						expense.categoryId,
+						expense.date
+					);
+					if (!categoryMonths.has(key)) {
+						categoryMonths.set(key, {
+							categoryId: expense.categoryId,
+							date: expense.date,
+						});
+					}
+				}
+
+				const matchingBudgets = await tx.budget.findMany({
+					where: {
+						userId,
+						OR: Array.from(categoryMonths.values()).map(
+							({ categoryId, date }) => {
+								const { start, end } = getUtcMonthBounds(date);
+								return {
+									categoryId,
+									month: { gte: start, lte: end },
+								};
+							}
+						),
+					},
+					select: { id: true, categoryId: true, month: true },
+				});
+
+				for (const budget of matchingBudgets) {
+					const key = getUtcCategoryMonthKey(
+						budget.categoryId,
+						budget.month
+					);
+					const ids = budgetIdsByCategoryMonth.get(key) ?? [];
+					ids.push(budget.id);
+					budgetIdsByCategoryMonth.set(key, ids);
+				}
+			}
+
 			// Create income records
 			if (incomes.length > 0) {
 				await tx.income.createMany({
@@ -46,16 +96,26 @@ export const ImportService = {
 			// Create expense records
 			if (expenses.length > 0) {
 				await tx.expense.createMany({
-					data: expenses.map((t) => ({
-						amount: t.amount,
-						description: t.description,
-						date: t.date,
-						categoryId: t.categoryId,
-						accountId: t.accountId,
-						userId,
-						source: 'IMPORT' as const,
-						importBatchId,
-					})),
+					data: expenses.map((t) => {
+						const matchingBudgetIds =
+							budgetIdsByCategoryMonth.get(
+								getUtcCategoryMonthKey(t.categoryId, t.date)
+							) ?? [];
+						return {
+							amount: t.amount,
+							description: t.description,
+							date: t.date,
+							categoryId: t.categoryId,
+							accountId: t.accountId,
+							budgetId:
+								matchingBudgetIds.length === 1
+									? matchingBudgetIds[0]
+									: null,
+							userId,
+							source: 'IMPORT' as const,
+							importBatchId,
+						};
+					}),
 				});
 			}
 

@@ -32,6 +32,15 @@ export const budgetAnalyticsMonthSchema = z.object({
 	month: z.date(),
 });
 
+export const advancedBudgetAnalyticsSchema = z.object({
+	month: z.date(),
+	trailingMonths: z.number().int().min(1).max(24).default(6),
+});
+
+export type AdvancedBudgetAnalyticsInput = z.infer<
+	typeof advancedBudgetAnalyticsSchema
+>;
+
 export const budgetMonthRouteParamSchema = z
 	.string()
 	.regex(/^[1-9]\d{3}-(0[1-9]|1[0-2])$/)
