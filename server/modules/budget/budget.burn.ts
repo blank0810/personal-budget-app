@@ -41,7 +41,10 @@ export function computeBurnMetrics({
 	budgetLimit,
 	today = new Date(),
 }: BurnMetricsInput): BurnMetrics {
-	const daysInMonth = monthEnd.getUTCDate();
+	// `monthStart`/`monthEnd` are built with local-time setters by the callers,
+	// so they must be read with local getters. Reading them as UTC collapses
+	// `daysInMonth` to 1 for any negative-offset timezone.
+	const daysInMonth = monthEnd.getDate();
 
 	const rawElapsed =
 		Math.floor((today.getTime() - monthStart.getTime()) / MS_PER_DAY) + 1;
