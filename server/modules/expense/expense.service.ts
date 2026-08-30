@@ -9,7 +9,7 @@ import { CategoryService } from '../category/category.service';
 import { NotificationService } from '@/server/modules/notification/notification.service';
 import { UserService } from '@/server/modules/user/user.service';
 import { Prisma } from '@prisma/client';
-import { endOfMonth, startOfMonth } from 'date-fns';
+import { getUtcMonthBounds } from '../budget/budget.month';
 
 const budgetAlertSelect = {
 	id: true,
@@ -37,13 +37,14 @@ export const ExpenseService = {
 				select: budgetAlertSelect,
 			});
 		} else if (data.categoryId) {
+			const { start, end } = getUtcMonthBounds(data.date);
 			const matchingBudgets = await prisma.budget.findMany({
 				where: {
 					userId,
 					categoryId: data.categoryId,
 					month: {
-						gte: startOfMonth(data.date),
-						lte: endOfMonth(data.date),
+						gte: start,
+						lte: end,
 					},
 				},
 				select: budgetAlertSelect,
@@ -60,13 +61,14 @@ export const ExpenseService = {
 		// envelope's own month so the alert uses the same spent definition.
 		let prevSpent = new Prisma.Decimal(0);
 		if (linkedBudget) {
+			const { start, end } = getUtcMonthBounds(linkedBudget.month);
 			const agg = await prisma.expense.aggregate({
 				where: {
 					budgetId: linkedBudget.id,
 					userId,
 					date: {
-						gte: startOfMonth(linkedBudget.month),
-						lte: endOfMonth(linkedBudget.month),
+						gte: start,
+						lte: end,
 					},
 				},
 				_sum: { amount: true },
@@ -315,58 +317,115 @@ export const ExpenseService = {
 	 * Handles balance adjustments if amount or account changes
 	 */
 	async updateExpense(userId: string, data: UpdateExpenseInput) {
-		const { id, ...updateData } = data;
-		const newBudgetId = updateData.budgetId;
+		const { id, ...inputUpdateData } = data;
+		const updateData: Omit<UpdateExpenseInput, 'id' | 'budgetId'> & {
+			budgetId?: string | null;
+		} = { ...inputUpdateData };
+		const oldExpense = await prisma.expense.findUniqueOrThrow({
+			where: { id, userId },
+		});
 
-		// If the updated expense is linked to a budget, capture previous spend
-		let prevSpent = 0;
-		let oldExpenseAmount = 0;
-		if (newBudgetId) {
-			const oldExpense = await prisma.expense.findUnique({
-				where: { id, userId },
-				select: { amount: true, budgetId: true },
+		const categoryChanged =
+			inputUpdateData.categoryId !== undefined &&
+			inputUpdateData.categoryId !== oldExpense.categoryId;
+		const dateChanged =
+			inputUpdateData.date !== undefined &&
+			inputUpdateData.date.getTime() !== oldExpense.date.getTime();
+		const hasExplicitBudget = inputUpdateData.budgetId !== undefined;
+
+		let newBudgetId: string | null = oldExpense.budgetId;
+		let linkedBudget: {
+			id: string;
+			name: string;
+			amount: Prisma.Decimal;
+			month: Date;
+		} | null = null;
+
+		if (hasExplicitBudget) {
+			newBudgetId = inputUpdateData.budgetId ?? null;
+			if (newBudgetId) {
+				linkedBudget = await prisma.budget.findUnique({
+					where: { id: newBudgetId, userId },
+					select: budgetAlertSelect,
+				});
+			}
+		} else if (categoryChanged || dateChanged) {
+			const nextCategoryId =
+				inputUpdateData.categoryId ?? oldExpense.categoryId;
+			const nextDate = inputUpdateData.date ?? oldExpense.date;
+			const { start, end } = getUtcMonthBounds(nextDate);
+			const matchingBudgets = await prisma.budget.findMany({
+				where: {
+					userId,
+					categoryId: nextCategoryId,
+					month: { gte: start, lte: end },
+				},
+				select: budgetAlertSelect,
+				take: 2,
 			});
-			oldExpenseAmount = oldExpense?.amount.toNumber() ?? 0;
 
+			linkedBudget =
+				matchingBudgets.length === 1 ? matchingBudgets[0] : null;
+			newBudgetId = linkedBudget?.id ?? null;
+			updateData.budgetId = newBudgetId;
+		}
+
+		const nextAmount =
+			inputUpdateData.amount !== undefined
+				? new Prisma.Decimal(inputUpdateData.amount)
+				: oldExpense.amount;
+		const amountChanged = !nextAmount.equals(oldExpense.amount);
+		const budgetChanged = newBudgetId !== oldExpense.budgetId;
+		const affectsLinkedSpend = amountChanged || budgetChanged || dateChanged;
+
+		if (!linkedBudget && newBudgetId && affectsLinkedSpend) {
+			linkedBudget = await prisma.budget.findUnique({
+				where: { id: newBudgetId, userId },
+				select: budgetAlertSelect,
+			});
+		}
+
+		let prevSpent = new Prisma.Decimal(0);
+		let linkedMonthBounds: ReturnType<typeof getUtcMonthBounds> | null = null;
+		if (linkedBudget && affectsLinkedSpend) {
+			linkedMonthBounds = getUtcMonthBounds(linkedBudget.month);
 			const agg = await prisma.expense.aggregate({
-				where: { budgetId: newBudgetId, userId },
+				where: {
+					budgetId: linkedBudget.id,
+					userId,
+					date: {
+						gte: linkedMonthBounds.start,
+						lte: linkedMonthBounds.end,
+					},
+				},
 				_sum: { amount: true },
 			});
-			const totalCurrentSpent = agg._sum.amount?.toNumber() ?? 0;
+			prevSpent = agg._sum.amount ?? new Prisma.Decimal(0);
 
-			// If same budget, remove old amount to get the "before" state
-			if (oldExpense?.budgetId === newBudgetId) {
-				prevSpent = totalCurrentSpent - oldExpenseAmount;
-			} else {
-				prevSpent = totalCurrentSpent;
+			const oldExpenseWasIncluded =
+				oldExpense.budgetId === linkedBudget.id &&
+				oldExpense.date.getTime() >= linkedMonthBounds.start.getTime() &&
+				oldExpense.date.getTime() <= linkedMonthBounds.end.getTime();
+			if (oldExpenseWasIncluded) {
+				prevSpent = prevSpent.minus(oldExpense.amount);
 			}
 		}
 
 		const updatedExpense = await prisma.$transaction(async (tx) => {
-			// 1. Get the old expense
-			const oldExpense = await tx.expense.findUniqueOrThrow({
-				where: { id, userId },
-			});
-
-			// 2. Update the expense
+			// 1. Update the expense
 			const result = await tx.expense.update({
 				where: { id, userId },
 				data: updateData,
 			});
 
-			// 3. Handle Balance Updates
+			// 2. Handle Balance Updates
 			// Case A: Account didn't change, but amount might have
 			if (
 				!updateData.accountId ||
 				updateData.accountId === oldExpense.accountId
 			) {
-				if (
-					oldExpense.accountId &&
-					updateData.amount &&
-					updateData.amount !== oldExpense.amount.toNumber()
-				) {
-					const difference =
-						updateData.amount - oldExpense.amount.toNumber();
+				if (oldExpense.accountId && amountChanged) {
+					const difference = nextAmount.minus(oldExpense.amount);
 
 					// Check if liability account
 					const account = await tx.account.findUnique({
@@ -418,8 +477,8 @@ export const ExpenseService = {
 					where: { id: updateData.accountId, userId },
 					data: {
 						balance: newAccount?.isLiability
-							? { increment: updateData.amount ?? oldExpense.amount } // Liability: expense = add debt
-							: { decrement: updateData.amount ?? oldExpense.amount }, // Asset: expense = subtract
+							? { increment: nextAmount } // Liability: expense = add debt
+							: { decrement: nextAmount }, // Asset: expense = subtract
 					},
 				});
 			}
@@ -428,25 +487,34 @@ export const ExpenseService = {
 		});
 
 		// Fire-and-forget budget alert (after transaction commits)
-		if (newBudgetId) {
+		if (linkedBudget && linkedMonthBounds && affectsLinkedSpend) {
 			try {
-				const budget = await prisma.budget.findUnique({
-					where: { id: newBudgetId },
-				});
-				if (budget) {
-					const budgetAmount = budget.amount.toNumber();
-					const newSpent = prevSpent + (data.amount ?? oldExpenseAmount);
-					const prevPct = budgetAmount > 0 ? (prevSpent / budgetAmount) * 100 : 0;
-					const newPct = budgetAmount > 0 ? (newSpent / budgetAmount) * 100 : 0;
+				const nextDate = inputUpdateData.date ?? oldExpense.date;
+				const updatedExpenseIsIncluded =
+					newBudgetId === linkedBudget.id &&
+					nextDate.getTime() >= linkedMonthBounds.start.getTime() &&
+					nextDate.getTime() <= linkedMonthBounds.end.getTime();
+				const newSpent = updatedExpenseIsIncluded
+					? prevSpent.plus(nextAmount)
+					: prevSpent;
+				const prevPct = linkedBudget.amount.greaterThan(0)
+					? prevSpent.dividedBy(linkedBudget.amount).times(100)
+					: new Prisma.Decimal(0);
+				const newPct = linkedBudget.amount.greaterThan(0)
+					? newSpent.dividedBy(linkedBudget.amount).times(100)
+					: new Prisma.Decimal(0);
 
-					NotificationService.sendBudgetAlert(
-						userId,
-						{ id: budget.id, name: budget.name, amount: budgetAmount },
-						newSpent,
-						prevPct,
-						newPct
-					).catch(() => {});
-				}
+				NotificationService.sendBudgetAlert(
+					userId,
+					{
+						id: linkedBudget.id,
+						name: linkedBudget.name,
+						amount: linkedBudget.amount.toNumber(),
+					},
+					newSpent.toNumber(),
+					prevPct.toNumber(),
+					newPct.toNumber()
+				).catch(() => {});
 			} catch {
 				// Notification failure must never fail the main operation
 			}

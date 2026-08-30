@@ -135,7 +135,7 @@ describe('ExpenseService.createExpense — single-envelope auto-link', () => {
 		const input = { ...BASE, amount: 0.2 };
 		const augustEnvelope = envelope(
 			'budget-august',
-			new Date(2026, 7, 1),
+			new Date(Date.UTC(2026, 7, 1)),
 			'1'
 		);
 		mocks.budgetFindMany.mockResolvedValue([augustEnvelope]);
@@ -150,8 +150,8 @@ describe('ExpenseService.createExpense — single-envelope auto-link', () => {
 				userId: 'user-1',
 				categoryId: 'category-food',
 				month: {
-					gte: new Date(2026, 7, 1),
-					lte: new Date(2026, 7, 31, 23, 59, 59, 999),
+					gte: new Date(Date.UTC(2026, 7, 1)),
+					lte: new Date(Date.UTC(2026, 7, 31, 23, 59, 59, 999)),
 				},
 			},
 			select: budgetSelect,
@@ -162,8 +162,8 @@ describe('ExpenseService.createExpense — single-envelope auto-link', () => {
 				budgetId: 'budget-august',
 				userId: 'user-1',
 				date: {
-					gte: new Date(2026, 7, 1),
-					lte: new Date(2026, 7, 31, 23, 59, 59, 999),
+					gte: new Date(Date.UTC(2026, 7, 1)),
+					lte: new Date(Date.UTC(2026, 7, 31, 23, 59, 59, 999)),
 				},
 			},
 			_sum: { amount: true },
@@ -187,8 +187,8 @@ describe('ExpenseService.createExpense — single-envelope auto-link', () => {
 
 	it('leaves the expense unlinked when two envelopes match', async () => {
 		mocks.budgetFindMany.mockResolvedValue([
-			envelope('budget-1', new Date(2026, 7, 1)),
-			envelope('budget-2', new Date(2026, 7, 1)),
+			envelope('budget-1', new Date(Date.UTC(2026, 7, 1))),
+			envelope('budget-2', new Date(Date.UTC(2026, 7, 1))),
 		]);
 
 		await ExpenseService.createExpense('user-1', BASE);
@@ -213,7 +213,7 @@ describe('ExpenseService.createExpense — single-envelope auto-link', () => {
 		const input = { ...BASE, budgetId: 'budget-explicit' };
 		const julyEnvelope = envelope(
 			'budget-explicit',
-			new Date(2026, 6, 1)
+			new Date(Date.UTC(2026, 6, 1))
 		);
 		mocks.budgetFindUnique.mockResolvedValue(julyEnvelope);
 
@@ -229,8 +229,8 @@ describe('ExpenseService.createExpense — single-envelope auto-link', () => {
 				budgetId: 'budget-explicit',
 				userId: 'user-1',
 				date: {
-					gte: new Date(2026, 6, 1),
-					lte: new Date(2026, 6, 31, 23, 59, 59, 999),
+					gte: new Date(Date.UTC(2026, 6, 1)),
+					lte: new Date(Date.UTC(2026, 6, 31, 23, 59, 59, 999)),
 				},
 			},
 			_sum: { amount: true },
@@ -257,8 +257,8 @@ describe('ExpenseService.createExpense — single-envelope auto-link', () => {
 				userId: 'user-1',
 				categoryId: 'category-food',
 				month: {
-					gte: new Date(2026, 8, 1),
-					lte: new Date(2026, 8, 30, 23, 59, 59, 999),
+					gte: new Date(Date.UTC(2026, 8, 1)),
+					lte: new Date(Date.UTC(2026, 8, 30, 23, 59, 59, 999)),
 				},
 			},
 			select: budgetSelect,
@@ -279,7 +279,7 @@ describe('ExpenseService.createExpense — single-envelope auto-link', () => {
 			date: new Date(2026, 0, 12, 12),
 		};
 		mocks.budgetFindMany.mockResolvedValue([
-			envelope('budget-january', new Date(2026, 0, 1)),
+			envelope('budget-january', new Date(Date.UTC(2026, 0, 1))),
 		]);
 
 		await ExpenseService.createExpense('user-1', januaryInput);
@@ -289,8 +289,8 @@ describe('ExpenseService.createExpense — single-envelope auto-link', () => {
 				userId: 'user-1',
 				categoryId: 'category-food',
 				month: {
-					gte: new Date(2026, 0, 1),
-					lte: new Date(2026, 0, 31, 23, 59, 59, 999),
+					gte: new Date(Date.UTC(2026, 0, 1)),
+					lte: new Date(Date.UTC(2026, 0, 31, 23, 59, 59, 999)),
 				},
 			},
 			select: budgetSelect,
