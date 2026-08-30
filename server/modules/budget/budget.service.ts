@@ -1,4 +1,5 @@
 import prisma from '@/lib/prisma';
+import { Prisma } from '@prisma/client';
 import {
 	CreateBudgetInput,
 	GetBudgetsInput,
@@ -51,36 +52,54 @@ export const BudgetService = {
 	 * Includes category and calculated spent amount
 	 */
 	async getBudgets(userId: string, filters?: GetBudgetsInput) {
-		const budgets = await prisma.budget.findMany({
-			where: {
-				userId,
-				month: filters?.month
-					? {
-							gte: startOfMonth(filters.month),
-							lte: endOfMonth(filters.month),
-						}
-					: undefined,
-			},
-			include: {
-				category: true,
-				expenses: true, // To calculate spent amount
-			},
-			orderBy: {
-				amount: 'desc',
-			},
-		});
+		const month = filters?.month ?? new Date();
+		const monthStart = startOfMonth(month);
+		const monthEnd = endOfMonth(month);
+		const where = {
+			userId,
+			month: filters?.month
+				? {
+						gte: monthStart,
+						lte: monthEnd,
+					}
+				: undefined,
+		};
+
+		const [budgets, spentByBudget] = await Promise.all([
+			prisma.budget.findMany({
+				where,
+				include: { category: true },
+				orderBy: { amount: 'desc' },
+			}),
+			prisma.expense.groupBy({
+				by: ['budgetId'],
+				where: {
+					userId,
+					budgetId: { not: null },
+					date: { gte: monthStart, lte: monthEnd },
+				},
+				_sum: { amount: true },
+			}),
+		]);
+
+		const spentMap = new Map(
+			spentByBudget.map((group) => [
+				group.budgetId as string,
+				group._sum.amount ?? new Prisma.Decimal(0),
+			])
+		);
 
 		// Calculate spent amount for each budget
 		return budgets.map((budget) => {
-			const spent = budget.expenses.reduce(
-				(sum, expense) => sum + expense.amount.toNumber(),
-				0
-			);
+			const amount = budget.amount.toNumber();
+			const spent = (
+				spentMap.get(budget.id) ?? new Prisma.Decimal(0)
+			).toNumber();
 			return {
 				...budget,
 				spent,
-				remaining: budget.amount.toNumber() - spent,
-				percentage: (spent / budget.amount.toNumber()) * 100,
+				remaining: amount - spent,
+				percentage: (spent / amount) * 100,
 			};
 		});
 	},

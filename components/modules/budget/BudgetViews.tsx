@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import { Budget, Category, Expense } from '@prisma/client';
+import { Budget, Category } from '@prisma/client';
 import {
 	format,
 	isSameMonth,
@@ -24,7 +24,6 @@ import { useCurrency } from '@/lib/contexts/currency-context';
 
 interface BudgetWithRelations extends Budget {
 	category: Category;
-	expenses: Expense[];
 	spent: number;
 	remaining: number;
 	percentage: number;

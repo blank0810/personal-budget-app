@@ -342,6 +342,7 @@ model Expense {
   feeForTransfer Transfer? @relation("TransferFee")
 
   @@index([userId, date])
+  @@index([userId, budgetId, date])
   @@index([budgetId])
   @@index([importBatchId])
   @@map("expenses")
