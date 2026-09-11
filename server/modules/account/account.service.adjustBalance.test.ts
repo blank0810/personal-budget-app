@@ -274,6 +274,31 @@ describe('AccountService.adjustBalance', () => {
 		expect(expensePayload()).not.toHaveProperty('categoryName');
 	});
 
+	// The reported bug: reducing an account balance posts an expense, and
+	// choosing a category that happens to own an envelope was enough for the
+	// spend to land in that envelope. Picking a category is not picking a
+	// budget, so the adjustment must carry no link and must not even look one up.
+	it('does not link an envelope that merely shares the chosen category', async () => {
+		mocks.state.category = {
+			id: 'expense-category',
+			type: 'EXPENSE',
+		};
+		mocks.state.budget = {
+			id: 'budget-same-category',
+			categoryId: 'expense-category',
+			month: new Date('2026-08-01T00:00:00.000Z'),
+		};
+
+		await AccountService.adjustBalance('user-1', {
+			accountId: 'account-1',
+			newBalance: 500,
+			categoryId: 'expense-category',
+		});
+
+		expect(expensePayload()).not.toHaveProperty('budgetId');
+		expect(mocks.budgetFindUnique).not.toHaveBeenCalled();
+	});
+
 	it('rejects a category whose type does not match the adjustment direction', async () => {
 		mocks.state.category = {
 			id: 'income-category',
