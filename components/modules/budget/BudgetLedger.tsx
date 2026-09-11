@@ -10,11 +10,6 @@ import {
 } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import {
-	Alert,
-	AlertDescription,
-	AlertTitle,
-} from '@/components/ui/alert';
 import { Progress } from '@/components/ui/progress';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { format } from 'date-fns';
@@ -86,10 +81,6 @@ export function BudgetLedger({
 		(sum, expense) => sum + Number(expense.amount),
 		0
 	);
-	// Deliberately NOT the category total: the schema permits several envelopes
-	// per category+month, and a sibling envelope's linked spend is not counted
-	// here. Labelled to match what it actually is.
-	const envelopePlusUnlinked = metrics.spent + unlinkedTotal;
 
 	const handleExportCSV = () => {
 		const headers = [
@@ -411,88 +402,69 @@ export function BudgetLedger({
 				</Table>
 			</div>
 
-			{/* Unlinked Expenses in Same Category */}
+			{/* Jakob's Law and Nielsen's "match between system and the real world":
+				warning colors and "incomplete" signal an error for a deliberate choice,
+				teaching users to distrust a correct total. */}
 			{unlinkedExpenses.length > 0 && (
-				<Alert className='border-amber-400/70 bg-amber-50/80 text-amber-950 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-100 [&>svg]:text-amber-700 dark:[&>svg]:text-amber-300'>
-					<AlertTriangle className='h-4 w-4' />
-					<AlertTitle className='text-amber-900 dark:text-amber-100'>
-						Spent total is incomplete
-					</AlertTitle>
-					<AlertDescription className='text-amber-900 dark:text-amber-200'>
-						<Badge
-							variant='outline'
-							className='mb-2 border-amber-400 bg-amber-100 text-amber-900 dark:border-amber-700 dark:bg-amber-950/60 dark:text-amber-200'
+				<section
+					className='rounded-md border bg-card'
+					aria-labelledby='other-category-spending-title'
+				>
+					<div className='space-y-1 p-4'>
+						<h2
+							id='other-category-spending-title'
+							className='text-sm font-medium'
 						>
-							{unlinkedExpenses.length} unlinked expense
-							{unlinkedExpenses.length !== 1 ? 's' : ''}
-						</Badge>
-						<p>
-							These {budget.category.name} expenses are not linked to an
-							envelope, so the official spent figure above is only a floor.
+							Other {budget.category.name} spending this month
+						</h2>
+						<p className='text-sm text-muted-foreground'>
+							Not counted in this envelope.
 						</p>
-						<dl className='mt-3 grid gap-2 sm:grid-cols-2'>
-							<div className='border border-amber-300/80 bg-background/80 px-3 py-2 dark:border-amber-800'>
-								<dt className='text-xs font-medium text-amber-800 dark:text-amber-300'>
-									Official spent
-								</dt>
-								<dd className='font-mono text-base font-semibold tabular-nums text-foreground'>
-									{formatCurrency(metrics.spent)}
-								</dd>
-							</div>
-							<div className='border border-amber-400 bg-amber-100/80 px-3 py-2 dark:border-amber-700 dark:bg-amber-950/60'>
-								<dt className='text-xs font-medium text-amber-900 dark:text-amber-200'>
-									This envelope + unlinked
-								</dt>
-								<dd className='font-mono text-base font-semibold tabular-nums text-amber-950 dark:text-amber-100'>
-									{formatCurrency(envelopePlusUnlinked)}
-								</dd>
-							</div>
-						</dl>
-						<div className='mt-4 overflow-x-auto rounded-md border border-amber-300 bg-background/90 text-foreground dark:border-amber-800'>
-							<Table>
-								<TableHeader>
-									<TableRow>
-										<TableHead className='w-[120px]'>Date</TableHead>
-										<TableHead>Description</TableHead>
-										<TableHead>Account</TableHead>
-										<TableHead className='text-right'>Amount</TableHead>
-									</TableRow>
-								</TableHeader>
-								<TableBody>
-									{unlinkedExpenses.map((expense) => (
-										<TableRow key={expense.id}>
-											<TableCell>
-												{format(new Date(expense.date), 'MMM d, yyyy')}
-											</TableCell>
-											<TableCell>
-												{expense.description || '-'}
-											</TableCell>
-											<TableCell>
-												<Badge variant='outline' className='text-xs'>
-													{expense.account?.name || '-'}
-												</Badge>
-											</TableCell>
-											<TableCell className='text-right font-medium'>
-												-{formatCurrency(Number(expense.amount))}
-											</TableCell>
-										</TableRow>
-									))}
-									<TableRow className='bg-amber-100/60 dark:bg-amber-950/50'>
-										<TableCell
-											colSpan={3}
-											className='text-right text-xs font-semibold'
-										>
-											Unlinked total
+					</div>
+					<div className='overflow-x-auto border-t'>
+						<Table>
+							<TableHeader>
+								<TableRow>
+									<TableHead className='w-[120px]'>Date</TableHead>
+									<TableHead>Description</TableHead>
+									<TableHead>Account</TableHead>
+									<TableHead className='text-right'>Amount</TableHead>
+								</TableRow>
+							</TableHeader>
+							<TableBody>
+								{unlinkedExpenses.map((expense) => (
+									<TableRow key={expense.id}>
+										<TableCell>
+											{format(new Date(expense.date), 'MMM d, yyyy')}
 										</TableCell>
-										<TableCell className='text-right font-mono text-sm font-bold tabular-nums'>
-											-{formatCurrency(unlinkedTotal)}
+										<TableCell>
+											{expense.description || '-'}
+										</TableCell>
+										<TableCell>
+											<Badge variant='outline' className='text-xs'>
+												{expense.account?.name || '-'}
+											</Badge>
+										</TableCell>
+										<TableCell className='text-right font-medium'>
+											-{formatCurrency(Number(expense.amount))}
 										</TableCell>
 									</TableRow>
-								</TableBody>
-							</Table>
-						</div>
-					</AlertDescription>
-				</Alert>
+								))}
+								<TableRow className='bg-muted/50'>
+									<TableCell
+										colSpan={3}
+										className='text-right text-xs font-semibold'
+									>
+										Total not in this envelope
+									</TableCell>
+									<TableCell className='text-right font-mono text-sm font-bold tabular-nums'>
+										-{formatCurrency(unlinkedTotal)}
+									</TableCell>
+								</TableRow>
+							</TableBody>
+						</Table>
+					</div>
+				</section>
 			)}
 		</div>
 	);

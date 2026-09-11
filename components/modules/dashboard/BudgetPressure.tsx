@@ -5,7 +5,6 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { useCurrency } from '@/lib/contexts/currency-context';
 import type { DashboardOverview } from '@/server/modules/dashboard/dashboard.types';
-import { AlertTriangle } from 'lucide-react';
 import { PaceBadge } from '@/components/modules/budget/PaceBadge';
 
 export function BudgetPressure({
@@ -73,12 +72,8 @@ export function BudgetPressure({
 							<div className='flex min-w-0 flex-wrap items-center gap-2'>
 								<span className='font-medium'>{budget.name}</span>
 								{budget.unlinkedExpenseCount > 0 && (
-									<Badge
-										variant='outline'
-										className='gap-1 border-amber-300 bg-amber-50 text-amber-800 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-300'
-									>
-										<AlertTriangle className='h-3 w-3' />
-										{budget.unlinkedExpenseCount} unlinked
+									<Badge variant='outline'>
+										{budget.unlinkedExpenseCount} not in envelope
 									</Badge>
 								)}
 							</div>

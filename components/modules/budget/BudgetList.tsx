@@ -6,7 +6,6 @@ import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { format } from 'date-fns';
 import {
-	AlertTriangle,
 	Copy,
 	FileText,
 	PlusCircle,
@@ -81,12 +80,8 @@ export function BudgetList({ budgets, availableMonths = [] }: BudgetListProps) {
 						{budget.category.name}
 					</Badge>
 					{budget.unlinkedExpenseCount > 0 && (
-						<Badge
-							variant='outline'
-							className='gap-1 border-amber-300 bg-amber-50 text-amber-800 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-300'
-						>
-							<AlertTriangle className='h-3 w-3' />
-							{budget.unlinkedExpenseCount} unlinked
+						<Badge variant='outline'>
+							{budget.unlinkedExpenseCount} not in envelope
 						</Badge>
 					)}
 				</div>
