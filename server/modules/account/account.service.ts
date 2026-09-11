@@ -8,7 +8,8 @@ import {
 import { Prisma } from '@prisma/client';
 import { IncomeService } from '../income/income.service';
 import { ExpenseService } from '../expense/expense.service';
-import { startOfMonth } from 'date-fns';
+import { BudgetLinkError } from '../expense/expense.types';
+import { getUtcMonthBounds } from '../budget/budget.month';
 
 export const AccountService = {
 	/**
@@ -335,11 +336,9 @@ export const AccountService = {
 				throw new Error('Budget not found');
 			}
 
-			if (
-				startOfMonth(budget.month).getTime() !==
-				startOfMonth(date).getTime()
-			) {
-				throw new Error('Budget is not for the current month');
+			const { start, end } = getUtcMonthBounds(budget.month);
+			if (date.getTime() < start.getTime() || date.getTime() > end.getTime()) {
+				throw new BudgetLinkError('Budget is not for the current month');
 			}
 
 			budgetId = budget.id;

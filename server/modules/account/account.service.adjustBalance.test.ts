@@ -1,5 +1,6 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { Prisma } from '@prisma/client';
+import { BudgetLinkError } from '../expense/expense.types';
 
 const D = Prisma.Decimal;
 
@@ -83,7 +84,7 @@ type ServicePayload = Record<string, unknown>;
 
 function currentMonth(): Date {
 	const now = new Date();
-	return new Date(now.getFullYear(), now.getMonth(), 1);
+	return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
 }
 
 function incomePayload(callIndex = 0): ServicePayload {
@@ -97,6 +98,8 @@ function expensePayload(callIndex = 0): ServicePayload {
 describe('AccountService.adjustBalance', () => {
 	beforeEach(() => {
 		vi.resetAllMocks();
+		vi.useFakeTimers();
+		vi.setSystemTime(new Date('2026-08-17T12:00:00.000Z'));
 
 		mocks.state.account = {
 			id: 'account-1',
@@ -117,6 +120,11 @@ describe('AccountService.adjustBalance', () => {
 		);
 		mocks.createIncome.mockResolvedValue(undefined);
 		mocks.createExpense.mockResolvedValue(undefined);
+	});
+
+	afterEach(() => {
+		vi.useRealTimers();
+		vi.unstubAllEnvs();
 	});
 
 	it('uses income fallbacks when all optional fields are blank', async () => {
@@ -330,13 +338,14 @@ describe('AccountService.adjustBalance', () => {
 	it('rejects an unknown or other-user budget id', async () => {
 		mocks.state.budget = null;
 
-		await expect(
-			AccountService.adjustBalance('user-1', {
-				accountId: 'account-1',
-				newBalance: 500,
-				budgetId: 'missing-budget',
-			})
-		).rejects.toThrow('Budget not found');
+		const result = AccountService.adjustBalance('user-1', {
+			accountId: 'account-1',
+			newBalance: 500,
+			budgetId: 'missing-budget',
+		});
+
+		await expect(result).rejects.toThrow('Budget not found');
+		await expect(result).rejects.not.toBeInstanceOf(BudgetLinkError);
 		expect(mocks.createExpense).not.toHaveBeenCalled();
 	});
 
@@ -345,16 +354,17 @@ describe('AccountService.adjustBalance', () => {
 		mocks.state.budget = {
 			id: 'budget-1',
 			categoryId: 'budget-category',
-			month: new Date(now.getFullYear(), now.getMonth() - 1, 1),
+			month: new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 1, 1)),
 		};
 
-		await expect(
-			AccountService.adjustBalance('user-1', {
-				accountId: 'account-1',
-				newBalance: 500,
-				budgetId: 'budget-1',
-			})
-		).rejects.toThrow('Budget is not for the current month');
+		const result = AccountService.adjustBalance('user-1', {
+			accountId: 'account-1',
+			newBalance: 500,
+			budgetId: 'budget-1',
+		});
+
+		await expect(result).rejects.toThrow('Budget is not for the current month');
+		await expect(result).rejects.toBeInstanceOf(BudgetLinkError);
 		expect(mocks.createExpense).not.toHaveBeenCalled();
 	});
 
@@ -386,6 +396,67 @@ describe('AccountService.adjustBalance', () => {
 			budgetId: 'budget-1',
 		});
 		expect(expensePayload()).not.toHaveProperty('categoryName');
+	});
+
+	describe.each(['UTC', 'America/Los_Angeles', 'Asia/Manila'])('budget UTC month on a %s host', (timeZone) => {
+		beforeEach(() => {
+			vi.stubEnv('TZ', timeZone);
+			mocks.state.budget = {
+				id: 'budget-1',
+				categoryId: 'budget-category',
+				month: new Date('2026-08-01T00:00:00.000Z'),
+			};
+		});
+
+		it.each([
+			['first millisecond', '2026-08-01T00:00:00.000Z'],
+			['middle of month', '2026-08-17T12:00:00.000Z'],
+			['last millisecond', '2026-08-31T23:59:59.999Z'],
+		])('accepts the %s of the envelope UTC month', async (_label, timestamp) => {
+			const date = new Date(timestamp);
+			vi.setSystemTime(date);
+
+			await expect(
+				AccountService.adjustBalance('user-1', {
+					accountId: 'account-1',
+					newBalance: 500,
+					budgetId: 'budget-1',
+				})
+			).resolves.toEqual({ adjusted: true });
+
+			expect(mocks.budgetFindUnique).toHaveBeenCalledExactlyOnceWith({
+				where: { id: 'budget-1', userId: 'user-1' },
+				select: { id: true, categoryId: true, month: true },
+			});
+			expect(mocks.createExpense).toHaveBeenCalledExactlyOnceWith('user-1', {
+				amount: 500,
+				date,
+				description: 'Manual Balance Adjustment',
+				categoryId: 'budget-category',
+				accountId: 'account-1',
+				budgetId: 'budget-1',
+			});
+			expect(mocks.createIncome).not.toHaveBeenCalled();
+		});
+
+		it.each([
+			['before', '2026-07-31T23:59:59.999Z'],
+			['after', '2026-09-01T00:00:00.000Z'],
+		])('rejects one millisecond %s the envelope UTC month', async (_label, timestamp) => {
+			vi.setSystemTime(new Date(timestamp));
+
+			const result = AccountService.adjustBalance('user-1', {
+				accountId: 'account-1',
+				newBalance: 500,
+				budgetId: 'budget-1',
+			});
+
+			await expect(result).rejects.toThrow('Budget is not for the current month');
+			await expect(result).rejects.toBeInstanceOf(BudgetLinkError);
+
+			expect(mocks.createExpense).not.toHaveBeenCalled();
+			expect(mocks.createIncome).not.toHaveBeenCalled();
+		});
 	});
 
 	it('disables tithe and emergency-fund transfers for categorized income adjustments', async () => {

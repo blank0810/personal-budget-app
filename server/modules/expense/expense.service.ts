@@ -1,5 +1,6 @@
 import prisma from '@/lib/prisma';
 import {
+	BudgetLinkError,
 	CreateExpenseInput,
 	GetExpensesInput,
 	GetPaginatedExpensesInput,
@@ -18,12 +19,41 @@ const budgetAlertSelect = {
 	month: true,
 } as const;
 
+const budgetLinkSelect = { ...budgetAlertSelect, categoryId: true } as const;
+
+/**
+ * The single rule for whether an expense may sit inside an envelope: same
+ * category, and a date inside the envelope's own UTC month — the two
+ * dimensions every budget spend query partitions on. Returns the reason the
+ * link does not hold, or null when it does. Setting a link and keeping one
+ * both go through here, so the two can never drift apart.
+ */
+function budgetLinkViolation(
+	budget: { month: Date; categoryId: string },
+	effectiveCategoryId: string | undefined,
+	effectiveDate: Date
+): string | null {
+	if (budget.categoryId !== effectiveCategoryId) {
+		return 'That budget is for a different category';
+	}
+
+	const { start, end } = getUtcMonthBounds(budget.month);
+	if (
+		effectiveDate.getTime() < start.getTime() ||
+		effectiveDate.getTime() > end.getTime()
+	) {
+		return 'That budget is for a different month';
+	}
+
+	return null;
+}
+
 export const ExpenseService = {
 	/**
 	 * Create a new expense entry
 	 */
 	async createExpense(userId: string, data: CreateExpenseInput) {
-		let budgetId = data.budgetId;
+		const budgetId = data.budgetId || null;
 		let linkedBudget: {
 			id: string;
 			name: string;
@@ -31,30 +61,23 @@ export const ExpenseService = {
 			month: Date;
 		} | null = null;
 
-		if (data.budgetId !== undefined) {
-			linkedBudget = await prisma.budget.findUnique({
+		if (data.budgetId) {
+			const budget = await prisma.budget.findUnique({
 				where: { id: data.budgetId, userId },
-				select: budgetAlertSelect,
+				select: budgetLinkSelect,
 			});
-		} else if (data.categoryId) {
-			const { start, end } = getUtcMonthBounds(data.date);
-			const matchingBudgets = await prisma.budget.findMany({
-				where: {
-					userId,
-					categoryId: data.categoryId,
-					month: {
-						gte: start,
-						lte: end,
-					},
-				},
-				select: budgetAlertSelect,
-				take: 2,
-			});
-
-			if (matchingBudgets.length === 1) {
-				linkedBudget = matchingBudgets[0];
-				budgetId = linkedBudget.id;
+			if (!budget) {
+				throw new Error('Budget not found');
 			}
+			const violation = budgetLinkViolation(
+				budget,
+				data.categoryId,
+				data.date
+			);
+			if (violation) {
+				throw new BudgetLinkError(violation);
+			}
+			linkedBudget = budget;
 		}
 
 		// Capture exact linked spend before this expense, scoped to the
@@ -332,6 +355,8 @@ export const ExpenseService = {
 			inputUpdateData.date !== undefined &&
 			inputUpdateData.date.getTime() !== oldExpense.date.getTime();
 		const hasExplicitBudget = inputUpdateData.budgetId !== undefined;
+		const nextCategoryId = inputUpdateData.categoryId ?? oldExpense.categoryId;
+		const nextDate = inputUpdateData.date ?? oldExpense.date;
 
 		let newBudgetId: string | null = oldExpense.budgetId;
 		let linkedBudget: {
@@ -342,32 +367,47 @@ export const ExpenseService = {
 		} | null = null;
 
 		if (hasExplicitBudget) {
-			newBudgetId = inputUpdateData.budgetId ?? null;
+			// An empty string is an unlink, not an id. Normalising here keeps the
+			// explicit path identical to createExpense and stops a blank value
+			// reaching Postgres as a foreign key.
+			newBudgetId = inputUpdateData.budgetId || null;
+			updateData.budgetId = newBudgetId;
 			if (newBudgetId) {
-				linkedBudget = await prisma.budget.findUnique({
+				const budget = await prisma.budget.findUnique({
 					where: { id: newBudgetId, userId },
-					select: budgetAlertSelect,
+					select: budgetLinkSelect,
 				});
+				if (!budget) {
+					throw new Error('Budget not found');
+				}
+				const violation = budgetLinkViolation(
+					budget,
+					nextCategoryId,
+					nextDate
+				);
+				if (violation) {
+					throw new BudgetLinkError(violation);
+				}
+				linkedBudget = budget;
 			}
-		} else if (categoryChanged || dateChanged) {
-			const nextCategoryId =
-				inputUpdateData.categoryId ?? oldExpense.categoryId;
-			const nextDate = inputUpdateData.date ?? oldExpense.date;
-			const { start, end } = getUtcMonthBounds(nextDate);
-			const matchingBudgets = await prisma.budget.findMany({
-				where: {
-					userId,
-					categoryId: nextCategoryId,
-					month: { gte: start, lte: end },
-				},
-				select: budgetAlertSelect,
-				take: 2,
+		} else if (oldExpense.budgetId && (categoryChanged || dateChanged)) {
+			// Category/date edits can invalidate an existing link, never pick one.
+			const currentBudget = await prisma.budget.findUnique({
+				where: { id: oldExpense.budgetId, userId },
+				select: budgetLinkSelect,
 			});
 
-			linkedBudget =
-				matchingBudgets.length === 1 ? matchingBudgets[0] : null;
-			newBudgetId = linkedBudget?.id ?? null;
-			updateData.budgetId = newBudgetId;
+			if (
+				currentBudget &&
+				!budgetLinkViolation(currentBudget, nextCategoryId, nextDate)
+			) {
+				linkedBudget = currentBudget;
+			}
+
+			if (!linkedBudget) {
+				newBudgetId = null;
+				updateData.budgetId = null;
+			}
 		}
 
 		const nextAmount =
@@ -489,7 +529,6 @@ export const ExpenseService = {
 		// Fire-and-forget budget alert (after transaction commits)
 		if (linkedBudget && linkedMonthBounds && affectsLinkedSpend) {
 			try {
-				const nextDate = inputUpdateData.date ?? oldExpense.date;
 				const updatedExpenseIsIncluded =
 					newBudgetId === linkedBudget.id &&
 					nextDate.getTime() >= linkedMonthBounds.start.getTime() &&

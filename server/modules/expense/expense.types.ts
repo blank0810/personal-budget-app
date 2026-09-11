@@ -1,5 +1,7 @@
 import { z } from 'zod';
 
+export class BudgetLinkError extends Error {}
+
 // Expense Schema
 export const createExpenseSchema = z
 	.object({
@@ -14,7 +16,7 @@ export const createExpenseSchema = z
 		accountId: z
 			.string({ message: 'Please select an account' })
 			.min(1, { message: 'Please select an account' }),
-		budgetId: z.string().optional(), // Link to a budget
+		budgetId: z.string().nullable().optional(), // Link to a budget
 	})
 	.refine((data) => data.categoryId || data.categoryName, {
 		message: 'Please select a category',

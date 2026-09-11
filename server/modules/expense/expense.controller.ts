@@ -3,6 +3,7 @@
 import { getAuthenticatedUser } from '@/server/lib/auth-guard';
 import { ExpenseService } from './expense.service';
 import {
+	BudgetLinkError,
 	createExpenseSchema,
 	updateExpenseSchema,
 	getPaginatedExpensesSchema,
@@ -29,7 +30,9 @@ export async function createExpenseAction(data: unknown) {
 		return { success: true as const };
 	} catch (error) {
 		console.error('Failed to create expense:', error);
-		return { error: 'Failed to create expense' };
+		return {
+			error: error instanceof BudgetLinkError ? error.message : 'Failed to create expense',
+		};
 	}
 }
 
@@ -50,7 +53,9 @@ export async function updateExpenseAction(data: unknown) {
 		return { success: true as const };
 	} catch (error) {
 		console.error('Failed to update expense:', error);
-		return { error: 'Failed to update expense' };
+		return {
+			error: error instanceof BudgetLinkError ? error.message : 'Failed to update expense',
+		};
 	}
 }
 
