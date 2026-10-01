@@ -77,6 +77,14 @@ export default async function BudgetsPage({
 				</div>
 
 				<div className='min-w-0 space-y-6'>
+					{/* Always rendered and kept above the comparison so the Create/Replicate
+					    actions a new, budget-less month needs stay in view. */}
+					<BudgetViews
+						budgets={serialize(budgets)}
+						yearOverview={yearOverview}
+						availableMonths={availableMonths}
+						initialMonth={month}
+					/>
 					{healthResult.success &&
 						!healthResult.data.hasBudgets &&
 						categoryComparisonResult?.success && (
@@ -85,14 +93,6 @@ export default async function BudgetsPage({
 								month={month}
 							/>
 						)}
-					{/* Always rendered: its empty state hosts the "Replicate from
-					    Previous Month" action a new, budget-less month needs. */}
-					<BudgetViews
-						budgets={serialize(budgets)}
-						yearOverview={yearOverview}
-						availableMonths={availableMonths}
-						initialMonth={month}
-					/>
 				</div>
 			</div>
 		</div>
