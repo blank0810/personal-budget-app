@@ -41,9 +41,14 @@ interface BudgetWithStats extends Budget {
 interface BudgetListProps {
 	budgets: BudgetWithStats[];
 	availableMonths?: Date[];
+	defaultTargetMonth?: Date;
 }
 
-export function BudgetList({ budgets, availableMonths = [] }: BudgetListProps) {
+export function BudgetList({
+	budgets,
+	availableMonths = [],
+	defaultTargetMonth,
+}: BudgetListProps) {
 	const { formatCurrency } = useCurrency();
 	const router = useRouter();
 
@@ -208,6 +213,7 @@ export function BudgetList({ budgets, availableMonths = [] }: BudgetListProps) {
 									</Button>
 								}
 								availableMonths={availableMonths}
+								defaultTargetMonth={defaultTargetMonth}
 							/>
 							<span className='text-muted-foreground text-sm'>or</span>
 						</>

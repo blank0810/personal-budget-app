@@ -78,20 +78,21 @@ export default async function BudgetsPage({
 
 				<div className='min-w-0 space-y-6'>
 					{healthResult.success &&
-					!healthResult.data.hasBudgets &&
-					categoryComparisonResult?.success ? (
-						<CategorySpendComparison
-							items={categoryComparisonResult.data}
-							month={month}
-						/>
-					) : (
-						<BudgetViews
-							budgets={serialize(budgets)}
-							yearOverview={yearOverview}
-							availableMonths={availableMonths}
-							initialMonth={month}
-						/>
-					)}
+						!healthResult.data.hasBudgets &&
+						categoryComparisonResult?.success && (
+							<CategorySpendComparison
+								items={categoryComparisonResult.data}
+								month={month}
+							/>
+						)}
+					{/* Always rendered: its empty state hosts the "Replicate from
+					    Previous Month" action a new, budget-less month needs. */}
+					<BudgetViews
+						budgets={serialize(budgets)}
+						yearOverview={yearOverview}
+						availableMonths={availableMonths}
+						initialMonth={month}
+					/>
 				</div>
 			</div>
 		</div>

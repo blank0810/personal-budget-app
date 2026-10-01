@@ -98,6 +98,7 @@ export function BudgetViews({
 								</Button>
 							}
 							availableMonths={availableMonths}
+							defaultTargetMonth={selectedMonth}
 						/>
 						<Button
 							variant='outline'
@@ -225,6 +226,7 @@ export function BudgetViews({
 				<BudgetList
 					budgets={budgets}
 					availableMonths={availableMonths}
+					defaultTargetMonth={selectedMonth}
 				/>
 			)}
 		</div>
