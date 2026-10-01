@@ -40,12 +40,23 @@ import type { BudgetReplicationItem } from '@/server/modules/budget/budget.types
 interface ReplicateBudgetDialogProps {
 	trigger: React.ReactNode;
 	availableMonths: Date[];
+	/** Month the user is viewing; preselected as the "To" month. Defaults to the current month. */
+	defaultTargetMonth?: Date;
 	onSuccess?: () => void;
+}
+
+/** Normalize to the UTC-midnight 1st; falls back to the current month. */
+function resolveTargetMonth(date?: Date): Date {
+	const d = date ? new Date(date) : new Date();
+	return date
+		? new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1))
+		: new Date(Date.UTC(d.getFullYear(), d.getMonth(), 1));
 }
 
 export function ReplicateBudgetDialog({
 	trigger,
 	availableMonths,
+	defaultTargetMonth,
 	onSuccess,
 }: ReplicateBudgetDialogProps) {
 	const { formatCurrency } = useCurrency();
@@ -61,10 +72,9 @@ export function ReplicateBudgetDialog({
 
 	// State
 	const [sourceMonth, setSourceMonth] = useState<Date | null>(null);
-	const [targetMonth, setTargetMonth] = useState<Date>(() => {
-		const now = new Date();
-		return createUTCMonth(now.getFullYear(), now.getMonth() + 1);
-	});
+	const [targetMonth, setTargetMonth] = useState<Date>(() =>
+		resolveTargetMonth(defaultTargetMonth)
+	);
 	const [budgetItems, setBudgetItems] = useState<BudgetReplicationItem[]>([]);
 	const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 	const [amounts, setAmounts] = useState<Record<string, number>>({});
@@ -73,12 +83,18 @@ export function ReplicateBudgetDialog({
 	const targetMonthOptions = useMemo(() => {
 		const options: Date[] = [];
 		const now = new Date();
-		for (let i = 0; i < 13; i++) {
+		for (let i = -12; i <= 12; i++) {
 			const targetDate = new Date(now.getFullYear(), now.getMonth() + i, 1);
 			options.push(createUTCMonth(targetDate.getFullYear(), targetDate.getMonth()));
 		}
+		// Keep the viewed month selectable even when it falls outside the window
+		const viewed = resolveTargetMonth(defaultTargetMonth);
+		if (!options.some((o) => o.getTime() === viewed.getTime())) {
+			options.push(viewed);
+			options.sort((a, b) => a.getTime() - b.getTime());
+		}
 		return options;
-	}, [createUTCMonth]);
+	}, [createUTCMonth, defaultTargetMonth]);
 
 	// Fetch budgets for a given source month
 	const fetchBudgetsForMonth = useCallback(async (month: Date) => {
@@ -204,11 +220,18 @@ export function ReplicateBudgetDialog({
 
 	const handleOpenChange = useCallback((newOpen: boolean) => {
 		setOpen(newOpen);
-		if (newOpen && availableMonths.length > 0) {
-			// Auto-select most recent month when opening
-			const defaultMonth = availableMonths[0];
-			setSourceMonth(defaultMonth);
-			fetchBudgetsForMonth(defaultMonth);
+		if (newOpen) {
+			const target = resolveTargetMonth(defaultTargetMonth);
+			setTargetMonth(target);
+			// Source: most recent month with budgets before the target (list is
+			// sorted newest-first), else the newest available month
+			const defaultMonth =
+				availableMonths.find((m) => m.getTime() < target.getTime()) ??
+				availableMonths[0];
+			if (defaultMonth) {
+				setSourceMonth(defaultMonth);
+				fetchBudgetsForMonth(defaultMonth);
+			}
 		} else if (!newOpen) {
 			// Reset state on close
 			setSourceMonth(null);
@@ -216,7 +239,7 @@ export function ReplicateBudgetDialog({
 			setSelectedIds(new Set());
 			setAmounts({});
 		}
-	}, [availableMonths, fetchBudgetsForMonth]);
+	}, [availableMonths, defaultTargetMonth, fetchBudgetsForMonth]);
 
 	return (
 		<Dialog open={open} onOpenChange={handleOpenChange}>
