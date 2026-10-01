@@ -65,10 +65,14 @@ export function CategorySpendComparison({
 						</Button>
 					</div>
 				) : (
-					<div role='table' aria-label='Category spending comparison'>
+					<div
+						role='table'
+						aria-label='Category spending comparison'
+						className='max-h-[32rem] overflow-y-auto'
+					>
 						<div
 							role='row'
-							className='hidden grid-cols-[minmax(0,1fr)_repeat(3,minmax(7rem,auto))] gap-4 border-b bg-muted/30 px-5 py-2 text-xs font-medium text-muted-foreground sm:grid'
+							className='sticky top-0 z-10 hidden grid-cols-[minmax(0,1fr)_repeat(3,minmax(7rem,auto))] gap-4 border-b bg-muted px-5 py-2 text-xs font-medium text-muted-foreground sm:grid'
 						>
 							<span role='columnheader'>Category</span>
 							<span role='columnheader' className='text-right'>
